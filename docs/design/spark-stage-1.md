@@ -73,6 +73,8 @@ Every newly supported Spark scenario must update both:
 - UNION column lineage merged by output column position
 - CREATE VIEW and CTAS output table targets
 - Single-level CTE direct column propagation
+- Chained CTE direct column propagation
+- CTE column alias list propagation
 - Single-level aliased subquery direct column propagation
 - Script-local temporary view propagation
 

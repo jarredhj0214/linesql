@@ -73,6 +73,8 @@ Implemented Spark column-level lineage scenarios:
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |
 | CTAS provider and partition clause output targets | `create table mart.t using parquet partitioned by (...) as select id from ods.s` | `ctas_using_partitioned` |
 | Single-level CTE direct column propagation | `with base as (select id as c1 from ods.s) select c1 from base` | `cte_column_projection` |
+| Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
+| CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single-level aliased subquery direct column propagation | `select c1 from (select id as c1 from ods.s) q` | `subquery_column_projection` |
 
 ### Diagnostics
@@ -102,7 +104,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Gap | Current behavior |
 | --- | --- |
 | `select *` expansion | Not expanded without schema metadata. |
-| Complex CTE column propagation | Single-level direct CTE projection is supported; recursive CTEs, multi-CTE dependency chains, and complex CTE joins are not complete yet. |
+| Complex CTE column propagation | Chained direct CTE projection and CTE column aliases are supported; recursive CTEs and complex CTE joins are not complete yet. |
 | Complex subquery column propagation | Single-level aliased direct subquery projection is supported; nested subquery chains and complex subquery joins are not complete yet. |
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
