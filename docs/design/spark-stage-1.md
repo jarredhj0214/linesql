@@ -37,6 +37,7 @@ Every newly supported Spark scenario must update both:
 - `INSERT INTO ... SELECT`
 - `INSERT OVERWRITE ... SELECT`
 - `INSERT OVERWRITE ... PARTITION (...) (...) SELECT`
+- FROM-first multi-insert table lineage
 - `CREATE TABLE ... AS SELECT`
 - `CREATE TABLE ... USING ... PARTITIONED BY ... AS SELECT`
 - `CREATE VIEW ... AS SELECT`
@@ -85,4 +86,5 @@ Lineage extraction is implemented independently in LineSQL visitors. Parse cover
 
 - Complete `select *` expansion without schema metadata.
 - Full UDTF and lateral view column propagation.
+- Multi-insert per-target column lineage.
 - Query optimization or execution planning.

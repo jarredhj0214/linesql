@@ -81,6 +81,7 @@ public class SparkDialectParser implements DialectParser {
         private int visibleRelationCount;
         private int selectExpressionCount;
         private int skippedProjectionCount;
+        private boolean suppressColumnLineage;
         private ParseContext context;
 
         SparkLineageVisitor(LineageResult result) {
@@ -100,6 +101,13 @@ public class SparkDialectParser implements DialectParser {
         @Override
         public Void visitSingleInsertQuery(SqlBaseParser.SingleInsertQueryContext ctx) {
             result.setStatementType(StatementType.INSERT);
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitMultiInsertQuery(SqlBaseParser.MultiInsertQueryContext ctx) {
+            result.setStatementType(StatementType.INSERT);
+            suppressColumnLineage = true;
             return visitChildren(ctx);
         }
 
@@ -466,7 +474,7 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private void refreshColumnLineage() {
-            if (inputTables.isEmpty() || projections.isEmpty()) {
+            if (suppressColumnLineage || inputTables.isEmpty() || projections.isEmpty()) {
                 return;
             }
             TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;

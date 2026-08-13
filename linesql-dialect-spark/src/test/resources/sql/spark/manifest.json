@@ -36,6 +36,15 @@
       "description": "INSERT OVERWRITE with static partition and target column list"
     },
     {
+      "id": "multi_insert",
+      "file": "cases/multi_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_ids", "ads.user_names"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "Spark FROM-first multi-insert table lineage with column lineage graceful degradation"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",

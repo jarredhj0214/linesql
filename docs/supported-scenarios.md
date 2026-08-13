@@ -24,6 +24,7 @@ Implemented Spark table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | INSERT OVERWRITE with static partition and target columns | `insert overwrite table ads.t partition (...) (c1) select ...` | `insert_overwrite_partition_column_list` |
+| FROM-first multi-insert targets | `from ods.s insert overwrite table t1 select ... insert overwrite table t2 select ...` | `multi_insert` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
@@ -86,4 +87,5 @@ The following Spark lineage features are intentionally not complete yet:
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
 | Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported; full UDTF output semantics are not complete yet. |
+| Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
 | Complex nested fields and structs | Basic dereference source collection exists, but full struct-field semantics are not modeled yet. |
