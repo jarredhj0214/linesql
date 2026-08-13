@@ -14,12 +14,12 @@ Status legend:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Basic queries | Covered | SELECT, JOIN, CTE, subquery, UNION, aggregation, window functions, nested fields. |
+| Basic queries | Covered | SELECT, TABLE, JOIN, CTE, subquery, UNION, EXCEPT, INTERSECT, aggregation, window functions, nested fields. |
 | INSERT writes | Covered | INSERT INTO, INSERT OVERWRITE, partition target columns, BY NAME, REPLACE WHERE/USING, directory export, multi-insert table lineage. |
 | Table-producing DDL | Covered | CTAS, CREATE OR REPLACE TABLE AS SELECT, CREATE MATERIALIZED VIEW AS SELECT, CREATE STREAMING TABLE AS SELECT, CREATE TABLE LIKE. |
 | Views | Covered | CREATE VIEW AS SELECT, CREATE VIEW column list, ALTER VIEW AS SELECT, temporary view using provider. |
 | DML | Covered | MERGE, MERGE USING subquery, UPDATE with subqueries, DELETE with subqueries. |
-| Table lifecycle and maintenance | Covered | DROP, TRUNCATE, LOAD DATA, CACHE/UNCACHE, ALTER TABLE maintenance, RENAME TABLE, REPAIR TABLE, index maintenance. |
+| Table lifecycle and maintenance | Covered | DROP, TRUNCATE, LOAD DATA, CACHE/UNCACHE, ALTER TABLE maintenance, RENAME TABLE, REPAIR TABLE, index maintenance, COMMENT ON TABLE/COLUMN. |
 | Metadata reads | Covered | ANALYZE, DESCRIBE TABLE, SHOW CREATE TABLE, SHOW COLUMNS, SHOW PARTITIONS, REFRESH TABLE. |
 | Script handling | Covered | Multi-statement splitting, bad SQL isolation, temporary view/cache propagation and cleanup. |
 | Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings. |
@@ -31,7 +31,7 @@ Status legend:
 
 | Grammar family | Examples | Current behavior | Case ids |
 | --- | --- | --- | --- |
-| Query default | `select ... from t` | Table lineage and focused column lineage. | `select_basic`, `column_direct_projection`, `join_basic` |
+| Query default | `select ... from t`, `table t` | Table lineage and focused column lineage. | `select_basic`, `table_query`, `column_direct_projection`, `join_basic` |
 | INSERT | `insert into/overwrite table t select ...` | Source/target table lineage, target column mapping, BY NAME mapping. | `insert_overwrite`, `insert_column_list`, `insert_by_name` |
 | INSERT REPLACE | `insert into table t alias by name replace where ...` | Source/target table lineage and BY NAME column mapping. | `insert_replace_where`, `insert_replace_using` |
 | INSERT DIRECTORY | `insert overwrite directory ... select ...` | Source table lineage; no target table. | `insert_overwrite_directory` |
@@ -43,6 +43,8 @@ Status legend:
 | DML | `merge`, `update`, `delete` | Target table lineage; subquery source tables extracted. | `merge_into`, `merge_using_subquery`, `update_with_subquery`, `delete_with_subquery` |
 | Table maintenance | `alter table`, `rename`, `drop`, `truncate`, `repair` | Affected table lineage; no column lineage. | `alter_table_add_columns`, `rename_table`, `repair_table` |
 | Metadata reads | `analyze`, `describe`, `show create`, `show columns`, `refresh` | Read table recorded as input table; no column lineage. | `analyze_table`, `describe_table`, `show_create_table`, `refresh_table` |
+| EXPLAIN | `explain formatted select ... from t` | Visits the wrapped statement and preserves lineage. | `explain_select` |
+| Comments | `comment on table`, `comment on column` | Affected table lineage. | `comment_table`, `comment_column` |
 | Cache lifecycle | `cache table as select`, `uncache table` | Cache target and source lineage; script-local propagation. | `cache_table_as_select`, `script_cache_table_lineage`, `script_uncache_table` |
 | Load data | `load data inpath ... into table t` | Target table lineage. | `load_data_into_table` |
 
@@ -54,7 +56,7 @@ Status legend:
 | JOIN | Covered | Table lineage and qualified projection lineage. | Support more unqualified multi-table inference only with schema metadata. |
 | CTE | Covered | Single-level, chained direct projection, alias list propagation. | Complex CTE joins and nested chains. |
 | Subquery | Covered | Single-level aliased direct projection propagation. | Nested subquery chains and complex joins. |
-| Set operations | Covered | UNION column sources merged by position. | Add EXCEPT / INTERSECT cases and explicit degradation policy. |
+| Set operations | Covered | UNION, EXCEPT, and INTERSECT column inputs merged by position. | Consider a semantic mode that separates projection sources from filtering inputs. |
 | LATERAL VIEW | Partial | Simple generated columns from UDTF input expressions. | More UDTF output semantics. |
 | PIVOT / UNPIVOT | Partial | Source table lineage only. | Generated column mapping and source aggregation propagation. |
 | TRANSFORM | Partial | Source table lineage only. | Keep degraded unless script schema semantics are modeled. |
@@ -63,7 +65,7 @@ Status legend:
 | Table-valued functions | Parse-only | No explicit table lineage unless arguments contain table references that are visited. | Decide function-specific source semantics. |
 | UNNEST / JSON_TABLE | Parse-only | No explicit relation output semantics. | Add table-level cases and conservative column lineage policy. |
 | Inline table | Not lineage-bearing | No source table. | Add case only if diagnostics behavior needs locking. |
-| `TABLE identifier` query primary | Parse-only | Grammar supports it; no dedicated case yet. | Add table lineage case. |
+| `TABLE identifier` query primary | Covered | Source table lineage, with column lineage degraded without schema. | Add schema-aware expansion later. |
 | Operator pipe queries | Parse-only | Grammar supports pipe operators; no explicit lineage cases yet. | Add table and column lineage cases for common pipe operators. |
 
 ## Parse-Only Or Not Yet Explicitly Modeled Statements
@@ -76,23 +78,22 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | Namespace DDL and SHOW namespace/catalog commands | Not table lineage-bearing; may be modeled as metadata operations later. |
 | CREATE/DROP FUNCTION, REFRESH FUNCTION | Not table lineage-bearing unless function bodies contain queries. |
 | SQL variables, cursors, execute immediate | Parse-only for now; dynamic SQL should be diagnostics/degraded unless literal SQL can be safely extracted. |
-| EXPLAIN statement | Should visit wrapped statement and preserve lineage with an `EXPLAIN` wrapper decision. |
-| COMMENT ON TABLE/COLUMN | Affected table lineage should be added. |
+| EXPLAIN statement | Covered for wrapped SQL statements; SET/RESET explanation is not lineage-bearing. |
+| COMMENT ON TABLE/COLUMN | Covered as affected table lineage. |
 | CALL procedure | Parse-only; procedure lineage is catalog/procedure-specific. |
 | CREATE METRIC VIEW / code literal view | Parse-only; code literal lineage cannot be extracted safely yet. |
 | CREATE FLOW / AUTO CDC | Parse-only; requires CDC source/target semantics. |
 | Table-valued functions | Requires function-specific rules. |
-| `TABLE t` query primary | Should be table lineage equivalent to `select * from t`, with column lineage degraded without schema. |
-| EXCEPT / INTERSECT | Should get table lineage via existing set-operation visitor; needs cases and column policy confirmation. |
+| `TABLE t` query primary | Covered as source table lineage with column lineage degraded without schema. |
+| EXCEPT / INTERSECT | Covered; current column lineage records both inputs by position. |
 | Operator pipe statements | Needs table and column lineage cases for the most common operators. |
 
 ## Recommended Next Implementation Order
 
-1. Add low-risk table-lineage cases for `TABLE t`, EXCEPT, INTERSECT, changelog direct projection, COMMENT ON TABLE/COLUMN, and EXPLAIN-wrapped statements.
-2. Add pipe query cases and implement the minimum visitor behavior needed for source table and direct projection lineage.
-3. Add conservative relation support for UNNEST / JSON_TABLE / table-valued functions, starting with table lineage and explicit degradation.
-4. Improve column lineage for PIVOT/UNPIVOT only after target/source column semantics are clear.
-5. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.
+1. Add low-risk coverage for changelog direct projection and common pipe query operators.
+2. Add conservative relation support for UNNEST / JSON_TABLE / table-valued functions, starting with table lineage and explicit degradation.
+3. Improve column lineage for PIVOT/UNPIVOT only after target/source column semantics are clear.
+4. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.
 
 ## Documentation Rule
 

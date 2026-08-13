@@ -34,6 +34,7 @@ Every newly supported Spark scenario must update both:
 ## Initial Statement Coverage
 
 - `SELECT`
+- `TABLE ...`
 - `INSERT INTO ... SELECT`
 - `INSERT OVERWRITE ... SELECT`
 - `INSERT OVERWRITE ... PARTITION (...) (...) SELECT`
@@ -46,6 +47,8 @@ Every newly supported Spark scenario must update both:
 - `ALTER TABLE ... RENAME TO ...`
 - `ALTER TABLE` column/property/partition maintenance
 - `ALTER TABLE ... RECOVER PARTITIONS` and `MSCK REPAIR TABLE`
+- `COMMENT ON TABLE` / `COMMENT ON COLUMN`
+- `EXPLAIN ...` wrapped statement lineage
 - Table metadata reads: `ANALYZE TABLE`, `DESCRIBE TABLE`, `SHOW CREATE TABLE`, `SHOW COLUMNS`, `SHOW PARTITIONS`, `REFRESH TABLE`
 - Index maintenance: `CREATE INDEX ... ON TABLE`, `DROP INDEX ... ON TABLE`
 - FROM-first multi-insert table lineage
@@ -96,6 +99,8 @@ Every newly supported Spark scenario must update both:
 - INSERT REPLACE USING BY NAME projection target mapping
 - INSERT target column list over CTE and subquery propagation
 - UNION column lineage merged by output column position
+- EXCEPT and INTERSECT column inputs by output column position
+- EXPLAIN wrapped SELECT projection lineage
 - CREATE VIEW and CTAS output table targets
 - CREATE VIEW column list target names
 - Single-level CTE direct column propagation

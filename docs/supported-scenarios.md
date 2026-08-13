@@ -22,6 +22,7 @@ Implemented Spark table-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
+| TABLE query primary source table | `table ods.users` | `table_query` |
 | SELECT with scheduler placeholders | `select ... from ods.s where dt = ${bizdate} and region = {{ region }}` | `select_with_placeholders` |
 | Backquoted Chinese identifiers | `` select `用户ID` as `用户标识` from `ods层`.`用户表` `` | `quoted_chinese_identifiers` |
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
@@ -47,6 +48,9 @@ Implemented Spark table-level lineage scenarios:
 | MSCK REPAIR TABLE maintenance | `msck repair table mart.t sync partitions` | `repair_table` |
 | CREATE INDEX affected table | `create index idx on table mart.t (...)` | `create_index` |
 | DROP INDEX affected table | `drop index idx on table mart.t` | `drop_index` |
+| COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |
+| COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
+| EXPLAIN wrapped statement lineage | `explain formatted select ... from ods.s` | `explain_select` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
@@ -105,6 +109,9 @@ Implemented Spark column-level lineage scenarios:
 | INSERT over script-local temporary view propagation | `create temporary view v as select a as c1 from ods.s; insert into ads.t(c1) select c1 from v` | `script_temp_view_lineage` |
 | INSERT over script-local cache table propagation | `cache table c as select a from ods.s; insert into ads.t(c1) select a from c` | `script_cache_table_lineage` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| EXCEPT column inputs by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
+| INTERSECT column inputs by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXPLAIN wrapped SELECT columns | `explain select id from ods.s` | `explain_select` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
 | CREATE VIEW column list target names | `create view mart.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | ALTER VIEW output column targets | `alter view mart.v as select id as c1 from ods.s` | `alter_view_as_select` |

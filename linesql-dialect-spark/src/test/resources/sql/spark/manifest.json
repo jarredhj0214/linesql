@@ -18,6 +18,15 @@
       "description": "SELECT table lineage with unquoted scheduler placeholders"
     },
     {
+      "id": "table_query",
+      "file": "cases/table_query.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "TABLE query primary source table lineage"
+    },
+    {
       "id": "quoted_chinese_identifiers",
       "file": "cases/quoted_chinese_identifiers.sql",
       "statementType": "SELECT",
@@ -282,6 +291,38 @@
       "description": "DROP INDEX ON TABLE affected table lineage"
     },
     {
+      "id": "comment_table",
+      "file": "cases/comment_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "COMMENT ON TABLE affected table lineage"
+    },
+    {
+      "id": "comment_column",
+      "file": "cases/comment_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "COMMENT ON COLUMN affected table lineage"
+    },
+    {
+      "id": "explain_select",
+      "file": "cases/explain_select.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.users.id"]
+        }
+      ],
+      "description": "EXPLAIN preserves wrapped SELECT lineage"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",
@@ -487,6 +528,34 @@
         }
       ],
       "description": "UNION column lineage merged by output column position"
+    },
+    {
+      "id": "except_column_projection",
+      "file": "cases/except_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.deleted_users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id", "ods.deleted_users.id"]
+        }
+      ],
+      "description": "EXCEPT column lineage records both data and filtering inputs"
+    },
+    {
+      "id": "intersect_column_projection",
+      "file": "cases/intersect_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.active_users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id", "ods.active_users.id"]
+        }
+      ],
+      "description": "INTERSECT column lineage records both intersected inputs"
     },
     {
       "id": "subquery_basic",

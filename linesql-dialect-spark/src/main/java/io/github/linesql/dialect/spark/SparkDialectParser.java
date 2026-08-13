@@ -445,6 +445,32 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCommentTable(SqlBaseParser.CommentTableContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitCommentColumn(SqlBaseParser.CommentColumnContext ctx) {
+            result.setStatementType(StatementType.ALTER_TABLE);
+            if (ctx.identifierReference() != null) {
+                addOutput(ctx.identifierReference());
+            } else if (ctx.columnComment() != null) {
+                addOutputTableForColumn(ctx.columnComment().column);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitExplain(SqlBaseParser.ExplainContext ctx) {
+            if (ctx.statement() != null) {
+                return visit(ctx.statement());
+            }
+            result.setStatementType(StatementType.UNKNOWN);
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);
@@ -464,6 +490,12 @@ public class SparkDialectParser implements DialectParser {
                 addInputTable(table, false);
             }
             result.setColumnLineage(mergeSetColumnLineage(left, right));
+            return null;
+        }
+
+        @Override
+        public Void visitTable(SqlBaseParser.TableContext ctx) {
+            addInput(ctx.identifierReference());
             return null;
         }
 
@@ -791,6 +823,16 @@ public class SparkDialectParser implements DialectParser {
 
         private void addOutput(SqlBaseParser.MultipartIdentifierContext ctx) {
             outputTables.add(tableRef(ctx.getText()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+            refreshColumnLineage();
+        }
+
+        private void addOutputTableForColumn(SqlBaseParser.MultipartIdentifierContext ctx) {
+            List<String> parts = splitIdentifier(ctx.getText());
+            if (parts.size() <= 1) {
+                return;
+            }
+            outputTables.add(tableRef(String.join(".", parts.subList(0, parts.size() - 1))));
             result.setOutputTables(new ArrayList<>(outputTables));
             refreshColumnLineage();
         }
