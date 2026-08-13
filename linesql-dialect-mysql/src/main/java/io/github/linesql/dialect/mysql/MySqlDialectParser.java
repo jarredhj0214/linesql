@@ -235,6 +235,20 @@ public class MySqlDialectParser implements DialectParser {
         }
 
         private SelectLineage parseSelect(int start, int end) {
+            int union = indexOfTopLevel(start + 1, end, MySqlLineageLexer.UNION);
+            if (union >= 0) {
+                SelectLineage left = parseSelect(start, union);
+                int rightStart = union + 1;
+                if (is(rightStart, MySqlLineageLexer.ALL) || is(rightStart, MySqlLineageLexer.DISTINCT)) {
+                    rightStart++;
+                }
+                SelectLineage right = parseSelect(rightStart, end);
+                SelectLineage merged = new SelectLineage();
+                merged.inputs.addAll(left.inputs);
+                merged.inputs.addAll(right.inputs);
+                merged.columnLineage.addAll(mergeSetColumnLineage(left.columnLineage, right.columnLineage));
+                return merged;
+            }
             int from = indexOfTopLevel(start, end, MySqlLineageLexer.FROM);
             int projectionStart = start + 1;
             int projectionEnd = from < 0 ? end : from;
@@ -244,6 +258,40 @@ public class MySqlDialectParser implements DialectParser {
             }
             lineage.columnLineage.addAll(readProjections(projectionStart, projectionEnd, lineage.inputs));
             return lineage;
+        }
+
+        private List<ColumnLineage> mergeSetColumnLineage(List<ColumnLineage> left, List<ColumnLineage> right) {
+            int size = Math.min(left.size(), right.size());
+            List<ColumnLineage> merged = new ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                ColumnLineage leftColumn = left.get(i);
+                ColumnLineage rightColumn = right.get(i);
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(leftColumn.getTarget());
+                lineage.setSources(mergeColumnRefs(leftColumn.getSources(), rightColumn.getSources()));
+                lineage.setExpression(leftColumn.getExpression());
+                merged.add(lineage);
+            }
+            return merged;
+        }
+
+        private List<ColumnRef> mergeColumnRefs(List<ColumnRef> left, List<ColumnRef> right) {
+            Map<String, ColumnRef> refs = new LinkedHashMap<>();
+            for (ColumnRef ref : left) {
+                refs.put(columnKey(ref), ref);
+            }
+            for (ColumnRef ref : right) {
+                refs.put(columnKey(ref), ref);
+            }
+            return new ArrayList<>(refs.values());
+        }
+
+        private String columnKey(ColumnRef ref) {
+            TableRef table = ref.getTable();
+            String tableKey = table == null
+                    ? ""
+                    : String.valueOf(table.getCatalog()) + "." + table.getSchema() + "." + table.getName();
+            return tableKey + "." + ref.getName();
         }
 
         private List<TableRef> readTableSources(int start, int end) {

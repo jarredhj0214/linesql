@@ -74,6 +74,20 @@
       "description": "MySQL single CTE direct column propagation"
     },
     {
+      "id": "union_column_projection",
+      "file": "cases/union_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users", "app.admins"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["app.users.id", "app.admins.id"]
+        }
+      ],
+      "description": "MySQL UNION ALL column sources merged by output position"
+    },
+    {
       "id": "insert_select",
       "file": "cases/insert_select.sql",
       "statementType": "INSERT",
