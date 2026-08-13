@@ -144,6 +144,24 @@
       ],
       "expectedDiagnostics": ["COLUMN_LINEAGE_PARTIAL"],
       "description": "Partial column lineage warning when some projections are unsupported"
+    },
+    {
+      "id": "column_join_projection",
+      "file": "cases/column_join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "order_amount",
+          "sources": ["ods.orders.amount"]
+        }
+      ],
+      "description": "Qualified JOIN projection column lineage"
     }
   ]
 }

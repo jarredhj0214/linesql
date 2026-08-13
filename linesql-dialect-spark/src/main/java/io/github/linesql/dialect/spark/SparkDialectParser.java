@@ -21,8 +21,10 @@ import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class SparkDialectParser implements DialectParser {
@@ -67,6 +69,7 @@ public class SparkDialectParser implements DialectParser {
         private final LineageResult result;
         private final Set<TableRef> inputTables = new LinkedHashSet<>();
         private final Set<TableRef> outputTables = new LinkedHashSet<>();
+        private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
         private final Set<String> cteNames = new LinkedHashSet<>();
         private final List<Projection> projections = new ArrayList<>();
         private int selectExpressionCount;
@@ -173,13 +176,13 @@ public class SparkDialectParser implements DialectParser {
 
         @Override
         public Void visitTableName(SqlBaseParser.TableNameContext ctx) {
-            addInput(ctx.temporalTableIdentifierReference().identifierReference());
+            addInput(ctx.temporalTableIdentifierReference().identifierReference(), ctx.tableAlias());
             return null;
         }
 
         @Override
         public Void visitChangelogTableName(SqlBaseParser.ChangelogTableNameContext ctx) {
-            addInput(ctx.identifierReference());
+            addInput(ctx.identifierReference(), null);
             return null;
         }
 
@@ -198,7 +201,10 @@ public class SparkDialectParser implements DialectParser {
         }
 
         void addColumnLineageDiagnostics() {
-            if (selectExpressionCount > 0 && !result.getColumnLineage().isEmpty() && skippedProjectionCount > 0) {
+            refreshColumnLineage();
+            if (selectExpressionCount > 0
+                    && !result.getColumnLineage().isEmpty()
+                    && (skippedProjectionCount > 0 || projections.size() > result.getColumnLineage().size())) {
                 result.getDiagnostics().add(Diagnostic.warning(
                         "COLUMN_LINEAGE_PARTIAL",
                         "Spark column lineage was partially extracted; some projections are not supported yet."));
@@ -206,6 +212,10 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private void addInput(SqlBaseParser.IdentifierReferenceContext ctx) {
+            addInput(ctx, null);
+        }
+
+        private void addInput(SqlBaseParser.IdentifierReferenceContext ctx, SqlBaseParser.TableAliasContext aliasContext) {
             TableRef table = tableRef(ctx.getText());
             if (table.getCatalog() == null
                     && table.getSchema() == null
@@ -213,6 +223,11 @@ public class SparkDialectParser implements DialectParser {
                 return;
             }
             inputTables.add(table);
+            tableAliases.put(table.getName().toLowerCase(java.util.Locale.ROOT), table);
+            String alias = tableAlias(aliasContext);
+            if (alias != null) {
+                tableAliases.put(alias.toLowerCase(java.util.Locale.ROOT), table);
+            }
             result.setInputTables(new ArrayList<>(inputTables));
             refreshColumnLineage();
         }
@@ -224,19 +239,18 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private void refreshColumnLineage() {
-            if (inputTables.size() != 1 || projections.isEmpty()) {
+            if (inputTables.isEmpty() || projections.isEmpty()) {
                 return;
             }
-            TableRef sourceTable = inputTables.iterator().next();
             TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;
             List<ColumnLineage> columnLineage = new ArrayList<>();
             for (Projection projection : projections) {
+                List<ColumnRef> sources = columnRefs(projection);
+                if (sources == null) {
+                    continue;
+                }
                 ColumnLineage lineage = new ColumnLineage();
                 lineage.setTarget(new ColumnRef(targetTable, projection.targetColumn));
-                List<ColumnRef> sources = new ArrayList<>();
-                for (String sourceColumn : projection.sourceColumns) {
-                    sources.add(new ColumnRef(sourceTable, sourceColumn));
-                }
                 lineage.setSources(sources);
                 lineage.setExpression(projection.expression);
                 columnLineage.add(lineage);
@@ -244,11 +258,27 @@ public class SparkDialectParser implements DialectParser {
             result.setColumnLineage(columnLineage);
         }
 
+        private List<ColumnRef> columnRefs(Projection projection) {
+            TableRef defaultTable = inputTables.size() == 1 ? inputTables.iterator().next() : null;
+            List<ColumnRef> refs = new ArrayList<>();
+            for (SourceColumn sourceColumn : projection.sourceColumns) {
+                TableRef table = defaultTable;
+                if (sourceColumn.qualifier != null) {
+                    table = tableAliases.get(sourceColumn.qualifier.toLowerCase(java.util.Locale.ROOT));
+                }
+                if (table == null) {
+                    return null;
+                }
+                refs.add(new ColumnRef(table, sourceColumn.name));
+            }
+            return refs;
+        }
+
         private static Projection projection(SqlBaseParser.NamedExpressionContext ctx) {
             String expression = ctx.expression().getText();
-            List<String> sourceColumns = sourceColumns(ctx.expression());
+            List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
             String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
-                    ? sourceColumns.get(0)
+                    ? sourceColumns.get(0).name
                     : null;
             if (sourceColumns.isEmpty() && ctx.name == null) {
                 return null;
@@ -263,24 +293,25 @@ public class SparkDialectParser implements DialectParser {
             return new Projection(sourceColumns, targetColumn, expression);
         }
 
-        private static boolean isDirectColumnExpression(String expression, String column) {
-            return expression.equals(column) || expression.endsWith("." + column);
+        private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
+            return expression.equals(column.name) || expression.endsWith("." + column.name);
         }
 
-        private static List<String> sourceColumns(ParseTree tree) {
-            Set<String> columns = new LinkedHashSet<>();
+        private static List<SourceColumn> sourceColumns(ParseTree tree) {
+            Set<SourceColumn> columns = new LinkedHashSet<>();
             collectSourceColumns(tree, columns);
             return new ArrayList<>(columns);
         }
 
-        private static void collectSourceColumns(ParseTree tree, Set<String> columns) {
+        private static void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
             if (tree instanceof SqlBaseParser.ColumnReferenceContext) {
-                columns.add(cleanIdentifier(tree.getText()));
+                columns.add(new SourceColumn(null, cleanIdentifier(tree.getText())));
                 return;
             }
             if (tree instanceof SqlBaseParser.DereferenceContext) {
                 SqlBaseParser.DereferenceContext dereference = (SqlBaseParser.DereferenceContext) tree;
-                columns.add(cleanIdentifier(dereference.fieldName.getText()));
+                columns.add(new SourceColumn(cleanIdentifier(dereference.base.getText()),
+                        cleanIdentifier(dereference.fieldName.getText())));
                 return;
             }
             for (int i = 0; i < tree.getChildCount(); i++) {
@@ -322,6 +353,13 @@ public class SparkDialectParser implements DialectParser {
             return parts;
         }
 
+        private static String tableAlias(SqlBaseParser.TableAliasContext ctx) {
+            if (ctx == null || ctx.strictIdentifier() == null) {
+                return null;
+            }
+            return cleanIdentifier(ctx.strictIdentifier().getText());
+        }
+
         private static String cleanIdentifier(String text) {
             String value = text.trim();
             if (value.length() >= 2 && value.startsWith("`") && value.endsWith("`")) {
@@ -331,14 +369,42 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private static class Projection {
-            private final List<String> sourceColumns;
+            private final List<SourceColumn> sourceColumns;
             private final String targetColumn;
             private final String expression;
 
-            Projection(List<String> sourceColumns, String targetColumn, String expression) {
+            Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
                 this.sourceColumns = sourceColumns;
                 this.targetColumn = targetColumn;
                 this.expression = expression;
+            }
+        }
+
+        private static class SourceColumn {
+            private final String qualifier;
+            private final String name;
+
+            SourceColumn(String qualifier, String name) {
+                this.qualifier = qualifier;
+                this.name = name;
+            }
+
+            @Override
+            public boolean equals(Object other) {
+                if (this == other) {
+                    return true;
+                }
+                if (!(other instanceof SourceColumn)) {
+                    return false;
+                }
+                SourceColumn that = (SourceColumn) other;
+                return java.util.Objects.equals(qualifier, that.qualifier)
+                        && java.util.Objects.equals(name, that.name);
+            }
+
+            @Override
+            public int hashCode() {
+                return java.util.Objects.hash(qualifier, name);
             }
         }
     }
