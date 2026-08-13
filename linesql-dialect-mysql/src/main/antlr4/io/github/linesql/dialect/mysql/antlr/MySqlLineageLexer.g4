@@ -2,6 +2,7 @@ lexer grammar MySqlLineageLexer;
 
 SELECT: S E L E C T;
 INSERT: I N S E R T;
+REPLACE: R E P L A C E;
 INTO: I N T O;
 CREATE: C R E A T E;
 TABLE: T A B L E;

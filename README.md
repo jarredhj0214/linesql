@@ -45,7 +45,7 @@ Current implemented coverage is documented as the project evolves:
 
 - [Supported Scenarios](docs/supported-scenarios.md)
 - [Spark Stage 1](docs/design/spark-stage-1.md)
-- MySQL MVP coverage is recorded in [Supported Scenarios](docs/supported-scenarios.md).
+- MySQL MVP coverage, including MySQL-specific write statements such as `ON DUPLICATE KEY UPDATE` and `REPLACE INTO`, is recorded in [Supported Scenarios](docs/supported-scenarios.md).
 
 ## Usage
 

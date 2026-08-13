@@ -37,7 +37,8 @@ public class MySqlDialectParser implements DialectParser {
         try {
             MySqlLineageVisitor visitor = new MySqlLineageVisitor(tokens(sql), result);
             visitor.parse();
-            if (result.getColumnLineage().isEmpty()
+            if (visitor.shouldWarnMissingColumnLineage()
+                    && result.getColumnLineage().isEmpty()
                     && (result.getStatementType() == StatementType.SELECT
                     || result.getStatementType() == StatementType.INSERT
                     || result.getStatementType() == StatementType.CREATE_TABLE_AS_SELECT
@@ -71,6 +72,7 @@ public class MySqlDialectParser implements DialectParser {
         private final Map<String, TableRef> aliases = new LinkedHashMap<>();
         private final Set<TableRef> inputs = new LinkedHashSet<>();
         private final Set<TableRef> outputs = new LinkedHashSet<>();
+        private boolean suppressMissingColumnLineageDiagnostic;
 
         MySqlLineageVisitor(List<Token> tokens, LineageResult result) {
             this.tokens = trimSemicolon(tokens);
@@ -86,6 +88,8 @@ public class MySqlDialectParser implements DialectParser {
                 parseSelectStatement(0, tokens.size(), null, new ArrayList<String>());
             } else if (is(0, MySqlLineageLexer.INSERT)) {
                 parseInsert();
+            } else if (is(0, MySqlLineageLexer.REPLACE)) {
+                parseReplace();
             } else if (is(0, MySqlLineageLexer.CREATE)) {
                 parseCreate();
             } else if (is(0, MySqlLineageLexer.UPDATE)) {
@@ -102,6 +106,10 @@ public class MySqlDialectParser implements DialectParser {
             result.setOutputTables(new ArrayList<>(outputs));
         }
 
+        boolean shouldWarnMissingColumnLineage() {
+            return !suppressMissingColumnLineageDiagnostic;
+        }
+
         private void parseSelectStatement(int start, int end, TableRef outputTable, List<String> targetColumns) {
             result.setStatementType(StatementType.SELECT);
             SelectLineage select = parseSelect(start, end);
@@ -116,22 +124,37 @@ public class MySqlDialectParser implements DialectParser {
         }
 
         private void parseInsert() {
+            parseWriteInto(StatementType.INSERT);
+        }
+
+        private void parseReplace() {
+            parseWriteInto(StatementType.INSERT);
+        }
+
+        private void parseWriteInto(StatementType statementType) {
             int into = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.INTO);
             int select = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.SELECT);
-            if (into < 0 || select < 0) {
-                result.setStatementType(StatementType.INSERT);
+            if (into < 0) {
+                result.setStatementType(statementType);
                 return;
             }
-            TableScan target = readTable(into + 1, select);
+            int values = indexOfTopLevel(into + 1, tokens.size(), MySqlLineageLexer.VALUES);
+            int duplicate = indexOfTopLevel(into + 1, tokens.size(), MySqlLineageLexer.DUPLICATE);
+            int targetEnd = firstPositive(select, values, duplicate, tokens.size());
+            TableScan target = readTable(into + 1, targetEnd);
             if (target == null) {
-                result.setStatementType(StatementType.INSERT);
+                result.setStatementType(statementType);
                 return;
             }
             outputs.add(target.table);
             List<String> targetColumns = readColumnList(target.nextIndex);
+            result.setStatementType(statementType);
+            if (select < 0) {
+                suppressMissingColumnLineageDiagnostic = true;
+                return;
+            }
             SelectLineage selectLineage = parseSelect(select, tokens.size());
             addInputs(selectLineage.inputs);
-            result.setStatementType(StatementType.INSERT);
             result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, targetColumns));
         }
 
@@ -479,6 +502,20 @@ public class MySqlDialectParser implements DialectParser {
                 }
             }
             return -1;
+        }
+
+        private int firstPositive(int first, int second, int third, int fallback) {
+            int result = fallback;
+            if (first >= 0 && first < result) {
+                result = first;
+            }
+            if (second >= 0 && second < result) {
+                result = second;
+            }
+            if (third >= 0 && third < result) {
+                result = third;
+            }
+            return result;
         }
 
         private List<Range> splitTopLevel(int start, int end, int separator) {

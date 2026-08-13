@@ -20,6 +20,10 @@ Implemented MySQL table-level lineage scenarios:
 | Basic SELECT source table | `select ... from app.users` | `select_basic` |
 | JOIN source tables | `select ... from app.users u join app.orders o ...` | `join_projection` |
 | INSERT INTO SELECT target and source | `insert into mart.t(c1) select a from app.s` | `insert_select` |
+| INSERT INTO VALUES target lineage | `insert into mart.t(c1) values (...)` | `insert_values` |
+| INSERT SELECT with duplicate-key update | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
+| REPLACE INTO SELECT target and source | `replace into mart.t(c1) select a from app.s` | `replace_select` |
+| REPLACE INTO VALUES target lineage | `replace into mart.t(c1) values (...)` | `replace_values` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from app.s join app.o` | `create_view` |
 | UPDATE JOIN table lineage | `update mart.t join app.s on ... set ...` | `update_join` |
@@ -33,6 +37,8 @@ Implemented MySQL column-level lineage scenarios:
 | Direct single-table projection | `select id as user_id, name from app.users` | `select_basic` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT target column list mapping | `insert into mart.t(c1, c2) select a, b from app.s` | `insert_select` |
+| INSERT duplicate-key SELECT mapping | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
+| REPLACE SELECT target column list mapping | `replace into mart.t(c1, c2) select a, b from app.s` | `replace_select` |
 | CTAS output column targets | `create table mart.t as select id as c1 from app.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view mart.v as select u.id from app.users u` | `create_view` |
 | Backquoted non-ASCII column identifiers | `` select `用户ID` as `用户标识` from `业务库`.`用户表` `` | `backquoted_identifiers` |

@@ -56,6 +56,58 @@
       "description": "MySQL INSERT INTO column list with SELECT source"
     },
     {
+      "id": "insert_values",
+      "file": "cases/insert_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["mart.user_summary"],
+      "description": "MySQL INSERT INTO VALUES target table lineage"
+    },
+    {
+      "id": "insert_select_on_duplicate",
+      "file": "cases/insert_select_on_duplicate.sql",
+      "statementType": "INSERT",
+      "inputTables": ["app.users_delta"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": ["app.users_delta.id"]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": ["app.users_delta.name"]
+        }
+      ],
+      "description": "MySQL INSERT SELECT with ON DUPLICATE KEY UPDATE keeps SELECT lineage"
+    },
+    {
+      "id": "replace_select",
+      "file": "cases/replace_select.sql",
+      "statementType": "INSERT",
+      "inputTables": ["app.users_delta"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": ["app.users_delta.id"]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": ["app.users_delta.name"]
+        }
+      ],
+      "description": "MySQL REPLACE INTO SELECT target and source lineage"
+    },
+    {
+      "id": "replace_values",
+      "file": "cases/replace_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["mart.user_summary"],
+      "description": "MySQL REPLACE INTO VALUES target table lineage"
+    },
+    {
       "id": "create_table_as_select",
       "file": "cases/create_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
