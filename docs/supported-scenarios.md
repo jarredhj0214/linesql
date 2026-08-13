@@ -73,6 +73,9 @@ Implemented Spark table-level lineage scenarios:
 | UNPIVOT source table lineage | `select * from mart.t unpivot (...)` | `unpivot_table_lineage` |
 | TRANSFORM source table lineage | `select transform (...) using 'script' as (...) from ods.s` | `transform_table_lineage` |
 | STREAM table source lineage | `select ... from stream(ods.events) s` | `stream_table_lineage` |
+| CHANGES relation source lineage | `select c.id from ods.users changes from version 1 c` | `changelog_column_projection` |
+| Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
+| Pipe WHERE and SELECT source lineage | `from ods.users |> where ... |> select id` | `pipe_where_select_lineage` |
 | CTAS output and source tables | `create table mart.t as select ... from ods.s` | `ctas_column_projection` |
 | CTAS with provider and partition clauses | `create table mart.t using parquet partitioned by (...) as select ...` | `ctas_using_partitioned` |
 | CREATE OR REPLACE TABLE AS SELECT | `create or replace table mart.t using delta as select ... from ods.s` | `replace_table_as_select` |
@@ -99,6 +102,9 @@ Implemented Spark column-level lineage scenarios:
 | Single-table nested struct field sources | `select profile.city as city from ods.users` | `nested_field_projection` |
 | Qualified nested struct field sources | `select u.profile.city from ods.users u join ods.orders o ...` | `qualified_nested_field_projection` |
 | STREAM table direct projection | `select s.id as event_id from stream(ods.events) s` | `stream_table_lineage` |
+| CHANGES relation direct projection | `select c.id as user_id from ods.users changes from version 1 c` | `changelog_column_projection` |
+| Pipe SELECT direct projection | `from ods.users |> select id as user_id` | `pipe_select_column_projection` |
+| Pipe WHERE then SELECT direct projection | `from ods.users |> where id > 0 |> select id as user_id` | `pipe_where_select_lineage` |
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | INSERT BY NAME projection target mapping | `insert into ads.t by name select a as c1 from ods.s` | `insert_by_name` |

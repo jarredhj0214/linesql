@@ -559,7 +559,7 @@ public class SparkDialectParser implements DialectParser {
 
         @Override
         public Void visitChangelogTableName(SqlBaseParser.ChangelogTableNameContext ctx) {
-            addInput(ctx.identifierReference(), null);
+            addInput(ctx.identifierReference(), ctx.tableAlias());
             return null;
         }
 

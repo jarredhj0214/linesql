@@ -25,7 +25,8 @@ Status legend:
 | Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings. |
 | PIVOT / UNPIVOT | Partial | Source table lineage only; generated columns are not propagated yet. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
-| STREAM relation | Covered | `STREAM(table)` source lineage and direct projection column lineage. |
+| STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
+| Pipe query | Partial | `SELECT` and `WHERE` pipe operators are covered for source and direct projection lineage. |
 
 ## Statement Families
 
@@ -61,12 +62,12 @@ Status legend:
 | PIVOT / UNPIVOT | Partial | Source table lineage only. | Generated column mapping and source aggregation propagation. |
 | TRANSFORM | Partial | Source table lineage only. | Keep degraded unless script schema semantics are modeled. |
 | STREAM table | Covered | Source lineage and direct projection mapping. | Stream table-valued function cases. |
-| Changelog relation | Covered | Source table lineage through explicit visitor. | Add column lineage case if direct projection is used. |
+| Changelog relation | Covered | Source lineage and qualified direct projection mapping. | Add additional version/timestamp variants if needed. |
 | Table-valued functions | Parse-only | No explicit table lineage unless arguments contain table references that are visited. | Decide function-specific source semantics. |
 | UNNEST / JSON_TABLE | Parse-only | No explicit relation output semantics. | Add table-level cases and conservative column lineage policy. |
 | Inline table | Not lineage-bearing | No source table. | Add case only if diagnostics behavior needs locking. |
 | `TABLE identifier` query primary | Covered | Source table lineage, with column lineage degraded without schema. | Add schema-aware expansion later. |
-| Operator pipe queries | Parse-only | Grammar supports pipe operators; no explicit lineage cases yet. | Add table and column lineage cases for common pipe operators. |
+| Operator pipe queries | Partial | `SELECT` and `WHERE` pipe operators are covered; other pipe operators are not explicitly modeled yet. | Add table and column lineage cases for EXTEND, DROP, JOIN, AGGREGATE, and set operators. |
 
 ## Parse-Only Or Not Yet Explicitly Modeled Statements
 
@@ -86,11 +87,11 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | Table-valued functions | Requires function-specific rules. |
 | `TABLE t` query primary | Covered as source table lineage with column lineage degraded without schema. |
 | EXCEPT / INTERSECT | Covered; current column lineage records both inputs by position. |
-| Operator pipe statements | Needs table and column lineage cases for the most common operators. |
+| Operator pipe statements | Partial coverage for SELECT and WHERE; remaining operators need explicit cases. |
 
 ## Recommended Next Implementation Order
 
-1. Add low-risk coverage for changelog direct projection and common pipe query operators.
+1. Add pipe query cases for EXTEND, DROP, JOIN, AGGREGATE, and pipe set operators.
 2. Add conservative relation support for UNNEST / JSON_TABLE / table-valued functions, starting with table lineage and explicit degradation.
 3. Improve column lineage for PIVOT/UNPIVOT only after target/source column semantics are clear.
 4. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.

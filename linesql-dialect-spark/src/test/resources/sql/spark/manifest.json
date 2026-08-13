@@ -778,6 +778,52 @@
       "description": "STREAM table source and direct column lineage"
     },
     {
+      "id": "changelog_column_projection",
+      "file": "cases/changelog_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        }
+      ],
+      "description": "CHANGES relation source and qualified direct column lineage"
+    },
+    {
+      "id": "pipe_select_column_projection",
+      "file": "cases/pipe_select_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "Pipe SELECT source and direct column lineage"
+    },
+    {
+      "id": "pipe_where_select_lineage",
+      "file": "cases/pipe_where_select_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        }
+      ],
+      "description": "Pipe WHERE followed by SELECT preserves source and column lineage"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",
