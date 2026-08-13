@@ -61,6 +61,7 @@ Every newly supported Spark scenario must update both:
 - `UNION`
 - `PIVOT` / `UNPIVOT` table lineage
 - `TRANSFORM ... USING ...` table lineage
+- `STREAM(table)` source lineage
 - `MERGE INTO`
 - `MERGE INTO ... USING (subquery)`
 - `UPDATE ... SET ... WHERE ...`
@@ -84,6 +85,7 @@ Every newly supported Spark scenario must update both:
 - Aggregate expressions: `count(order_id)`, `sum(amount)`
 - Window expressions: function arguments plus partition/order columns
 - Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
+- STREAM table direct projection: `select s.id from stream(events) s`
 - Nested field paths: `profile.city`, `u.profile.city`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`

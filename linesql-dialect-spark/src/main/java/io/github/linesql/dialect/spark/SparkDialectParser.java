@@ -521,6 +521,12 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitStreamTableName(SqlBaseParser.StreamTableNameContext ctx) {
+            addInput(ctx.multipartIdentifier(), ctx.tableAlias());
+            return null;
+        }
+
+        @Override
         public Void visitSelectClause(SqlBaseParser.SelectClauseContext ctx) {
             for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
                 selectExpressionCount++;
@@ -572,6 +578,10 @@ public class SparkDialectParser implements DialectParser {
                 return;
             }
             addInputTable(table, aliasContext, true);
+        }
+
+        private void addInput(SqlBaseParser.MultipartIdentifierContext ctx, SqlBaseParser.TableAliasContext aliasContext) {
+            addInputTable(tableRef(ctx.getText()), aliasContext, true);
         }
 
         private void addInputTable(TableRef table, boolean visibleRelation) {

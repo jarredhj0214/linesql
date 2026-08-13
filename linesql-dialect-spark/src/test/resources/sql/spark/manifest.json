@@ -695,6 +695,20 @@
       "description": "TRANSFORM query source table lineage with column lineage degradation"
     },
     {
+      "id": "stream_table_lineage",
+      "file": "cases/stream_table_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": ["ods.events.id"]
+        }
+      ],
+      "description": "STREAM table source and direct column lineage"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",
