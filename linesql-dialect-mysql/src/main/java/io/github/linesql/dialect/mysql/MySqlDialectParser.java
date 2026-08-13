@@ -1,0 +1,671 @@
+package io.github.linesql.dialect.mysql;
+
+import io.github.linesql.core.model.ColumnLineage;
+import io.github.linesql.core.model.ColumnRef;
+import io.github.linesql.core.model.Diagnostic;
+import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
+import io.github.linesql.core.model.ParseOptions;
+import io.github.linesql.core.model.SqlDialect;
+import io.github.linesql.core.model.StatementType;
+import io.github.linesql.core.model.TableRef;
+import io.github.linesql.core.spi.DialectParser;
+import io.github.linesql.dialect.mysql.antlr.MySqlLineageLexer;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+public class MySqlDialectParser implements DialectParser {
+    @Override
+    public SqlDialect dialect() {
+        return SqlDialect.MYSQL;
+    }
+
+    @Override
+    public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
+        LineageResult result = new LineageResult();
+        result.setDialect(SqlDialect.MYSQL);
+        result.setDialectConfidence(1.0);
+        try {
+            MySqlLineageVisitor visitor = new MySqlLineageVisitor(tokens(sql), result);
+            visitor.parse();
+            if (result.getColumnLineage().isEmpty()
+                    && (result.getStatementType() == StatementType.SELECT
+                    || result.getStatementType() == StatementType.INSERT
+                    || result.getStatementType() == StatementType.CREATE_TABLE_AS_SELECT
+                    || result.getStatementType() == StatementType.CREATE_VIEW)) {
+                result.getDiagnostics().add(Diagnostic.warning(
+                        "MYSQL_COLUMN_LINEAGE_NOT_IMPLEMENTED",
+                        "MySQL column lineage was not produced for this statement shape."));
+            }
+        } catch (RuntimeException e) {
+            result.getDiagnostics().add(Diagnostic.error("MYSQL_PARSE_ERROR", e.getMessage()));
+        }
+        return result;
+    }
+
+    private static List<Token> tokens(String sql) {
+        MySqlLineageLexer lexer = new MySqlLineageLexer(CharStreams.fromString(sql));
+        CommonTokenStream stream = new CommonTokenStream(lexer);
+        stream.fill();
+        List<Token> tokens = new ArrayList<>();
+        for (Token token : stream.getTokens()) {
+            if (token.getType() != Token.EOF) {
+                tokens.add(token);
+            }
+        }
+        return tokens;
+    }
+
+    private static class MySqlLineageVisitor {
+        private final List<Token> tokens;
+        private final LineageResult result;
+        private final Map<String, TableRef> aliases = new LinkedHashMap<>();
+        private final Set<TableRef> inputs = new LinkedHashSet<>();
+        private final Set<TableRef> outputs = new LinkedHashSet<>();
+
+        MySqlLineageVisitor(List<Token> tokens, LineageResult result) {
+            this.tokens = trimSemicolon(tokens);
+            this.result = result;
+        }
+
+        void parse() {
+            if (tokens.isEmpty()) {
+                result.getDiagnostics().add(Diagnostic.error("EMPTY_SQL", "SQL input is empty."));
+                return;
+            }
+            if (is(0, MySqlLineageLexer.SELECT)) {
+                parseSelectStatement(0, tokens.size(), null, new ArrayList<String>());
+            } else if (is(0, MySqlLineageLexer.INSERT)) {
+                parseInsert();
+            } else if (is(0, MySqlLineageLexer.CREATE)) {
+                parseCreate();
+            } else if (is(0, MySqlLineageLexer.UPDATE)) {
+                parseUpdate();
+            } else if (is(0, MySqlLineageLexer.DELETE)) {
+                parseDelete();
+            } else {
+                result.setStatementType(StatementType.UNKNOWN);
+                result.getDiagnostics().add(Diagnostic.warning(
+                        "MYSQL_STATEMENT_NOT_SUPPORTED",
+                        "MySQL statement type is not supported by the current MVP parser."));
+            }
+            result.setInputTables(new ArrayList<>(inputs));
+            result.setOutputTables(new ArrayList<>(outputs));
+        }
+
+        private void parseSelectStatement(int start, int end, TableRef outputTable, List<String> targetColumns) {
+            result.setStatementType(StatementType.SELECT);
+            SelectLineage select = parseSelect(start, end);
+            addInputs(select.inputs);
+            if (outputTable != null) {
+                outputs.add(outputTable);
+                result.setStatementType(targetColumns.isEmpty()
+                        ? result.getStatementType()
+                        : StatementType.INSERT);
+            }
+            result.setColumnLineage(targetLineage(select.columnLineage, outputTable, targetColumns));
+        }
+
+        private void parseInsert() {
+            int into = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.INTO);
+            int select = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.SELECT);
+            if (into < 0 || select < 0) {
+                result.setStatementType(StatementType.INSERT);
+                return;
+            }
+            TableScan target = readTable(into + 1, select);
+            if (target == null) {
+                result.setStatementType(StatementType.INSERT);
+                return;
+            }
+            outputs.add(target.table);
+            List<String> targetColumns = readColumnList(target.nextIndex);
+            SelectLineage selectLineage = parseSelect(select, tokens.size());
+            addInputs(selectLineage.inputs);
+            result.setStatementType(StatementType.INSERT);
+            result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, targetColumns));
+        }
+
+        private void parseCreate() {
+            int objectIndex = skipIf(1, MySqlLineageLexer.TABLE, MySqlLineageLexer.VIEW);
+            if (objectIndex == 1) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int objectType = tokens.get(objectIndex - 1).getType();
+            int select = indexOfTopLevel(objectIndex, tokens.size(), MySqlLineageLexer.SELECT);
+            TableScan target = readTable(objectIndex, select < 0 ? tokens.size() : select);
+            if (target != null) {
+                outputs.add(target.table);
+            }
+            if (objectType == MySqlLineageLexer.VIEW) {
+                result.setStatementType(StatementType.CREATE_VIEW);
+            } else {
+                result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            }
+            if (select >= 0 && target != null) {
+                SelectLineage selectLineage = parseSelect(select, tokens.size());
+                addInputs(selectLineage.inputs);
+                result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, new ArrayList<String>()));
+            }
+        }
+
+        private void parseUpdate() {
+            result.setStatementType(StatementType.UPDATE);
+            TableScan target = readTable(1, tokens.size());
+            if (target == null) {
+                return;
+            }
+            outputs.add(target.table);
+            inputs.add(target.table);
+            registerAlias(target);
+            for (int i = target.nextIndex; i < tokens.size(); i++) {
+                if (isJoinToken(i)) {
+                    TableScan joined = readTable(i + 1, tokens.size());
+                    if (joined != null) {
+                        inputs.add(joined.table);
+                        registerAlias(joined);
+                        i = joined.nextIndex - 1;
+                    }
+                }
+            }
+        }
+
+        private void parseDelete() {
+            result.setStatementType(StatementType.DELETE);
+            int from = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.FROM);
+            if (from < 0) {
+                return;
+            }
+            TableScan target = readTable(from + 1, tokens.size());
+            if (target != null) {
+                outputs.add(target.table);
+                inputs.add(target.table);
+                registerAlias(target);
+            }
+            int using = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.USING);
+            if (using >= 0) {
+                inputs.addAll(readTableSources(using + 1, tokens.size()));
+            }
+        }
+
+        private SelectLineage parseSelect(int start, int end) {
+            int from = indexOfTopLevel(start, end, MySqlLineageLexer.FROM);
+            int projectionStart = start + 1;
+            int projectionEnd = from < 0 ? end : from;
+            SelectLineage lineage = new SelectLineage();
+            if (from >= 0) {
+                lineage.inputs.addAll(readTableSources(from + 1, end));
+            }
+            lineage.columnLineage.addAll(readProjections(projectionStart, projectionEnd, lineage.inputs));
+            return lineage;
+        }
+
+        private List<TableRef> readTableSources(int start, int end) {
+            List<TableRef> tables = new ArrayList<>();
+            int i = start;
+            while (i < end) {
+                if (isClauseBoundary(i)) {
+                    break;
+                }
+                if (is(i, MySqlLineageLexer.LPAREN)) {
+                    int close = matchingParen(i, end);
+                    int nestedSelect = indexOfTopLevel(i + 1, close, MySqlLineageLexer.SELECT);
+                    if (nestedSelect >= 0) {
+                        SelectLineage nested = parseSelect(nestedSelect, close);
+                        tables.addAll(nested.inputs);
+                    }
+                    i = close + 1;
+                    continue;
+                }
+                if (isJoinToken(i) || is(i, MySqlLineageLexer.COMMA)) {
+                    i++;
+                    continue;
+                }
+                if (isTableStart(i)) {
+                    TableScan scan = readTable(i, end);
+                    if (scan != null) {
+                        tables.add(scan.table);
+                        registerAlias(scan);
+                        i = scan.nextIndex;
+                        continue;
+                    }
+                }
+                i++;
+            }
+            return tables;
+        }
+
+        private List<ColumnLineage> readProjections(int start, int end, List<TableRef> inputTables) {
+            List<ColumnLineage> result = new ArrayList<>();
+            for (Range range : splitTopLevel(start, end, MySqlLineageLexer.COMMA)) {
+                Projection projection = readProjection(range.start, range.end, inputTables);
+                if (projection == null) {
+                    continue;
+                }
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(new ColumnRef(null, projection.targetColumn));
+                lineage.setSources(projection.sources);
+                lineage.setExpression(text(range.start, range.end));
+                result.add(lineage);
+            }
+            return result;
+        }
+
+        private Projection readProjection(int start, int end, List<TableRef> inputTables) {
+            if (start >= end || is(start, MySqlLineageLexer.STAR)) {
+                return null;
+            }
+            int aliasIndex = aliasIndex(start, end);
+            int expressionEnd = aliasIndex < 0 ? end : aliasIndex;
+            List<SourceColumn> sourceColumns = sourceColumns(start, expressionEnd);
+            String target = aliasIndex < 0 ? directTarget(sourceColumns, start, expressionEnd) : clean(text(aliasIndex, end));
+            if (target == null) {
+                return null;
+            }
+            List<ColumnRef> sources = resolveSources(sourceColumns, inputTables);
+            if (sources == null) {
+                return null;
+            }
+            return new Projection(target, sources);
+        }
+
+        private int aliasIndex(int start, int end) {
+            for (int i = end - 1; i >= start; i--) {
+                if (depth(start, i) != 0) {
+                    continue;
+                }
+                if (is(i, MySqlLineageLexer.AS) && i + 1 < end) {
+                    return i + 1;
+                }
+            }
+            if (end - start >= 2
+                    && isIdentifier(end - 1)
+                    && !isIdentifier(end - 2)
+                    && !is(end - 2, MySqlLineageLexer.DOT)) {
+                return end - 1;
+            }
+            return -1;
+        }
+
+        private String directTarget(List<SourceColumn> columns, int start, int end) {
+            if (columns.size() != 1) {
+                return null;
+            }
+            String expression = text(start, end);
+            SourceColumn column = columns.get(0);
+            if (expression.equals(column.raw) || expression.endsWith("." + column.name)) {
+                return column.name;
+            }
+            return null;
+        }
+
+        private List<SourceColumn> sourceColumns(int start, int end) {
+            Set<SourceColumn> columns = new LinkedHashSet<>();
+            int i = start;
+            while (i < end) {
+                if (!isIdentifier(i)) {
+                    i++;
+                    continue;
+                }
+                if (i + 1 < end && is(i + 1, MySqlLineageLexer.LPAREN)) {
+                    i++;
+                    continue;
+                }
+                IdentifierRead read = readIdentifierParts(i, end);
+                if (read.parts.size() == 1 && isKeywordLike(read.parts.get(0))) {
+                    i = read.nextIndex;
+                    continue;
+                }
+                if (!read.parts.isEmpty()) {
+                    String qualifier = read.parts.size() >= 2 ? read.parts.get(read.parts.size() - 2) : null;
+                    String name = read.parts.get(read.parts.size() - 1);
+                    columns.add(new SourceColumn(qualifier, name, String.join(".", read.parts)));
+                }
+                i = read.nextIndex;
+            }
+            return new ArrayList<>(columns);
+        }
+
+        private List<ColumnRef> resolveSources(List<SourceColumn> columns, List<TableRef> inputTables) {
+            List<ColumnRef> refs = new ArrayList<>();
+            for (SourceColumn column : columns) {
+                TableRef table = null;
+                if (column.qualifier != null) {
+                    table = aliases.get(column.qualifier.toLowerCase(Locale.ROOT));
+                } else if (inputTables.size() == 1) {
+                    table = inputTables.get(0);
+                }
+                if (table == null) {
+                    return null;
+                }
+                refs.add(new ColumnRef(table, column.name));
+            }
+            return refs;
+        }
+
+        private List<ColumnLineage> targetLineage(List<ColumnLineage> source, TableRef targetTable, List<String> targetColumns) {
+            if (targetTable == null) {
+                return source;
+            }
+            List<ColumnLineage> mapped = new ArrayList<>();
+            for (int i = 0; i < source.size(); i++) {
+                ColumnLineage original = source.get(i);
+                String targetColumn = i < targetColumns.size() ? targetColumns.get(i) : original.getTarget().getName();
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(new ColumnRef(targetTable, targetColumn));
+                lineage.setSources(original.getSources());
+                lineage.setExpression(original.getExpression());
+                mapped.add(lineage);
+            }
+            return mapped;
+        }
+
+        private TableScan readTable(int start, int end) {
+            int i = start;
+            if (i < end && is(i, MySqlLineageLexer.TABLE)) {
+                i++;
+            }
+            if (i >= end || !isIdentifier(i)) {
+                return null;
+            }
+            IdentifierRead tableName = readIdentifierParts(i, end);
+            TableRef table = tableRef(tableName.parts);
+            int next = tableName.nextIndex;
+            String alias = null;
+            if (next < end && is(next, MySqlLineageLexer.AS)) {
+                next++;
+            }
+            if (next < end && isIdentifier(next) && !isClauseBoundary(next) && !isJoinToken(next)) {
+                alias = clean(tokens.get(next).getText());
+                next++;
+            }
+            return new TableScan(table, alias, next);
+        }
+
+        private IdentifierRead readIdentifierParts(int start, int end) {
+            List<String> parts = new ArrayList<>();
+            int i = start;
+            while (i < end && isIdentifier(i)) {
+                parts.add(clean(tokens.get(i).getText()));
+                if (i + 1 < end && is(i + 1, MySqlLineageLexer.DOT)) {
+                    i += 2;
+                } else {
+                    i++;
+                    break;
+                }
+            }
+            return new IdentifierRead(parts, i);
+        }
+
+        private List<String> readColumnList(int start) {
+            List<String> columns = new ArrayList<>();
+            if (start >= tokens.size() || !is(start, MySqlLineageLexer.LPAREN)) {
+                return columns;
+            }
+            int end = matchingParen(start, tokens.size());
+            for (Range range : splitTopLevel(start + 1, end, MySqlLineageLexer.COMMA)) {
+                if (range.start < range.end) {
+                    columns.add(clean(text(range.start, range.end)));
+                }
+            }
+            return columns;
+        }
+
+        private void addInputs(List<TableRef> tables) {
+            inputs.addAll(tables);
+        }
+
+        private void registerAlias(TableScan scan) {
+            aliases.put(scan.table.getName().toLowerCase(Locale.ROOT), scan.table);
+            if (scan.alias != null) {
+                aliases.put(scan.alias.toLowerCase(Locale.ROOT), scan.table);
+            }
+        }
+
+        private boolean isTableStart(int index) {
+            return isIdentifier(index);
+        }
+
+        private boolean isIdentifier(int index) {
+            int type = tokens.get(index).getType();
+            return type == MySqlLineageLexer.IDENTIFIER
+                    || type == MySqlLineageLexer.BACKQUOTED_IDENTIFIER;
+        }
+
+        private boolean isClauseBoundary(int index) {
+            int type = tokens.get(index).getType();
+            return type == MySqlLineageLexer.WHERE
+                    || type == MySqlLineageLexer.GROUP
+                    || type == MySqlLineageLexer.HAVING
+                    || type == MySqlLineageLexer.ORDER
+                    || type == MySqlLineageLexer.LIMIT
+                    || type == MySqlLineageLexer.UNION
+                    || type == MySqlLineageLexer.SET
+                    || type == MySqlLineageLexer.ON
+                    || type == MySqlLineageLexer.VALUES
+                    || type == MySqlLineageLexer.DUPLICATE;
+        }
+
+        private boolean isJoinToken(int index) {
+            int type = tokens.get(index).getType();
+            return type == MySqlLineageLexer.JOIN
+                    || type == MySqlLineageLexer.INNER
+                    || type == MySqlLineageLexer.LEFT
+                    || type == MySqlLineageLexer.RIGHT
+                    || type == MySqlLineageLexer.FULL
+                    || type == MySqlLineageLexer.CROSS
+                    || type == MySqlLineageLexer.OUTER;
+        }
+
+        private int indexOfTopLevel(int start, int end, int tokenType) {
+            int depth = 0;
+            for (int i = start; i < end; i++) {
+                if (is(i, MySqlLineageLexer.LPAREN)) {
+                    depth++;
+                } else if (is(i, MySqlLineageLexer.RPAREN)) {
+                    depth--;
+                } else if (depth == 0 && is(i, tokenType)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private List<Range> splitTopLevel(int start, int end, int separator) {
+            List<Range> ranges = new ArrayList<>();
+            int depth = 0;
+            int current = start;
+            for (int i = start; i < end; i++) {
+                if (is(i, MySqlLineageLexer.LPAREN)) {
+                    depth++;
+                } else if (is(i, MySqlLineageLexer.RPAREN)) {
+                    depth--;
+                } else if (depth == 0 && is(i, separator)) {
+                    ranges.add(new Range(current, i));
+                    current = i + 1;
+                }
+            }
+            ranges.add(new Range(current, end));
+            return ranges;
+        }
+
+        private int matchingParen(int start, int end) {
+            int depth = 0;
+            for (int i = start; i < end; i++) {
+                if (is(i, MySqlLineageLexer.LPAREN)) {
+                    depth++;
+                } else if (is(i, MySqlLineageLexer.RPAREN)) {
+                    depth--;
+                    if (depth == 0) {
+                        return i;
+                    }
+                }
+            }
+            return end - 1;
+        }
+
+        private int depth(int start, int endInclusive) {
+            int depth = 0;
+            for (int i = start; i <= endInclusive; i++) {
+                if (is(i, MySqlLineageLexer.LPAREN)) {
+                    depth++;
+                } else if (is(i, MySqlLineageLexer.RPAREN)) {
+                    depth--;
+                }
+            }
+            return depth;
+        }
+
+        private int skipIf(int index, int first, int second) {
+            if (is(index, first)) {
+                return index + 1;
+            }
+            if (is(index, second)) {
+                return index + 1;
+            }
+            return index;
+        }
+
+        private boolean is(int index, int tokenType) {
+            return index >= 0 && index < tokens.size() && tokens.get(index).getType() == tokenType;
+        }
+
+        private String text(int start, int end) {
+            StringBuilder builder = new StringBuilder();
+            for (int i = start; i < end; i++) {
+                if (builder.length() > 0 && needsSpace(tokens.get(i - 1), tokens.get(i))) {
+                    builder.append(' ');
+                }
+                builder.append(tokens.get(i).getText());
+            }
+            return builder.toString();
+        }
+
+        private boolean needsSpace(Token left, Token right) {
+            return isIdentifierText(left.getText()) && isIdentifierText(right.getText());
+        }
+
+        private boolean isIdentifierText(String text) {
+            return !text.isEmpty() && Character.isLetterOrDigit(text.charAt(0));
+        }
+
+        private boolean isKeywordLike(String value) {
+            String normalized = value.toLowerCase(Locale.ROOT);
+            return "as".equals(normalized)
+                    || "distinct".equals(normalized)
+                    || "all".equals(normalized);
+        }
+
+        private static String clean(String text) {
+            String value = text.trim();
+            if (value.length() >= 2 && value.startsWith("`") && value.endsWith("`")) {
+                return value.substring(1, value.length() - 1).replace("``", "`");
+            }
+            return value;
+        }
+
+        private static TableRef tableRef(List<String> parts) {
+            if (parts.size() >= 3) {
+                return new TableRef(parts.get(parts.size() - 3), parts.get(parts.size() - 2), parts.get(parts.size() - 1));
+            }
+            if (parts.size() == 2) {
+                return new TableRef(null, parts.get(0), parts.get(1));
+            }
+            return new TableRef(null, null, parts.get(0));
+        }
+
+        private static List<Token> trimSemicolon(List<Token> input) {
+            List<Token> trimmed = new ArrayList<>(input);
+            while (!trimmed.isEmpty() && trimmed.get(trimmed.size() - 1).getType() == MySqlLineageLexer.SEMI) {
+                trimmed.remove(trimmed.size() - 1);
+            }
+            return trimmed;
+        }
+    }
+
+    private static class SelectLineage {
+        private final List<TableRef> inputs = new ArrayList<>();
+        private final List<ColumnLineage> columnLineage = new ArrayList<>();
+    }
+
+    private static class TableScan {
+        private final TableRef table;
+        private final String alias;
+        private final int nextIndex;
+
+        TableScan(TableRef table, String alias, int nextIndex) {
+            this.table = table;
+            this.alias = alias;
+            this.nextIndex = nextIndex;
+        }
+    }
+
+    private static class IdentifierRead {
+        private final List<String> parts;
+        private final int nextIndex;
+
+        IdentifierRead(List<String> parts, int nextIndex) {
+            this.parts = parts;
+            this.nextIndex = nextIndex;
+        }
+    }
+
+    private static class Range {
+        private final int start;
+        private final int end;
+
+        Range(int start, int end) {
+            this.start = start;
+            this.end = end;
+        }
+    }
+
+    private static class SourceColumn {
+        private final String qualifier;
+        private final String name;
+        private final String raw;
+
+        SourceColumn(String qualifier, String name, String raw) {
+            this.qualifier = qualifier;
+            this.name = name;
+            this.raw = raw;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof SourceColumn)) {
+                return false;
+            }
+            SourceColumn that = (SourceColumn) o;
+            return raw.equals(that.raw);
+        }
+
+        @Override
+        public int hashCode() {
+            return raw.hashCode();
+        }
+    }
+
+    private static class Projection {
+        private final String targetColumn;
+        private final List<ColumnRef> sources;
+
+        Projection(String targetColumn, List<ColumnRef> sources) {
+            this.targetColumn = targetColumn;
+            this.sources = sources;
+        }
+    }
+}

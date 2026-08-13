@@ -2,6 +2,59 @@
 
 This document records implemented behavior as LineSQL evolves. Every new parser capability should update this file and add or update SQL cases under the related dialect test resources.
 
+## MySQL
+
+MySQL is the second implemented dialect path. The current MVP uses an ANTLR4 lexer with a lightweight lineage walker for common MySQL statement shapes. It is intentionally narrower than Spark coverage while the multi-dialect SPI is being validated.
+
+Current MySQL SQL case assets:
+
+```text
+linesql-dialect-mysql/src/test/resources/sql/mysql/manifest.json
+linesql-dialect-mysql/src/test/resources/sql/mysql/cases/*.sql
+```
+
+Implemented MySQL table-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Basic SELECT source table | `select ... from app.users` | `select_basic` |
+| JOIN source tables | `select ... from app.users u join app.orders o ...` | `join_projection` |
+| INSERT INTO SELECT target and source | `insert into mart.t(c1) select a from app.s` | `insert_select` |
+| CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `create_table_as_select` |
+| CREATE VIEW AS SELECT | `create view mart.v as select ... from app.s join app.o` | `create_view` |
+| UPDATE JOIN table lineage | `update mart.t join app.s on ... set ...` | `update_join` |
+| DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...` | `delete_using` |
+| Backquoted non-ASCII identifiers | `` select `用户ID` from `业务库`.`用户表` `` | `backquoted_identifiers` |
+
+Implemented MySQL column-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Direct single-table projection | `select id as user_id, name from app.users` | `select_basic` |
+| Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
+| INSERT target column list mapping | `insert into mart.t(c1, c2) select a, b from app.s` | `insert_select` |
+| CTAS output column targets | `create table mart.t as select id as c1 from app.s` | `create_table_as_select` |
+| CREATE VIEW output column targets | `create view mart.v as select u.id from app.users u` | `create_view` |
+| Backquoted non-ASCII column identifiers | `` select `用户ID` as `用户标识` from `业务库`.`用户表` `` | `backquoted_identifiers` |
+
+Current MySQL diagnostics:
+
+| Code | Meaning |
+| --- | --- |
+| `MYSQL_PARSE_ERROR` | MySQL SQL could not be tokenized or walked by the current MVP parser. |
+| `MYSQL_STATEMENT_NOT_SUPPORTED` | The statement was recognized as MySQL but is not in the current MVP statement set. |
+| `MYSQL_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
+
+Known MySQL gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Full MySQL grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| `select *` expansion | Not expanded without schema metadata. |
+| Ambiguous plain SQL dialect detection | Explicit MySQL features are auto-detected; dialect-neutral `SELECT` remains default-detected by the current detector. |
+| Complex expressions and subqueries | Direct projections, common expressions, joins, CTAS/view/insert mappings are covered; nested query propagation is still limited. |
+| DML column lineage | `UPDATE JOIN` and `DELETE USING` currently emit table-level lineage. |
+
 ## Spark
 
 Spark is the first implemented dialect. It uses Apache Spark's official ANTLR grammar as the parse baseline, while lineage extraction is implemented by LineSQL.
