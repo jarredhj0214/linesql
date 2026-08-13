@@ -80,6 +80,7 @@ Implemented Spark table-level lineage scenarios:
 | PIVOT source table lineage | `select * from (...) pivot (...)` | `pivot_table_lineage` |
 | UNPIVOT source table lineage | `select * from mart.t unpivot (...)` | `unpivot_table_lineage` |
 | Single-value UNPIVOT generated column lineage | `select metric, value from t unpivot (value for metric in (...))` | `unpivot_column_lineage` |
+| Multi-value UNPIVOT generated column lineage | `select metric, v1, v2 from t unpivot ((v1, v2) for metric in ((c1, c2), ...))` | `unpivot_multi_value_column_lineage` |
 | TRANSFORM source table lineage | `select transform (...) using 'script' as (...) from ods.s` | `transform_table_lineage` |
 | STREAM table source lineage | `select ... from stream(ods.events) s` | `stream_table_lineage` |
 | CHANGES relation source lineage | `select c.id from ods.users changes from version 1 c` | `changelog_column_projection` |
@@ -134,6 +135,7 @@ Implemented Spark column-level lineage scenarios:
 | JSON_TABLE generated column propagation | `select name from ods.events e, json_table(e.payload, ... columns(name ...)) jt` | `json_table_column_lineage` |
 | Alias-qualified generated column propagation | `select u.item, jt.name from unnest/json_table aliases` | `unnest_qualified_column_lineage`, `json_table_qualified_column_lineage` |
 | Single-value UNPIVOT name/value propagation | `select metric, value from t unpivot (value for metric in (c1, c2))` | `unpivot_column_lineage` |
+| Multi-value UNPIVOT value propagation | `select metric, v1, v2 from t unpivot ((v1, v2) for metric in ((c1, c2), ...))` | `unpivot_multi_value_column_lineage` |
 | Pipe SELECT direct projection | `from ods.users |> select id as user_id` | `pipe_select_column_projection` |
 | Pipe WHERE then SELECT direct projection | `from ods.users |> where id > 0 |> select id as user_id` | `pipe_where_select_lineage` |
 | Pipe DROP then SELECT direct projection | `from ods.users |> drop name |> select id as user_id` | `pipe_drop_column_projection` |
@@ -207,7 +209,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
 | Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported, including alias-qualified generated column references; full UDTF output semantics are not complete yet. |
 | Pipe set operator column lineage | Pipe UNION/INTERSECT/EXCEPT source tables are extracted; set output column lineage is degraded for now. |
-| PIVOT and complex UNPIVOT column lineage | PIVOT table-level lineage is supported; single-value UNPIVOT name/value columns are supported, while PIVOT outputs and multi-value UNPIVOT are not complete yet. |
+| PIVOT and complex UNPIVOT column lineage | PIVOT table-level lineage is supported; single-value and positional multi-value UNPIVOT columns are supported, while PIVOT outputs and richer UNPIVOT aliases/null semantics are not complete yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |
 | Pipe AGGREGATE final output and complex grouping semantics | Aggregate outputs can propagate into a following SELECT; standalone pipe aggregate output and complex grouping semantics are not complete yet. |
 | Dynamic SQL expansion | `EXECUTE IMMEDIATE` is parsed and diagnosed, but embedded SQL text is not recursively parsed. |

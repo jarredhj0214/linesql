@@ -867,6 +867,32 @@
       "description": "Single-value UNPIVOT generated name/value column lineage"
     },
     {
+      "id": "unpivot_multi_value_column_lineage",
+      "file": "cases/unpivot_multi_value_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.quarterly_metrics"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["mart.quarterly_metrics.user_id"]
+        },
+        {
+          "target": "half",
+          "sources": []
+        },
+        {
+          "target": "sales",
+          "sources": ["mart.quarterly_metrics.q1_sales", "mart.quarterly_metrics.q2_sales"]
+        },
+        {
+          "target": "expenses",
+          "sources": ["mart.quarterly_metrics.q1_expenses", "mart.quarterly_metrics.q2_expenses"]
+        }
+      ],
+      "description": "Multi-value UNPIVOT generated value columns map to source column sets by position"
+    },
+    {
       "id": "transform_table_lineage",
       "file": "cases/transform_table_lineage.sql",
       "statementType": "SELECT",

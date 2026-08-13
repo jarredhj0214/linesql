@@ -984,6 +984,24 @@ public class SparkDialectParser implements DialectParser {
             return visitChildren(ctx);
         }
 
+        @Override
+        public Void visitUnpivotMultiValueColumnClause(SqlBaseParser.UnpivotMultiValueColumnClauseContext ctx) {
+            for (int valueIndex = 0; valueIndex < ctx.unpivotValueColumns.size(); valueIndex++) {
+                List<SourceColumn> sources = new ArrayList<>();
+                for (SqlBaseParser.UnpivotColumnSetContext columnSet : ctx.unpivotColumnSets) {
+                    if (valueIndex < columnSet.unpivotColumns.size()) {
+                        sources.add(new SourceColumn(
+                                null,
+                                cleanMultipartIdentifier(columnSet.unpivotColumns.get(valueIndex).multipartIdentifier())));
+                    }
+                }
+                addGeneratedColumn(null, cleanIdentifier(ctx.unpivotValueColumns.get(valueIndex).getText()), sources);
+            }
+            addGeneratedColumn(null, cleanIdentifier(ctx.unpivotNameColumn().getText()), new ArrayList<SourceColumn>());
+            refreshColumnLineage();
+            return visitChildren(ctx);
+        }
+
         private void addGeneratedColumns(String relationAlias, List<String> columnNames, List<SourceColumn> sources) {
             if (columnNames.isEmpty() || sources.isEmpty()) {
                 return;
