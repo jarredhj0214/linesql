@@ -107,6 +107,28 @@
         }
       ],
       "description": "Direct single-table column projection lineage"
+    },
+    {
+      "id": "column_expression_projection",
+      "file": "cases/column_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "name_lower",
+          "sources": ["ods.orders.name"]
+        },
+        {
+          "target": "amount",
+          "sources": ["ods.orders.price", "ods.orders.quantity"]
+        },
+        {
+          "target": "flag",
+          "sources": []
+        }
+      ],
+      "description": "Function, arithmetic, and constant projection lineage"
     }
   ]
 }

@@ -18,9 +18,9 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
+import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -219,7 +219,11 @@ public class SparkDialectParser implements DialectParser {
             for (Projection projection : projections) {
                 ColumnLineage lineage = new ColumnLineage();
                 lineage.setTarget(new ColumnRef(targetTable, projection.targetColumn));
-                lineage.setSources(Collections.singletonList(new ColumnRef(sourceTable, projection.sourceColumn)));
+                List<ColumnRef> sources = new ArrayList<>();
+                for (String sourceColumn : projection.sourceColumns) {
+                    sources.add(new ColumnRef(sourceTable, sourceColumn));
+                }
+                lineage.setSources(sources);
                 lineage.setExpression(projection.expression);
                 columnLineage.add(lineage);
             }
@@ -228,34 +232,46 @@ public class SparkDialectParser implements DialectParser {
 
         private static Projection projection(SqlBaseParser.NamedExpressionContext ctx) {
             String expression = ctx.expression().getText();
-            String sourceColumn = directColumnName(ctx.expression());
-            if (sourceColumn == null) {
+            List<String> sourceColumns = sourceColumns(ctx.expression());
+            String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
+                    ? sourceColumns.get(0)
+                    : null;
+            if (sourceColumns.isEmpty() && ctx.name == null) {
                 return null;
             }
-            String targetColumn = ctx.name == null ? sourceColumn : cleanIdentifier(ctx.name.getText());
-            return new Projection(sourceColumn, targetColumn, expression);
+            if (sourceColumns.size() > 1 && ctx.name == null) {
+                return null;
+            }
+            String targetColumn = ctx.name == null ? directColumn : cleanIdentifier(ctx.name.getText());
+            if (targetColumn == null) {
+                return null;
+            }
+            return new Projection(sourceColumns, targetColumn, expression);
         }
 
-        private static String directColumnName(SqlBaseParser.ExpressionContext ctx) {
-            if (!(ctx.booleanExpression() instanceof SqlBaseParser.PredicatedContext)) {
-                return null;
+        private static boolean isDirectColumnExpression(String expression, String column) {
+            return expression.equals(column) || expression.endsWith("." + column);
+        }
+
+        private static List<String> sourceColumns(ParseTree tree) {
+            Set<String> columns = new LinkedHashSet<>();
+            collectSourceColumns(tree, columns);
+            return new ArrayList<>(columns);
+        }
+
+        private static void collectSourceColumns(ParseTree tree, Set<String> columns) {
+            if (tree instanceof SqlBaseParser.ColumnReferenceContext) {
+                columns.add(cleanIdentifier(tree.getText()));
+                return;
             }
-            SqlBaseParser.PredicatedContext predicated = (SqlBaseParser.PredicatedContext) ctx.booleanExpression();
-            if (predicated.predicate() != null
-                    || !(predicated.valueExpression() instanceof SqlBaseParser.ValueExpressionDefaultContext)) {
-                return null;
+            if (tree instanceof SqlBaseParser.DereferenceContext) {
+                SqlBaseParser.DereferenceContext dereference = (SqlBaseParser.DereferenceContext) tree;
+                columns.add(cleanIdentifier(dereference.fieldName.getText()));
+                return;
             }
-            SqlBaseParser.ValueExpressionDefaultContext value =
-                    (SqlBaseParser.ValueExpressionDefaultContext) predicated.valueExpression();
-            if (value.primaryExpression() instanceof SqlBaseParser.ColumnReferenceContext) {
-                return cleanIdentifier(value.primaryExpression().getText());
+            for (int i = 0; i < tree.getChildCount(); i++) {
+                collectSourceColumns(tree.getChild(i), columns);
             }
-            if (value.primaryExpression() instanceof SqlBaseParser.DereferenceContext) {
-                SqlBaseParser.DereferenceContext dereference =
-                        (SqlBaseParser.DereferenceContext) value.primaryExpression();
-                return cleanIdentifier(dereference.fieldName.getText());
-            }
-            return null;
         }
 
         private static TableRef tableRef(String raw) {
@@ -301,12 +317,12 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private static class Projection {
-            private final String sourceColumn;
+            private final List<String> sourceColumns;
             private final String targetColumn;
             private final String expression;
 
-            Projection(String sourceColumn, String targetColumn, String expression) {
-                this.sourceColumn = sourceColumn;
+            Projection(List<String> sourceColumns, String targetColumn, String expression) {
+                this.sourceColumns = sourceColumns;
                 this.targetColumn = targetColumn;
                 this.expression = expression;
             }
