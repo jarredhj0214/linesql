@@ -126,6 +126,7 @@ Every newly supported Spark scenario must update both:
 - INSERT target column list over CTE and subquery propagation
 - UNION column lineage merged by output column position
 - EXCEPT and INTERSECT column inputs by output column position
+- Pipe UNION, EXCEPT, and INTERSECT column inputs by output column position when the right side has explicit projections
 - EXPLAIN wrapped SELECT projection lineage
 - CREATE VIEW and CTAS output table targets
 - CREATE VIEW column list target names

@@ -1098,8 +1098,13 @@
       "statementType": "SELECT",
       "inputTables": ["ods.users", "ods.admins"],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
-      "description": "Pipe UNION source table lineage with set column lineage degradation"
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id", "ods.admins.id"]
+        }
+      ],
+      "description": "Pipe UNION source table lineage and column lineage merged by position"
     },
     {
       "id": "pipe_intersect_table_lineage",
@@ -1107,8 +1112,13 @@
       "statementType": "SELECT",
       "inputTables": ["ods.users", "ods.active_users"],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
-      "description": "Pipe INTERSECT source table lineage with set column lineage degradation"
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id", "ods.active_users.id"]
+        }
+      ],
+      "description": "Pipe INTERSECT source table lineage and column inputs by position"
     },
     {
       "id": "pipe_except_table_lineage",
@@ -1116,8 +1126,13 @@
       "statementType": "SELECT",
       "inputTables": ["ods.users", "ods.deleted_users"],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
-      "description": "Pipe EXCEPT source table lineage with set column lineage degradation"
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id", "ods.deleted_users.id"]
+        }
+      ],
+      "description": "Pipe EXCEPT source table lineage and column inputs by position"
     },
     {
       "id": "execute_immediate_dynamic_sql",

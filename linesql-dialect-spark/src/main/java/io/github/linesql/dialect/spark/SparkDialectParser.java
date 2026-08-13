@@ -997,6 +997,18 @@ public class SparkDialectParser implements DialectParser {
             if (ctx.selectClause() != null) {
                 clearPipeOutputProjections();
             }
+            if (ctx.operator != null && ctx.right != null) {
+                refreshColumnLineage();
+                LineageResult left = new LineageResult();
+                left.setColumnLineage(new ArrayList<>(result.getColumnLineage()));
+                LineageResult right = lineageForQueryPrimary(ctx.right);
+                for (TableRef table : right.getInputTables()) {
+                    addInputTable(table, false);
+                }
+                result.setColumnLineage(mergeSetColumnLineage(left, right));
+                projections.clear();
+                return null;
+            }
             return visitChildren(ctx);
         }
 
@@ -1210,6 +1222,19 @@ public class SparkDialectParser implements DialectParser {
             queryVisitor.derivedReferences.addAll(derivedReferences);
             queryVisitor.setContext(context);
             queryVisitor.visit(queryTerm);
+            queryVisitor.refreshColumnLineage();
+            return queryResult;
+        }
+
+        private LineageResult lineageForQueryPrimary(SqlBaseParser.QueryPrimaryContext queryPrimary) {
+            LineageResult queryResult = new LineageResult();
+            SparkLineageVisitor queryVisitor = new SparkLineageVisitor(queryResult);
+            queryVisitor.cteNames.addAll(cteNames);
+            queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+            queryVisitor.derivedAliases.putAll(derivedAliases);
+            queryVisitor.derivedReferences.addAll(derivedReferences);
+            queryVisitor.setContext(context);
+            queryVisitor.visit(queryPrimary);
             queryVisitor.refreshColumnLineage();
             return queryResult;
         }

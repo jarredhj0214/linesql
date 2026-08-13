@@ -100,9 +100,9 @@ Implemented Spark table-level lineage scenarios:
 | Standalone Pipe AGGREGATE column lineage | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id` | `pipe_aggregate_table_lineage` |
 | Pipe AGGREGATE generated column lineage | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id |> select order_cnt` | `pipe_aggregate_column_lineage` |
 | Pipe JOIN source lineage | `from ods.users u |> join ods.orders o on ...` | `pipe_join_column_projection` |
-| Pipe UNION source lineage | `from ods.users |> select id |> union table ods.admins` | `pipe_union_column_projection` |
-| Pipe INTERSECT source lineage | `from ods.users |> select id |> intersect table ods.active_users` | `pipe_intersect_table_lineage` |
-| Pipe EXCEPT source lineage | `from ods.users |> select id |> except table ods.deleted_users` | `pipe_except_table_lineage` |
+| Pipe UNION source and column lineage | `from ods.users |> select id |> union select id from ods.admins` | `pipe_union_column_projection` |
+| Pipe INTERSECT source and column lineage | `from ods.users |> select id |> intersect select id from ods.active_users` | `pipe_intersect_table_lineage` |
+| Pipe EXCEPT source and column lineage | `from ods.users |> select id |> except select id from ods.deleted_users` | `pipe_except_table_lineage` |
 | CTAS output and source tables | `create table mart.t as select ... from ods.s` | `ctas_column_projection` |
 | CTAS with provider and partition clauses | `create table mart.t using parquet partitioned by (...) as select ...` | `ctas_using_partitioned` |
 | CREATE OR REPLACE TABLE AS SELECT | `create or replace table mart.t using delta as select ... from ods.s` | `replace_table_as_select` |
@@ -159,6 +159,7 @@ Implemented Spark column-level lineage scenarios:
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | EXCEPT column inputs by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | INTERSECT column inputs by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| Pipe set operator column inputs by position | `from s1 |> select a as c1 |> union/intersect/except select b from s2` | `pipe_union_column_projection`, `pipe_intersect_table_lineage`, `pipe_except_table_lineage` |
 | EXPLAIN wrapped SELECT columns | `explain select id from ods.s` | `explain_select` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
 | CREATE VIEW column list target names | `create view mart.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
@@ -213,7 +214,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
 | Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions and Spark `range` output are supported, including alias-qualified generated column references; broader UDTF output semantics are not complete yet. |
-| Pipe set operator column lineage | Pipe UNION/INTERSECT/EXCEPT source tables are extracted; set output column lineage is degraded for now. |
+| Pipe set operator with schema-free TABLE right side | Pipe UNION/INTERSECT/EXCEPT column lineage is supported when the right side has explicit projections; schema-free `TABLE t` right sides are not expanded without metadata. |
 | PIVOT and complex UNPIVOT column lineage | PIVOT aggregate output columns, single-value UNPIVOT, and positional multi-value UNPIVOT columns are supported; richer PIVOT grouping/value naming and UNPIVOT alias/null semantics are not complete yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |
 | Pipe AGGREGATE complex grouping semantics | Simple standalone aggregate outputs and following SELECT propagation are supported; grouping analytics and complex grouping sets are not complete yet. |
