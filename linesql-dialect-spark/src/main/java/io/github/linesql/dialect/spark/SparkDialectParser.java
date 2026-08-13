@@ -973,6 +973,26 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitPivotClause(SqlBaseParser.PivotClauseContext ctx) {
+            for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.aggregates.namedExpression()) {
+                Projection projection = projection(namedExpression);
+                if (projection == null) {
+                    continue;
+                }
+                for (SqlBaseParser.PivotValueContext pivotValue : ctx.pivotValues) {
+                    String valueName = pivotValueName(pivotValue);
+                    if (valueName == null) {
+                        continue;
+                    }
+                    addGeneratedColumn(null, valueName, projection.sourceColumns);
+                    addGeneratedColumn(null, valueName + "_" + projection.targetColumn, projection.sourceColumns);
+                }
+            }
+            refreshColumnLineage();
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitUnpivotSingleValueColumnClause(SqlBaseParser.UnpivotSingleValueColumnClauseContext ctx) {
             List<SourceColumn> sources = new ArrayList<>();
             for (SqlBaseParser.UnpivotColumnAndAliasContext column : ctx.unpivotColumns) {
@@ -1355,6 +1375,18 @@ public class SparkDialectParser implements DialectParser {
                 return new ArrayList<>();
             }
             return identifierNames(ctx.identifierList());
+        }
+
+        private static String pivotValueName(SqlBaseParser.PivotValueContext ctx) {
+            if (ctx.errorCapturingIdentifier() != null) {
+                return cleanIdentifier(ctx.errorCapturingIdentifier().getText());
+            }
+            String text = ctx.expression().getText();
+            if (text.length() >= 2
+                    && ((text.startsWith("'") && text.endsWith("'")) || (text.startsWith("\"") && text.endsWith("\"")))) {
+                return text.substring(1, text.length() - 1);
+            }
+            return null;
         }
 
         private static String cleanMultipartIdentifier(SqlBaseParser.MultipartIdentifierContext ctx) {

@@ -836,6 +836,28 @@
       "description": "PIVOT query source table lineage with column lineage degradation"
     },
     {
+      "id": "pivot_column_lineage",
+      "file": "cases/pivot_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.orders.user_id"]
+        },
+        {
+          "target": "small_total",
+          "sources": ["ods.orders.amount"]
+        },
+        {
+          "target": "large_total",
+          "sources": ["ods.orders.amount"]
+        }
+      ],
+      "description": "PIVOT generated aggregate columns map to aggregate input columns"
+    },
+    {
       "id": "unpivot_table_lineage",
       "file": "cases/unpivot_table_lineage.sql",
       "statementType": "SELECT",

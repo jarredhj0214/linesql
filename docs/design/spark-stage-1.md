@@ -107,6 +107,7 @@ Every newly supported Spark scenario must update both:
 - UNNEST generated column propagation
 - JSON_TABLE generated column propagation
 - Alias-qualified UNNEST and JSON_TABLE generated column propagation
+- PIVOT generated aggregate column propagation for aliased pivot values
 - Single-value UNPIVOT generated name/value propagation
 - Multi-value UNPIVOT generated value propagation by column-set position
 - Pipe SELECT direct projection
