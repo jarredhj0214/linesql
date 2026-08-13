@@ -4,3 +4,7 @@ Copyright 2026 LineSQL contributors
 This product includes software developed by LineSQL contributors.
 
 LineSQL is independently implemented unless a source file explicitly states otherwise.
+
+The Spark SQL grammar files in `linesql-dialect-spark` are adapted from
+Apache Spark's `SqlBaseLexer.g4` and `SqlBaseParser.g4`, licensed under
+the Apache License, Version 2.0.

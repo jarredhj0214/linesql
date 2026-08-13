@@ -69,10 +69,33 @@ public class SparkDialectParserTest {
 
     @Test
     public void reportsParseErrorsAsDiagnostics() {
-        LineageResult result = LineSql.parse("select from");
+        LineageResult result = LineSql.parse("select @");
 
         assertEquals(SqlDialect.SPARK, result.getDialect());
         assertEquals(1, result.getDiagnostics().size());
         assertEquals("SPARK_PARSE_ERROR", result.getDiagnostics().get(0).getCode());
+    }
+
+    @Test
+    public void parsesMergeIntoTable() {
+        LineageResult result = LineSql.parse(
+                "merge into ads.users t using ods.users s on t.id = s.id "
+                        + "when matched then update set * "
+                        + "when not matched then insert *");
+
+        assertEquals(StatementType.MERGE, result.getStatementType());
+        assertEquals("ads", result.getOutputTables().get(0).getSchema());
+        assertEquals("users", result.getOutputTables().get(0).getName());
+        assertEquals("ods", result.getInputTables().get(0).getSchema());
+    }
+
+    @Test
+    public void parsesCacheTableAsSelect() {
+        LineageResult result = LineSql.parse(
+                "cache lazy table cached_users as select id from ods.users where id > 0");
+
+        assertEquals(SqlDialect.SPARK, result.getDialect());
+        assertEquals("users", result.getInputTables().get(0).getName());
+        assertTrue(result.getDiagnostics().stream().noneMatch(d -> "SPARK_PARSE_ERROR".equals(d.getCode())));
     }
 }

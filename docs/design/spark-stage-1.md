@@ -9,6 +9,7 @@ This stage should create a small end-to-end lineage parser path before adding ot
 - Keep `LineSql.parse(sql)` as the primary user API.
 - Support table-level lineage and initial column-level lineage.
 - Use ANTLR4 for Spark SQL parsing.
+- Use Apache Spark's official SQL grammar as the Spark dialect grammar baseline.
 - Keep Spark-specific classes inside `linesql-dialect-spark`.
 - Use real SQL cases as regression assets.
 
@@ -33,9 +34,19 @@ This stage should create a small end-to-end lineage parser path before adding ot
 
 Unresolved cases should produce diagnostics instead of failing the entire result.
 
+## Grammar Strategy
+
+The Spark dialect uses grammar files adapted from Apache Spark's official ANTLR grammar:
+
+- `SqlBaseLexer.g4`
+- `SqlBaseParser.g4`
+
+The files retain Apache-2.0 license headers and are recorded in `THIRD_PARTY_NOTICES.md`.
+
+Lineage extraction is implemented independently in LineSQL visitors. Parse coverage and lineage coverage are tracked separately: a statement may parse successfully before LineSQL has full lineage extraction for that statement family.
+
 ## Non-goals
 
-- Full Spark SQL grammar coverage in the first implementation.
 - Complete `select *` expansion without schema metadata.
 - Full UDTF and lateral view column propagation.
 - Query optimization or execution planning.

@@ -2,7 +2,7 @@
 
 This file records third-party source code, grammar files, generated parser artifacts, and license obligations included in LineSQL.
 
-At this stage, LineSQL does not include copied third-party grammar or parser source files. Spark grammar files are independently authored for LineSQL.
+At this stage, LineSQL includes Spark grammar files adapted from Apache Spark.
 
 Runtime and build dependencies are managed through Maven and must be reviewed before release.
 
@@ -21,7 +21,7 @@ Before adding any external `.g4` grammar, add an entry here.
 | Dialect | Source | Source license | Copied or adapted | Local path | Review status |
 | --- | --- | --- | --- | --- | --- |
 | Hive | TBD | TBD | TBD | TBD | Not started |
-| Spark | TBD | TBD | TBD | TBD | Not started |
+| Spark | Apache Spark `sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBaseLexer.g4` and `SqlBaseParser.g4` | Apache-2.0 | Adapted | `linesql-dialect-spark/src/main/antlr4/io/github/linesql/dialect/spark/antlr/SqlBaseLexer.g4`, `linesql-dialect-spark/src/main/antlr4/io/github/linesql/dialect/spark/antlr/SqlBaseParser.g4` | Reviewed |
 | StarRocks | TBD | TBD | TBD | TBD | Not started |
 | Flink | TBD | TBD | TBD | TBD | Not started |
 | MySQL | TBD | TBD | TBD | TBD | Not started |

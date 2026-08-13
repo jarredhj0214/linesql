@@ -8,18 +8,19 @@ import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.spi.DialectParser;
-import io.github.linesql.dialect.spark.antlr.SparkLineSqlBaseVisitor;
-import io.github.linesql.dialect.spark.antlr.SparkLineSqlLexer;
-import io.github.linesql.dialect.spark.antlr.SparkLineSqlParser;
+import io.github.linesql.dialect.spark.antlr.SqlBaseLexer;
+import io.github.linesql.dialect.spark.antlr.SqlBaseParser;
+import io.github.linesql.dialect.spark.antlr.SqlBaseParserBaseVisitor;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class SparkDialectParser implements DialectParser {
     @Override
@@ -34,16 +35,16 @@ public class SparkDialectParser implements DialectParser {
         result.setDialectConfidence(1.0d);
 
         CollectingErrorListener errorListener = new CollectingErrorListener();
-        SparkLineSqlLexer lexer = new SparkLineSqlLexer(CharStreams.fromString(sql));
+        SqlBaseLexer lexer = new SqlBaseLexer(new UpperCaseCharStream(CharStreams.fromString(sql)));
         lexer.removeErrorListeners();
         lexer.addErrorListener(errorListener);
 
-        SparkLineSqlParser parser = new SparkLineSqlParser(new CommonTokenStream(lexer));
+        SqlBaseParser parser = new SqlBaseParser(new CommonTokenStream(lexer));
         parser.removeErrorListeners();
         parser.addErrorListener(errorListener);
 
-        SparkLineSqlParser.StatementContext statement = parser.statement();
-        if (errorListener.hasErrors()) {
+        SqlBaseParser.SingleStatementContext statement = parser.singleStatement();
+        if (errorListener.hasErrors() || parser.getNumberOfSyntaxErrors() > 0) {
             result.getDiagnostics().add(Diagnostic.error("SPARK_PARSE_ERROR", errorListener.message()));
             return result;
         }
@@ -58,60 +59,129 @@ public class SparkDialectParser implements DialectParser {
         return result;
     }
 
-    private static class SparkLineageVisitor extends SparkLineSqlBaseVisitor<Void> {
+    private static class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         private final LineageResult result;
         private final Set<TableRef> inputTables = new LinkedHashSet<>();
+        private final Set<TableRef> outputTables = new LinkedHashSet<>();
 
         SparkLineageVisitor(LineageResult result) {
             this.result = result;
         }
 
         @Override
-        public Void visitStatement(SparkLineSqlParser.StatementContext ctx) {
-            if (ctx.insertStatement() != null) {
-                result.setStatementType(StatementType.INSERT);
-            } else if (ctx.ctasStatement() != null) {
+        public Void visitStatementDefault(SqlBaseParser.StatementDefaultContext ctx) {
+            result.setStatementType(StatementType.SELECT);
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitSingleInsertQuery(SqlBaseParser.SingleInsertQueryContext ctx) {
+            result.setStatementType(StatementType.INSERT);
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitInsertOverwriteTable(SqlBaseParser.InsertOverwriteTableContext ctx) {
+            addOutput(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitInsertIntoTable(SqlBaseParser.InsertIntoTableContext ctx) {
+            addOutput(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitInsertIntoReplaceBooleanCond(SqlBaseParser.InsertIntoReplaceBooleanCondContext ctx) {
+            addOutput(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitInsertIntoReplaceUsing(SqlBaseParser.InsertIntoReplaceUsingContext ctx) {
+            addOutput(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitCreateTable(SqlBaseParser.CreateTableContext ctx) {
+            if (ctx.query() != null) {
                 result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
-            } else if (ctx.createViewStatement() != null) {
-                result.setStatementType(StatementType.CREATE_VIEW);
             } else {
-                result.setStatementType(StatementType.SELECT);
+                result.setStatementType(StatementType.UNKNOWN);
+            }
+            addOutput(ctx.createTableHeader().identifierReference());
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitReplaceTable(SqlBaseParser.ReplaceTableContext ctx) {
+            if (ctx.query() != null) {
+                result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            } else {
+                result.setStatementType(StatementType.UNKNOWN);
+            }
+            addOutput(ctx.replaceTableHeader().identifierReference());
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitCreateView(SqlBaseParser.CreateViewContext ctx) {
+            result.setStatementType(StatementType.CREATE_VIEW);
+            addOutput(ctx.identifierReference());
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitMergeIntoTable(SqlBaseParser.MergeIntoTableContext ctx) {
+            result.setStatementType(StatementType.MERGE);
+            addOutput(ctx.target);
+            if (ctx.source != null) {
+                addInput(ctx.source);
             }
             return visitChildren(ctx);
         }
 
         @Override
-        public Void visitInsertStatement(SparkLineSqlParser.InsertStatementContext ctx) {
-            result.getOutputTables().add(tableRef(ctx.target));
-            return visit(ctx.query());
-        }
-
-        @Override
-        public Void visitCtasStatement(SparkLineSqlParser.CtasStatementContext ctx) {
-            result.getOutputTables().add(tableRef(ctx.target));
-            return visit(ctx.query());
-        }
-
-        @Override
-        public Void visitCreateViewStatement(SparkLineSqlParser.CreateViewStatementContext ctx) {
-            result.getOutputTables().add(tableRef(ctx.target));
-            return visit(ctx.query());
-        }
-
-        @Override
-        public Void visitRelation(SparkLineSqlParser.RelationContext ctx) {
-            if (ctx.tableName() != null) {
-                inputTables.add(tableRef(ctx.tableName()));
-                result.setInputTables(inputTables.stream().collect(Collectors.toList()));
-                return null;
-            }
+        public Void visitDeleteFromTable(SqlBaseParser.DeleteFromTableContext ctx) {
+            result.setStatementType(StatementType.DELETE);
+            addOutput(ctx.identifierReference());
             return visitChildren(ctx);
         }
 
-        private static TableRef tableRef(SparkLineSqlParser.TableNameContext ctx) {
-            String[] parts = ctx.identifier().stream()
-                    .map(SparkLineageVisitor::identifierText)
-                    .toArray(String[]::new);
+        @Override
+        public Void visitUpdateTable(SqlBaseParser.UpdateTableContext ctx) {
+            result.setStatementType(StatementType.UPDATE);
+            addOutput(ctx.identifierReference());
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitTableName(SqlBaseParser.TableNameContext ctx) {
+            addInput(ctx.temporalTableIdentifierReference().identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitChangelogTableName(SqlBaseParser.ChangelogTableNameContext ctx) {
+            addInput(ctx.identifierReference());
+            return null;
+        }
+
+        private void addInput(SqlBaseParser.IdentifierReferenceContext ctx) {
+            inputTables.add(tableRef(ctx.getText()));
+            result.setInputTables(new ArrayList<>(inputTables));
+        }
+
+        private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx) {
+            outputTables.add(tableRef(ctx.getText()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+
+        private static TableRef tableRef(String raw) {
+            List<String> partsList = splitIdentifier(raw);
+            String[] parts = partsList.toArray(new String[0]);
             if (parts.length >= 3) {
                 return new TableRef(parts[parts.length - 3], parts[parts.length - 2], parts[parts.length - 1]);
             }
@@ -121,12 +191,34 @@ public class SparkDialectParser implements DialectParser {
             return new TableRef(null, null, parts[0]);
         }
 
-        private static String identifierText(SparkLineSqlParser.IdentifierContext ctx) {
-            String text = ctx.getText();
-            if (text.length() >= 2 && text.startsWith("`") && text.endsWith("`")) {
-                return text.substring(1, text.length() - 1).replace("``", "`");
+        private static List<String> splitIdentifier(String raw) {
+            List<String> parts = new ArrayList<>();
+            StringBuilder current = new StringBuilder();
+            boolean quoted = false;
+            for (int i = 0; i < raw.length(); i++) {
+                char c = raw.charAt(i);
+                if (c == '`') {
+                    quoted = !quoted;
+                    current.append(c);
+                } else if (c == '.' && !quoted) {
+                    parts.add(cleanIdentifier(current.toString()));
+                    current.setLength(0);
+                } else {
+                    current.append(c);
+                }
             }
-            return text;
+            if (current.length() > 0) {
+                parts.add(cleanIdentifier(current.toString()));
+            }
+            return parts;
+        }
+
+        private static String cleanIdentifier(String text) {
+            String value = text.trim();
+            if (value.length() >= 2 && value.startsWith("`") && value.endsWith("`")) {
+                return value.substring(1, value.length() - 1).replace("``", "`");
+            }
+            return value;
         }
     }
 
@@ -150,7 +242,7 @@ public class SparkDialectParser implements DialectParser {
         }
 
         String message() {
-            return message;
+            return message == null ? "Spark SQL parse failed." : message;
         }
     }
 }
