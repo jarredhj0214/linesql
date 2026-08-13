@@ -22,6 +22,7 @@ Implemented Spark table-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
+| SELECT with scheduler placeholders | `select ... from ods.s where dt = ${bizdate} and region = {{ region }}` | `select_with_placeholders` |
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | INSERT OVERWRITE with static partition and target columns | `insert overwrite table ads.t partition (...) (c1) select ...` | `insert_overwrite_partition_column_list` |
 | FROM-first multi-insert targets | `from ods.s insert overwrite table t1 select ... insert overwrite table t2 select ...` | `multi_insert` |
@@ -78,6 +79,15 @@ Current Spark diagnostics:
 | `SPARK_PARSE_ERROR` | Spark SQL could not be parsed by the current grammar entry point. |
 | `COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for the statement. Table lineage may still be available. |
 | `COLUMN_LINEAGE_PARTIAL` | Some column lineage was produced, but at least one projection could not be resolved safely. |
+
+### Production SQL Tolerance
+
+Implemented Spark tolerance scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Unquoted scheduler placeholders | `${bizdate}`, `{{ region }}` in expressions | `select_with_placeholders` |
+| Bad SQL isolation in scripts | one invalid statement does not block later statements | `script_bad_sql_recovery` |
 
 ### Known Gaps
 

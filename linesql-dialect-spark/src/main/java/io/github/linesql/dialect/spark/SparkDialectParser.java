@@ -40,7 +40,8 @@ public class SparkDialectParser implements DialectParser {
         result.setDialectConfidence(1.0d);
 
         CollectingErrorListener errorListener = new CollectingErrorListener();
-        SqlBaseLexer lexer = new SqlBaseLexer(new UpperCaseCharStream(CharStreams.fromString(sql)));
+        String normalizedSql = normalizePlaceholders(sql);
+        SqlBaseLexer lexer = new SqlBaseLexer(new UpperCaseCharStream(CharStreams.fromString(normalizedSql)));
         lexer.removeErrorListeners();
         lexer.addErrorListener(errorListener);
 
@@ -64,6 +65,12 @@ public class SparkDialectParser implements DialectParser {
                     "Spark column lineage is not implemented in this stage."));
         }
         return result;
+    }
+
+    private static String normalizePlaceholders(String sql) {
+        return sql
+                .replaceAll("\\$\\{[^}]+}", "__linesql_placeholder")
+                .replaceAll("\\{\\{[^}]+}}", "__linesql_placeholder");
     }
 
     private static class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {

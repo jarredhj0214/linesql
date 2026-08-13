@@ -53,6 +53,7 @@ Every newly supported Spark scenario must update both:
 - Script-local `CREATE TEMPORARY VIEW ... AS SELECT`
 - `DROP VIEW` cleanup for script-local temporary views
 - Bad SQL recovery in multi-statement scripts
+- Unquoted scheduler placeholders in expressions
 
 ## Initial Column Lineage Coverage
 

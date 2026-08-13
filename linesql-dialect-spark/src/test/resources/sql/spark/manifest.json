@@ -10,6 +10,14 @@
       "description": "Basic SELECT input table lineage"
     },
     {
+      "id": "select_with_placeholders",
+      "file": "cases/select_with_placeholders.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "SELECT table lineage with unquoted scheduler placeholders"
+    },
+    {
       "id": "insert_overwrite",
       "file": "cases/insert_overwrite.sql",
       "statementType": "INSERT",
