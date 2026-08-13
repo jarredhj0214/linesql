@@ -26,7 +26,7 @@ Status legend:
 | PIVOT / UNPIVOT | Partial | PIVOT source table lineage plus alias-based aggregate output columns are covered; single-value and positional multi-value UNPIVOT generated column lineage is covered. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
-| Pipe query | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, and set pipe operators are covered for source lineage; direct/generative projection is covered for SELECT/WHERE/DROP/EXTEND/AGGREGATE/JOIN when projected explicitly. |
+| Pipe query | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, and set pipe operators are covered for source lineage; direct/generative projection is covered for SELECT/WHERE/DROP/EXTEND/AGGREGATE/JOIN. |
 | UNNEST / JSON_TABLE | Partial | Generated columns can map to input expressions when the relation has explicit output column names, including alias-qualified generated column references. |
 | Table-valued functions | Partial | `TABLE identifier` and `TABLE(query)` arguments are extracted as source table lineage; Spark `range` generated output is covered. Other function output columns are degraded. |
 
@@ -71,7 +71,7 @@ Status legend:
 | UNNEST / JSON_TABLE | Partial | Generated columns map to input array/JSON expressions when explicit output column names are available, including alias-qualified generated column references. | Broaden complex nested JSON semantics. |
 | Inline table | Not lineage-bearing | No source table. | Add case only if diagnostics behavior needs locking. |
 | `TABLE identifier` query primary | Covered | Source table lineage, with column lineage degraded without schema. | Add schema-aware expansion later. |
-| Operator pipe queries | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, INTERSECT, and EXCEPT have executable cases; EXTEND and AGGREGATE generated columns can propagate into following SELECT, while standalone AGGREGATE output and set output columns are degraded. | Add richer set and aggregate column policy if needed. |
+| Operator pipe queries | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, INTERSECT, and EXCEPT have executable cases; EXTEND and AGGREGATE generated columns can propagate into following SELECT, and simple standalone AGGREGATE output is covered. Set output columns are degraded. | Add richer set and aggregate grouping policy if needed. |
 
 ## Parse-Only Or Not Yet Explicitly Modeled Statements
 
@@ -98,7 +98,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 ## Recommended Next Implementation Order
 
 1. Add function-specific output column semantics for more selected table-valued functions.
-2. Improve column lineage for richer PIVOT grouping/value naming, richer UNPIVOT alias/null semantics, standalone pipe AGGREGATE output, and AUTO CDC only after target/source column semantics are clear.
+2. Improve column lineage for richer PIVOT grouping/value naming, richer UNPIVOT alias/null semantics, pipe AGGREGATE grouping analytics, and AUTO CDC only after target/source column semantics are clear.
 
 ## Documentation Rule
 

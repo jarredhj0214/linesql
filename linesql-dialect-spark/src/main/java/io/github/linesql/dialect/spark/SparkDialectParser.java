@@ -88,6 +88,7 @@ public class SparkDialectParser implements DialectParser {
         private int visibleRelationCount;
         private int selectExpressionCount;
         private int skippedProjectionCount;
+        private int pipeOutputProjectionStart = -1;
         private boolean suppressColumnLineage;
         private boolean suppressMissingColumnLineageDiagnostic;
         private ParseContext context;
@@ -963,14 +964,38 @@ public class SparkDialectParser implements DialectParser {
                 return null;
             }
             if (ctx.AGGREGATE() != null && ctx.namedExpressionSeq() != null) {
+                clearPipeOutputProjections();
+                pipeOutputProjectionStart = projections.size();
+                if (ctx.aggregationClause() != null) {
+                    for (SqlBaseParser.NamedExpressionContext groupingExpression
+                            : ctx.aggregationClause().groupingExpressions) {
+                        Projection projection = projection(groupingExpression);
+                        if (projection != null) {
+                            projections.add(projection);
+                        }
+                    }
+                    for (SqlBaseParser.GroupByClauseContext groupByClause
+                            : ctx.aggregationClause().groupingExpressionsWithGroupingAnalytics) {
+                        if (groupByClause.expression() != null) {
+                            Projection projection = projection(groupByClause.expression());
+                            if (projection != null) {
+                                projections.add(projection);
+                            }
+                        }
+                    }
+                }
                 for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
                     Projection projection = projection(namedExpression);
                     if (projection != null) {
                         addGeneratedColumn(null, projection.targetColumn, projection.sourceColumns);
+                        projections.add(projection);
                     }
                 }
                 refreshColumnLineage();
                 return null;
+            }
+            if (ctx.selectClause() != null) {
+                clearPipeOutputProjections();
             }
             return visitChildren(ctx);
         }
@@ -1355,6 +1380,17 @@ public class SparkDialectParser implements DialectParser {
             result.setColumnLineage(columnLineage);
         }
 
+        private void clearPipeOutputProjections() {
+            if (pipeOutputProjectionStart < 0) {
+                return;
+            }
+            while (projections.size() > pipeOutputProjectionStart) {
+                projections.remove(projections.size() - 1);
+            }
+            pipeOutputProjectionStart = -1;
+            refreshColumnLineage();
+        }
+
         private String targetColumn(Projection projection, int index) {
             if (index < insertTargetColumns.size()) {
                 return insertTargetColumns.get(index);
@@ -1510,6 +1546,18 @@ public class SparkDialectParser implements DialectParser {
                 return null;
             }
             return new Projection(sourceColumns, targetColumn, expression);
+        }
+
+        private static Projection projection(SqlBaseParser.ExpressionContext ctx) {
+            String expression = ctx.getText();
+            List<SourceColumn> sourceColumns = sourceColumns(ctx);
+            String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
+                    ? unqualifiedColumnName(sourceColumns.get(0).name)
+                    : null;
+            if (directColumn == null) {
+                return null;
+            }
+            return new Projection(sourceColumns, directColumn, expression);
         }
 
         private static boolean isDirectColumnExpression(String expression, SourceColumn column) {

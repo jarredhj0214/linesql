@@ -97,7 +97,7 @@ Implemented Spark table-level lineage scenarios:
 | Pipe DROP and SELECT source lineage | `from ods.users |> drop name |> select id` | `pipe_drop_column_projection` |
 | Pipe EXTEND source lineage | `from ods.users |> extend upper(name) as name_upper` | `pipe_extend_table_lineage` |
 | Pipe EXTEND generated column lineage | `from ods.users |> extend upper(name) as name_upper |> select name_upper` | `pipe_extend_column_lineage` |
-| Pipe AGGREGATE source lineage | `from ods.orders |> aggregate count(order_id) group by user_id` | `pipe_aggregate_table_lineage` |
+| Standalone Pipe AGGREGATE column lineage | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id` | `pipe_aggregate_table_lineage` |
 | Pipe AGGREGATE generated column lineage | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id |> select order_cnt` | `pipe_aggregate_column_lineage` |
 | Pipe JOIN source lineage | `from ods.users u |> join ods.orders o on ...` | `pipe_join_column_projection` |
 | Pipe UNION source lineage | `from ods.users |> select id |> union table ods.admins` | `pipe_union_column_projection` |
@@ -144,6 +144,7 @@ Implemented Spark column-level lineage scenarios:
 | Pipe WHERE then SELECT direct projection | `from ods.users |> where id > 0 |> select id as user_id` | `pipe_where_select_lineage` |
 | Pipe DROP then SELECT direct projection | `from ods.users |> drop name |> select id as user_id` | `pipe_drop_column_projection` |
 | Pipe EXTEND generated projection | `from ods.users |> extend upper(name) as name_upper |> select name_upper` | `pipe_extend_column_lineage` |
+| Standalone Pipe AGGREGATE output projection | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id` | `pipe_aggregate_table_lineage` |
 | Pipe AGGREGATE generated projection | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id |> select order_cnt` | `pipe_aggregate_column_lineage` |
 | Pipe JOIN direct projection | `from ods.users u |> join ods.orders o on ... |> select u.id, o.amount` | `pipe_join_column_projection` |
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
@@ -215,7 +216,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Pipe set operator column lineage | Pipe UNION/INTERSECT/EXCEPT source tables are extracted; set output column lineage is degraded for now. |
 | PIVOT and complex UNPIVOT column lineage | PIVOT aggregate output columns, single-value UNPIVOT, and positional multi-value UNPIVOT columns are supported; richer PIVOT grouping/value naming and UNPIVOT alias/null semantics are not complete yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |
-| Pipe AGGREGATE final output and complex grouping semantics | Aggregate outputs can propagate into a following SELECT; standalone pipe aggregate output and complex grouping semantics are not complete yet. |
+| Pipe AGGREGATE complex grouping semantics | Simple standalone aggregate outputs and following SELECT propagation are supported; grouping analytics and complex grouping sets are not complete yet. |
 | Dynamic SQL expansion | `EXECUTE IMMEDIATE` is parsed and diagnosed, but embedded SQL text is not recursively parsed. |
 | Code literal expansion | Metric view code literals are parsed and diagnosed, but embedded code text is not recursively parsed. |
 | CDC column semantics | AUTO CDC source/target tables are extracted; CDC-specific field propagation is not complete yet. |

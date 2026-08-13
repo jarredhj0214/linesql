@@ -1044,8 +1044,17 @@
       "statementType": "SELECT",
       "inputTables": ["ods.orders"],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
-      "description": "Pipe AGGREGATE source table lineage with aggregate column lineage degradation"
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.orders.user_id"]
+        },
+        {
+          "target": "order_cnt",
+          "sources": ["ods.orders.order_id"]
+        }
+      ],
+      "description": "Standalone Pipe AGGREGATE source table and generated column lineage"
     },
     {
       "id": "pipe_aggregate_column_lineage",
