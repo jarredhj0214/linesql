@@ -85,6 +85,7 @@ Target output shape:
 ## Design Docs
 
 - [Architecture Vision](docs/design/architecture.md)
+- [Spark Stage 1](docs/design/spark-stage-1.md)
 - [Development](docs/development.md)
 - [License Policy](docs/legal/license-policy.md)
 - [Third-party Notices](THIRD_PARTY_NOTICES.md)

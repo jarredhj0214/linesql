@@ -1,7 +1,8 @@
 package io.github.linesql.core.spi;
 
 import io.github.linesql.core.model.SqlDialect;
+import java.util.List;
 
 public interface DialectDetector {
-    SqlDialect detect(String sql);
+    List<SqlDialect> detect(String sql);
 }

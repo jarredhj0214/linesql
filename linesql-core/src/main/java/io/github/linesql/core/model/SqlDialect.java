@@ -8,5 +8,7 @@ public enum SqlDialect {
     TRINO,
     PRESTO,
     MYSQL,
+    ORACLE,
+    SQLSERVER,
     UNKNOWN
 }

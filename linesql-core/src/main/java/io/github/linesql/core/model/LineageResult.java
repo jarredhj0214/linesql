@@ -4,19 +4,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class LineageResult {
+    private String version = "0.1";
     private SqlDialect dialect = SqlDialect.UNKNOWN;
+    private double dialectConfidence;
     private StatementType statementType = StatementType.UNKNOWN;
-    private List<TableRef> sourceTables = new ArrayList<TableRef>();
-    private List<TableRef> targetTables = new ArrayList<TableRef>();
+    private List<TableRef> inputTables = new ArrayList<TableRef>();
+    private List<TableRef> outputTables = new ArrayList<TableRef>();
     private List<ColumnLineage> columnLineage = new ArrayList<ColumnLineage>();
-    private List<ParseWarning> warnings = new ArrayList<ParseWarning>();
-    private List<ParseError> errors = new ArrayList<ParseError>();
+    private List<Diagnostic> diagnostics = new ArrayList<Diagnostic>();
 
     public static LineageResult error(SqlDialect dialect, String code, String message) {
         LineageResult result = new LineageResult();
         result.setDialect(dialect);
-        result.getErrors().add(new ParseError(code, message));
+        result.getDiagnostics().add(Diagnostic.error(code, message));
         return result;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
     }
 
     public SqlDialect getDialect() {
@@ -27,6 +36,14 @@ public class LineageResult {
         this.dialect = dialect;
     }
 
+    public double getDialectConfidence() {
+        return dialectConfidence;
+    }
+
+    public void setDialectConfidence(double dialectConfidence) {
+        this.dialectConfidence = dialectConfidence;
+    }
+
     public StatementType getStatementType() {
         return statementType;
     }
@@ -35,20 +52,20 @@ public class LineageResult {
         this.statementType = statementType;
     }
 
-    public List<TableRef> getSourceTables() {
-        return sourceTables;
+    public List<TableRef> getInputTables() {
+        return inputTables;
     }
 
-    public void setSourceTables(List<TableRef> sourceTables) {
-        this.sourceTables = sourceTables;
+    public void setInputTables(List<TableRef> inputTables) {
+        this.inputTables = inputTables;
     }
 
-    public List<TableRef> getTargetTables() {
-        return targetTables;
+    public List<TableRef> getOutputTables() {
+        return outputTables;
     }
 
-    public void setTargetTables(List<TableRef> targetTables) {
-        this.targetTables = targetTables;
+    public void setOutputTables(List<TableRef> outputTables) {
+        this.outputTables = outputTables;
     }
 
     public List<ColumnLineage> getColumnLineage() {
@@ -59,19 +76,11 @@ public class LineageResult {
         this.columnLineage = columnLineage;
     }
 
-    public List<ParseWarning> getWarnings() {
-        return warnings;
+    public List<Diagnostic> getDiagnostics() {
+        return diagnostics;
     }
 
-    public void setWarnings(List<ParseWarning> warnings) {
-        this.warnings = warnings;
-    }
-
-    public List<ParseError> getErrors() {
-        return errors;
-    }
-
-    public void setErrors(List<ParseError> errors) {
-        this.errors = errors;
+    public void setDiagnostics(List<Diagnostic> diagnostics) {
+        this.diagnostics = diagnostics;
     }
 }
