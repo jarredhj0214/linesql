@@ -845,6 +845,28 @@
       "description": "UNPIVOT query source table lineage with column lineage degradation"
     },
     {
+      "id": "unpivot_column_lineage",
+      "file": "cases/unpivot_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.user_metrics"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["mart.user_metrics.user_id"]
+        },
+        {
+          "target": "metric",
+          "sources": []
+        },
+        {
+          "target": "value",
+          "sources": ["mart.user_metrics.clicks", "mart.user_metrics.views"]
+        }
+      ],
+      "description": "Single-value UNPIVOT generated name/value column lineage"
+    },
+    {
       "id": "transform_table_lineage",
       "file": "cases/transform_table_lineage.sql",
       "statementType": "SELECT",

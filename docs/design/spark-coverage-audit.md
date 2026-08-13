@@ -23,7 +23,7 @@ Status legend:
 | Metadata reads | Covered | ANALYZE, DESCRIBE TABLE/QUERY/NAMESPACE, SHOW CREATE TABLE, SHOW TABLES/COLUMNS/VIEWS/PARTITIONS/NAMESPACES/CATALOGS/COLLATIONS, REFRESH TABLE/resource, ANALYZE TABLES. |
 | Script handling | Covered | Multi-statement splitting, bad SQL isolation, temporary view/cache propagation and cleanup. |
 | Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session/namespace/catalog/function/procedure/resource/cache/control statements. |
-| PIVOT / UNPIVOT | Partial | Source table lineage only; generated columns are not propagated yet. |
+| PIVOT / UNPIVOT | Partial | PIVOT source table lineage is covered; single-value UNPIVOT generated name/value column lineage is covered. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
 | Pipe query | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, and set pipe operators are covered for source lineage; direct projection is covered for SELECT/WHERE/DROP/JOIN. |
@@ -63,7 +63,7 @@ Status legend:
 | Subquery | Covered | Single-level aliased direct projection propagation. | Nested subquery chains and complex joins. |
 | Set operations | Covered | UNION, EXCEPT, and INTERSECT column inputs merged by position. | Consider a semantic mode that separates projection sources from filtering inputs. |
 | LATERAL VIEW | Partial | Simple generated columns from UDTF input expressions. | More UDTF output semantics. |
-| PIVOT / UNPIVOT | Partial | Source table lineage only. | Generated column mapping and source aggregation propagation. |
+| PIVOT / UNPIVOT | Partial | PIVOT source table lineage and single-value UNPIVOT generated name/value columns are covered. | PIVOT output mapping and multi-value UNPIVOT propagation. |
 | TRANSFORM | Partial | Source table lineage only. | Keep degraded unless script schema semantics are modeled. |
 | STREAM table | Covered | Source lineage and direct projection mapping. | Stream table-valued function cases. |
 | Changelog relation | Covered | Source lineage and qualified direct projection mapping. | Add additional version/timestamp variants if needed. |
@@ -98,8 +98,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 ## Recommended Next Implementation Order
 
 1. Add function-specific output column semantics for selected table-valued functions.
-2. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
-3. Improve column lineage for PIVOT/UNPIVOT, pipe EXTEND/AGGREGATE, and AUTO CDC only after target/source column semantics are clear.
+2. Improve column lineage for PIVOT, multi-value UNPIVOT, pipe EXTEND/AGGREGATE, and AUTO CDC only after target/source column semantics are clear.
 
 ## Documentation Rule
 

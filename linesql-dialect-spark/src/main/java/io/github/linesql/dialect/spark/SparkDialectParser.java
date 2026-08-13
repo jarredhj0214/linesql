@@ -947,6 +947,18 @@ public class SparkDialectParser implements DialectParser {
             return visitChildren(ctx);
         }
 
+        @Override
+        public Void visitUnpivotSingleValueColumnClause(SqlBaseParser.UnpivotSingleValueColumnClauseContext ctx) {
+            List<SourceColumn> sources = new ArrayList<>();
+            for (SqlBaseParser.UnpivotColumnAndAliasContext column : ctx.unpivotColumns) {
+                sources.add(new SourceColumn(null, cleanMultipartIdentifier(column.unpivotColumn().multipartIdentifier())));
+            }
+            addGeneratedColumn(null, cleanIdentifier(ctx.unpivotValueColumn().getText()), sources);
+            addGeneratedColumn(null, cleanIdentifier(ctx.unpivotNameColumn().getText()), new ArrayList<SourceColumn>());
+            refreshColumnLineage();
+            return visitChildren(ctx);
+        }
+
         private void addGeneratedColumns(String relationAlias, List<String> columnNames, List<SourceColumn> sources) {
             if (columnNames.isEmpty() || sources.isEmpty()) {
                 return;
@@ -1300,6 +1312,14 @@ public class SparkDialectParser implements DialectParser {
                 return new ArrayList<>();
             }
             return identifierNames(ctx.identifierList());
+        }
+
+        private static String cleanMultipartIdentifier(SqlBaseParser.MultipartIdentifierContext ctx) {
+            List<String> parts = new ArrayList<>();
+            for (SqlBaseParser.ErrorCapturingIdentifierContext identifier : ctx.parts) {
+                parts.add(cleanIdentifier(identifier.getText()));
+            }
+            return String.join(".", parts);
         }
 
         private List<ColumnRef> columnRefs(Projection projection) {
