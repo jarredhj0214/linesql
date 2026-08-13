@@ -214,6 +214,11 @@ public class MySqlDialectParser implements DialectParser {
                     }
                 }
             }
+            int set = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.SET);
+            if (set >= 0) {
+                int setEnd = firstTopLevelClauseBoundary(set + 1, tokens.size());
+                result.setColumnLineage(readUpdateAssignments(set + 1, setEnd, target.table));
+            }
         }
 
         private void parseDelete() {
@@ -480,6 +485,48 @@ public class MySqlDialectParser implements DialectParser {
             return mapped;
         }
 
+        private List<ColumnLineage> readUpdateAssignments(int start, int end, TableRef defaultTarget) {
+            List<ColumnLineage> result = new ArrayList<>();
+            for (Range range : splitTopLevel(start, end, MySqlLineageLexer.COMMA)) {
+                int equals = indexOfTopLevel(range.start, range.end, MySqlLineageLexer.EQ);
+                if (equals <= range.start || equals >= range.end - 1) {
+                    continue;
+                }
+                ColumnRef target = readAssignmentTarget(range.start, equals, defaultTarget);
+                if (target == null) {
+                    continue;
+                }
+                List<ColumnRef> sources = resolveSources(sourceColumns(equals + 1, range.end), new ArrayList<>(inputs));
+                if (sources == null) {
+                    continue;
+                }
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(target);
+                lineage.setSources(sources);
+                lineage.setExpression(text(range.start, range.end));
+                result.add(lineage);
+            }
+            return result;
+        }
+
+        private ColumnRef readAssignmentTarget(int start, int end, TableRef defaultTarget) {
+            IdentifierRead targetRead = readIdentifierParts(start, end);
+            if (targetRead.parts.isEmpty() || targetRead.nextIndex != end) {
+                return null;
+            }
+            String column = targetRead.parts.get(targetRead.parts.size() - 1);
+            TableRef table = defaultTarget;
+            if (targetRead.parts.size() >= 2) {
+                String qualifier = targetRead.parts.get(targetRead.parts.size() - 2).toLowerCase(Locale.ROOT);
+                table = aliases.get(qualifier);
+            }
+            if (table == null) {
+                return null;
+            }
+            outputs.add(table);
+            return new ColumnRef(table, column);
+        }
+
         private TableScan readTable(int start, int end) {
             int i = start;
             if (i < end && is(i, MySqlLineageLexer.TABLE)) {
@@ -599,6 +646,20 @@ public class MySqlDialectParser implements DialectParser {
                 }
             }
             return -1;
+        }
+
+        private int firstTopLevelClauseBoundary(int start, int end) {
+            int depth = 0;
+            for (int i = start; i < end; i++) {
+                if (is(i, MySqlLineageLexer.LPAREN)) {
+                    depth++;
+                } else if (is(i, MySqlLineageLexer.RPAREN)) {
+                    depth--;
+                } else if (depth == 0 && isClauseBoundary(i)) {
+                    return i;
+                }
+            }
+            return end;
         }
 
         private int registerCtes(int start, int end) {

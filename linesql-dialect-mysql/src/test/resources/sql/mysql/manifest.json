@@ -199,7 +199,17 @@
       "statementType": "UPDATE",
       "inputTables": ["mart.users", "app.users_delta"],
       "outputTables": ["mart.users"],
-      "description": "MySQL UPDATE JOIN table-level lineage"
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": ["app.users_delta.name"]
+        },
+        {
+          "target": "mart.users.status",
+          "sources": []
+        }
+      ],
+      "description": "MySQL UPDATE JOIN table and SET column lineage"
     },
     {
       "id": "delete_using",

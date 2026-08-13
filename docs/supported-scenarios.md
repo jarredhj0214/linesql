@@ -47,6 +47,8 @@ Implemented MySQL column-level lineage scenarios:
 | REPLACE SELECT target column list mapping | `replace into mart.t(c1, c2) select a, b from app.s` | `replace_select` |
 | CTAS output column targets | `create table mart.t as select id as c1 from app.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view mart.v as select u.id from app.users u` | `create_view` |
+| UPDATE SET direct assignment mapping | `update mart.t t join app.s s ... set t.c = s.c` | `update_join` |
+| UPDATE SET constant assignment target | `update mart.t set status = 'active'` | `update_join` |
 | Backquoted non-ASCII column identifiers | `` select `用户ID` as `用户标识` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 
 Current MySQL diagnostics:
@@ -65,7 +67,7 @@ Known MySQL gaps:
 | `select *` expansion | Not expanded without schema metadata. |
 | Ambiguous plain SQL dialect detection | Explicit MySQL features are auto-detected; dialect-neutral `SELECT` remains default-detected by the current detector. |
 | Complex expressions and subqueries | Direct projections, common expressions, joins, UNION, CTAS/view/insert mappings, single-level subquery propagation, and single CTE propagation are covered; nested query propagation is still limited. |
-| DML column lineage | `UPDATE JOIN` and `DELETE USING` currently emit table-level lineage. |
+| DML column lineage | `UPDATE SET` direct assignments are covered; `DELETE USING` currently emits table-level lineage. |
 
 ## Spark
 
