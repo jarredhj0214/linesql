@@ -77,6 +77,7 @@ Implemented Spark column-level lineage scenarios:
 | INSERT over script-local cache table propagation | `cache table c as select a from ods.s; insert into ads.t(c1) select a from c` | `script_cache_table_lineage` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
+| CREATE VIEW column list target names | `create view mart.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |
 | CTAS provider and partition clause output targets | `create table mart.t using parquet partitioned by (...) as select id from ods.s` | `ctas_using_partitioned` |
 | Single-level CTE direct column propagation | `with base as (select id as c1 from ods.s) select c1 from base` | `cte_column_projection` |

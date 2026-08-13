@@ -78,6 +78,7 @@ Every newly supported Spark scenario must update both:
 - INSERT target column list over CTE and subquery propagation
 - UNION column lineage merged by output column position
 - CREATE VIEW and CTAS output table targets
+- CREATE VIEW column list target names
 - Single-level CTE direct column propagation
 - Chained CTE direct column propagation
 - CTE column alias list propagation

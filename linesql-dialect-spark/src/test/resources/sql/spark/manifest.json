@@ -172,6 +172,24 @@
       "description": "CREATE VIEW AS SELECT lineage"
     },
     {
+      "id": "create_view_column_list",
+      "file": "cases/create_view_column_list.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.v_users_with_columns"],
+      "columnLineage": [
+        {
+          "target": "mart.v_users_with_columns.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "mart.v_users_with_columns.user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "CREATE VIEW column list drives output column lineage names"
+    },
+    {
       "id": "create_table_like",
       "file": "cases/create_table_like.sql",
       "statementType": "CREATE_TABLE_LIKE",

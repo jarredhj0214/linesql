@@ -190,6 +190,7 @@ public class SparkDialectParser implements DialectParser {
         public Void visitCreateView(SqlBaseParser.CreateViewContext ctx) {
             result.setStatementType(StatementType.CREATE_VIEW);
             addOutput(ctx.identifierReference());
+            addViewTargetColumns(ctx.identifierCommentList());
             visitChildren(ctx);
             if (ctx.TEMPORARY() != null) {
                 registerTemporaryRelation(ctx.identifierReference());
@@ -600,6 +601,16 @@ public class SparkDialectParser implements DialectParser {
                 return;
             }
             insertTargetColumns.addAll(identifierNames(ctx));
+            refreshColumnLineage();
+        }
+
+        private void addViewTargetColumns(SqlBaseParser.IdentifierCommentListContext ctx) {
+            if (ctx == null) {
+                return;
+            }
+            for (SqlBaseParser.IdentifierCommentContext identifierComment : ctx.identifierComment()) {
+                insertTargetColumns.add(cleanIdentifier(identifierComment.identifier().getText()));
+            }
             refreshColumnLineage();
         }
 
