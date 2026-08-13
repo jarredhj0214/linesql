@@ -131,6 +131,24 @@
       "description": "UNION query input table lineage"
     },
     {
+      "id": "union_column_projection",
+      "file": "cases/union_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.admins"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id", "ods.admins.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.users.name", "ods.admins.name"]
+        }
+      ],
+      "description": "UNION column lineage merged by output column position"
+    },
+    {
       "id": "subquery_basic",
       "file": "cases/subquery_basic.sql",
       "statementType": "SELECT",

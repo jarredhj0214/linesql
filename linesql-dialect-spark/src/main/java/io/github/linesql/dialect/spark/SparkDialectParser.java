@@ -179,6 +179,20 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitSetOperation(SqlBaseParser.SetOperationContext ctx) {
+            LineageResult left = lineageForQueryTerm(ctx.left);
+            LineageResult right = lineageForQueryTerm(ctx.right);
+            for (TableRef table : left.getInputTables()) {
+                addInputTable(table, false);
+            }
+            for (TableRef table : right.getInputTables()) {
+                addInputTable(table, false);
+            }
+            result.setColumnLineage(mergeSetColumnLineage(left, right));
+            return null;
+        }
+
+        @Override
         public Void visitAliasedQuery(SqlBaseParser.AliasedQueryContext ctx) {
             String alias = tableAlias(ctx.tableAlias());
             String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
@@ -337,6 +351,52 @@ public class SparkDialectParser implements DialectParser {
                 addInputTable(table, false);
             }
         }
+
+        private LineageResult lineageForQueryTerm(SqlBaseParser.QueryTermContext queryTerm) {
+            LineageResult queryResult = new LineageResult();
+            SparkLineageVisitor queryVisitor = new SparkLineageVisitor(queryResult);
+            queryVisitor.cteNames.addAll(cteNames);
+            queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+            queryVisitor.derivedAliases.putAll(derivedAliases);
+            queryVisitor.derivedReferences.addAll(derivedReferences);
+            queryVisitor.setContext(context);
+            queryVisitor.visit(queryTerm);
+            queryVisitor.refreshColumnLineage();
+            return queryResult;
+        }
+
+        private static List<ColumnLineage> mergeSetColumnLineage(LineageResult left, LineageResult right) {
+            int size = Math.min(left.getColumnLineage().size(), right.getColumnLineage().size());
+            List<ColumnLineage> merged = new ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                ColumnLineage leftColumn = left.getColumnLineage().get(i);
+                ColumnLineage rightColumn = right.getColumnLineage().get(i);
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(leftColumn.getTarget());
+                lineage.setSources(mergeColumnRefs(leftColumn.getSources(), rightColumn.getSources()));
+                lineage.setExpression(leftColumn.getExpression());
+                merged.add(lineage);
+            }
+            return merged;
+        }
+
+        private static List<ColumnRef> mergeColumnRefs(List<ColumnRef> left, List<ColumnRef> right) {
+            Map<String, ColumnRef> refs = new LinkedHashMap<>();
+            for (ColumnRef columnRef : left) {
+                refs.put(columnKey(columnRef), columnRef);
+            }
+            for (ColumnRef columnRef : right) {
+                refs.put(columnKey(columnRef), columnRef);
+            }
+            return new ArrayList<>(refs.values());
+        }
+
+        private static String columnKey(ColumnRef columnRef) {
+            TableRef table = columnRef.getTable();
+            String tableKey = table == null ? "" : relationKey(table);
+            return tableKey + "." + columnRef.getName();
+        }
+
 
         private void registerTemporaryRelation(SqlBaseParser.IdentifierReferenceContext identifier) {
             if (context == null) {
