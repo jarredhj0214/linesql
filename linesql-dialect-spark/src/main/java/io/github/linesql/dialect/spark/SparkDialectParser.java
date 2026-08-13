@@ -71,8 +71,12 @@ public class SparkDialectParser implements DialectParser {
         private final Set<TableRef> outputTables = new LinkedHashSet<>();
         private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
         private final Set<String> cteNames = new LinkedHashSet<>();
+        private final Map<String, Map<String, List<ColumnRef>>> cteColumnLineage = new LinkedHashMap<>();
+        private final Map<String, String> cteAliases = new LinkedHashMap<>();
+        private final Set<String> cteReferences = new LinkedHashSet<>();
         private final List<Projection> projections = new ArrayList<>();
         private final List<String> insertTargetColumns = new ArrayList<>();
+        private int visibleRelationCount;
         private int selectExpressionCount;
         private int skippedProjectionCount;
 
@@ -149,8 +153,25 @@ public class SparkDialectParser implements DialectParser {
 
         @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
-            cteNames.add(cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT));
-            return visitChildren(ctx);
+            String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
+            cteNames.add(cteName);
+
+            LineageResult cteResult = new LineageResult();
+            SparkLineageVisitor cteVisitor = new SparkLineageVisitor(cteResult);
+            cteVisitor.cteNames.addAll(cteNames);
+            cteVisitor.cteColumnLineage.putAll(cteColumnLineage);
+            cteVisitor.visit(ctx.query());
+            cteVisitor.refreshColumnLineage();
+
+            Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+            for (ColumnLineage lineage : cteResult.getColumnLineage()) {
+                columns.put(lineage.getTarget().getName(), lineage.getSources());
+            }
+            cteColumnLineage.put(cteName, columns);
+            for (TableRef table : cteResult.getInputTables()) {
+                addInputTable(table, false);
+            }
+            return null;
         }
 
         @Override
@@ -179,7 +200,14 @@ public class SparkDialectParser implements DialectParser {
 
         @Override
         public Void visitTableName(SqlBaseParser.TableNameContext ctx) {
-            addInput(ctx.temporalTableIdentifierReference().identifierReference(), ctx.tableAlias());
+            SqlBaseParser.IdentifierReferenceContext identifier =
+                    ctx.temporalTableIdentifierReference().identifierReference();
+            TableRef table = tableRef(identifier.getText());
+            if (isCteReference(table)) {
+                addCteReference(table.getName(), ctx.tableAlias());
+                return null;
+            }
+            addInputTable(table, ctx.tableAlias(), true);
             return null;
         }
 
@@ -225,6 +253,17 @@ public class SparkDialectParser implements DialectParser {
                     && cteNames.contains(table.getName().toLowerCase(java.util.Locale.ROOT))) {
                 return;
             }
+            addInputTable(table, aliasContext, true);
+        }
+
+        private void addInputTable(TableRef table, boolean visibleRelation) {
+            addInputTable(table, null, visibleRelation);
+        }
+
+        private void addInputTable(TableRef table, SqlBaseParser.TableAliasContext aliasContext, boolean visibleRelation) {
+            if (visibleRelation) {
+                visibleRelationCount++;
+            }
             inputTables.add(table);
             tableAliases.put(table.getName().toLowerCase(java.util.Locale.ROOT), table);
             String alias = tableAlias(aliasContext);
@@ -232,6 +271,18 @@ public class SparkDialectParser implements DialectParser {
                 tableAliases.put(alias.toLowerCase(java.util.Locale.ROOT), table);
             }
             result.setInputTables(new ArrayList<>(inputTables));
+            refreshColumnLineage();
+        }
+
+        private void addCteReference(String rawName, SqlBaseParser.TableAliasContext aliasContext) {
+            visibleRelationCount++;
+            String cteName = rawName.toLowerCase(java.util.Locale.ROOT);
+            cteReferences.add(cteName);
+            cteAliases.put(cteName, cteName);
+            String alias = tableAlias(aliasContext);
+            if (alias != null) {
+                cteAliases.put(alias.toLowerCase(java.util.Locale.ROOT), cteName);
+            }
             refreshColumnLineage();
         }
 
@@ -279,9 +330,16 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private List<ColumnRef> columnRefs(Projection projection) {
-            TableRef defaultTable = inputTables.size() == 1 ? inputTables.iterator().next() : null;
+            TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
+                    ? inputTables.iterator().next()
+                    : null;
             List<ColumnRef> refs = new ArrayList<>();
             for (SourceColumn sourceColumn : projection.sourceColumns) {
+                List<ColumnRef> cteRefs = cteColumnRefs(sourceColumn);
+                if (cteRefs != null) {
+                    refs.addAll(cteRefs);
+                    continue;
+                }
                 TableRef table = defaultTable;
                 if (sourceColumn.qualifier != null) {
                     table = tableAliases.get(sourceColumn.qualifier.toLowerCase(java.util.Locale.ROOT));
@@ -292,6 +350,29 @@ public class SparkDialectParser implements DialectParser {
                 refs.add(new ColumnRef(table, sourceColumn.name));
             }
             return refs;
+        }
+
+        private List<ColumnRef> cteColumnRefs(SourceColumn sourceColumn) {
+            String cteName = null;
+            if (sourceColumn.qualifier != null) {
+                cteName = cteAliases.get(sourceColumn.qualifier.toLowerCase(java.util.Locale.ROOT));
+            } else if (visibleRelationCount == 1 && cteReferences.size() == 1) {
+                cteName = cteReferences.iterator().next();
+            }
+            if (cteName == null) {
+                return null;
+            }
+            Map<String, List<ColumnRef>> columns = cteColumnLineage.get(cteName);
+            if (columns == null) {
+                return null;
+            }
+            return columns.get(sourceColumn.name);
+        }
+
+        private boolean isCteReference(TableRef table) {
+            return table.getCatalog() == null
+                    && table.getSchema() == null
+                    && cteNames.contains(table.getName().toLowerCase(java.util.Locale.ROOT));
         }
 
         private static Projection projection(SqlBaseParser.NamedExpressionContext ctx) {

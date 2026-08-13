@@ -50,6 +50,7 @@ Implemented Spark column-level lineage scenarios:
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |
+| Single-level CTE direct column propagation | `with base as (select id as c1 from ods.s) select c1 from base` | `cte_column_projection` |
 
 ### Diagnostics
 
@@ -68,7 +69,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Gap | Current behavior |
 | --- | --- |
 | `select *` expansion | Not expanded without schema metadata. |
-| CTE column propagation | CTE table aliases are filtered from table lineage, but CTE output columns are not propagated yet. |
+| Complex CTE column propagation | Single-level direct CTE projection is supported; recursive CTEs, multi-CTE dependency chains, and complex CTE joins are not complete yet. |
 | Subquery column propagation | Source tables are collected, but subquery output columns are not propagated yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
 | UDTF and lateral view column propagation | Not implemented yet. |
