@@ -1064,6 +1064,70 @@
       "description": "ANALYZE TABLES is parsed as a table-free metadata read"
     },
     {
+      "id": "create_function",
+      "file": "cases/create_function.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "CREATE FUNCTION is parsed as a non-lineage statement"
+    },
+    {
+      "id": "create_udf_return_query",
+      "file": "cases/create_udf_return_query.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "CREATE FUNCTION RETURN query is parsed as a non-lineage definition"
+    },
+    {
+      "id": "drop_function",
+      "file": "cases/drop_function.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "DROP FUNCTION is parsed as a non-lineage statement"
+    },
+    {
+      "id": "call_procedure",
+      "file": "cases/call_procedure.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "CALL procedure is parsed as a non-lineage statement"
+    },
+    {
+      "id": "show_functions",
+      "file": "cases/show_functions.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW FUNCTIONS is parsed as a table-free metadata read"
+    },
+    {
+      "id": "describe_function",
+      "file": "cases/describe_function.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "DESCRIBE FUNCTION is parsed as a table-free metadata read"
+    },
+    {
+      "id": "create_variable",
+      "file": "cases/create_variable.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "DECLARE VARIABLE is parsed as a non-lineage statement"
+    },
+    {
+      "id": "declare_cursor",
+      "file": "cases/declare_cursor.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "DECLARE CURSOR is parsed as a non-lineage control statement"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

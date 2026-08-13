@@ -22,7 +22,7 @@ Status legend:
 | Table lifecycle and maintenance | Covered | DROP, TRUNCATE, LOAD DATA, CACHE/UNCACHE, ALTER TABLE maintenance, RENAME TABLE, REPAIR TABLE, index maintenance, COMMENT ON TABLE/COLUMN. |
 | Metadata reads | Covered | ANALYZE, DESCRIBE TABLE, SHOW CREATE TABLE, SHOW COLUMNS, SHOW PARTITIONS, REFRESH TABLE, SHOW NAMESPACES, SHOW CATALOGS, ANALYZE TABLES. |
 | Script handling | Covered | Multi-statement splitting, bad SQL isolation, temporary view/cache propagation and cleanup. |
-| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session/namespace/catalog statements. |
+| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session/namespace/catalog/function/procedure/control statements. |
 | PIVOT / UNPIVOT | Partial | Source table lineage only; generated columns are not propagated yet. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
@@ -79,11 +79,11 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | --- | --- |
 | `USE`, `SET CATALOG`, `SET`, `RESET` | `USE`, `SET CATALOG`, and `RESET` have explicit non-lineage cases; additional `SET` variants may eventually update parse context. |
 | Namespace DDL and SHOW namespace/catalog commands | Namespace DDL is explicit non-lineage; SHOW namespace/catalog commands are table-free metadata reads. |
-| CREATE/DROP FUNCTION, REFRESH FUNCTION | Not table lineage-bearing unless function bodies contain queries. |
-| SQL variables, cursors, execute immediate | EXECUTE IMMEDIATE returns `DYNAMIC_SQL_NOT_EXPANDED`; SQL variables and cursors remain parse-only. |
+| CREATE/DROP FUNCTION, REFRESH FUNCTION | Function DDL is explicit non-lineage; SHOW/DESCRIBE/REFRESH FUNCTION are table-free metadata reads. |
+| SQL variables, cursors, execute immediate | EXECUTE IMMEDIATE returns `DYNAMIC_SQL_NOT_EXPANDED`; variables and cursors are explicit non-lineage control statements. |
 | EXPLAIN statement | Covered for wrapped SQL statements; SET/RESET explanation is not lineage-bearing. |
 | COMMENT ON TABLE/COLUMN | Covered as affected table lineage. |
-| CALL procedure | Parse-only; procedure lineage is catalog/procedure-specific. |
+| CALL procedure | Explicit non-lineage; procedure lineage is catalog/procedure-specific. |
 | CREATE METRIC VIEW / code literal view | Parse-only; code literal lineage cannot be extracted safely yet. |
 | CREATE FLOW / AUTO CDC | Parse-only; requires CDC source/target semantics. |
 | Table-valued functions | TABLE arguments are covered; output columns still require function-specific rules. |
@@ -95,7 +95,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 
 1. Add function-specific output column semantics for selected table-valued functions.
 2. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
-3. Add explicit parse-only/degraded cases for remaining SQL variables, cursors, namespace DDL, function DDL, and CALL statements.
+3. Add explicit parse-only/degraded cases for remaining SHOW/DESCRIBE variants, resources, collations, metric views, and CDC flow statements.
 
 ## Documentation Rule
 

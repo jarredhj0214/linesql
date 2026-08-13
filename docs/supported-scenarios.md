@@ -59,6 +59,8 @@ Implemented Spark table-level lineage scenarios:
 | Non-lineage session statements | `use db`, `set catalog c`, `reset key` | `use_database`, `set_catalog`, `reset_configuration` |
 | Namespace DDL without table lineage | `create namespace mart`, `drop namespace mart` | `create_namespace`, `drop_namespace` |
 | Table-free metadata reads | `show namespaces`, `show catalogs`, `analyze tables` | `show_namespaces`, `show_catalogs`, `analyze_tables` |
+| Function and procedure statements | `create function`, `drop function`, `call proc`, `show/describe function` | `create_function`, `create_udf_return_query`, `drop_function`, `call_procedure`, `show_functions`, `describe_function` |
+| Variable and cursor control statements | `declare variable`, `declare cursor for select ...` | `create_variable`, `declare_cursor` |
 | JOIN source tables | `from ods.users join ods.orders` | `join_basic` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from ods.s` | `create_view` |
 | CREATE TEMPORARY VIEW USING provider | `create temporary view v using csv options (...)` | `create_temp_view_using` |
@@ -176,6 +178,7 @@ Implemented Spark tolerance scenarios:
 | Dynamic SQL degradation | `EXECUTE IMMEDIATE` returns diagnostics instead of guessing embedded SQL lineage | `execute_immediate_dynamic_sql` |
 | Non-lineage session statements | `USE`, `SET CATALOG`, and `RESET` parse without lineage diagnostics | `use_database`, `set_catalog`, `reset_configuration` |
 | Namespace and catalog statements | Namespace DDL and table-free metadata reads parse without table/column diagnostics | `create_namespace`, `drop_namespace`, `show_namespaces`, `show_catalogs`, `analyze_tables` |
+| Function/procedure/variable/cursor statements | Function DDL, CALL, variable, and cursor control statements parse without table/column diagnostics | `create_function`, `call_procedure`, `create_variable`, `declare_cursor` |
 
 ### Known Gaps
 

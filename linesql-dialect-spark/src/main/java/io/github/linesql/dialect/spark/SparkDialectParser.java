@@ -603,6 +603,96 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCreateFunction(SqlBaseParser.CreateFunctionContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitCreateUserDefinedFunction(SqlBaseParser.CreateUserDefinedFunctionContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitDropFunction(SqlBaseParser.DropFunctionContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitCall(SqlBaseParser.CallContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitCreateVariable(SqlBaseParser.CreateVariableContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitDropVariable(SqlBaseParser.DropVariableContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitDeclareCursorStatement(SqlBaseParser.DeclareCursorStatementContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitOpenCursorStatement(SqlBaseParser.OpenCursorStatementContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitFetchCursorStatement(SqlBaseParser.FetchCursorStatementContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitCloseCursorStatement(SqlBaseParser.CloseCursorStatementContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitShowFunctions(SqlBaseParser.ShowFunctionsContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitShowProcedures(SqlBaseParser.ShowProceduresContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitDescribeFunction(SqlBaseParser.DescribeFunctionContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitDescribeProcedure(SqlBaseParser.DescribeProcedureContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitRefreshFunction(SqlBaseParser.RefreshFunctionContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);
