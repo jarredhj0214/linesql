@@ -10,6 +10,7 @@ public enum StatementType {
     DROP_VIEW,
     CACHE_TABLE,
     UNCACHE_TABLE,
+    RENAME_TABLE,
     DROP_TABLE,
     TRUNCATE_TABLE,
     MERGE,

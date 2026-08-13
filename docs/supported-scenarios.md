@@ -33,6 +33,7 @@ Implemented Spark table-level lineage scenarios:
 | LOAD DATA target table | `load data inpath '/path' into table ods.t` | `load_data_into_table` |
 | DROP TABLE affected table | `drop table if exists mart.t purge` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t partition (...)` | `truncate_table` |
+| ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |

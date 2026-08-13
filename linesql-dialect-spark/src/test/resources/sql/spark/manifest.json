@@ -156,6 +156,15 @@
       "description": "TRUNCATE TABLE affected table lineage"
     },
     {
+      "id": "rename_table",
+      "file": "cases/rename_table.sql",
+      "statementType": "RENAME_TABLE",
+      "inputTables": ["mart.users_tmp"],
+      "outputTables": ["mart.users_archive"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "ALTER TABLE RENAME TO old and new table lineage"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",

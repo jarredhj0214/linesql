@@ -250,6 +250,15 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitRenameTable(SqlBaseParser.RenameTableContext ctx) {
+            result.setStatementType(StatementType.RENAME_TABLE);
+            addInput(ctx.from);
+            addOutput(ctx.to);
+            unregisterTemporaryRelation(ctx.from);
+            return null;
+        }
+
+        @Override
         public Void visitTruncateTable(SqlBaseParser.TruncateTableContext ctx) {
             result.setStatementType(StatementType.TRUNCATE_TABLE);
             addOutput(ctx.identifierReference());
@@ -586,6 +595,12 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private void addOutput(SqlBaseParser.TableIdentifierContext ctx) {
+            outputTables.add(tableRef(ctx.getText()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+            refreshColumnLineage();
+        }
+
+        private void addOutput(SqlBaseParser.MultipartIdentifierContext ctx) {
             outputTables.add(tableRef(ctx.getText()));
             result.setOutputTables(new ArrayList<>(outputTables));
             refreshColumnLineage();
