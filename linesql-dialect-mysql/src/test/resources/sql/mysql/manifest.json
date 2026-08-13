@@ -194,6 +194,42 @@
       "description": "MySQL CREATE VIEW AS SELECT table and column lineage"
     },
     {
+      "id": "create_or_replace_view",
+      "file": "cases/create_or_replace_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["app.users"],
+      "outputTables": ["mart.v_active_users"],
+      "columnLineage": [
+        {
+          "target": "mart.v_active_users.user_id",
+          "sources": ["app.users.id"]
+        },
+        {
+          "target": "mart.v_active_users.name",
+          "sources": ["app.users.name"]
+        }
+      ],
+      "description": "MySQL CREATE OR REPLACE VIEW AS SELECT table and column lineage"
+    },
+    {
+      "id": "create_temporary_table_as_select",
+      "file": "cases/create_temporary_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["app.users"],
+      "outputTables": ["mart.tmp_users"],
+      "columnLineage": [
+        {
+          "target": "mart.tmp_users.user_id",
+          "sources": ["app.users.id"]
+        },
+        {
+          "target": "mart.tmp_users.name",
+          "sources": ["app.users.name"]
+        }
+      ],
+      "description": "MySQL CREATE TEMPORARY TABLE IF NOT EXISTS AS SELECT table and column lineage"
+    },
+    {
       "id": "update_join",
       "file": "cases/update_join.sql",
       "statementType": "UPDATE",

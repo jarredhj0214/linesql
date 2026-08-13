@@ -172,12 +172,13 @@ public class MySqlDialectParser implements DialectParser {
         }
 
         private void parseCreate() {
-            int objectIndex = skipIf(1, MySqlLineageLexer.TABLE, MySqlLineageLexer.VIEW);
-            if (objectIndex == 1) {
+            int objectTypeIndex = createObjectTypeIndex();
+            if (objectTypeIndex < 0) {
                 result.setStatementType(StatementType.UNKNOWN);
                 return;
             }
-            int objectType = tokens.get(objectIndex - 1).getType();
+            int objectType = tokens.get(objectTypeIndex).getType();
+            int objectIndex = skipIfNotExists(objectTypeIndex + 1);
             int select = indexOfTopLevel(objectIndex, tokens.size(), MySqlLineageLexer.SELECT);
             TableScan target = readTable(objectIndex, select < 0 ? tokens.size() : select);
             if (target != null) {
@@ -193,6 +194,29 @@ public class MySqlDialectParser implements DialectParser {
                 addInputs(selectLineage.inputs);
                 result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, new ArrayList<String>()));
             }
+        }
+
+        private int createObjectTypeIndex() {
+            int i = 1;
+            if (is(i, MySqlLineageLexer.OR) && is(i + 1, MySqlLineageLexer.REPLACE)) {
+                i += 2;
+            }
+            if (is(i, MySqlLineageLexer.TEMPORARY)) {
+                i++;
+            }
+            if (is(i, MySqlLineageLexer.TABLE) || is(i, MySqlLineageLexer.VIEW)) {
+                return i;
+            }
+            return -1;
+        }
+
+        private int skipIfNotExists(int index) {
+            if (is(index, MySqlLineageLexer.IF)
+                    && is(index + 1, MySqlLineageLexer.NOT)
+                    && is(index + 2, MySqlLineageLexer.EXISTS)) {
+                return index + 3;
+            }
+            return index;
         }
 
         private void parseUpdate() {
