@@ -13,6 +13,19 @@ This stage should create a small end-to-end lineage parser path before adding ot
 - Keep Spark-specific classes inside `linesql-dialect-spark`.
 - Use real SQL cases as regression assets.
 
+## SQL Case Assets
+
+Spark SQL cases live under:
+
+```text
+linesql-dialect-spark/src/test/resources/sql/spark/
+```
+
+- `manifest.json` records case metadata and expected table-level lineage.
+- `cases/*.sql` stores the SQL text.
+
+JUnit tests must read SQL from these resources instead of embedding long SQL strings in Java code.
+
 ## Initial Statement Coverage
 
 - `SELECT`

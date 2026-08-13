@@ -1,0 +1,70 @@
+{
+  "dialect": "SPARK",
+  "cases": [
+    {
+      "id": "select_basic",
+      "file": "cases/select_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "Basic SELECT input table lineage"
+    },
+    {
+      "id": "insert_overwrite",
+      "file": "cases/insert_overwrite.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "description": "INSERT OVERWRITE input/output table lineage"
+    },
+    {
+      "id": "script_semicolon",
+      "file": "cases/script_semicolon.sql",
+      "statementType": "MULTI",
+      "inputTables": ["db.a"],
+      "outputTables": ["db.b"],
+      "description": "Multi-statement splitter preserves semicolon inside string literal"
+    },
+    {
+      "id": "join_basic",
+      "file": "cases/join_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.orders"],
+      "outputTables": [],
+      "description": "JOIN input table lineage"
+    },
+    {
+      "id": "create_view",
+      "file": "cases/create_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.v_users"],
+      "description": "CREATE VIEW AS SELECT lineage"
+    },
+    {
+      "id": "parse_error",
+      "file": "cases/parse_error.sql",
+      "statementType": "ERROR",
+      "inputTables": [],
+      "outputTables": [],
+      "expectedDiagnostics": ["SPARK_PARSE_ERROR"],
+      "description": "Invalid SQL diagnostics"
+    },
+    {
+      "id": "merge_into",
+      "file": "cases/merge_into.sql",
+      "statementType": "MERGE",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.users"],
+      "description": "MERGE source and target table lineage"
+    },
+    {
+      "id": "cache_table_as_select",
+      "file": "cases/cache_table_as_select.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "Spark CACHE TABLE AS SELECT parses and extracts query input table"
+    }
+  ]
+}
