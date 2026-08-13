@@ -91,6 +91,7 @@ Implemented Spark table-level lineage scenarios:
 | Alias-qualified JSON_TABLE generated column lineage | `select jt.name from ods.events e, json_table(e.payload, ... ) jt` | `json_table_qualified_column_lineage` |
 | Table-valued function TABLE identifier argument | `select * from custom_tvf(table ods.users)` | `table_valued_function_table_arg` |
 | Table-valued function TABLE query argument | `select * from custom_tvf(table(select ... from ods.users))` | `table_valued_function_query_arg` |
+| Spark range table-valued function generated column | `select id from range(10)` | `table_valued_function_range` |
 | Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
 | Pipe WHERE and SELECT source lineage | `from ods.users |> where ... |> select id` | `pipe_where_select_lineage` |
 | Pipe DROP and SELECT source lineage | `from ods.users |> drop name |> select id` | `pipe_drop_column_projection` |
@@ -135,6 +136,7 @@ Implemented Spark column-level lineage scenarios:
 | UNNEST generated column propagation | `select item from ods.orders o, unnest(o.items) u(item)` | `unnest_column_lineage` |
 | JSON_TABLE generated column propagation | `select name from ods.events e, json_table(e.payload, ... columns(name ...)) jt` | `json_table_column_lineage` |
 | Alias-qualified generated column propagation | `select u.item, jt.name from unnest/json_table aliases` | `unnest_qualified_column_lineage`, `json_table_qualified_column_lineage` |
+| Spark range generated column | `select id from range(10)` | `table_valued_function_range` |
 | PIVOT generated aggregate columns | `select small_total from (...) pivot (sum(amount) as total for category in ('small' as small))` | `pivot_column_lineage` |
 | Single-value UNPIVOT name/value propagation | `select metric, value from t unpivot (value for metric in (c1, c2))` | `unpivot_column_lineage` |
 | Multi-value UNPIVOT value propagation | `select metric, v1, v2 from t unpivot ((v1, v2) for metric in ((c1, c2), ...))` | `unpivot_multi_value_column_lineage` |
@@ -209,7 +211,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Complex subquery column propagation | Single-level aliased direct subquery projection is supported; nested subquery chains and complex subquery joins are not complete yet. |
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
-| Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported, including alias-qualified generated column references; full UDTF output semantics are not complete yet. |
+| Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions and Spark `range` output are supported, including alias-qualified generated column references; broader UDTF output semantics are not complete yet. |
 | Pipe set operator column lineage | Pipe UNION/INTERSECT/EXCEPT source tables are extracted; set output column lineage is degraded for now. |
 | PIVOT and complex UNPIVOT column lineage | PIVOT aggregate output columns, single-value UNPIVOT, and positional multi-value UNPIVOT columns are supported; richer PIVOT grouping/value naming and UNPIVOT alias/null semantics are not complete yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |

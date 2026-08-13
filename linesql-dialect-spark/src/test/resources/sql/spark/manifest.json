@@ -827,6 +827,20 @@
       "description": "Table-valued function TABLE query argument source table lineage"
     },
     {
+      "id": "table_valued_function_range",
+      "file": "cases/table_valued_function_range.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": []
+        }
+      ],
+      "description": "Spark range table-valued function generated id column"
+    },
+    {
       "id": "pivot_table_lineage",
       "file": "cases/pivot_table_lineage.sql",
       "statementType": "SELECT",

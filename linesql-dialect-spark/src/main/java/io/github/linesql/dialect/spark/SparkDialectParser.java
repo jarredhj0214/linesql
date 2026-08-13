@@ -918,6 +918,25 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitTableValuedFunction(SqlBaseParser.TableValuedFunctionContext ctx) {
+            SqlBaseParser.TableFunctionCallWithTrailingClausesContext callWithClauses =
+                    ctx.tableFunctionCallWithTrailingClauses();
+            String functionName = callWithClauses.tableFunctionCall().funcName.getText();
+            if ("range".equalsIgnoreCase(functionName)) {
+                List<String> outputColumns = tableAliasColumnNames(callWithClauses.tableAlias());
+                if (outputColumns.isEmpty()) {
+                    outputColumns.add("id");
+                }
+                String alias = tableAlias(callWithClauses.tableAlias());
+                for (String outputColumn : outputColumns) {
+                    addGeneratedColumn(alias, outputColumn, new ArrayList<SourceColumn>());
+                }
+                refreshColumnLineage();
+            }
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitSelectClause(SqlBaseParser.SelectClauseContext ctx) {
             for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
                 selectExpressionCount++;
@@ -1316,7 +1335,7 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private void refreshColumnLineage() {
-            if (suppressColumnLineage || inputTables.isEmpty() || projections.isEmpty()) {
+            if (suppressColumnLineage || projections.isEmpty()) {
                 return;
             }
             TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;

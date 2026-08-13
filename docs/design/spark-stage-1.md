@@ -104,6 +104,7 @@ Every newly supported Spark scenario must update both:
 - Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
 - STREAM table direct projection: `select s.id from stream(events) s`
 - CHANGES relation direct projection
+- Spark `range` table-valued function generated `id` column
 - UNNEST generated column propagation
 - JSON_TABLE generated column propagation
 - Alias-qualified UNNEST and JSON_TABLE generated column propagation
