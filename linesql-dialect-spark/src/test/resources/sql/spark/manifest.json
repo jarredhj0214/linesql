@@ -222,6 +222,24 @@
         }
       ],
       "description": "Single-level CTE direct column propagation"
+    },
+    {
+      "id": "subquery_column_projection",
+      "file": "cases/subquery_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "Single-level aliased subquery direct column propagation"
     }
   ]
 }

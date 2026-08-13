@@ -156,21 +156,16 @@ public class SparkDialectParser implements DialectParser {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);
 
-            LineageResult cteResult = new LineageResult();
-            SparkLineageVisitor cteVisitor = new SparkLineageVisitor(cteResult);
-            cteVisitor.cteNames.addAll(cteNames);
-            cteVisitor.cteColumnLineage.putAll(cteColumnLineage);
-            cteVisitor.visit(ctx.query());
-            cteVisitor.refreshColumnLineage();
+            registerDerivedRelation(cteName, ctx.query());
+            return null;
+        }
 
-            Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-            for (ColumnLineage lineage : cteResult.getColumnLineage()) {
-                columns.put(lineage.getTarget().getName(), lineage.getSources());
-            }
-            cteColumnLineage.put(cteName, columns);
-            for (TableRef table : cteResult.getInputTables()) {
-                addInputTable(table, false);
-            }
+        @Override
+        public Void visitAliasedQuery(SqlBaseParser.AliasedQueryContext ctx) {
+            String alias = tableAlias(ctx.tableAlias());
+            String relationName = alias == null ? "$subquery" + cteColumnLineage.size() : alias;
+            registerDerivedRelation(relationName.toLowerCase(java.util.Locale.ROOT), ctx.query());
+            addCteReference(relationName, ctx.tableAlias());
             return null;
         }
 
@@ -284,6 +279,24 @@ public class SparkDialectParser implements DialectParser {
                 cteAliases.put(alias.toLowerCase(java.util.Locale.ROOT), cteName);
             }
             refreshColumnLineage();
+        }
+
+        private void registerDerivedRelation(String relationName, SqlBaseParser.QueryContext query) {
+            LineageResult relationResult = new LineageResult();
+            SparkLineageVisitor relationVisitor = new SparkLineageVisitor(relationResult);
+            relationVisitor.cteNames.addAll(cteNames);
+            relationVisitor.cteColumnLineage.putAll(cteColumnLineage);
+            relationVisitor.visit(query);
+            relationVisitor.refreshColumnLineage();
+
+            Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+            for (ColumnLineage lineage : relationResult.getColumnLineage()) {
+                columns.put(lineage.getTarget().getName(), lineage.getSources());
+            }
+            cteColumnLineage.put(relationName, columns);
+            for (TableRef table : relationResult.getInputTables()) {
+                addInputTable(table, false);
+            }
         }
 
         private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx) {
