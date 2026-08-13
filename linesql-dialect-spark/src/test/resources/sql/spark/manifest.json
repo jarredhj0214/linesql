@@ -58,6 +58,24 @@
       "description": "INSERT OVERWRITE with static partition and target column list"
     },
     {
+      "id": "insert_by_name",
+      "file": "cases/insert_by_name.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "INSERT BY NAME uses projection aliases as target column lineage names"
+    },
+    {
       "id": "multi_insert",
       "file": "cases/multi_insert.sql",
       "statementType": "INSERT",

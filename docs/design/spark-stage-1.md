@@ -76,6 +76,7 @@ Every newly supported Spark scenario must update both:
 - Nested field paths: `profile.city`, `u.profile.city`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`
+- INSERT BY NAME projection target mapping
 - INSERT target column list over CTE and subquery propagation
 - UNION column lineage merged by output column position
 - CREATE VIEW and CTAS output table targets
