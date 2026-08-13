@@ -76,6 +76,8 @@ Implemented Spark table-level lineage scenarios:
 | CHANGES relation source lineage | `select c.id from ods.users changes from version 1 c` | `changelog_column_projection` |
 | UNNEST source table lineage | `select item from ods.orders o, unnest(o.items) u(item)` | `unnest_column_lineage` |
 | JSON_TABLE source table lineage | `select name from ods.events e, json_table(e.payload, ... ) jt` | `json_table_column_lineage` |
+| Alias-qualified UNNEST generated column lineage | `select u.item from ods.orders o, unnest(o.items) u(item)` | `unnest_qualified_column_lineage` |
+| Alias-qualified JSON_TABLE generated column lineage | `select jt.name from ods.events e, json_table(e.payload, ... ) jt` | `json_table_qualified_column_lineage` |
 | Table-valued function TABLE identifier argument | `select * from custom_tvf(table ods.users)` | `table_valued_function_table_arg` |
 | Table-valued function TABLE query argument | `select * from custom_tvf(table(select ... from ods.users))` | `table_valued_function_query_arg` |
 | Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
@@ -116,6 +118,7 @@ Implemented Spark column-level lineage scenarios:
 | CHANGES relation direct projection | `select c.id as user_id from ods.users changes from version 1 c` | `changelog_column_projection` |
 | UNNEST generated column propagation | `select item from ods.orders o, unnest(o.items) u(item)` | `unnest_column_lineage` |
 | JSON_TABLE generated column propagation | `select name from ods.events e, json_table(e.payload, ... columns(name ...)) jt` | `json_table_column_lineage` |
+| Alias-qualified generated column propagation | `select u.item, jt.name from unnest/json_table aliases` | `unnest_qualified_column_lineage`, `json_table_qualified_column_lineage` |
 | Pipe SELECT direct projection | `from ods.users |> select id as user_id` | `pipe_select_column_projection` |
 | Pipe WHERE then SELECT direct projection | `from ods.users |> where id > 0 |> select id as user_id` | `pipe_where_select_lineage` |
 | Pipe DROP then SELECT direct projection | `from ods.users |> drop name |> select id as user_id` | `pipe_drop_column_projection` |
@@ -177,7 +180,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Complex subquery column propagation | Single-level aliased direct subquery projection is supported; nested subquery chains and complex subquery joins are not complete yet. |
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
-| Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported; full UDTF output semantics are not complete yet. |
+| Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported, including alias-qualified generated column references; full UDTF output semantics are not complete yet. |
 | Pipe set operator column lineage | Pipe UNION/INTERSECT/EXCEPT source tables are extracted; set output column lineage is degraded for now. |
 | PIVOT/UNPIVOT column lineage | Table-level lineage is supported; generated pivot/unpivot columns are not propagated yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |

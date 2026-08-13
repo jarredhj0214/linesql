@@ -773,6 +773,42 @@
       "description": "JSON_TABLE generated column lineage from input JSON expression"
     },
     {
+      "id": "unnest_qualified_column_lineage",
+      "file": "cases/unnest_qualified_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.orders.id"]
+        },
+        {
+          "target": "item",
+          "sources": ["ods.orders.items"]
+        }
+      ],
+      "description": "Alias-qualified UNNEST generated column lineage"
+    },
+    {
+      "id": "json_table_qualified_column_lineage",
+      "file": "cases/json_table_qualified_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.events.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.events.payload"]
+        }
+      ],
+      "description": "Alias-qualified JSON_TABLE generated column lineage"
+    },
+    {
       "id": "table_valued_function_table_arg",
       "file": "cases/table_valued_function_table_arg.sql",
       "statementType": "SELECT",

@@ -575,7 +575,8 @@ public class SparkDialectParser implements DialectParser {
             for (SqlBaseParser.ExpressionContext expression : ctx.unnest().expression()) {
                 sources.addAll(sourceColumns(expression));
             }
-            addGeneratedColumns(tableAliasColumnNames(ctx.unnest().tableAlias()), sources);
+            addGeneratedColumns(tableAlias(ctx.unnest().tableAlias()),
+                    tableAliasColumnNames(ctx.unnest().tableAlias()), sources);
             return null;
         }
 
@@ -586,7 +587,7 @@ public class SparkDialectParser implements DialectParser {
             for (SqlBaseParser.JsonTableColumnContext column : ctx.jsonTable().jsonTableColumn()) {
                 columnNames.add(cleanIdentifier(column.getChild(0).getText()));
             }
-            addGeneratedColumns(columnNames, sources);
+            addGeneratedColumns(tableAlias(ctx.jsonTable().tableAlias()), columnNames, sources);
             return null;
         }
 
@@ -626,22 +627,30 @@ public class SparkDialectParser implements DialectParser {
                 sources.addAll(sourceColumns(expression));
             }
             if (!sources.isEmpty()) {
+                String relationAlias = cleanIdentifier(ctx.tblName.getText());
                 for (SqlBaseParser.IdentifierContext column : ctx.colName) {
-                    generatedColumns.put(cleanIdentifier(column.getText()), sources);
+                    addGeneratedColumn(relationAlias, cleanIdentifier(column.getText()), sources);
                 }
             }
             refreshColumnLineage();
             return visitChildren(ctx);
         }
 
-        private void addGeneratedColumns(List<String> columnNames, List<SourceColumn> sources) {
+        private void addGeneratedColumns(String relationAlias, List<String> columnNames, List<SourceColumn> sources) {
             if (columnNames.isEmpty() || sources.isEmpty()) {
                 return;
             }
             for (String columnName : columnNames) {
-                generatedColumns.put(columnName, sources);
+                addGeneratedColumn(relationAlias, columnName, sources);
             }
             refreshColumnLineage();
+        }
+
+        private void addGeneratedColumn(String relationAlias, String columnName, List<SourceColumn> sources) {
+            generatedColumns.put(columnName, sources);
+            if (relationAlias != null) {
+                generatedColumns.put(relationAlias + "." + columnName, sources);
+            }
         }
 
         void addColumnLineageDiagnostics() {

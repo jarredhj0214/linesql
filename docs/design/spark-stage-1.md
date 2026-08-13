@@ -68,7 +68,7 @@ Every newly supported Spark scenario must update both:
 - `TRANSFORM ... USING ...` table lineage
 - `STREAM(table)` source lineage
 - CHANGES relation source lineage
-- UNNEST and JSON_TABLE generated-column source lineage
+- UNNEST and JSON_TABLE generated-column source lineage, including alias-qualified generated columns
 - Table-valued function `TABLE` argument source lineage
 - Pipe query source lineage for `SELECT`, `WHERE`, `DROP`, `EXTEND`, `AGGREGATE`, `JOIN`, and set operators
 - `MERGE INTO`
@@ -98,6 +98,7 @@ Every newly supported Spark scenario must update both:
 - CHANGES relation direct projection
 - UNNEST generated column propagation
 - JSON_TABLE generated column propagation
+- Alias-qualified UNNEST and JSON_TABLE generated column propagation
 - Pipe SELECT direct projection
 - Pipe DROP then SELECT direct projection
 - Pipe JOIN direct projection
