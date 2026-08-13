@@ -337,6 +337,42 @@
       "description": "Window function argument, partition, and order column lineage"
     },
     {
+      "id": "nested_field_projection",
+      "file": "cases/nested_field_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "city",
+          "sources": ["ods.users.profile.city"]
+        },
+        {
+          "target": "os",
+          "sources": ["ods.users.payload.device.os"]
+        }
+      ],
+      "description": "Single-table nested struct field column lineage"
+    },
+    {
+      "id": "qualified_nested_field_projection",
+      "file": "cases/qualified_nested_field_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "city",
+          "sources": ["ods.users.profile.city"]
+        },
+        {
+          "target": "amount",
+          "sources": ["ods.orders.metrics.amount"]
+        }
+      ],
+      "description": "Qualified nested struct field column lineage in JOIN queries"
+    },
+    {
       "id": "lateral_view_explode",
       "file": "cases/lateral_view_explode.sql",
       "statementType": "SELECT",

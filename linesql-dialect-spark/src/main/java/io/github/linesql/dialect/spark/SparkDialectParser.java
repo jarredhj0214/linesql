@@ -538,7 +538,8 @@ public class SparkDialectParser implements DialectParser {
                     ? inputTables.iterator().next()
                     : null;
             List<ColumnRef> refs = new ArrayList<>();
-            for (SourceColumn sourceColumn : sourceColumns) {
+            for (SourceColumn rawSourceColumn : sourceColumns) {
+                SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
                 List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
                 if (derivedRefs != null) {
                     refs.addAll(derivedRefs);
@@ -565,6 +566,21 @@ public class SparkDialectParser implements DialectParser {
                 refs.add(new ColumnRef(table, sourceColumn.name));
             }
             return refs;
+        }
+
+        private SourceColumn scopedSourceColumn(SourceColumn sourceColumn) {
+            if (sourceColumn.qualifier != null || !sourceColumn.name.contains(".")) {
+                return sourceColumn;
+            }
+            List<String> parts = splitIdentifier(sourceColumn.name);
+            if (parts.size() < 2) {
+                return sourceColumn;
+            }
+            String possibleQualifier = parts.get(0).toLowerCase(java.util.Locale.ROOT);
+            if (tableAliases.containsKey(possibleQualifier) || derivedAliases.containsKey(possibleQualifier)) {
+                return new SourceColumn(parts.get(0), String.join(".", parts.subList(1, parts.size())));
+            }
+            return sourceColumn;
         }
 
         private List<ColumnRef> derivedColumnRefs(SourceColumn sourceColumn) {
@@ -626,8 +642,7 @@ public class SparkDialectParser implements DialectParser {
             }
             if (tree instanceof SqlBaseParser.DereferenceContext) {
                 SqlBaseParser.DereferenceContext dereference = (SqlBaseParser.DereferenceContext) tree;
-                columns.add(new SourceColumn(cleanIdentifier(dereference.base.getText()),
-                        cleanIdentifier(dereference.fieldName.getText())));
+                columns.add(new SourceColumn(null, String.join(".", splitIdentifier(dereference.getText()))));
                 return;
             }
             for (int i = 0; i < tree.getChildCount(); i++) {

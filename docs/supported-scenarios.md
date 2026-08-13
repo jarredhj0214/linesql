@@ -61,6 +61,8 @@ Implemented Spark column-level lineage scenarios:
 | Qualified JOIN projection | `select u.id, o.amount from users u join orders o ...` | `column_join_projection` |
 | GROUP BY aggregate expression sources | `select user_id, count(order_id), sum(amount) from ods.orders group by user_id` | `aggregate_column_projection` |
 | Window function argument and spec sources | `select row_number() over (partition by user_id order by created_at) from ods.orders` | `window_column_projection` |
+| Single-table nested struct field sources | `select profile.city as city from ods.users` | `nested_field_projection` |
+| Qualified nested struct field sources | `select u.profile.city from ods.users u join ods.orders o ...` | `qualified_nested_field_projection` |
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | INSERT target column list over CTE propagation | `insert into ads.t(c1) with q as (...) select c1 from q` | `insert_from_cte` |
@@ -106,4 +108,4 @@ The following Spark lineage features are intentionally not complete yet:
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
 | Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported; full UDTF output semantics are not complete yet. |
 | Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
-| Complex nested fields and structs | Basic dereference source collection exists, but full struct-field semantics are not modeled yet. |
+| Complex nested fields and structs | Basic nested field paths are preserved; schema-aware struct expansion is not implemented yet. |
