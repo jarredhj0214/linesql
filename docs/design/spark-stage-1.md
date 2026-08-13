@@ -69,6 +69,7 @@ Every newly supported Spark scenario must update both:
 - `STREAM(table)` source lineage
 - CHANGES relation source lineage
 - UNNEST and JSON_TABLE generated-column source lineage
+- Table-valued function `TABLE` argument source lineage
 - Pipe query source lineage for `SELECT`, `WHERE`, `DROP`, `EXTEND`, and `AGGREGATE` operators
 - `MERGE INTO`
 - `MERGE INTO ... USING (subquery)`

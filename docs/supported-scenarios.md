@@ -76,6 +76,8 @@ Implemented Spark table-level lineage scenarios:
 | CHANGES relation source lineage | `select c.id from ods.users changes from version 1 c` | `changelog_column_projection` |
 | UNNEST source table lineage | `select item from ods.orders o, unnest(o.items) u(item)` | `unnest_column_lineage` |
 | JSON_TABLE source table lineage | `select name from ods.events e, json_table(e.payload, ... ) jt` | `json_table_column_lineage` |
+| Table-valued function TABLE identifier argument | `select * from custom_tvf(table ods.users)` | `table_valued_function_table_arg` |
+| Table-valued function TABLE query argument | `select * from custom_tvf(table(select ... from ods.users))` | `table_valued_function_query_arg` |
 | Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
 | Pipe WHERE and SELECT source lineage | `from ods.users |> where ... |> select id` | `pipe_where_select_lineage` |
 | Pipe DROP and SELECT source lineage | `from ods.users |> drop name |> select id` | `pipe_drop_column_projection` |

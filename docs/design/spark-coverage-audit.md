@@ -28,6 +28,7 @@ Status legend:
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
 | Pipe query | Partial | `SELECT`, `WHERE`, `DROP`, `EXTEND`, and `AGGREGATE` pipe operators are covered for source lineage; direct projection is covered for SELECT/WHERE/DROP. |
 | UNNEST / JSON_TABLE | Partial | Generated columns can map to input expressions when the relation has explicit output column names. |
+| Table-valued functions | Partial | `TABLE identifier` and `TABLE(query)` arguments are extracted as source table lineage; function output columns are degraded. |
 
 ## Statement Families
 
@@ -64,7 +65,7 @@ Status legend:
 | TRANSFORM | Partial | Source table lineage only. | Keep degraded unless script schema semantics are modeled. |
 | STREAM table | Covered | Source lineage and direct projection mapping. | Stream table-valued function cases. |
 | Changelog relation | Covered | Source lineage and qualified direct projection mapping. | Add additional version/timestamp variants if needed. |
-| Table-valued functions | Parse-only | No explicit table lineage unless arguments contain table references that are visited. | Decide function-specific source semantics. |
+| Table-valued functions | Partial | `TABLE` identifier and query arguments contribute source table lineage. | Decide function-specific output column semantics. |
 | UNNEST / JSON_TABLE | Partial | Generated columns map to input array/JSON expressions when explicit output column names are available. | Broaden alias-qualified generated column projection and complex nested JSON semantics. |
 | Inline table | Not lineage-bearing | No source table. | Add case only if diagnostics behavior needs locking. |
 | `TABLE identifier` query primary | Covered | Source table lineage, with column lineage degraded without schema. | Add schema-aware expansion later. |
@@ -85,7 +86,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | CALL procedure | Parse-only; procedure lineage is catalog/procedure-specific. |
 | CREATE METRIC VIEW / code literal view | Parse-only; code literal lineage cannot be extracted safely yet. |
 | CREATE FLOW / AUTO CDC | Parse-only; requires CDC source/target semantics. |
-| Table-valued functions | Requires function-specific rules. |
+| Table-valued functions | TABLE arguments are covered; output columns still require function-specific rules. |
 | `TABLE t` query primary | Covered as source table lineage with column lineage degraded without schema. |
 | EXCEPT / INTERSECT | Covered; current column lineage records both inputs by position. |
 | Operator pipe statements | Partial coverage for SELECT, WHERE, DROP, EXTEND, and AGGREGATE; remaining operators need explicit cases. |
@@ -93,8 +94,8 @@ These grammar branches should be triaged before claiming broad Spark completion:
 ## Recommended Next Implementation Order
 
 1. Add pipe query cases for JOIN and pipe set operators.
-2. Add conservative relation support for table-valued functions, starting with table lineage and explicit degradation.
-3. Broaden UNNEST / JSON_TABLE generated column support for alias-qualified projections.
+2. Broaden UNNEST / JSON_TABLE generated column support for alias-qualified projections.
+3. Add function-specific output column semantics for selected table-valued functions.
 4. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
 5. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.
 

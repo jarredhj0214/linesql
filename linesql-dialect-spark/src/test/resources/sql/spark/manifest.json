@@ -773,6 +773,24 @@
       "description": "JSON_TABLE generated column lineage from input JSON expression"
     },
     {
+      "id": "table_valued_function_table_arg",
+      "file": "cases/table_valued_function_table_arg.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "Table-valued function TABLE identifier argument source table lineage"
+    },
+    {
+      "id": "table_valued_function_query_arg",
+      "file": "cases/table_valued_function_query_arg.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "Table-valued function TABLE query argument source table lineage"
+    },
+    {
       "id": "pivot_table_lineage",
       "file": "cases/pivot_table_lineage.sql",
       "statementType": "SELECT",
