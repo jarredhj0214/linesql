@@ -43,7 +43,7 @@ LineSQL is currently in requirements and architecture design. The first-stage im
 Build:
 
 ```bash
-mvn test
+./scripts/mvn-jdk11 clean test
 ```
 
 Planned API:
@@ -84,6 +84,7 @@ Target output shape:
 ## Design Docs
 
 - [Architecture Vision](docs/design/architecture.md)
+- [Development](docs/development.md)
 - [License Policy](docs/legal/license-policy.md)
 - [Third-party Notices](THIRD_PARTY_NOTICES.md)
 
