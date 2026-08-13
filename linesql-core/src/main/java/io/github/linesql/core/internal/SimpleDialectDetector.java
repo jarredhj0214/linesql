@@ -21,6 +21,24 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*")) {
             candidates.add(SqlDialect.MYSQL);
         }
+        if (normalized.matches("(?s).*\\brow\\s+format\\b.*")
+                || normalized.matches("(?s).*\\bstored\\s+as\\b.*")
+                || normalized.matches("(?s).*\\bserdeproperties\\b.*")
+                || normalized.matches("(?s).*\\bclustered\\s+by\\b.*")) {
+            candidates.add(SqlDialect.HIVE);
+        }
+        if (normalized.contains("'connector'")
+                || normalized.contains("\"connector\"")
+                || normalized.matches("(?s).*\\bwatermark\\s+for\\b.*")
+                || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
+            candidates.add(SqlDialect.FLINK);
+        }
+        if (normalized.matches("(?s).*\\bduplicate\\s+key\\b.*")
+                || normalized.matches("(?s).*\\baggregate\\s+key\\b.*")
+                || normalized.matches("(?s).*\\bdistributed\\s+by\\s+hash\\b.*")
+                || normalized.contains(" properties (\"replication_num\"")) {
+            candidates.add(SqlDialect.STARROCKS);
+        }
         if (normalized.contains("insert overwrite")
                 || normalized.contains("lateral view")
                 || normalized.contains("create temporary view")

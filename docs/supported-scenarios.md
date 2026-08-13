@@ -2,6 +2,16 @@
 
 This document records implemented behavior as LineSQL evolves. Every new parser capability should update this file and add or update SQL cases under the related dialect test resources.
 
+## Dialect Scaffolds
+
+Hive, Flink, and StarRocks modules are registered in Maven, CLI dependencies, and Java `ServiceLoader`. Their first commit intentionally returns scaffold diagnostics instead of lineage so that later grammar work can land behind stable module boundaries.
+
+| Dialect | Module | Detection anchor | Case manifest | Current diagnostic |
+| --- | --- | --- | --- | --- |
+| Hive | `linesql-dialect-hive` | `STORED AS`, `ROW FORMAT`, `SERDEPROPERTIES`, `CLUSTERED BY` | `linesql-dialect-hive/src/test/resources/sql/hive/manifest.json` | `HIVE_PARSER_SCAFFOLD` |
+| Flink | `linesql-dialect-flink` | connector options, `WATERMARK FOR` | `linesql-dialect-flink/src/test/resources/sql/flink/manifest.json` | `FLINK_PARSER_SCAFFOLD` |
+| StarRocks | `linesql-dialect-starrocks` | `DUPLICATE KEY`, `AGGREGATE KEY`, `DISTRIBUTED BY HASH` | `linesql-dialect-starrocks/src/test/resources/sql/starrocks/manifest.json` | `STARROCKS_PARSER_SCAFFOLD` |
+
 ## MySQL
 
 MySQL is the second implemented dialect path. The current MVP uses an ANTLR4 lexer with a lightweight lineage walker for common MySQL statement shapes. It is intentionally narrower than Spark coverage while the multi-dialect SPI is being validated.

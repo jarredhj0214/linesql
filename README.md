@@ -23,8 +23,10 @@ Compared with common alternatives:
 - `linesql-core`: model, SPI, facade, statement splitter, dialect detector, and shared utilities.
 - `linesql-dialect-spark`: Spark dialect parser module.
 - `linesql-dialect-hive`: Hive dialect parser module.
+- `linesql-dialect-flink`: Flink dialect parser module.
+- `linesql-dialect-starrocks`: StarRocks dialect parser module.
 - `linesql-dialect-mysql`: MySQL dialect parser module.
-- Future first-stage dialect modules: StarRocks, Flink, Oracle, and SQL Server.
+- Future first-stage dialect modules: Oracle and SQL Server.
 - `linesql-cli`: command-line entry module.
 
 ## Current Scope
@@ -46,6 +48,7 @@ Current implemented coverage is documented as the project evolves:
 - [Supported Scenarios](docs/supported-scenarios.md)
 - [Spark Stage 1](docs/design/spark-stage-1.md)
 - MySQL MVP coverage, including MySQL-specific write statements such as `ON DUPLICATE KEY UPDATE` and `REPLACE INTO`, is recorded in [Supported Scenarios](docs/supported-scenarios.md).
+- Hive, Flink, and StarRocks modules are registered as dialect scaffolds with SQL case assets and scaffold diagnostics.
 
 ## Usage
 

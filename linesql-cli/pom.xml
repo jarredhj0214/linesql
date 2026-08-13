@@ -31,6 +31,16 @@
         </dependency>
         <dependency>
             <groupId>io.github.linesql</groupId>
+            <artifactId>linesql-dialect-flink</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.linesql</groupId>
+            <artifactId>linesql-dialect-starrocks</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.linesql</groupId>
             <artifactId>linesql-dialect-mysql</artifactId>
             <version>${project.version}</version>
         </dependency>

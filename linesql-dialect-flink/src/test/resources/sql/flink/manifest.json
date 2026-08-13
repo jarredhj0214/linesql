@@ -1,0 +1,11 @@
+{
+  "dialect": "FLINK",
+  "status": "SCAFFOLD",
+  "cases": [
+    {
+      "id": "create_table_connector",
+      "file": "cases/create_table_connector.sql",
+      "description": "Flink scaffold case for connector and watermark syntax detection"
+    }
+  ]
+}

@@ -30,6 +30,8 @@
         <module>linesql-core</module>
         <module>linesql-dialect-spark</module>
         <module>linesql-dialect-hive</module>
+        <module>linesql-dialect-flink</module>
+        <module>linesql-dialect-starrocks</module>
         <module>linesql-dialect-mysql</module>
         <module>linesql-cli</module>
     </modules>

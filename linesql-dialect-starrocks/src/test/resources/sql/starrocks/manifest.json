@@ -1,0 +1,11 @@
+{
+  "dialect": "STARROCKS",
+  "status": "SCAFFOLD",
+  "cases": [
+    {
+      "id": "create_table_duplicate_key",
+      "file": "cases/create_table_duplicate_key.sql",
+      "description": "StarRocks scaffold case for duplicate key and distribution syntax detection"
+    }
+  ]
+}

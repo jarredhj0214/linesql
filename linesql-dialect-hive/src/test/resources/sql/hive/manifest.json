@@ -1,0 +1,11 @@
+{
+  "dialect": "HIVE",
+  "status": "SCAFFOLD",
+  "cases": [
+    {
+      "id": "create_table_stored_as",
+      "file": "cases/create_table_stored_as.sql",
+      "description": "Hive scaffold case for STORED AS syntax detection"
+    }
+  ]
+}
