@@ -1049,7 +1049,7 @@ public class SparkDialectParser implements DialectParser {
             String expression = ctx.expression().getText();
             List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
             String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
-                    ? sourceColumns.get(0).name
+                    ? unqualifiedColumnName(sourceColumns.get(0).name)
                     : null;
             if (sourceColumns.isEmpty() && ctx.name == null) {
                 return null;
@@ -1066,6 +1066,11 @@ public class SparkDialectParser implements DialectParser {
 
         private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
             return expression.equals(column.name) || expression.endsWith("." + column.name);
+        }
+
+        private static String unqualifiedColumnName(String raw) {
+            List<String> parts = splitIdentifier(raw);
+            return parts.isEmpty() ? raw : parts.get(parts.size() - 1);
         }
 
         private static List<SourceColumn> sourceColumns(ParseTree tree) {

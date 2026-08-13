@@ -910,6 +910,42 @@
       "description": "Pipe AGGREGATE source table lineage with aggregate column lineage degradation"
     },
     {
+      "id": "pipe_join_column_projection",
+      "file": "cases/pipe_join_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "amount",
+          "sources": ["ods.orders.amount"]
+        }
+      ],
+      "description": "Pipe JOIN source and qualified direct column lineage"
+    },
+    {
+      "id": "pipe_union_column_projection",
+      "file": "cases/pipe_union_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.admins"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "Pipe UNION source table lineage with set column lineage degradation"
+    },
+    {
+      "id": "pipe_intersect_table_lineage",
+      "file": "cases/pipe_intersect_table_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.active_users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "Pipe INTERSECT source table lineage with set column lineage degradation"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

@@ -70,7 +70,7 @@ Every newly supported Spark scenario must update both:
 - CHANGES relation source lineage
 - UNNEST and JSON_TABLE generated-column source lineage
 - Table-valued function `TABLE` argument source lineage
-- Pipe query source lineage for `SELECT`, `WHERE`, `DROP`, `EXTEND`, and `AGGREGATE` operators
+- Pipe query source lineage for `SELECT`, `WHERE`, `DROP`, `EXTEND`, `AGGREGATE`, `JOIN`, and set operators
 - `MERGE INTO`
 - `MERGE INTO ... USING (subquery)`
 - `UPDATE ... SET ... WHERE ...`
@@ -100,6 +100,7 @@ Every newly supported Spark scenario must update both:
 - JSON_TABLE generated column propagation
 - Pipe SELECT direct projection
 - Pipe DROP then SELECT direct projection
+- Pipe JOIN direct projection
 - Nested field paths: `profile.city`, `u.profile.city`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`

@@ -26,7 +26,7 @@ Status legend:
 | PIVOT / UNPIVOT | Partial | Source table lineage only; generated columns are not propagated yet. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
-| Pipe query | Partial | `SELECT`, `WHERE`, `DROP`, `EXTEND`, and `AGGREGATE` pipe operators are covered for source lineage; direct projection is covered for SELECT/WHERE/DROP. |
+| Pipe query | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, and set pipe operators are covered for source lineage; direct projection is covered for SELECT/WHERE/DROP/JOIN. |
 | UNNEST / JSON_TABLE | Partial | Generated columns can map to input expressions when the relation has explicit output column names. |
 | Table-valued functions | Partial | `TABLE identifier` and `TABLE(query)` arguments are extracted as source table lineage; function output columns are degraded. |
 
@@ -69,7 +69,7 @@ Status legend:
 | UNNEST / JSON_TABLE | Partial | Generated columns map to input array/JSON expressions when explicit output column names are available. | Broaden alias-qualified generated column projection and complex nested JSON semantics. |
 | Inline table | Not lineage-bearing | No source table. | Add case only if diagnostics behavior needs locking. |
 | `TABLE identifier` query primary | Covered | Source table lineage, with column lineage degraded without schema. | Add schema-aware expansion later. |
-| Operator pipe queries | Partial | SELECT, WHERE, DROP, EXTEND, and AGGREGATE have executable cases; generated EXTEND/AGGREGATE columns are degraded. | Add cases for pipe JOIN and pipe set operators. |
+| Operator pipe queries | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, and INTERSECT have executable cases; generated EXTEND/AGGREGATE and set output columns are degraded. | Add EXCEPT pipe case and richer set column policy if needed. |
 
 ## Parse-Only Or Not Yet Explicitly Modeled Statements
 
@@ -89,15 +89,14 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | Table-valued functions | TABLE arguments are covered; output columns still require function-specific rules. |
 | `TABLE t` query primary | Covered as source table lineage with column lineage degraded without schema. |
 | EXCEPT / INTERSECT | Covered; current column lineage records both inputs by position. |
-| Operator pipe statements | Partial coverage for SELECT, WHERE, DROP, EXTEND, and AGGREGATE; remaining operators need explicit cases. |
+| Operator pipe statements | Partial coverage for SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, and INTERSECT. |
 
 ## Recommended Next Implementation Order
 
-1. Add pipe query cases for JOIN and pipe set operators.
-2. Broaden UNNEST / JSON_TABLE generated column support for alias-qualified projections.
-3. Add function-specific output column semantics for selected table-valued functions.
-4. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
-5. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.
+1. Broaden UNNEST / JSON_TABLE generated column support for alias-qualified projections.
+2. Add function-specific output column semantics for selected table-valued functions.
+3. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
+4. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.
 
 ## Documentation Rule
 
