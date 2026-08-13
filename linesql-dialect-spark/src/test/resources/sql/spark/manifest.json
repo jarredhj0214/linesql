@@ -596,6 +596,24 @@
       "description": "CTAS with USING provider and partition clause"
     },
     {
+      "id": "replace_table_as_select",
+      "file": "cases/replace_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.users_delta"],
+      "outputTables": ["mart.user_latest"],
+      "columnLineage": [
+        {
+          "target": "mart.user_latest.user_id",
+          "sources": ["ods.users_delta.id"]
+        },
+        {
+          "target": "mart.user_latest.updated_at",
+          "sources": ["ods.users_delta.updated_at"]
+        }
+      ],
+      "description": "CREATE OR REPLACE TABLE AS SELECT table and column lineage"
+    },
+    {
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",

@@ -46,6 +46,7 @@ Every newly supported Spark scenario must update both:
 - FROM-first multi-insert table lineage
 - `CREATE TABLE ... AS SELECT`
 - `CREATE TABLE ... USING ... PARTITIONED BY ... AS SELECT`
+- `CREATE OR REPLACE TABLE ... AS SELECT`
 - `CREATE TABLE ... LIKE ...`
 - `CREATE VIEW ... AS SELECT`
 - `CREATE TEMPORARY VIEW ... USING ... OPTIONS ...`
