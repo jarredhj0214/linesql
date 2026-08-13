@@ -178,6 +178,24 @@
       "description": "Qualified JOIN projection column lineage"
     },
     {
+      "id": "lateral_view_explode",
+      "file": "cases/lateral_view_explode.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.orders.id"]
+        },
+        {
+          "target": "item",
+          "sources": ["ods.orders.items"]
+        }
+      ],
+      "description": "Spark LATERAL VIEW explode generated column lineage"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

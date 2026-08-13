@@ -53,6 +53,7 @@ Every newly supported Spark scenario must update both:
 - Constants: `select 1 as flag`
 - Simple arithmetic: `select price * quantity as amount`
 - Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
+- LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`
 - INSERT target column list over CTE and subquery propagation
 - CREATE VIEW and CTAS output table targets

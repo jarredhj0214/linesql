@@ -75,6 +75,7 @@ public class SparkDialectParser implements DialectParser {
         private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
         private final Map<String, String> derivedAliases = new LinkedHashMap<>();
         private final Set<String> derivedReferences = new LinkedHashSet<>();
+        private final Map<String, List<SourceColumn>> generatedColumns = new LinkedHashMap<>();
         private final List<Projection> projections = new ArrayList<>();
         private final List<String> insertTargetColumns = new ArrayList<>();
         private int visibleRelationCount;
@@ -238,6 +239,21 @@ public class SparkDialectParser implements DialectParser {
                     skippedProjectionCount++;
                 }
             }
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitLateralView(SqlBaseParser.LateralViewContext ctx) {
+            List<SourceColumn> sources = new ArrayList<>();
+            for (SqlBaseParser.ExpressionContext expression : ctx.expression()) {
+                sources.addAll(sourceColumns(expression));
+            }
+            if (!sources.isEmpty()) {
+                for (SqlBaseParser.IdentifierContext column : ctx.colName) {
+                    generatedColumns.put(cleanIdentifier(column.getText()), sources);
+                }
+            }
+            refreshColumnLineage();
             return visitChildren(ctx);
         }
 
@@ -413,14 +429,29 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private List<ColumnRef> columnRefs(Projection projection) {
+            return columnRefs(projection.sourceColumns, new LinkedHashSet<String>());
+        }
+
+        private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns, Set<String> resolvingGeneratedColumns) {
             TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
                     ? inputTables.iterator().next()
                     : null;
             List<ColumnRef> refs = new ArrayList<>();
-            for (SourceColumn sourceColumn : projection.sourceColumns) {
+            for (SourceColumn sourceColumn : sourceColumns) {
                 List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
                 if (derivedRefs != null) {
                     refs.addAll(derivedRefs);
+                    continue;
+                }
+                List<SourceColumn> generatedSources = sourceColumn.qualifier == null
+                        ? generatedColumns.get(sourceColumn.name)
+                        : null;
+                if (generatedSources != null && resolvingGeneratedColumns.add(sourceColumn.name)) {
+                    List<ColumnRef> generatedRefs = columnRefs(generatedSources, resolvingGeneratedColumns);
+                    if (generatedRefs == null) {
+                        return null;
+                    }
+                    refs.addAll(generatedRefs);
                     continue;
                 }
                 TableRef table = defaultTable;
