@@ -206,6 +206,13 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitAlterViewQuery(SqlBaseParser.AlterViewQueryContext ctx) {
+            result.setStatementType(StatementType.ALTER_VIEW);
+            addOutput(ctx.identifierReference());
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitDropView(SqlBaseParser.DropViewContext ctx) {
             result.setStatementType(StatementType.DROP_VIEW);
             unregisterTemporaryRelation(ctx.identifierReference());

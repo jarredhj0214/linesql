@@ -217,6 +217,24 @@
       "description": "CREATE TEMPORARY VIEW USING provider output relation"
     },
     {
+      "id": "alter_view_as_select",
+      "file": "cases/alter_view_as_select.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": ["ods.users_delta"],
+      "outputTables": ["mart.v_users"],
+      "columnLineage": [
+        {
+          "target": "mart.v_users.user_id",
+          "sources": ["ods.users_delta.id"]
+        },
+        {
+          "target": "mart.v_users.name",
+          "sources": ["ods.users_delta.name"]
+        }
+      ],
+      "description": "ALTER VIEW AS SELECT table and column lineage"
+    },
+    {
       "id": "create_table_like",
       "file": "cases/create_table_like.sql",
       "statementType": "CREATE_TABLE_LIKE",

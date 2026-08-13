@@ -47,6 +47,7 @@ Every newly supported Spark scenario must update both:
 - `CREATE TABLE ... LIKE ...`
 - `CREATE VIEW ... AS SELECT`
 - `CREATE TEMPORARY VIEW ... USING ... OPTIONS ...`
+- `ALTER VIEW ... AS SELECT`
 - `WITH` / CTE
 - `JOIN`
 - `UNION`

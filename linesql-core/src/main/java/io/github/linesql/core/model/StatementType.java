@@ -6,6 +6,7 @@ public enum StatementType {
     CREATE_TABLE_AS_SELECT,
     CREATE_TABLE_LIKE,
     CREATE_VIEW,
+    ALTER_VIEW,
     DROP_VIEW,
     CACHE_TABLE,
     UNCACHE_TABLE,

@@ -38,6 +38,7 @@ Implemented Spark table-level lineage scenarios:
 | JOIN source tables | `from ods.users join ods.orders` | `join_basic` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from ods.s` | `create_view` |
 | CREATE TEMPORARY VIEW USING provider | `create temporary view v using csv options (...)` | `create_temp_view_using` |
+| ALTER VIEW AS SELECT | `alter view mart.v as select ... from ods.s` | `alter_view_as_select` |
 | MERGE source and target tables | `merge into ads.t using ods.s ...` | `merge_into` |
 | MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q ...` | `merge_using_subquery` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
@@ -80,6 +81,7 @@ Implemented Spark column-level lineage scenarios:
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
 | CREATE VIEW column list target names | `create view mart.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
+| ALTER VIEW output column targets | `alter view mart.v as select id as c1 from ods.s` | `alter_view_as_select` |
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |
 | CTAS provider and partition clause output targets | `create table mart.t using parquet partitioned by (...) as select id from ods.s` | `ctas_using_partitioned` |
 | Single-level CTE direct column propagation | `with base as (select id as c1 from ods.s) select c1 from base` | `cte_column_projection` |
