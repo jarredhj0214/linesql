@@ -84,6 +84,24 @@
       "description": "LOAD DATA target table lineage"
     },
     {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users_old"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "DROP TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["ads.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "TRUNCATE TABLE affected table lineage"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",
@@ -122,6 +140,14 @@
       "inputTables": ["ods.users"],
       "outputTables": ["cached_users", "ads.cached_user_summary"],
       "description": "CACHE TABLE AS SELECT script-local table and column lineage propagation"
+    },
+    {
+      "id": "script_uncache_table",
+      "file": "cases/script_uncache_table.sql",
+      "statementType": "MULTI",
+      "inputTables": ["ods.users", "cached_users"],
+      "outputTables": ["cached_users"],
+      "description": "UNCACHE TABLE removes script-local cache table lineage propagation"
     },
     {
       "id": "join_basic",

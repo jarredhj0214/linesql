@@ -29,6 +29,8 @@ Implemented Spark table-level lineage scenarios:
 | FROM-first multi-insert targets | `from ods.s insert overwrite table t1 select ... insert overwrite table t2 select ...` | `multi_insert` |
 | INSERT OVERWRITE DIRECTORY export source | `insert overwrite directory '/path' using parquet select ... from ods.s` | `insert_overwrite_directory` |
 | LOAD DATA target table | `load data inpath '/path' into table ods.t` | `load_data_into_table` |
+| DROP TABLE affected table | `drop table if exists mart.t purge` | `drop_table` |
+| TRUNCATE TABLE affected table | `truncate table ads.t partition (...)` | `truncate_table` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
@@ -41,6 +43,7 @@ Implemented Spark table-level lineage scenarios:
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | CACHE TABLE AS SELECT source and cached target | `cache table cached as select ... from ods.s` | `cache_table_as_select` |
 | Script-local CACHE TABLE propagation | `cache table c as select ... from ods.s; insert ... select ... from c` | `script_cache_table_lineage` |
+| Cache table uncache lifecycle | `cache table c as ...; uncache table c; select ... from c` | `script_uncache_table` |
 | CTE source table, excluding CTE alias as table | `with base as (...) select ... from base` | `cte_basic` |
 | UNION input tables | `select ... from a union all select ... from b` | `union_basic` |
 | Subquery input tables | `select ... from (select ... from ods.s)` | `subquery_basic` |

@@ -205,6 +205,14 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitDropTable(SqlBaseParser.DropTableContext ctx) {
+            result.setStatementType(StatementType.DROP_TABLE);
+            addOutput(ctx.identifierReference());
+            unregisterTemporaryRelation(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
         public Void visitCacheTable(SqlBaseParser.CacheTableContext ctx) {
             result.setStatementType(StatementType.CACHE_TABLE);
             addOutput(ctx.identifierReference());
@@ -212,6 +220,21 @@ public class SparkDialectParser implements DialectParser {
             if (ctx.query() != null) {
                 registerTemporaryRelation(ctx.identifierReference());
             }
+            return null;
+        }
+
+        @Override
+        public Void visitUncacheTable(SqlBaseParser.UncacheTableContext ctx) {
+            result.setStatementType(StatementType.UNCACHE_TABLE);
+            addOutput(ctx.identifierReference());
+            unregisterTemporaryRelation(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitTruncateTable(SqlBaseParser.TruncateTableContext ctx) {
+            result.setStatementType(StatementType.TRUNCATE_TABLE);
+            addOutput(ctx.identifierReference());
             return null;
         }
 

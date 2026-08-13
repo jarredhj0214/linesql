@@ -39,6 +39,8 @@ Every newly supported Spark scenario must update both:
 - `INSERT OVERWRITE ... PARTITION (...) (...) SELECT`
 - `INSERT OVERWRITE DIRECTORY ... SELECT`
 - `LOAD DATA ... INTO TABLE`
+- `DROP TABLE`
+- `TRUNCATE TABLE`
 - FROM-first multi-insert table lineage
 - `CREATE TABLE ... AS SELECT`
 - `CREATE TABLE ... USING ... PARTITIONED BY ... AS SELECT`
@@ -53,6 +55,7 @@ Every newly supported Spark scenario must update both:
 - `DELETE ... WHERE ...`
 - `CACHE TABLE ... AS SELECT`
 - Script-local `CACHE TABLE ... AS SELECT` propagation
+- `UNCACHE TABLE` cleanup for script-local cache tables
 - Script-local `CREATE TEMPORARY VIEW ... AS SELECT`
 - `DROP VIEW` cleanup for script-local temporary views
 - Bad SQL recovery in multi-statement scripts
