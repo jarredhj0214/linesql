@@ -116,6 +116,14 @@
       "description": "MERGE source and target table lineage"
     },
     {
+      "id": "merge_using_subquery",
+      "file": "cases/merge_using_subquery.sql",
+      "statementType": "MERGE",
+      "inputTables": ["ods.users_delta"],
+      "outputTables": ["ads.users"],
+      "description": "MERGE source subquery table lineage"
+    },
+    {
       "id": "cache_table_as_select",
       "file": "cases/cache_table_as_select.sql",
       "statementType": "UNKNOWN",

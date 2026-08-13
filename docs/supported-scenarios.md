@@ -32,6 +32,7 @@ Implemented Spark table-level lineage scenarios:
 | JOIN source tables | `from ods.users join ods.orders` | `join_basic` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from ods.s` | `create_view` |
 | MERGE source and target tables | `merge into ads.t using ods.s ...` | `merge_into` |
+| MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q ...` | `merge_using_subquery` |
 | CACHE TABLE AS SELECT source table | `cache table cached as select ... from ods.s` | `cache_table_as_select` |
 | CTE source table, excluding CTE alias as table | `with base as (...) select ... from base` | `cte_basic` |
 | UNION input tables | `select ... from a union all select ... from b` | `union_basic` |
