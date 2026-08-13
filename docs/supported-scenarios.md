@@ -65,6 +65,8 @@ Implemented Spark table-level lineage scenarios:
 | CTE source table, excluding CTE alias as table | `with base as (...) select ... from base` | `cte_basic` |
 | UNION input tables | `select ... from a union all select ... from b` | `union_basic` |
 | Subquery input tables | `select ... from (select ... from ods.s)` | `subquery_basic` |
+| PIVOT source table lineage | `select * from (...) pivot (...)` | `pivot_table_lineage` |
+| UNPIVOT source table lineage | `select * from mart.t unpivot (...)` | `unpivot_table_lineage` |
 | CTAS output and source tables | `create table mart.t as select ... from ods.s` | `ctas_column_projection` |
 | CTAS with provider and partition clauses | `create table mart.t using parquet partitioned by (...) as select ...` | `ctas_using_partitioned` |
 | CREATE OR REPLACE TABLE AS SELECT | `create or replace table mart.t using delta as select ... from ods.s` | `replace_table_as_select` |
@@ -141,5 +143,6 @@ The following Spark lineage features are intentionally not complete yet:
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
 | Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported; full UDTF output semantics are not complete yet. |
+| PIVOT/UNPIVOT column lineage | Table-level lineage is supported; generated pivot/unpivot columns are not propagated yet. |
 | Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
 | Complex nested fields and structs | Basic nested field paths are preserved; schema-aware struct expansion is not implemented yet. |

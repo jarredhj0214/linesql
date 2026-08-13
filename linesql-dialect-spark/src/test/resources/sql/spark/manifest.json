@@ -668,6 +668,24 @@
       "description": "Spark LATERAL VIEW explode generated column lineage"
     },
     {
+      "id": "pivot_table_lineage",
+      "file": "cases/pivot_table_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "PIVOT query source table lineage with column lineage degradation"
+    },
+    {
+      "id": "unpivot_table_lineage",
+      "file": "cases/unpivot_table_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.user_metrics"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "UNPIVOT query source table lineage with column lineage degradation"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",
