@@ -69,7 +69,7 @@ Status legend:
 | UNNEST / JSON_TABLE | Partial | Generated columns map to input array/JSON expressions when explicit output column names are available. | Broaden alias-qualified generated column projection and complex nested JSON semantics. |
 | Inline table | Not lineage-bearing | No source table. | Add case only if diagnostics behavior needs locking. |
 | `TABLE identifier` query primary | Covered | Source table lineage, with column lineage degraded without schema. | Add schema-aware expansion later. |
-| Operator pipe queries | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, and INTERSECT have executable cases; generated EXTEND/AGGREGATE and set output columns are degraded. | Add EXCEPT pipe case and richer set column policy if needed. |
+| Operator pipe queries | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, INTERSECT, and EXCEPT have executable cases; generated EXTEND/AGGREGATE and set output columns are degraded. | Add richer set column policy if needed. |
 
 ## Parse-Only Or Not Yet Explicitly Modeled Statements
 
@@ -89,7 +89,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | Table-valued functions | TABLE arguments are covered; output columns still require function-specific rules. |
 | `TABLE t` query primary | Covered as source table lineage with column lineage degraded without schema. |
 | EXCEPT / INTERSECT | Covered; current column lineage records both inputs by position. |
-| Operator pipe statements | Partial coverage for SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, and INTERSECT. |
+| Operator pipe statements | Partial coverage for SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, INTERSECT, and EXCEPT. |
 
 ## Recommended Next Implementation Order
 

@@ -946,6 +946,15 @@
       "description": "Pipe INTERSECT source table lineage with set column lineage degradation"
     },
     {
+      "id": "pipe_except_table_lineage",
+      "file": "cases/pipe_except_table_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.deleted_users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "Pipe EXCEPT source table lineage with set column lineage degradation"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",
