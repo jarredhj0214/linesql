@@ -72,6 +72,7 @@ public class SparkDialectParser implements DialectParser {
         private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
         private final Set<String> cteNames = new LinkedHashSet<>();
         private final List<Projection> projections = new ArrayList<>();
+        private final List<String> insertTargetColumns = new ArrayList<>();
         private int selectExpressionCount;
         private int skippedProjectionCount;
 
@@ -94,12 +95,14 @@ public class SparkDialectParser implements DialectParser {
         @Override
         public Void visitInsertOverwriteTable(SqlBaseParser.InsertOverwriteTableContext ctx) {
             addOutput(ctx.identifierReference());
+            addInsertTargetColumns(ctx.identifierList());
             return null;
         }
 
         @Override
         public Void visitInsertIntoTable(SqlBaseParser.InsertIntoTableContext ctx) {
             addOutput(ctx.identifierReference());
+            addInsertTargetColumns(ctx.identifierList());
             return null;
         }
 
@@ -249,13 +252,30 @@ public class SparkDialectParser implements DialectParser {
                 if (sources == null) {
                     continue;
                 }
+                String targetColumn = targetColumn(projection, columnLineage.size());
                 ColumnLineage lineage = new ColumnLineage();
-                lineage.setTarget(new ColumnRef(targetTable, projection.targetColumn));
+                lineage.setTarget(new ColumnRef(targetTable, targetColumn));
                 lineage.setSources(sources);
                 lineage.setExpression(projection.expression);
                 columnLineage.add(lineage);
             }
             result.setColumnLineage(columnLineage);
+        }
+
+        private String targetColumn(Projection projection, int index) {
+            if (index < insertTargetColumns.size()) {
+                return insertTargetColumns.get(index);
+            }
+            return projection.targetColumn;
+        }
+
+        private void addInsertTargetColumns(SqlBaseParser.IdentifierListContext ctx) {
+            if (ctx == null) {
+                return;
+            }
+            ctx.identifierSeq().ident.forEach(identifier ->
+                    insertTargetColumns.add(cleanIdentifier(identifier.getText())));
+            refreshColumnLineage();
         }
 
         private List<ColumnRef> columnRefs(Projection projection) {

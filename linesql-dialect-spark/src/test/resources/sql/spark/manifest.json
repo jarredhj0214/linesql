@@ -162,6 +162,24 @@
         }
       ],
       "description": "Qualified JOIN projection column lineage"
+    },
+    {
+      "id": "insert_column_list",
+      "file": "cases/insert_column_list.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "INSERT target column list drives target column lineage names"
     }
   ]
 }
