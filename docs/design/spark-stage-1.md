@@ -59,6 +59,7 @@ Every newly supported Spark scenario must update both:
 - `CREATE STREAMING TABLE ... AS SELECT`
 - `CREATE TABLE ... LIKE ...`
 - `CREATE VIEW ... AS SELECT`
+- `CREATE VIEW ... AS code literal` degradation
 - `CREATE TEMPORARY VIEW ... USING ... OPTIONS ...`
 - `ALTER VIEW ... AS SELECT`
 - `WITH` / CTE
@@ -79,6 +80,8 @@ Every newly supported Spark scenario must update both:
 - Script-local `CACHE TABLE ... AS SELECT` propagation
 - `UNCACHE TABLE` cleanup for script-local cache tables
 - Script-local `CREATE TEMPORARY VIEW ... AS SELECT`
+- `CREATE FLOW ... AS INSERT ... SELECT` table and direct column lineage
+- `CREATE FLOW ... AS AUTO CDC ...` source/target lineage with CDC-specific degradation
 - `DROP VIEW` cleanup for script-local temporary views
 - Bad SQL recovery in multi-statement scripts
 - Dynamic SQL degradation for `EXECUTE IMMEDIATE`

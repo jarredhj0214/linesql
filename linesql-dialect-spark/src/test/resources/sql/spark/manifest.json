@@ -1200,6 +1200,38 @@
       "description": "ADD JAR resource command is parsed as a non-lineage statement"
     },
     {
+      "id": "create_metric_view_code_literal",
+      "file": "cases/create_metric_view_code_literal.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [],
+      "outputTables": ["mart.metric_users"],
+      "expectedDiagnostics": ["CODE_LITERAL_NOT_EXPANDED"],
+      "description": "CREATE metric view with code literal returns output table and degraded diagnostics"
+    },
+    {
+      "id": "create_flow_insert",
+      "file": "cases/create_flow_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": ["ods.users.id"]
+        }
+      ],
+      "description": "CREATE FLOW AS INSERT captures target and source table lineage"
+    },
+    {
+      "id": "create_flow_auto_cdc",
+      "file": "cases/create_flow_auto_cdc.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.user_changes"],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["CDC_LINEAGE_DEGRADED", "COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "CREATE FLOW AUTO CDC captures target/source tables and degrades column lineage"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

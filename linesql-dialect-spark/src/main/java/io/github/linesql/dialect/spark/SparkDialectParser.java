@@ -202,6 +202,22 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCreatePipelineInsertIntoFlow(SqlBaseParser.CreatePipelineInsertIntoFlowContext ctx) {
+            result.setStatementType(StatementType.INSERT);
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitCreateFlowAutoCdc(SqlBaseParser.CreateFlowAutoCdcContext ctx) {
+            result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            addOutput(ctx.autoCdcCommand().target);
+            result.getDiagnostics().add(Diagnostic.warning(
+                    "CDC_LINEAGE_DEGRADED",
+                    "Spark AUTO CDC source and target tables were extracted; CDC column lineage is degraded."));
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitCreateView(SqlBaseParser.CreateViewContext ctx) {
             result.setStatementType(StatementType.CREATE_VIEW);
             addOutput(ctx.identifierReference());
@@ -210,6 +226,17 @@ public class SparkDialectParser implements DialectParser {
             if (ctx.TEMPORARY() != null) {
                 registerTemporaryRelation(ctx.identifierReference());
             }
+            return null;
+        }
+
+        @Override
+        public Void visitCreateMetricView(SqlBaseParser.CreateMetricViewContext ctx) {
+            result.setStatementType(StatementType.CREATE_VIEW);
+            addOutput(ctx.identifierReference());
+            suppressMissingColumnLineageDiagnostic = true;
+            result.getDiagnostics().add(Diagnostic.warning(
+                    "CODE_LITERAL_NOT_EXPANDED",
+                    "Spark code literal view SQL is not expanded; table and column lineage are degraded."));
             return null;
         }
 

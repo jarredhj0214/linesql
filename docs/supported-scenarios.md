@@ -101,7 +101,10 @@ Implemented Spark table-level lineage scenarios:
 | CTAS with provider and partition clauses | `create table mart.t using parquet partitioned by (...) as select ...` | `ctas_using_partitioned` |
 | CREATE OR REPLACE TABLE AS SELECT | `create or replace table mart.t using delta as select ... from ods.s` | `replace_table_as_select` |
 | CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.v as select ... from ods.s` | `create_materialized_view_as_select` |
+| CREATE metric view code literal degradation | `create view mart.v language sql as $$...$$` | `create_metric_view_code_literal` |
 | CREATE STREAMING TABLE AS SELECT | `create streaming table mart.t as select ... from stream(ods.s)` | `create_streaming_table_as_select` |
+| CREATE FLOW AS INSERT lineage | `create flow f as insert into t select ... from s` | `create_flow_insert` |
+| CREATE FLOW AUTO CDC degraded lineage | `create flow f as auto cdc into t from s keys (...)` | `create_flow_auto_cdc` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 
 Invalid SQL returns a diagnostic instead of throwing for the whole parse result. See `parse_error`.
@@ -165,6 +168,8 @@ Current Spark diagnostics:
 | --- | --- |
 | `SPARK_PARSE_ERROR` | Spark SQL could not be parsed by the current grammar entry point. |
 | `DYNAMIC_SQL_NOT_EXPANDED` | Dynamic SQL was parsed but intentionally not expanded for lineage extraction. |
+| `CODE_LITERAL_NOT_EXPANDED` | Code literal SQL was parsed as a statement shape but not expanded for lineage extraction. |
+| `CDC_LINEAGE_DEGRADED` | AUTO CDC target/source tables were extracted, but CDC-specific column semantics were not expanded. |
 | `COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for the statement. Table lineage may still be available. |
 | `COLUMN_LINEAGE_PARTIAL` | Some column lineage was produced, but at least one projection could not be resolved safely. |
 
@@ -200,5 +205,7 @@ The following Spark lineage features are intentionally not complete yet:
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |
 | Pipe EXTEND and AGGREGATE column lineage | Table-level lineage is supported; generated pipe columns and aggregate outputs are not propagated yet. |
 | Dynamic SQL expansion | `EXECUTE IMMEDIATE` is parsed and diagnosed, but embedded SQL text is not recursively parsed. |
+| Code literal expansion | Metric view code literals are parsed and diagnosed, but embedded code text is not recursively parsed. |
+| CDC column semantics | AUTO CDC source/target tables are extracted; CDC-specific field propagation is not complete yet. |
 | Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
 | Complex nested fields and structs | Basic nested field paths are preserved; schema-aware struct expansion is not implemented yet. |

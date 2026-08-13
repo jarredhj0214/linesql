@@ -16,7 +16,7 @@ Status legend:
 | --- | --- | --- |
 | Basic queries | Covered | SELECT, TABLE, JOIN, CTE, subquery, UNION, EXCEPT, INTERSECT, aggregation, window functions, nested fields. |
 | INSERT writes | Covered | INSERT INTO, INSERT OVERWRITE, partition target columns, BY NAME, REPLACE WHERE/USING, directory export, multi-insert table lineage. |
-| Table-producing DDL | Covered | CTAS, CREATE OR REPLACE TABLE AS SELECT, CREATE MATERIALIZED VIEW AS SELECT, CREATE STREAMING TABLE AS SELECT, CREATE TABLE LIKE. |
+| Table-producing DDL | Covered | CTAS, CREATE OR REPLACE TABLE AS SELECT, CREATE MATERIALIZED VIEW AS SELECT, CREATE STREAMING TABLE AS SELECT, CREATE TABLE LIKE, metric view code literal degradation, CREATE FLOW INSERT/AUTO CDC. |
 | Views | Covered | CREATE VIEW AS SELECT, CREATE VIEW column list, ALTER VIEW AS SELECT, temporary view using provider. |
 | DML | Covered | MERGE, MERGE USING subquery, UPDATE with subqueries, DELETE with subqueries. |
 | Table lifecycle and maintenance | Covered | DROP, TRUNCATE, LOAD DATA, CACHE/UNCACHE, ALTER TABLE maintenance, RENAME TABLE, REPAIR TABLE, index maintenance, COMMENT ON TABLE/COLUMN. |
@@ -43,6 +43,7 @@ Status legend:
 | Pipeline datasets | `create materialized view ... as select ...`, `create streaming table ... as select ...` | Treated as table-producing query lineage. | `create_materialized_view_as_select`, `create_streaming_table_as_select` |
 | CREATE TABLE LIKE | `create table t like s` | Structural source/target table lineage; no column lineage. | `create_table_like` |
 | Views | `create view`, `alter view` | View target table lineage and projection column lineage. | `create_view`, `create_view_column_list`, `alter_view_as_select` |
+| Metric views | `create view ... as $$...$$` | Output view is recorded; code literal text is diagnosed and not expanded. | `create_metric_view_code_literal` |
 | DML | `merge`, `update`, `delete` | Target table lineage; subquery source tables extracted. | `merge_into`, `merge_using_subquery`, `update_with_subquery`, `delete_with_subquery` |
 | Table maintenance | `alter table`, `rename`, `drop`, `truncate`, `repair` | Affected table lineage; no column lineage. | `alter_table_add_columns`, `rename_table`, `repair_table` |
 | Metadata reads | `analyze`, `describe`, `show create`, `show columns`, `refresh`, `show namespaces`, `show catalogs`, `show tables`, `describe query` | Read table recorded as input table when a table/query is present; table-free metadata reads return no table lineage. | `analyze_table`, `describe_table`, `show_create_table`, `refresh_table`, `show_namespaces`, `show_catalogs`, `analyze_tables`, `show_tables`, `describe_query` |
@@ -50,6 +51,7 @@ Status legend:
 | Comments | `comment on table`, `comment on column` | Affected table lineage. | `comment_table`, `comment_column` |
 | Cache lifecycle | `cache table as select`, `uncache table` | Cache target and source lineage; script-local propagation. | `cache_table_as_select`, `script_cache_table_lineage`, `script_uncache_table` |
 | Load data | `load data inpath ... into table t` | Target table lineage. | `load_data_into_table` |
+| Flow definitions | `create flow ... as insert ... select`, `create flow ... as auto cdc ...` | INSERT flow reuses insert lineage; AUTO CDC records source/target and degrades CDC column semantics. | `create_flow_insert`, `create_flow_auto_cdc` |
 
 ## Query And Relation Families
 
@@ -86,8 +88,8 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | COMMENT ON NAMESPACE | Explicit non-lineage. |
 | CALL procedure | Explicit non-lineage; procedure lineage is catalog/procedure-specific. |
 | Resource/cache control | `REFRESH 'path'`, `ADD/LIST resource`, and `CLEAR CACHE` have explicit non-table behavior. |
-| CREATE METRIC VIEW / code literal view | Parse-only; code literal lineage cannot be extracted safely yet. |
-| CREATE FLOW / AUTO CDC | Parse-only; requires CDC source/target semantics. |
+| CREATE METRIC VIEW / code literal view | Output view is recorded and `CODE_LITERAL_NOT_EXPANDED` is emitted. |
+| CREATE FLOW / AUTO CDC | INSERT flow lineage is covered; AUTO CDC source/target lineage is covered with `CDC_LINEAGE_DEGRADED`. |
 | Table-valued functions | TABLE arguments are covered; output columns still require function-specific rules. |
 | `TABLE t` query primary | Covered as source table lineage with column lineage degraded without schema. |
 | EXCEPT / INTERSECT | Covered; current column lineage records both inputs by position. |
@@ -97,7 +99,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 
 1. Add function-specific output column semantics for selected table-valued functions.
 2. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
-3. Add explicit parse-only/degraded cases for metric views and CDC flow statements.
+3. Improve column lineage for PIVOT/UNPIVOT, pipe EXTEND/AGGREGATE, and AUTO CDC only after target/source column semantics are clear.
 
 ## Documentation Rule
 
