@@ -38,6 +38,42 @@
       "description": "MySQL JOIN table lineage and alias-qualified column lineage"
     },
     {
+      "id": "subquery_column_projection",
+      "file": "cases/subquery_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["app.users.id"]
+        },
+        {
+          "target": "user_name",
+          "sources": ["app.users.name"]
+        }
+      ],
+      "description": "MySQL aliased subquery direct column propagation"
+    },
+    {
+      "id": "cte_column_projection",
+      "file": "cases/cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["app.users.id"]
+        },
+        {
+          "target": "user_name",
+          "sources": ["app.users.name"]
+        }
+      ],
+      "description": "MySQL single CTE direct column propagation"
+    },
+    {
       "id": "insert_select",
       "file": "cases/insert_select.sql",
       "statementType": "INSERT",

@@ -70,6 +70,8 @@ public class MySqlDialectParser implements DialectParser {
         private final List<Token> tokens;
         private final LineageResult result;
         private final Map<String, TableRef> aliases = new LinkedHashMap<>();
+        private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
+        private final Map<String, List<TableRef>> derivedInputs = new LinkedHashMap<>();
         private final Set<TableRef> inputs = new LinkedHashSet<>();
         private final Set<TableRef> outputs = new LinkedHashSet<>();
         private boolean suppressMissingColumnLineageDiagnostic;
@@ -86,6 +88,8 @@ public class MySqlDialectParser implements DialectParser {
             }
             if (is(0, MySqlLineageLexer.SELECT)) {
                 parseSelectStatement(0, tokens.size(), null, new ArrayList<String>());
+            } else if (is(0, MySqlLineageLexer.WITH)) {
+                parseWithSelect();
             } else if (is(0, MySqlLineageLexer.INSERT)) {
                 parseInsert();
             } else if (is(0, MySqlLineageLexer.REPLACE)) {
@@ -121,6 +125,15 @@ public class MySqlDialectParser implements DialectParser {
                         : StatementType.INSERT);
             }
             result.setColumnLineage(targetLineage(select.columnLineage, outputTable, targetColumns));
+        }
+
+        private void parseWithSelect() {
+            int mainSelect = registerCtes(0, tokens.size());
+            if (mainSelect < 0) {
+                result.setStatementType(StatementType.SELECT);
+                return;
+            }
+            parseSelectStatement(mainSelect, tokens.size(), null, new ArrayList<String>());
         }
 
         private void parseInsert() {
@@ -246,8 +259,12 @@ public class MySqlDialectParser implements DialectParser {
                     if (nestedSelect >= 0) {
                         SelectLineage nested = parseSelect(nestedSelect, close);
                         tables.addAll(nested.inputs);
+                        String alias = readAlias(close + 1, end);
+                        if (alias != null) {
+                            registerDerived(alias, nested);
+                        }
                     }
-                    i = close + 1;
+                    i = nextAfterAlias(close + 1, end);
                     continue;
                 }
                 if (isJoinToken(i) || is(i, MySqlLineageLexer.COMMA)) {
@@ -257,8 +274,13 @@ public class MySqlDialectParser implements DialectParser {
                 if (isTableStart(i)) {
                     TableScan scan = readTable(i, end);
                     if (scan != null) {
-                        tables.add(scan.table);
-                        registerAlias(scan);
+                        String relationName = scan.table.getName().toLowerCase(Locale.ROOT);
+                        if (derivedColumnLineage.containsKey(relationName)) {
+                            tables.addAll(derivedInputs.get(relationName));
+                        } else {
+                            tables.add(scan.table);
+                            registerAlias(scan);
+                        }
                         i = scan.nextIndex;
                         continue;
                     }
@@ -362,6 +384,11 @@ public class MySqlDialectParser implements DialectParser {
         private List<ColumnRef> resolveSources(List<SourceColumn> columns, List<TableRef> inputTables) {
             List<ColumnRef> refs = new ArrayList<>();
             for (SourceColumn column : columns) {
+                List<ColumnRef> derivedRefs = resolveDerivedSources(column);
+                if (derivedRefs != null) {
+                    refs.addAll(derivedRefs);
+                    continue;
+                }
                 TableRef table = null;
                 if (column.qualifier != null) {
                     table = aliases.get(column.qualifier.toLowerCase(Locale.ROOT));
@@ -374,6 +401,18 @@ public class MySqlDialectParser implements DialectParser {
                 refs.add(new ColumnRef(table, column.name));
             }
             return refs;
+        }
+
+        private List<ColumnRef> resolveDerivedSources(SourceColumn column) {
+            if (column.qualifier != null) {
+                Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(column.qualifier.toLowerCase(Locale.ROOT));
+                return columns == null ? null : columns.get(column.name);
+            }
+            if (derivedColumnLineage.size() == 1) {
+                Map<String, List<ColumnRef>> columns = derivedColumnLineage.values().iterator().next();
+                return columns.get(column.name);
+            }
+            return null;
         }
 
         private List<ColumnLineage> targetLineage(List<ColumnLineage> source, TableRef targetTable, List<String> targetColumns) {
@@ -448,6 +487,16 @@ public class MySqlDialectParser implements DialectParser {
             inputs.addAll(tables);
         }
 
+        private void registerDerived(String relationName, SelectLineage lineage) {
+            Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+            for (ColumnLineage columnLineage : lineage.columnLineage) {
+                columns.put(columnLineage.getTarget().getName(), columnLineage.getSources());
+            }
+            String key = relationName.toLowerCase(Locale.ROOT);
+            derivedColumnLineage.put(key, columns);
+            derivedInputs.put(key, lineage.inputs);
+        }
+
         private void registerAlias(TableScan scan) {
             aliases.put(scan.table.getName().toLowerCase(Locale.ROOT), scan.table);
             if (scan.alias != null) {
@@ -502,6 +551,60 @@ public class MySqlDialectParser implements DialectParser {
                 }
             }
             return -1;
+        }
+
+        private int registerCtes(int start, int end) {
+            int i = start + 1;
+            while (i < end) {
+                if (!isIdentifier(i)) {
+                    return -1;
+                }
+                String name = clean(tokens.get(i).getText());
+                i++;
+                if (i < end && is(i, MySqlLineageLexer.LPAREN)) {
+                    i = matchingParen(i, end) + 1;
+                }
+                if (i >= end || !is(i, MySqlLineageLexer.AS) || i + 1 >= end || !is(i + 1, MySqlLineageLexer.LPAREN)) {
+                    return -1;
+                }
+                int close = matchingParen(i + 1, end);
+                int cteSelect = indexOfTopLevel(i + 2, close, MySqlLineageLexer.SELECT);
+                if (cteSelect >= 0) {
+                    registerDerived(name, parseSelect(cteSelect, close));
+                }
+                i = close + 1;
+                if (i < end && is(i, MySqlLineageLexer.COMMA)) {
+                    i++;
+                    continue;
+                }
+                if (i < end && is(i, MySqlLineageLexer.SELECT)) {
+                    return i;
+                }
+                return indexOfTopLevel(i, end, MySqlLineageLexer.SELECT);
+            }
+            return -1;
+        }
+
+        private String readAlias(int start, int end) {
+            int i = start;
+            if (i < end && is(i, MySqlLineageLexer.AS)) {
+                i++;
+            }
+            if (i < end && isIdentifier(i)) {
+                return clean(tokens.get(i).getText());
+            }
+            return null;
+        }
+
+        private int nextAfterAlias(int start, int end) {
+            int i = start;
+            if (i < end && is(i, MySqlLineageLexer.AS)) {
+                i++;
+            }
+            if (i < end && isIdentifier(i)) {
+                return i + 1;
+            }
+            return start;
         }
 
         private int firstPositive(int first, int second, int third, int fallback) {

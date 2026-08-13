@@ -1,6 +1,7 @@
 lexer grammar MySqlLineageLexer;
 
 SELECT: S E L E C T;
+WITH: W I T H;
 INSERT: I N S E R T;
 REPLACE: R E P L A C E;
 INTO: I N T O;

@@ -19,6 +19,8 @@ Implemented MySQL table-level lineage scenarios:
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from app.users` | `select_basic` |
 | JOIN source tables | `select ... from app.users u join app.orders o ...` | `join_projection` |
+| Subquery source table propagation | `select q.c from (select a as c from app.s) q` | `subquery_column_projection` |
+| CTE source table propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
 | INSERT INTO SELECT target and source | `insert into mart.t(c1) select a from app.s` | `insert_select` |
 | INSERT INTO VALUES target lineage | `insert into mart.t(c1) values (...)` | `insert_values` |
 | INSERT SELECT with duplicate-key update | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
@@ -36,6 +38,8 @@ Implemented MySQL column-level lineage scenarios:
 | --- | --- | --- |
 | Direct single-table projection | `select id as user_id, name from app.users` | `select_basic` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
+| Single-level aliased subquery direct propagation | `select q.c from (select a as c from app.s) q` | `subquery_column_projection` |
+| Single CTE direct propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
 | INSERT target column list mapping | `insert into mart.t(c1, c2) select a, b from app.s` | `insert_select` |
 | INSERT duplicate-key SELECT mapping | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
 | REPLACE SELECT target column list mapping | `replace into mart.t(c1, c2) select a, b from app.s` | `replace_select` |
@@ -58,7 +62,7 @@ Known MySQL gaps:
 | Full MySQL grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Ambiguous plain SQL dialect detection | Explicit MySQL features are auto-detected; dialect-neutral `SELECT` remains default-detected by the current detector. |
-| Complex expressions and subqueries | Direct projections, common expressions, joins, CTAS/view/insert mappings are covered; nested query propagation is still limited. |
+| Complex expressions and subqueries | Direct projections, common expressions, joins, CTAS/view/insert mappings, single-level subquery propagation, and single CTE propagation are covered; nested query propagation is still limited. |
 | DML column lineage | `UPDATE JOIN` and `DELETE USING` currently emit table-level lineage. |
 
 ## Spark
