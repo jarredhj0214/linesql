@@ -737,6 +737,42 @@
       "description": "Spark LATERAL VIEW explode generated column lineage"
     },
     {
+      "id": "unnest_column_lineage",
+      "file": "cases/unnest_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.orders.id"]
+        },
+        {
+          "target": "item",
+          "sources": ["ods.orders.items"]
+        }
+      ],
+      "description": "UNNEST generated column lineage from input array expression"
+    },
+    {
+      "id": "json_table_column_lineage",
+      "file": "cases/json_table_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.events.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.events.payload"]
+        }
+      ],
+      "description": "JSON_TABLE generated column lineage from input JSON expression"
+    },
+    {
       "id": "pivot_table_lineage",
       "file": "cases/pivot_table_lineage.sql",
       "statementType": "SELECT",

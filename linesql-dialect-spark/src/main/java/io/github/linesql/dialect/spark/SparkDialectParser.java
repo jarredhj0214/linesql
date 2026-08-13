@@ -570,6 +570,27 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitUnnestTable(SqlBaseParser.UnnestTableContext ctx) {
+            List<SourceColumn> sources = new ArrayList<>();
+            for (SqlBaseParser.ExpressionContext expression : ctx.unnest().expression()) {
+                sources.addAll(sourceColumns(expression));
+            }
+            addGeneratedColumns(tableAliasColumnNames(ctx.unnest().tableAlias()), sources);
+            return null;
+        }
+
+        @Override
+        public Void visitJsonTableRelation(SqlBaseParser.JsonTableRelationContext ctx) {
+            List<SourceColumn> sources = sourceColumns(ctx.jsonTable().jsonExpr);
+            List<String> columnNames = new ArrayList<>();
+            for (SqlBaseParser.JsonTableColumnContext column : ctx.jsonTable().jsonTableColumn()) {
+                columnNames.add(cleanIdentifier(column.getChild(0).getText()));
+            }
+            addGeneratedColumns(columnNames, sources);
+            return null;
+        }
+
+        @Override
         public Void visitSelectClause(SqlBaseParser.SelectClauseContext ctx) {
             for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
                 selectExpressionCount++;
@@ -596,6 +617,16 @@ public class SparkDialectParser implements DialectParser {
             }
             refreshColumnLineage();
             return visitChildren(ctx);
+        }
+
+        private void addGeneratedColumns(List<String> columnNames, List<SourceColumn> sources) {
+            if (columnNames.isEmpty() || sources.isEmpty()) {
+                return;
+            }
+            for (String columnName : columnNames) {
+                generatedColumns.put(columnName, sources);
+            }
+            refreshColumnLineage();
         }
 
         void addColumnLineageDiagnostics() {
@@ -900,6 +931,13 @@ public class SparkDialectParser implements DialectParser {
             }
             ctx.identifierSeq().ident.forEach(identifier -> names.add(cleanIdentifier(identifier.getText())));
             return names;
+        }
+
+        private static List<String> tableAliasColumnNames(SqlBaseParser.TableAliasContext ctx) {
+            if (ctx == null) {
+                return new ArrayList<>();
+            }
+            return identifierNames(ctx.identifierList());
         }
 
         private List<ColumnRef> columnRefs(Projection projection) {

@@ -27,6 +27,7 @@ Status legend:
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
 | Pipe query | Partial | `SELECT`, `WHERE`, `DROP`, `EXTEND`, and `AGGREGATE` pipe operators are covered for source lineage; direct projection is covered for SELECT/WHERE/DROP. |
+| UNNEST / JSON_TABLE | Partial | Generated columns can map to input expressions when the relation has explicit output column names. |
 
 ## Statement Families
 
@@ -64,7 +65,7 @@ Status legend:
 | STREAM table | Covered | Source lineage and direct projection mapping. | Stream table-valued function cases. |
 | Changelog relation | Covered | Source lineage and qualified direct projection mapping. | Add additional version/timestamp variants if needed. |
 | Table-valued functions | Parse-only | No explicit table lineage unless arguments contain table references that are visited. | Decide function-specific source semantics. |
-| UNNEST / JSON_TABLE | Parse-only | No explicit relation output semantics. | Add table-level cases and conservative column lineage policy. |
+| UNNEST / JSON_TABLE | Partial | Generated columns map to input array/JSON expressions when explicit output column names are available. | Broaden alias-qualified generated column projection and complex nested JSON semantics. |
 | Inline table | Not lineage-bearing | No source table. | Add case only if diagnostics behavior needs locking. |
 | `TABLE identifier` query primary | Covered | Source table lineage, with column lineage degraded without schema. | Add schema-aware expansion later. |
 | Operator pipe queries | Partial | SELECT, WHERE, DROP, EXTEND, and AGGREGATE have executable cases; generated EXTEND/AGGREGATE columns are degraded. | Add cases for pipe JOIN and pipe set operators. |
@@ -92,9 +93,10 @@ These grammar branches should be triaged before claiming broad Spark completion:
 ## Recommended Next Implementation Order
 
 1. Add pipe query cases for JOIN and pipe set operators.
-2. Add conservative relation support for UNNEST / JSON_TABLE / table-valued functions, starting with table lineage and explicit degradation.
-3. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
-4. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.
+2. Add conservative relation support for table-valued functions, starting with table lineage and explicit degradation.
+3. Broaden UNNEST / JSON_TABLE generated column support for alias-qualified projections.
+4. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
+5. Decide whether dynamic SQL features such as EXECUTE IMMEDIATE should ever inspect literal SQL strings, or always return degraded diagnostics.
 
 ## Documentation Rule
 

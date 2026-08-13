@@ -74,6 +74,8 @@ Implemented Spark table-level lineage scenarios:
 | TRANSFORM source table lineage | `select transform (...) using 'script' as (...) from ods.s` | `transform_table_lineage` |
 | STREAM table source lineage | `select ... from stream(ods.events) s` | `stream_table_lineage` |
 | CHANGES relation source lineage | `select c.id from ods.users changes from version 1 c` | `changelog_column_projection` |
+| UNNEST source table lineage | `select item from ods.orders o, unnest(o.items) u(item)` | `unnest_column_lineage` |
+| JSON_TABLE source table lineage | `select name from ods.events e, json_table(e.payload, ... ) jt` | `json_table_column_lineage` |
 | Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
 | Pipe WHERE and SELECT source lineage | `from ods.users |> where ... |> select id` | `pipe_where_select_lineage` |
 | Pipe DROP and SELECT source lineage | `from ods.users |> drop name |> select id` | `pipe_drop_column_projection` |
@@ -106,6 +108,8 @@ Implemented Spark column-level lineage scenarios:
 | Qualified nested struct field sources | `select u.profile.city from ods.users u join ods.orders o ...` | `qualified_nested_field_projection` |
 | STREAM table direct projection | `select s.id as event_id from stream(ods.events) s` | `stream_table_lineage` |
 | CHANGES relation direct projection | `select c.id as user_id from ods.users changes from version 1 c` | `changelog_column_projection` |
+| UNNEST generated column propagation | `select item from ods.orders o, unnest(o.items) u(item)` | `unnest_column_lineage` |
+| JSON_TABLE generated column propagation | `select name from ods.events e, json_table(e.payload, ... columns(name ...)) jt` | `json_table_column_lineage` |
 | Pipe SELECT direct projection | `from ods.users |> select id as user_id` | `pipe_select_column_projection` |
 | Pipe WHERE then SELECT direct projection | `from ods.users |> where id > 0 |> select id as user_id` | `pipe_where_select_lineage` |
 | Pipe DROP then SELECT direct projection | `from ods.users |> drop name |> select id as user_id` | `pipe_drop_column_projection` |

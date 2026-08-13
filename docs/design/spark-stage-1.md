@@ -68,6 +68,7 @@ Every newly supported Spark scenario must update both:
 - `TRANSFORM ... USING ...` table lineage
 - `STREAM(table)` source lineage
 - CHANGES relation source lineage
+- UNNEST and JSON_TABLE generated-column source lineage
 - Pipe query source lineage for `SELECT`, `WHERE`, `DROP`, `EXTEND`, and `AGGREGATE` operators
 - `MERGE INTO`
 - `MERGE INTO ... USING (subquery)`
@@ -94,6 +95,8 @@ Every newly supported Spark scenario must update both:
 - Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
 - STREAM table direct projection: `select s.id from stream(events) s`
 - CHANGES relation direct projection
+- UNNEST generated column propagation
+- JSON_TABLE generated column propagation
 - Pipe SELECT direct projection
 - Pipe DROP then SELECT direct projection
 - Nested field paths: `profile.city`, `u.profile.city`
