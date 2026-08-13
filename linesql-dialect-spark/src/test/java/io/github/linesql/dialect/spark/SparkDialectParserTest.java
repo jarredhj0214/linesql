@@ -172,6 +172,14 @@ public class SparkDialectParserTest {
         assertNonLineageStatement("describe_function", StatementType.READ_METADATA);
         assertNonLineageStatement("create_variable", StatementType.UNKNOWN);
         assertNonLineageStatement("declare_cursor", StatementType.UNKNOWN);
+        assertNonLineageStatement("show_tables", StatementType.READ_METADATA);
+        assertNonLineageStatement("show_views", StatementType.READ_METADATA);
+        assertNonLineageStatement("show_collations", StatementType.READ_METADATA);
+        assertNonLineageStatement("describe_namespace", StatementType.READ_METADATA);
+        assertNonLineageStatement("comment_namespace", StatementType.UNKNOWN);
+        assertNonLineageStatement("refresh_resource", StatementType.READ_METADATA);
+        assertNonLineageStatement("clear_cache", StatementType.UNCACHE_TABLE);
+        assertNonLineageStatement("add_jar_resource", StatementType.UNKNOWN);
     }
 
     @Test

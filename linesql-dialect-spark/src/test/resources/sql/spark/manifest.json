@@ -1128,6 +1128,78 @@
       "description": "DECLARE CURSOR is parsed as a non-lineage control statement"
     },
     {
+      "id": "show_tables",
+      "file": "cases/show_tables.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW TABLES is parsed as a table-free metadata read"
+    },
+    {
+      "id": "show_views",
+      "file": "cases/show_views.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW VIEWS is parsed as a table-free metadata read"
+    },
+    {
+      "id": "show_collations",
+      "file": "cases/show_collations.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW COLLATIONS is parsed as a table-free metadata read"
+    },
+    {
+      "id": "describe_namespace",
+      "file": "cases/describe_namespace.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "DESCRIBE NAMESPACE is parsed as a table-free metadata read"
+    },
+    {
+      "id": "describe_query",
+      "file": "cases/describe_query.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "DESCRIBE QUERY records source tables from the described query"
+    },
+    {
+      "id": "comment_namespace",
+      "file": "cases/comment_namespace.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "COMMENT ON NAMESPACE is parsed as a non-lineage statement"
+    },
+    {
+      "id": "refresh_resource",
+      "file": "cases/refresh_resource.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "REFRESH resource path is parsed as a table-free metadata read"
+    },
+    {
+      "id": "clear_cache",
+      "file": "cases/clear_cache.sql",
+      "statementType": "UNCACHE_TABLE",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "CLEAR CACHE is parsed as a cache control statement without table lineage"
+    },
+    {
+      "id": "add_jar_resource",
+      "file": "cases/add_jar_resource.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "ADD JAR resource command is parsed as a non-lineage statement"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

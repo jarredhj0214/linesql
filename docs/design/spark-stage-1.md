@@ -85,6 +85,7 @@ Every newly supported Spark scenario must update both:
 - Parse-only non-lineage handling for `USE`, `SET CATALOG`, and `RESET`
 - Parse-only namespace DDL and table-free metadata reads
 - Parse-only function/procedure/variable/cursor control statements
+- Parse-only resource/cache control and table-free SHOW/DESCRIBE variants
 - Unquoted scheduler placeholders in expressions
 - Backquoted non-ASCII identifiers
 

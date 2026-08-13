@@ -20,9 +20,9 @@ Status legend:
 | Views | Covered | CREATE VIEW AS SELECT, CREATE VIEW column list, ALTER VIEW AS SELECT, temporary view using provider. |
 | DML | Covered | MERGE, MERGE USING subquery, UPDATE with subqueries, DELETE with subqueries. |
 | Table lifecycle and maintenance | Covered | DROP, TRUNCATE, LOAD DATA, CACHE/UNCACHE, ALTER TABLE maintenance, RENAME TABLE, REPAIR TABLE, index maintenance, COMMENT ON TABLE/COLUMN. |
-| Metadata reads | Covered | ANALYZE, DESCRIBE TABLE, SHOW CREATE TABLE, SHOW COLUMNS, SHOW PARTITIONS, REFRESH TABLE, SHOW NAMESPACES, SHOW CATALOGS, ANALYZE TABLES. |
+| Metadata reads | Covered | ANALYZE, DESCRIBE TABLE/QUERY/NAMESPACE, SHOW CREATE TABLE, SHOW TABLES/COLUMNS/VIEWS/PARTITIONS/NAMESPACES/CATALOGS/COLLATIONS, REFRESH TABLE/resource, ANALYZE TABLES. |
 | Script handling | Covered | Multi-statement splitting, bad SQL isolation, temporary view/cache propagation and cleanup. |
-| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session/namespace/catalog/function/procedure/control statements. |
+| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session/namespace/catalog/function/procedure/resource/cache/control statements. |
 | PIVOT / UNPIVOT | Partial | Source table lineage only; generated columns are not propagated yet. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
@@ -45,7 +45,7 @@ Status legend:
 | Views | `create view`, `alter view` | View target table lineage and projection column lineage. | `create_view`, `create_view_column_list`, `alter_view_as_select` |
 | DML | `merge`, `update`, `delete` | Target table lineage; subquery source tables extracted. | `merge_into`, `merge_using_subquery`, `update_with_subquery`, `delete_with_subquery` |
 | Table maintenance | `alter table`, `rename`, `drop`, `truncate`, `repair` | Affected table lineage; no column lineage. | `alter_table_add_columns`, `rename_table`, `repair_table` |
-| Metadata reads | `analyze`, `describe`, `show create`, `show columns`, `refresh`, `show namespaces`, `show catalogs` | Read table recorded as input table when a table is present; table-free metadata reads return no table lineage. | `analyze_table`, `describe_table`, `show_create_table`, `refresh_table`, `show_namespaces`, `show_catalogs`, `analyze_tables` |
+| Metadata reads | `analyze`, `describe`, `show create`, `show columns`, `refresh`, `show namespaces`, `show catalogs`, `show tables`, `describe query` | Read table recorded as input table when a table/query is present; table-free metadata reads return no table lineage. | `analyze_table`, `describe_table`, `show_create_table`, `refresh_table`, `show_namespaces`, `show_catalogs`, `analyze_tables`, `show_tables`, `describe_query` |
 | EXPLAIN | `explain formatted select ... from t` | Visits the wrapped statement and preserves lineage. | `explain_select` |
 | Comments | `comment on table`, `comment on column` | Affected table lineage. | `comment_table`, `comment_column` |
 | Cache lifecycle | `cache table as select`, `uncache table` | Cache target and source lineage; script-local propagation. | `cache_table_as_select`, `script_cache_table_lineage`, `script_uncache_table` |
@@ -83,7 +83,9 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | SQL variables, cursors, execute immediate | EXECUTE IMMEDIATE returns `DYNAMIC_SQL_NOT_EXPANDED`; variables and cursors are explicit non-lineage control statements. |
 | EXPLAIN statement | Covered for wrapped SQL statements; SET/RESET explanation is not lineage-bearing. |
 | COMMENT ON TABLE/COLUMN | Covered as affected table lineage. |
+| COMMENT ON NAMESPACE | Explicit non-lineage. |
 | CALL procedure | Explicit non-lineage; procedure lineage is catalog/procedure-specific. |
+| Resource/cache control | `REFRESH 'path'`, `ADD/LIST resource`, and `CLEAR CACHE` have explicit non-table behavior. |
 | CREATE METRIC VIEW / code literal view | Parse-only; code literal lineage cannot be extracted safely yet. |
 | CREATE FLOW / AUTO CDC | Parse-only; requires CDC source/target semantics. |
 | Table-valued functions | TABLE arguments are covered; output columns still require function-specific rules. |
@@ -95,7 +97,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 
 1. Add function-specific output column semantics for selected table-valued functions.
 2. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
-3. Add explicit parse-only/degraded cases for remaining SHOW/DESCRIBE variants, resources, collations, metric views, and CDC flow statements.
+3. Add explicit parse-only/degraded cases for metric views and CDC flow statements.
 
 ## Documentation Rule
 

@@ -428,8 +428,58 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitShowTables(SqlBaseParser.ShowTablesContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitShowTableExtended(SqlBaseParser.ShowTableExtendedContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitShowViews(SqlBaseParser.ShowViewsContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitShowCollations(SqlBaseParser.ShowCollationsContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitDescribeNamespace(SqlBaseParser.DescribeNamespaceContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitDescribeQuery(SqlBaseParser.DescribeQueryContext ctx) {
+            result.setStatementType(StatementType.READ_METADATA);
+            suppressMissingColumnLineageDiagnostic = true;
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitRefreshTable(SqlBaseParser.RefreshTableContext ctx) {
             markReadMetadata(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitRefreshResource(SqlBaseParser.RefreshResourceContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitClearCache(SqlBaseParser.ClearCacheContext ctx) {
+            result.setStatementType(StatementType.UNCACHE_TABLE);
+            suppressMissingColumnLineageDiagnostic = true;
             return null;
         }
 
@@ -448,6 +498,18 @@ public class SparkDialectParser implements DialectParser {
         @Override
         public Void visitCommentTable(SqlBaseParser.CommentTableContext ctx) {
             markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitCommentNamespace(SqlBaseParser.CommentNamespaceContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitManageResource(SqlBaseParser.ManageResourceContext ctx) {
+            markNonLineageStatement();
             return null;
         }
 
