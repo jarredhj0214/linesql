@@ -45,6 +45,14 @@
       "description": "Spark FROM-first multi-insert table lineage with column lineage graceful degradation"
     },
     {
+      "id": "insert_overwrite_directory",
+      "file": "cases/insert_overwrite_directory.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "INSERT OVERWRITE DIRECTORY export source table lineage without target table"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",

@@ -37,6 +37,7 @@ Every newly supported Spark scenario must update both:
 - `INSERT INTO ... SELECT`
 - `INSERT OVERWRITE ... SELECT`
 - `INSERT OVERWRITE ... PARTITION (...) (...) SELECT`
+- `INSERT OVERWRITE DIRECTORY ... SELECT`
 - FROM-first multi-insert table lineage
 - `CREATE TABLE ... AS SELECT`
 - `CREATE TABLE ... USING ... PARTITIONED BY ... AS SELECT`

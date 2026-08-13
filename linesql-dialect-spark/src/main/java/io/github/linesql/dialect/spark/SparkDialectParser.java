@@ -126,6 +126,18 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitInsertOverwriteHiveDir(SqlBaseParser.InsertOverwriteHiveDirContext ctx) {
+            result.setStatementType(StatementType.INSERT);
+            return visitChildren(ctx);
+        }
+
+        @Override
+        public Void visitInsertOverwriteDir(SqlBaseParser.InsertOverwriteDirContext ctx) {
+            result.setStatementType(StatementType.INSERT);
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitInsertIntoReplaceBooleanCond(SqlBaseParser.InsertIntoReplaceBooleanCondContext ctx) {
             addOutput(ctx.identifierReference());
             return null;
