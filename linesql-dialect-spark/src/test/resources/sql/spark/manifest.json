@@ -686,6 +686,15 @@
       "description": "UNPIVOT query source table lineage with column lineage degradation"
     },
     {
+      "id": "transform_table_lineage",
+      "file": "cases/transform_table_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "TRANSFORM query source table lineage with column lineage degradation"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

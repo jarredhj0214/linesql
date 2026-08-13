@@ -60,6 +60,7 @@ Every newly supported Spark scenario must update both:
 - `JOIN`
 - `UNION`
 - `PIVOT` / `UNPIVOT` table lineage
+- `TRANSFORM ... USING ...` table lineage
 - `MERGE INTO`
 - `MERGE INTO ... USING (subquery)`
 - `UPDATE ... SET ... WHERE ...`
