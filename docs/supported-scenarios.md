@@ -59,6 +59,8 @@ Implemented Spark column-level lineage scenarios:
 | Constant projection with no sources | `select 1 as flag from ods.orders` | `column_expression_projection` |
 | Partial extraction diagnostics | `select id, lower(name) from ods.users` | `column_partial_projection` |
 | Qualified JOIN projection | `select u.id, o.amount from users u join orders o ...` | `column_join_projection` |
+| GROUP BY aggregate expression sources | `select user_id, count(order_id), sum(amount) from ods.orders group by user_id` | `aggregate_column_projection` |
+| Window function argument and spec sources | `select row_number() over (partition by user_id order by created_at) from ods.orders` | `window_column_projection` |
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | INSERT target column list over CTE propagation | `insert into ads.t(c1) with q as (...) select c1 from q` | `insert_from_cte` |

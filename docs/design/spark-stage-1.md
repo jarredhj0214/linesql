@@ -63,6 +63,8 @@ Every newly supported Spark scenario must update both:
 - Function expression: `select lower(name) as name_lower`
 - Constants: `select 1 as flag`
 - Simple arithmetic: `select price * quantity as amount`
+- Aggregate expressions: `count(order_id)`, `sum(amount)`
+- Window expressions: function arguments plus partition/order columns
 - Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`
