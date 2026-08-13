@@ -47,6 +47,8 @@ Every newly supported Spark scenario must update both:
 - `UNION`
 - `MERGE INTO`
 - `MERGE INTO ... USING (subquery)`
+- `UPDATE ... SET ... WHERE ...`
+- `DELETE ... WHERE ...`
 - `CACHE TABLE ... AS SELECT`
 - Script-local `CREATE TEMPORARY VIEW ... AS SELECT`
 - `DROP VIEW` cleanup for script-local temporary views

@@ -132,6 +132,22 @@
       "description": "MERGE source subquery table lineage"
     },
     {
+      "id": "update_with_subquery",
+      "file": "cases/update_with_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["ods.user_updates", "ods.active_users"],
+      "outputTables": ["ads.users"],
+      "description": "UPDATE target table with SET and WHERE subquery source tables"
+    },
+    {
+      "id": "delete_with_subquery",
+      "file": "cases/delete_with_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": ["ods.deleted_users"],
+      "outputTables": ["ads.users"],
+      "description": "DELETE target table with WHERE subquery source table"
+    },
+    {
       "id": "cache_table_as_select",
       "file": "cases/cache_table_as_select.sql",
       "statementType": "UNKNOWN",
