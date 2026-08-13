@@ -943,6 +943,16 @@ public class SparkDialectParser implements DialectParser {
                 refreshColumnLineage();
                 return null;
             }
+            if (ctx.AGGREGATE() != null && ctx.namedExpressionSeq() != null) {
+                for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
+                    Projection projection = projection(namedExpression);
+                    if (projection != null) {
+                        addGeneratedColumn(null, projection.targetColumn, projection.sourceColumns);
+                    }
+                }
+                refreshColumnLineage();
+                return null;
+            }
             return visitChildren(ctx);
         }
 

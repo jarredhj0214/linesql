@@ -986,6 +986,24 @@
       "description": "Pipe AGGREGATE source table lineage with aggregate column lineage degradation"
     },
     {
+      "id": "pipe_aggregate_column_lineage",
+      "file": "cases/pipe_aggregate_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.orders.user_id"]
+        },
+        {
+          "target": "order_cnt",
+          "sources": ["ods.orders.order_id"]
+        }
+      ],
+      "description": "Pipe AGGREGATE generated column propagation into a following SELECT"
+    },
+    {
       "id": "pipe_join_column_projection",
       "file": "cases/pipe_join_column_projection.sql",
       "statementType": "SELECT",

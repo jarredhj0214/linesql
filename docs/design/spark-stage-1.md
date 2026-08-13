@@ -111,6 +111,7 @@ Every newly supported Spark scenario must update both:
 - Pipe SELECT direct projection
 - Pipe DROP then SELECT direct projection
 - Pipe EXTEND generated column projection
+- Pipe AGGREGATE generated column projection into a following SELECT
 - Pipe JOIN direct projection
 - Nested field paths: `profile.city`, `u.profile.city`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
