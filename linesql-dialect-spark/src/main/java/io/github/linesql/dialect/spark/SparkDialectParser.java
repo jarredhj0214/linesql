@@ -416,6 +416,24 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitRefreshTable(SqlBaseParser.RefreshTableContext ctx) {
+            markReadMetadata(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitCreateIndex(SqlBaseParser.CreateIndexContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitDropIndex(SqlBaseParser.DropIndexContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);

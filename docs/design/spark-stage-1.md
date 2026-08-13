@@ -45,8 +45,9 @@ Every newly supported Spark scenario must update both:
 - `TRUNCATE TABLE`
 - `ALTER TABLE ... RENAME TO ...`
 - `ALTER TABLE` column/property/partition maintenance
-- `ALTER TABLE ... RECOVER PARTITIONS`
-- Table metadata reads: `ANALYZE TABLE`, `DESCRIBE TABLE`, `SHOW CREATE TABLE`, `SHOW COLUMNS`, `SHOW PARTITIONS`
+- `ALTER TABLE ... RECOVER PARTITIONS` and `MSCK REPAIR TABLE`
+- Table metadata reads: `ANALYZE TABLE`, `DESCRIBE TABLE`, `SHOW CREATE TABLE`, `SHOW COLUMNS`, `SHOW PARTITIONS`, `REFRESH TABLE`
+- Index maintenance: `CREATE INDEX ... ON TABLE`, `DROP INDEX ... ON TABLE`
 - FROM-first multi-insert table lineage
 - `CREATE TABLE ... AS SELECT`
 - `CREATE TABLE ... USING ... PARTITIONED BY ... AS SELECT`

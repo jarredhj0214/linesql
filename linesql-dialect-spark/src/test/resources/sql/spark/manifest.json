@@ -246,6 +246,42 @@
       "description": "SHOW PARTITIONS metadata read table lineage"
     },
     {
+      "id": "refresh_table",
+      "file": "cases/refresh_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "REFRESH TABLE metadata read table lineage"
+    },
+    {
+      "id": "repair_table",
+      "file": "cases/repair_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "MSCK REPAIR TABLE affected table lineage"
+    },
+    {
+      "id": "create_index",
+      "file": "cases/create_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "CREATE INDEX ON TABLE affected table lineage"
+    },
+    {
+      "id": "drop_index",
+      "file": "cases/drop_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "DROP INDEX ON TABLE affected table lineage"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",

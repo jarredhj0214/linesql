@@ -43,6 +43,10 @@ Implemented Spark table-level lineage scenarios:
 | SHOW CREATE TABLE metadata reads | `show create table mart.t` | `show_create_table` |
 | SHOW COLUMNS metadata reads | `show columns in mart.t` | `show_columns` |
 | SHOW PARTITIONS metadata reads | `show partitions mart.t` | `show_partitions` |
+| REFRESH TABLE metadata reads | `refresh table mart.t` | `refresh_table` |
+| MSCK REPAIR TABLE maintenance | `msck repair table mart.t sync partitions` | `repair_table` |
+| CREATE INDEX affected table | `create index idx on table mart.t (...)` | `create_index` |
+| DROP INDEX affected table | `drop index idx on table mart.t` | `drop_index` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
