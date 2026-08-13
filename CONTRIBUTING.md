@@ -18,10 +18,11 @@ LineSQL is in the early requirements and architecture phase. Before adding parse
 mvn test
 ```
 
-The project targets Java 8 initially.
+The project targets Java 11.
 
 ## Pull Requests
 
 - Keep changes focused.
 - Add SQL examples as tests when parser behavior is introduced.
 - Do not add broad grammar support without representative real-world cases.
+- Do not copy external grammar or parser code unless its license has been reviewed and documented.
