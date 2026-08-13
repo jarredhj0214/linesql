@@ -20,9 +20,9 @@ Status legend:
 | Views | Covered | CREATE VIEW AS SELECT, CREATE VIEW column list, ALTER VIEW AS SELECT, temporary view using provider. |
 | DML | Covered | MERGE, MERGE USING subquery, UPDATE with subqueries, DELETE with subqueries. |
 | Table lifecycle and maintenance | Covered | DROP, TRUNCATE, LOAD DATA, CACHE/UNCACHE, ALTER TABLE maintenance, RENAME TABLE, REPAIR TABLE, index maintenance, COMMENT ON TABLE/COLUMN. |
-| Metadata reads | Covered | ANALYZE, DESCRIBE TABLE, SHOW CREATE TABLE, SHOW COLUMNS, SHOW PARTITIONS, REFRESH TABLE. |
+| Metadata reads | Covered | ANALYZE, DESCRIBE TABLE, SHOW CREATE TABLE, SHOW COLUMNS, SHOW PARTITIONS, REFRESH TABLE, SHOW NAMESPACES, SHOW CATALOGS, ANALYZE TABLES. |
 | Script handling | Covered | Multi-statement splitting, bad SQL isolation, temporary view/cache propagation and cleanup. |
-| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session statements. |
+| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session/namespace/catalog statements. |
 | PIVOT / UNPIVOT | Partial | Source table lineage only; generated columns are not propagated yet. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
@@ -45,7 +45,7 @@ Status legend:
 | Views | `create view`, `alter view` | View target table lineage and projection column lineage. | `create_view`, `create_view_column_list`, `alter_view_as_select` |
 | DML | `merge`, `update`, `delete` | Target table lineage; subquery source tables extracted. | `merge_into`, `merge_using_subquery`, `update_with_subquery`, `delete_with_subquery` |
 | Table maintenance | `alter table`, `rename`, `drop`, `truncate`, `repair` | Affected table lineage; no column lineage. | `alter_table_add_columns`, `rename_table`, `repair_table` |
-| Metadata reads | `analyze`, `describe`, `show create`, `show columns`, `refresh` | Read table recorded as input table; no column lineage. | `analyze_table`, `describe_table`, `show_create_table`, `refresh_table` |
+| Metadata reads | `analyze`, `describe`, `show create`, `show columns`, `refresh`, `show namespaces`, `show catalogs` | Read table recorded as input table when a table is present; table-free metadata reads return no table lineage. | `analyze_table`, `describe_table`, `show_create_table`, `refresh_table`, `show_namespaces`, `show_catalogs`, `analyze_tables` |
 | EXPLAIN | `explain formatted select ... from t` | Visits the wrapped statement and preserves lineage. | `explain_select` |
 | Comments | `comment on table`, `comment on column` | Affected table lineage. | `comment_table`, `comment_column` |
 | Cache lifecycle | `cache table as select`, `uncache table` | Cache target and source lineage; script-local propagation. | `cache_table_as_select`, `script_cache_table_lineage`, `script_uncache_table` |
@@ -78,7 +78,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | Branch | Suggested handling |
 | --- | --- |
 | `USE`, `SET CATALOG`, `SET`, `RESET` | `USE`, `SET CATALOG`, and `RESET` have explicit non-lineage cases; additional `SET` variants may eventually update parse context. |
-| Namespace DDL and SHOW namespace/catalog commands | Not table lineage-bearing; may be modeled as metadata operations later. |
+| Namespace DDL and SHOW namespace/catalog commands | Namespace DDL is explicit non-lineage; SHOW namespace/catalog commands are table-free metadata reads. |
 | CREATE/DROP FUNCTION, REFRESH FUNCTION | Not table lineage-bearing unless function bodies contain queries. |
 | SQL variables, cursors, execute immediate | EXECUTE IMMEDIATE returns `DYNAMIC_SQL_NOT_EXPANDED`; SQL variables and cursors remain parse-only. |
 | EXPLAIN statement | Covered for wrapped SQL statements; SET/RESET explanation is not lineage-bearing. |

@@ -1024,6 +1024,46 @@
       "description": "RESET configuration statement is parsed as a non-lineage statement"
     },
     {
+      "id": "create_namespace",
+      "file": "cases/create_namespace.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "CREATE NAMESPACE is parsed as a non-lineage statement"
+    },
+    {
+      "id": "drop_namespace",
+      "file": "cases/drop_namespace.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "DROP NAMESPACE is parsed as a non-lineage statement"
+    },
+    {
+      "id": "show_namespaces",
+      "file": "cases/show_namespaces.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW NAMESPACES is parsed as a table-free metadata read"
+    },
+    {
+      "id": "show_catalogs",
+      "file": "cases/show_catalogs.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW CATALOGS is parsed as a table-free metadata read"
+    },
+    {
+      "id": "analyze_tables",
+      "file": "cases/analyze_tables.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "ANALYZE TABLES is parsed as a table-free metadata read"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

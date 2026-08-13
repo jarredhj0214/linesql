@@ -156,9 +156,14 @@ public class SparkDialectParserTest {
 
     @Test
     public void parsesNonLineageStatementsWithoutDiagnostics() {
-        assertNonLineageStatement("use_database");
-        assertNonLineageStatement("set_catalog");
-        assertNonLineageStatement("reset_configuration");
+        assertNonLineageStatement("use_database", StatementType.UNKNOWN);
+        assertNonLineageStatement("set_catalog", StatementType.UNKNOWN);
+        assertNonLineageStatement("reset_configuration", StatementType.UNKNOWN);
+        assertNonLineageStatement("create_namespace", StatementType.UNKNOWN);
+        assertNonLineageStatement("drop_namespace", StatementType.UNKNOWN);
+        assertNonLineageStatement("show_namespaces", StatementType.READ_METADATA);
+        assertNonLineageStatement("show_catalogs", StatementType.READ_METADATA);
+        assertNonLineageStatement("analyze_tables", StatementType.READ_METADATA);
     }
 
     @Test
@@ -248,9 +253,9 @@ public class SparkDialectParserTest {
         assertTrue(caseId + " diagnostics " + actual + " did not include " + expected, actual.containsAll(expected));
     }
 
-    private static void assertNonLineageStatement(String caseId) {
+    private static void assertNonLineageStatement(String caseId, StatementType statementType) {
         LineageResult result = LineSql.parse(sqlCase(caseId));
-        assertEquals(caseId, StatementType.UNKNOWN, result.getStatementType());
+        assertEquals(caseId, statementType, result.getStatementType());
         assertTrue(caseId, result.getInputTables().isEmpty());
         assertTrue(caseId, result.getOutputTables().isEmpty());
         assertTrue(caseId, result.getColumnLineage().isEmpty());

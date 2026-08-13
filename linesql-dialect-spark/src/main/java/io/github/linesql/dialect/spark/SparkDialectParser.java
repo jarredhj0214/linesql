@@ -543,6 +543,66 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCreateNamespace(SqlBaseParser.CreateNamespaceContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetNamespaceProperties(SqlBaseParser.SetNamespacePropertiesContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitUnsetNamespaceProperties(SqlBaseParser.UnsetNamespacePropertiesContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetNamespaceCollation(SqlBaseParser.SetNamespaceCollationContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetNamespaceLocation(SqlBaseParser.SetNamespaceLocationContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitDropNamespace(SqlBaseParser.DropNamespaceContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitShowNamespaces(SqlBaseParser.ShowNamespacesContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitAnalyzeTables(SqlBaseParser.AnalyzeTablesContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitShowCurrentNamespace(SqlBaseParser.ShowCurrentNamespaceContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
+        public Void visitShowCatalogs(SqlBaseParser.ShowCatalogsContext ctx) {
+            markReadMetadataWithoutTable();
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);
@@ -742,6 +802,11 @@ public class SparkDialectParser implements DialectParser {
 
         private void markNonLineageStatement() {
             result.setStatementType(StatementType.UNKNOWN);
+            suppressMissingColumnLineageDiagnostic = true;
+        }
+
+        private void markReadMetadataWithoutTable() {
+            result.setStatementType(StatementType.READ_METADATA);
             suppressMissingColumnLineageDiagnostic = true;
         }
 

@@ -83,6 +83,7 @@ Every newly supported Spark scenario must update both:
 - Bad SQL recovery in multi-statement scripts
 - Dynamic SQL degradation for `EXECUTE IMMEDIATE`
 - Parse-only non-lineage handling for `USE`, `SET CATALOG`, and `RESET`
+- Parse-only namespace DDL and table-free metadata reads
 - Unquoted scheduler placeholders in expressions
 - Backquoted non-ASCII identifiers
 
