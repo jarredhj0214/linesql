@@ -116,6 +116,14 @@
       "description": "DROP VIEW removes script-local temporary view lineage propagation"
     },
     {
+      "id": "script_cache_table_lineage",
+      "file": "cases/script_cache_table_lineage.sql",
+      "statementType": "MULTI",
+      "inputTables": ["ods.users"],
+      "outputTables": ["cached_users", "ads.cached_user_summary"],
+      "description": "CACHE TABLE AS SELECT script-local table and column lineage propagation"
+    },
+    {
       "id": "join_basic",
       "file": "cases/join_basic.sql",
       "statementType": "SELECT",
@@ -190,9 +198,9 @@
     {
       "id": "cache_table_as_select",
       "file": "cases/cache_table_as_select.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CACHE_TABLE",
       "inputTables": ["ods.users"],
-      "outputTables": [],
+      "outputTables": ["cached_users"],
       "description": "Spark CACHE TABLE AS SELECT parses and extracts query input table"
     },
     {

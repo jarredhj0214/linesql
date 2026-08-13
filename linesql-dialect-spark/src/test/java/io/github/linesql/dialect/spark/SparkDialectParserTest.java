@@ -98,7 +98,9 @@ public class SparkDialectParserTest {
         LineageResult result = LineSql.parse(sqlCase("cache_table_as_select"));
 
         assertEquals(SqlDialect.SPARK, result.getDialect());
+        assertEquals(StatementType.CACHE_TABLE, result.getStatementType());
         assertEquals("users", result.getInputTables().get(0).getName());
+        assertEquals("cached_users", result.getOutputTables().get(0).getName());
         assertTrue(result.getDiagnostics().stream().noneMatch(d -> "SPARK_PARSE_ERROR".equals(d.getCode())));
     }
 
@@ -137,6 +139,19 @@ public class SparkDialectParserTest {
         assertEquals(StatementType.DROP_VIEW, results.get(1).getStatementType());
         assertEquals(StatementType.SELECT, results.get(2).getStatementType());
         assertEquals("tmp_users", tableNames(results.get(2).getInputTables()).get(0));
+    }
+
+    @Test
+    public void propagatesCacheTableAcrossScript() {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_cache_table_lineage"));
+
+        assertEquals(2, results.size());
+        assertEquals(StatementType.CACHE_TABLE, results.get(0).getStatementType());
+        assertEquals(StatementType.INSERT, results.get(1).getStatementType());
+        assertEquals("ods.users", tableNames(results.get(1).getInputTables()).get(0));
+        assertEquals("ads.cached_user_summary", tableNames(results.get(1).getOutputTables()).get(0));
+        assertEquals("ads.cached_user_summary.user_id", columnName(results.get(1).getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.users.id", columnName(results.get(1).getColumnLineage().get(0).getSources().get(0)));
     }
 
     @Test

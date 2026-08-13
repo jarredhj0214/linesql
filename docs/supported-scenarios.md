@@ -39,7 +39,8 @@ Implemented Spark table-level lineage scenarios:
 | MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q ...` | `merge_using_subquery` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
-| CACHE TABLE AS SELECT source table | `cache table cached as select ... from ods.s` | `cache_table_as_select` |
+| CACHE TABLE AS SELECT source and cached target | `cache table cached as select ... from ods.s` | `cache_table_as_select` |
+| Script-local CACHE TABLE propagation | `cache table c as select ... from ods.s; insert ... select ... from c` | `script_cache_table_lineage` |
 | CTE source table, excluding CTE alias as table | `with base as (...) select ... from base` | `cte_basic` |
 | UNION input tables | `select ... from a union all select ... from b` | `union_basic` |
 | Subquery input tables | `select ... from (select ... from ods.s)` | `subquery_basic` |
@@ -70,6 +71,7 @@ Implemented Spark column-level lineage scenarios:
 | INSERT target column list over CTE propagation | `insert into ads.t(c1) with q as (...) select c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
 | INSERT over script-local temporary view propagation | `create temporary view v as select a as c1 from ods.s; insert into ads.t(c1) select c1 from v` | `script_temp_view_lineage` |
+| INSERT over script-local cache table propagation | `cache table c as select a from ods.s; insert into ads.t(c1) select a from c` | `script_cache_table_lineage` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |

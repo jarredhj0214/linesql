@@ -7,6 +7,7 @@ public enum StatementType {
     CREATE_TABLE_LIKE,
     CREATE_VIEW,
     DROP_VIEW,
+    CACHE_TABLE,
     MERGE,
     UPDATE,
     DELETE,

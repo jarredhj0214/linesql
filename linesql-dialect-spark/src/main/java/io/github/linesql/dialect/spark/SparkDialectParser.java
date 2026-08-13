@@ -205,6 +205,17 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCacheTable(SqlBaseParser.CacheTableContext ctx) {
+            result.setStatementType(StatementType.CACHE_TABLE);
+            addOutput(ctx.identifierReference());
+            visitChildren(ctx);
+            if (ctx.query() != null) {
+                registerTemporaryRelation(ctx.identifierReference());
+            }
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);

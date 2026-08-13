@@ -52,6 +52,7 @@ Every newly supported Spark scenario must update both:
 - `UPDATE ... SET ... WHERE ...`
 - `DELETE ... WHERE ...`
 - `CACHE TABLE ... AS SELECT`
+- Script-local `CACHE TABLE ... AS SELECT` propagation
 - Script-local `CREATE TEMPORARY VIEW ... AS SELECT`
 - `DROP VIEW` cleanup for script-local temporary views
 - Bad SQL recovery in multi-statement scripts
