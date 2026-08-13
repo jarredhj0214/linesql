@@ -4,6 +4,22 @@ JVM-native, ANTLR4-based, lineage-first SQL parser framework for real-world data
 
 一个 JVM 原生、血缘优先、面向真实数据平台 SQL 的多方言解析框架。
 
+## Current Support
+
+LineSQL is usable today for Spark and MySQL lineage experiments, and now has registered module scaffolds for Hive, Flink, and StarRocks. Oracle and SQL Server are first-stage targets but are not wired yet.
+
+| Dialect | Module status | Dialect auto-detection | Table lineage | Column lineage | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Spark | Active parser | Supported for Spark-specific syntax | Broad stage-1 coverage | Broad stage-1 coverage | Uses ANTLR4 grammar baseline with real SQL case assets. |
+| MySQL | Active MVP parser | Supported for MySQL-specific syntax | Common SELECT, write, DDL, DML shapes | Direct projections, joins, CTE/subquery, UNION, write mappings, UPDATE SET | Uses ANTLR4 lexer plus a lineage walker while the full grammar evolves. |
+| Hive | Scaffold registered | Supported for clear Hive anchors | Not implemented yet | Not implemented yet | Module, SPI, diagnostics, and seed SQL cases are in place. |
+| Flink | Scaffold registered | Supported for clear Flink anchors | Not implemented yet | Not implemented yet | Module, SPI, diagnostics, and seed SQL cases are in place. |
+| StarRocks | Scaffold registered | Supported for clear StarRocks anchors | Not implemented yet | Not implemented yet | Module, SPI, diagnostics, and seed SQL cases are in place. |
+| Oracle | Planned | Planned | Planned | Planned | First-stage target. |
+| SQL Server | Planned | Planned | Planned | Planned | First-stage target. |
+
+See [Supported Scenarios](docs/supported-scenarios.md) for the detailed, case-backed compatibility record.
+
 ## Positioning
 
 This project is not a SQL executor, optimizer, or complete query planner. It focuses on extracting unified lineage results from production SQL used in data platforms.
@@ -47,8 +63,8 @@ Current implemented coverage is documented as the project evolves:
 
 - [Supported Scenarios](docs/supported-scenarios.md)
 - [Spark Stage 1](docs/design/spark-stage-1.md)
-- MySQL MVP coverage, including MySQL-specific write statements such as `ON DUPLICATE KEY UPDATE` and `REPLACE INTO`, is recorded in [Supported Scenarios](docs/supported-scenarios.md).
-- Hive, Flink, and StarRocks modules are registered as dialect scaffolds with SQL case assets and scaffold diagnostics.
+- MySQL MVP coverage includes MySQL-specific write statements such as `ON DUPLICATE KEY UPDATE` and `REPLACE INTO`.
+- Hive, Flink, and StarRocks currently expose scaffold diagnostics until their lineage extractors are implemented.
 
 ## Usage
 
