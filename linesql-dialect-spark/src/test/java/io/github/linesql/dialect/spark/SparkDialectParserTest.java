@@ -224,13 +224,20 @@ public class SparkDialectParserTest {
         for (int i = 0; i < expectedNode.size(); i++) {
             JsonNode expected = expectedNode.get(i);
             io.github.linesql.core.model.ColumnLineage actual = result.getColumnLineage().get(i);
-            assertEquals(caseId, expected.get("target").asText(), actual.getTarget().getName());
+            assertEquals(caseId, expected.get("target").asText(), columnName(actual.getTarget()));
             List<String> expectedSources = new ArrayList<>();
             expected.get("sources").forEach(node -> expectedSources.add(node.asText()));
             List<String> actualSources = actual.getSources().stream()
-                    .map(source -> tableName(source.getTable()) + "." + source.getName())
+                    .map(SparkDialectParserTest::columnName)
                     .collect(Collectors.toList());
             assertEquals(caseId, expectedSources, actualSources);
         }
+    }
+
+    private static String columnName(io.github.linesql.core.model.ColumnRef column) {
+        if (column.getTable() == null) {
+            return column.getName();
+        }
+        return tableName(column.getTable()) + "." + column.getName();
     }
 }

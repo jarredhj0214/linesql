@@ -39,6 +39,12 @@
       "statementType": "CREATE_VIEW",
       "inputTables": ["ods.users"],
       "outputTables": ["mart.v_users"],
+      "columnLineage": [
+        {
+          "target": "mart.v_users.id",
+          "sources": ["ods.users.id"]
+        }
+      ],
       "description": "CREATE VIEW AS SELECT lineage"
     },
     {
@@ -171,15 +177,33 @@
       "outputTables": ["ads.user_summary"],
       "columnLineage": [
         {
-          "target": "user_id",
+          "target": "ads.user_summary.user_id",
           "sources": ["ods.users.id"]
         },
         {
-          "target": "user_name",
+          "target": "ads.user_summary.user_name",
           "sources": ["ods.users.name"]
         }
       ],
       "description": "INSERT target column list drives target column lineage names"
+    },
+    {
+      "id": "ctas_column_projection",
+      "file": "cases/ctas_column_projection.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "mart.user_summary.name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "CTAS output table column lineage"
     }
   ]
 }
