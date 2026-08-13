@@ -37,6 +37,7 @@ Implemented Spark table-level lineage scenarios:
 | Temporary view drop lifecycle | `create temporary view v as ...; drop view v; select ... from v` | `script_drop_temp_view` |
 | JOIN source tables | `from ods.users join ods.orders` | `join_basic` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from ods.s` | `create_view` |
+| CREATE TEMPORARY VIEW USING provider | `create temporary view v using csv options (...)` | `create_temp_view_using` |
 | MERGE source and target tables | `merge into ads.t using ods.s ...` | `merge_into` |
 | MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q ...` | `merge_using_subquery` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |

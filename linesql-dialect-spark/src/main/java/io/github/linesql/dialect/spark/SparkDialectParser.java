@@ -199,6 +199,13 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCreateTempViewUsing(SqlBaseParser.CreateTempViewUsingContext ctx) {
+            result.setStatementType(StatementType.CREATE_VIEW);
+            addOutput(ctx.tableIdentifier());
+            return null;
+        }
+
+        @Override
         public Void visitDropView(SqlBaseParser.DropViewContext ctx) {
             result.setStatementType(StatementType.DROP_VIEW);
             unregisterTemporaryRelation(ctx.identifierReference());
@@ -563,6 +570,12 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx) {
+            outputTables.add(tableRef(ctx.getText()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+            refreshColumnLineage();
+        }
+
+        private void addOutput(SqlBaseParser.TableIdentifierContext ctx) {
             outputTables.add(tableRef(ctx.getText()));
             result.setOutputTables(new ArrayList<>(outputTables));
             refreshColumnLineage();

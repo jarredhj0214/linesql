@@ -190,6 +190,15 @@
       "description": "CREATE VIEW column list drives output column lineage names"
     },
     {
+      "id": "create_temp_view_using",
+      "file": "cases/create_temp_view_using.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [],
+      "outputTables": ["tmp_csv_users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "CREATE TEMPORARY VIEW USING provider output relation"
+    },
+    {
       "id": "create_table_like",
       "file": "cases/create_table_like.sql",
       "statementType": "CREATE_TABLE_LIKE",
