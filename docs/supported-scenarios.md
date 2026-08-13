@@ -48,6 +48,8 @@ Implemented Spark column-level lineage scenarios:
 | Partial extraction diagnostics | `select id, lower(name) from ods.users` | `column_partial_projection` |
 | Qualified JOIN projection | `select u.id, o.amount from users u join orders o ...` | `column_join_projection` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| INSERT target column list over CTE propagation | `insert into ads.t(c1) with q as (...) select c1 from q` | `insert_from_cte` |
+| INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |
 | Single-level CTE direct column propagation | `with base as (select id as c1 from ods.s) select c1 from base` | `cte_column_projection` |

@@ -53,6 +53,7 @@ Every newly supported Spark scenario must update both:
 - Simple arithmetic: `select price * quantity as amount`
 - Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`
+- INSERT target column list over CTE and subquery propagation
 - CREATE VIEW and CTAS output table targets
 - Single-level CTE direct column propagation
 - Single-level aliased subquery direct column propagation

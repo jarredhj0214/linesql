@@ -240,6 +240,42 @@
         }
       ],
       "description": "Single-level aliased subquery direct column propagation"
+    },
+    {
+      "id": "insert_from_subquery",
+      "file": "cases/insert_from_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "INSERT target column mapping over single-level aliased subquery propagation"
+    },
+    {
+      "id": "insert_from_cte",
+      "file": "cases/insert_from_cte.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "INSERT target column mapping over single-level CTE propagation"
     }
   ]
 }
