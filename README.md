@@ -26,9 +26,9 @@ Compared with common alternatives:
 - Future first-stage dialect modules: StarRocks, Flink, MySQL, Oracle, and SQL Server.
 - `linesql-cli`: command-line entry module.
 
-## First-stage Scope
+## Current Scope
 
-LineSQL is currently in requirements and architecture design. The first-stage implementation targets common SQL lineage scenarios in modern data platforms:
+LineSQL is in early implementation. The first-stage implementation targets common SQL lineage scenarios in modern data platforms:
 
 - Java 11.
 - ANTLR4-based dialect parsers.
@@ -37,6 +37,13 @@ LineSQL is currently in requirements and architecture design. The first-stage im
 - Dialects: Hive, Spark, StarRocks, Flink, MySQL, Oracle, and SQL Server.
 - Graceful degradation: return table lineage and warnings when column lineage cannot be fully resolved.
 - Real production SQL cases as primary test assets.
+
+## Supported Scenarios
+
+Current implemented coverage is documented as the project evolves:
+
+- [Supported Scenarios](docs/supported-scenarios.md)
+- [Spark Stage 1](docs/design/spark-stage-1.md)
 
 ## Usage
 
@@ -94,6 +101,7 @@ Target output shape:
 ## Design Docs
 
 - [Architecture Vision](docs/design/architecture.md)
+- [Supported Scenarios](docs/supported-scenarios.md)
 - [Spark Stage 1](docs/design/spark-stage-1.md)
 - [Development](docs/development.md)
 - [License Policy](docs/legal/license-policy.md)

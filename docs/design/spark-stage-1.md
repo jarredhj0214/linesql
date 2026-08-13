@@ -21,10 +21,15 @@ Spark SQL cases live under:
 linesql-dialect-spark/src/test/resources/sql/spark/
 ```
 
-- `manifest.json` records case metadata and expected table-level lineage.
+- `manifest.json` records case metadata and expected lineage.
 - `cases/*.sql` stores the SQL text.
 
 JUnit tests must read SQL from these resources instead of embedding long SQL strings in Java code.
+
+Every newly supported Spark scenario must update both:
+
+- `docs/supported-scenarios.md`
+- `linesql-dialect-spark/src/test/resources/sql/spark/manifest.json`
 
 ## Initial Statement Coverage
 
@@ -36,6 +41,8 @@ JUnit tests must read SQL from these resources instead of embedding long SQL str
 - `WITH` / CTE
 - `JOIN`
 - `UNION`
+- `MERGE INTO`
+- `CACHE TABLE ... AS SELECT`
 
 ## Initial Column Lineage Coverage
 
@@ -44,8 +51,13 @@ JUnit tests must read SQL from these resources instead of embedding long SQL str
 - Function expression: `select lower(name) as name_lower`
 - Constants: `select 1 as flag`
 - Simple arithmetic: `select price * quantity as amount`
+- Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
+- INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`
+- CREATE VIEW and CTAS output table targets
 
 Unresolved cases should produce diagnostics instead of failing the entire result.
+
+See [Supported Scenarios](../supported-scenarios.md) for the current executable scenario matrix.
 
 ## Grammar Strategy
 
