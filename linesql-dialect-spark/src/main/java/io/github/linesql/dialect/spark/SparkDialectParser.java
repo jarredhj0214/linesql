@@ -261,6 +261,13 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitLoadData(SqlBaseParser.LoadDataContext ctx) {
+            result.setStatementType(StatementType.LOAD_DATA);
+            addOutput(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
         public Void visitTableName(SqlBaseParser.TableNameContext ctx) {
             SqlBaseParser.IdentifierReferenceContext identifier =
                     ctx.temporalTableIdentifierReference().identifierReference();

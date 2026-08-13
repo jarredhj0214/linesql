@@ -28,6 +28,7 @@ Implemented Spark table-level lineage scenarios:
 | INSERT OVERWRITE with static partition and target columns | `insert overwrite table ads.t partition (...) (c1) select ...` | `insert_overwrite_partition_column_list` |
 | FROM-first multi-insert targets | `from ods.s insert overwrite table t1 select ... insert overwrite table t2 select ...` | `multi_insert` |
 | INSERT OVERWRITE DIRECTORY export source | `insert overwrite directory '/path' using parquet select ... from ods.s` | `insert_overwrite_directory` |
+| LOAD DATA target table | `load data inpath '/path' into table ods.t` | `load_data_into_table` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |

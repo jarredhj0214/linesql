@@ -75,6 +75,15 @@
       "description": "INSERT OVERWRITE DIRECTORY export source table lineage without target table"
     },
     {
+      "id": "load_data_into_table",
+      "file": "cases/load_data_into_table.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": ["ods.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "LOAD DATA target table lineage"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",

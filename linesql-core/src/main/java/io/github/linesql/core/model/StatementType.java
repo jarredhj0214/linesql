@@ -10,5 +10,6 @@ public enum StatementType {
     MERGE,
     UPDATE,
     DELETE,
+    LOAD_DATA,
     UNKNOWN
 }
