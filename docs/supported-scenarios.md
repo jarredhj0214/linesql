@@ -23,6 +23,7 @@ Implemented Spark table-level lineage scenarios:
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
+| INSERT OVERWRITE with static partition and target columns | `insert overwrite table ads.t partition (...) (c1) select ...` | `insert_overwrite_partition_column_list` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | JOIN source tables | `from ods.users join ods.orders` | `join_basic` |
@@ -33,6 +34,7 @@ Implemented Spark table-level lineage scenarios:
 | UNION input tables | `select ... from a union all select ... from b` | `union_basic` |
 | Subquery input tables | `select ... from (select ... from ods.s)` | `subquery_basic` |
 | CTAS output and source tables | `create table mart.t as select ... from ods.s` | `ctas_column_projection` |
+| CTAS with provider and partition clauses | `create table mart.t using parquet partitioned by (...) as select ...` | `ctas_using_partitioned` |
 
 Invalid SQL returns a diagnostic instead of throwing for the whole parse result. See `parse_error`.
 
@@ -55,6 +57,7 @@ Implemented Spark column-level lineage scenarios:
 | INSERT over script-local temporary view propagation | `create temporary view v as select a as c1 from ods.s; insert into ads.t(c1) select c1 from v` | `script_temp_view_lineage` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |
+| CTAS provider and partition clause output targets | `create table mart.t using parquet partitioned by (...) as select id from ods.s` | `ctas_using_partitioned` |
 | Single-level CTE direct column propagation | `with base as (select id as c1 from ods.s) select c1 from base` | `cte_column_projection` |
 | Single-level aliased subquery direct column propagation | `select c1 from (select id as c1 from ods.s) q` | `subquery_column_projection` |
 

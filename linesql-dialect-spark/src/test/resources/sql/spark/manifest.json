@@ -18,6 +18,24 @@
       "description": "INSERT OVERWRITE input/output table lineage"
     },
     {
+      "id": "insert_overwrite_partition_column_list",
+      "file": "cases/insert_overwrite_partition_column_list.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "INSERT OVERWRITE with static partition and target column list"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",
@@ -230,6 +248,24 @@
         }
       ],
       "description": "CTAS output table column lineage"
+    },
+    {
+      "id": "ctas_using_partitioned",
+      "file": "cases/ctas_using_partitioned.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": ["mart.user_events"],
+      "columnLineage": [
+        {
+          "target": "mart.user_events.id",
+          "sources": ["ods.events.id"]
+        },
+        {
+          "target": "mart.user_events.user_id",
+          "sources": ["ods.events.user_id"]
+        }
+      ],
+      "description": "CTAS with USING provider and partition clause"
     },
     {
       "id": "cte_column_projection",
