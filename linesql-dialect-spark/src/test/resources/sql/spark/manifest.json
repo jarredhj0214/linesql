@@ -76,6 +76,42 @@
       "description": "INSERT BY NAME uses projection aliases as target column lineage names"
     },
     {
+      "id": "insert_replace_where",
+      "file": "cases/insert_replace_where.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users_delta"],
+      "outputTables": ["ads.users"],
+      "columnLineage": [
+        {
+          "target": "ads.users.user_id",
+          "sources": ["ods.users_delta.id"]
+        },
+        {
+          "target": "ads.users.user_name",
+          "sources": ["ods.users_delta.name"]
+        }
+      ],
+      "description": "INSERT REPLACE WHERE target table and BY NAME column lineage"
+    },
+    {
+      "id": "insert_replace_using",
+      "file": "cases/insert_replace_using.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users_delta"],
+      "outputTables": ["ads.users"],
+      "columnLineage": [
+        {
+          "target": "ads.users.user_id",
+          "sources": ["ods.users_delta.id"]
+        },
+        {
+          "target": "ads.users.user_name",
+          "sources": ["ods.users_delta.name"]
+        }
+      ],
+      "description": "INSERT REPLACE USING target table and BY NAME column lineage"
+    },
+    {
       "id": "multi_insert",
       "file": "cases/multi_insert.sql",
       "statementType": "INSERT",

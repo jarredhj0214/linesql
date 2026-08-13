@@ -146,12 +146,15 @@ public class SparkDialectParser implements DialectParser {
 
         @Override
         public Void visitInsertIntoReplaceBooleanCond(SqlBaseParser.InsertIntoReplaceBooleanCondContext ctx) {
+            result.setStatementType(StatementType.INSERT);
             addOutput(ctx.identifierReference());
+            addInsertTargetColumns(ctx.identifierList());
             return null;
         }
 
         @Override
         public Void visitInsertIntoReplaceUsing(SqlBaseParser.InsertIntoReplaceUsingContext ctx) {
+            result.setStatementType(StatementType.INSERT);
             addOutput(ctx.identifierReference());
             return null;
         }

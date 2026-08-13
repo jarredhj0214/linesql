@@ -37,6 +37,8 @@ Every newly supported Spark scenario must update both:
 - `INSERT INTO ... SELECT`
 - `INSERT OVERWRITE ... SELECT`
 - `INSERT OVERWRITE ... PARTITION (...) (...) SELECT`
+- `INSERT INTO ... REPLACE WHERE/ON ... SELECT`
+- `INSERT INTO ... REPLACE USING ... SELECT`
 - `INSERT OVERWRITE DIRECTORY ... SELECT`
 - `LOAD DATA ... INTO TABLE`
 - `DROP TABLE`
@@ -78,6 +80,8 @@ Every newly supported Spark scenario must update both:
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`
 - INSERT BY NAME projection target mapping
+- INSERT REPLACE WHERE BY NAME projection target mapping
+- INSERT REPLACE USING BY NAME projection target mapping
 - INSERT target column list over CTE and subquery propagation
 - UNION column lineage merged by output column position
 - CREATE VIEW and CTAS output table targets
