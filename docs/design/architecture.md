@@ -15,7 +15,7 @@ The goal is to provide a production-oriented lineage model that works across SQL
 
 ## First-stage Dialects
 
-The first stage targets the engines needed by `dip-lake-catalog`:
+The first stage targets common engines used by modern data platforms:
 
 - Hive
 - Spark
@@ -43,6 +43,20 @@ LineageResult result = LineSql.parse(sql, ParseOptions.builder()
 ```
 
 Users should not need to instantiate dialect-specific parsers. Dialect-specific parsers remain internal SPI implementations.
+
+LineSQL is a general-purpose open-source library. Integrations should adapt LineSQL's public model to their own service-specific data models instead of shaping LineSQL APIs around one downstream system.
+
+## Public Model Direction
+
+The public model should follow common parser and lineage library conventions:
+
+- `ParseOptions` controls parsing behavior.
+- `ParseContext` provides optional generic hints such as default catalog, default schema, or dialect hints.
+- `LineageResult` is the main output.
+- `inputTables` and `outputTables` represent table-level lineage.
+- `columnLineage` represents column-level lineage edges.
+- `diagnostics` contains warnings, errors, and informational parser messages with severity.
+- `QualifiedName` represents catalog, schema, object, and column names without binding to one catalog service.
 
 ## Internal Flow
 

@@ -28,7 +28,7 @@ Compared with common alternatives:
 
 ## First-stage Scope
 
-LineSQL is currently in requirements and architecture design. The first-stage implementation is intended to support the parsing capabilities needed by `dip-lake-catalog`:
+LineSQL is currently in requirements and architecture design. The first-stage implementation targets common SQL lineage scenarios in modern data platforms:
 
 - Java 11.
 - ANTLR4-based dialect parsers.
@@ -58,16 +58,18 @@ Target output shape:
 ```json
 [
   {
+    "version": "0.1",
     "dialect": "SPARK",
+    "dialectConfidence": 0.92,
     "statementType": "INSERT",
-    "sourceTables": [
+    "inputTables": [
       {
         "catalog": null,
         "schema": "ods",
         "name": "s"
       }
     ],
-    "targetTables": [
+    "outputTables": [
       {
         "catalog": null,
         "schema": "ads",
@@ -75,8 +77,7 @@ Target output shape:
       }
     ],
     "columnLineage": [],
-    "warnings": [],
-    "errors": []
+    "diagnostics": []
   }
 ]
 ```
@@ -90,6 +91,6 @@ Target output shape:
 
 ## Roadmap
 
-- Stage 1: dip-lake-catalog-driven lineage parser for Hive, Spark, StarRocks, Flink, MySQL, Oracle, and SQL Server.
+- Stage 1: production-ready lineage parser foundation for Hive, Spark, StarRocks, Flink, MySQL, Oracle, and SQL Server.
 - Stage 2: richer column lineage, UDTF, temporary views, CTE column propagation, and compatibility matrix.
 - Stage 3: anonymized production SQL corpus, CLI improvements, syntax diagnostics, and editor-facing keyword support.
