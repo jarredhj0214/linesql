@@ -68,7 +68,7 @@ Every newly supported Spark scenario must update both:
 - `TRANSFORM ... USING ...` table lineage
 - `STREAM(table)` source lineage
 - CHANGES relation source lineage
-- Pipe query source lineage for `SELECT` and `WHERE` operators
+- Pipe query source lineage for `SELECT`, `WHERE`, `DROP`, `EXTEND`, and `AGGREGATE` operators
 - `MERGE INTO`
 - `MERGE INTO ... USING (subquery)`
 - `UPDATE ... SET ... WHERE ...`
@@ -95,6 +95,7 @@ Every newly supported Spark scenario must update both:
 - STREAM table direct projection: `select s.id from stream(events) s`
 - CHANGES relation direct projection
 - Pipe SELECT direct projection
+- Pipe DROP then SELECT direct projection
 - Nested field paths: `profile.city`, `u.profile.city`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`

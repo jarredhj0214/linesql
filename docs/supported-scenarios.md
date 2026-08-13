@@ -76,6 +76,9 @@ Implemented Spark table-level lineage scenarios:
 | CHANGES relation source lineage | `select c.id from ods.users changes from version 1 c` | `changelog_column_projection` |
 | Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
 | Pipe WHERE and SELECT source lineage | `from ods.users |> where ... |> select id` | `pipe_where_select_lineage` |
+| Pipe DROP and SELECT source lineage | `from ods.users |> drop name |> select id` | `pipe_drop_column_projection` |
+| Pipe EXTEND source lineage | `from ods.users |> extend upper(name) as name_upper` | `pipe_extend_table_lineage` |
+| Pipe AGGREGATE source lineage | `from ods.orders |> aggregate count(order_id) group by user_id` | `pipe_aggregate_table_lineage` |
 | CTAS output and source tables | `create table mart.t as select ... from ods.s` | `ctas_column_projection` |
 | CTAS with provider and partition clauses | `create table mart.t using parquet partitioned by (...) as select ...` | `ctas_using_partitioned` |
 | CREATE OR REPLACE TABLE AS SELECT | `create or replace table mart.t using delta as select ... from ods.s` | `replace_table_as_select` |
@@ -105,6 +108,7 @@ Implemented Spark column-level lineage scenarios:
 | CHANGES relation direct projection | `select c.id as user_id from ods.users changes from version 1 c` | `changelog_column_projection` |
 | Pipe SELECT direct projection | `from ods.users |> select id as user_id` | `pipe_select_column_projection` |
 | Pipe WHERE then SELECT direct projection | `from ods.users |> where id > 0 |> select id as user_id` | `pipe_where_select_lineage` |
+| Pipe DROP then SELECT direct projection | `from ods.users |> drop name |> select id as user_id` | `pipe_drop_column_projection` |
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | INSERT BY NAME projection target mapping | `insert into ads.t by name select a as c1 from ods.s` | `insert_by_name` |
@@ -165,5 +169,6 @@ The following Spark lineage features are intentionally not complete yet:
 | Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions are supported; full UDTF output semantics are not complete yet. |
 | PIVOT/UNPIVOT column lineage | Table-level lineage is supported; generated pivot/unpivot columns are not propagated yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |
+| Pipe EXTEND and AGGREGATE column lineage | Table-level lineage is supported; generated pipe columns and aggregate outputs are not propagated yet. |
 | Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
 | Complex nested fields and structs | Basic nested field paths are preserved; schema-aware struct expansion is not implemented yet. |
