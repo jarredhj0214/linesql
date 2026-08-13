@@ -11,7 +11,11 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -109,6 +113,34 @@ public class SparkDialectParserTest {
         }
     }
 
+    @Test
+    public void manifestCasesMatchExpectedLineage() throws IOException {
+        JsonNode manifest = new ObjectMapper().readTree(resource("/sql/spark/manifest.json"));
+
+        for (JsonNode sqlCase : manifest.get("cases")) {
+            String caseId = sqlCase.get("id").asText();
+            String sql = resource("/sql/spark/" + sqlCase.get("file").asText());
+            String statementType = sqlCase.get("statementType").asText();
+
+            if ("MULTI".equals(statementType)) {
+                List<LineageResult> results = LineSql.parseScript(sql);
+                assertTables(caseId, sqlCase.get("inputTables"), collectInputTables(results));
+                assertTables(caseId, sqlCase.get("outputTables"), collectOutputTables(results));
+                continue;
+            }
+
+            LineageResult result = LineSql.parse(sql);
+            if ("ERROR".equals(statementType)) {
+                assertDiagnostics(caseId, sqlCase.get("expectedDiagnostics"), result);
+                continue;
+            }
+
+            assertEquals(caseId, StatementType.valueOf(statementType), result.getStatementType());
+            assertTables(caseId, sqlCase.get("inputTables"), tableNames(result.getInputTables()));
+            assertTables(caseId, sqlCase.get("outputTables"), tableNames(result.getOutputTables()));
+        }
+    }
+
     private static String sqlCase(String caseId) {
         String path = "/sql/spark/cases/" + caseId + ".sql";
         try {
@@ -134,5 +166,50 @@ public class SparkDialectParserTest {
         } catch (IOException e) {
             return false;
         }
+    }
+
+    private static void assertTables(String caseId, JsonNode expectedNode, List<String> actual) {
+        List<String> expected = new ArrayList<>();
+        expectedNode.forEach(node -> expected.add(node.asText()));
+        assertEquals(caseId, expected, actual);
+    }
+
+    private static void assertDiagnostics(String caseId, JsonNode expectedNode, LineageResult result) {
+        List<String> expected = new ArrayList<>();
+        expectedNode.forEach(node -> expected.add(node.asText()));
+        List<String> actual = result.getDiagnostics().stream()
+                .map(diagnostic -> diagnostic.getCode())
+                .collect(Collectors.toList());
+        assertTrue(caseId + " diagnostics " + actual + " did not include " + expected, actual.containsAll(expected));
+    }
+
+    private static List<String> collectInputTables(List<LineageResult> results) {
+        Set<String> tables = new LinkedHashSet<>();
+        results.forEach(result -> tables.addAll(tableNames(result.getInputTables())));
+        return new ArrayList<>(tables);
+    }
+
+    private static List<String> collectOutputTables(List<LineageResult> results) {
+        Set<String> tables = new LinkedHashSet<>();
+        results.forEach(result -> tables.addAll(tableNames(result.getOutputTables())));
+        return new ArrayList<>(tables);
+    }
+
+    private static List<String> tableNames(List<io.github.linesql.core.model.TableRef> tables) {
+        return tables.stream()
+                .map(SparkDialectParserTest::tableName)
+                .collect(Collectors.toList());
+    }
+
+    private static String tableName(io.github.linesql.core.model.TableRef table) {
+        List<String> parts = new ArrayList<>();
+        if (table.getCatalog() != null) {
+            parts.add(table.getCatalog());
+        }
+        if (table.getSchema() != null) {
+            parts.add(table.getSchema());
+        }
+        parts.add(table.getName());
+        return String.join(".", parts);
     }
 }

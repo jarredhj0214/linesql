@@ -63,6 +63,7 @@ public class SparkDialectParser implements DialectParser {
         private final LineageResult result;
         private final Set<TableRef> inputTables = new LinkedHashSet<>();
         private final Set<TableRef> outputTables = new LinkedHashSet<>();
+        private final Set<String> cteNames = new LinkedHashSet<>();
 
         SparkLineageVisitor(LineageResult result) {
             this.result = result;
@@ -134,6 +135,12 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
+            cteNames.add(cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT));
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitMergeIntoTable(SqlBaseParser.MergeIntoTableContext ctx) {
             result.setStatementType(StatementType.MERGE);
             addOutput(ctx.target);
@@ -170,7 +177,13 @@ public class SparkDialectParser implements DialectParser {
         }
 
         private void addInput(SqlBaseParser.IdentifierReferenceContext ctx) {
-            inputTables.add(tableRef(ctx.getText()));
+            TableRef table = tableRef(ctx.getText());
+            if (table.getCatalog() == null
+                    && table.getSchema() == null
+                    && cteNames.contains(table.getName().toLowerCase(java.util.Locale.ROOT))) {
+                return;
+            }
+            inputTables.add(table);
             result.setInputTables(new ArrayList<>(inputTables));
         }
 

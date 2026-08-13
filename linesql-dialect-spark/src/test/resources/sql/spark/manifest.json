@@ -61,10 +61,34 @@
     {
       "id": "cache_table_as_select",
       "file": "cases/cache_table_as_select.sql",
-      "statementType": "SELECT",
+      "statementType": "UNKNOWN",
       "inputTables": ["ods.users"],
       "outputTables": [],
       "description": "Spark CACHE TABLE AS SELECT parses and extracts query input table"
+    },
+    {
+      "id": "cte_basic",
+      "file": "cases/cte_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "CTE source table lineage without treating the CTE alias as an input table"
+    },
+    {
+      "id": "union_basic",
+      "file": "cases/union_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.admins"],
+      "outputTables": [],
+      "description": "UNION query input table lineage"
+    },
+    {
+      "id": "subquery_basic",
+      "file": "cases/subquery_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "Nested subquery input table lineage"
     }
   ]
 }
