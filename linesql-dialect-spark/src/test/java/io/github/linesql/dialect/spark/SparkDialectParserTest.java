@@ -119,6 +119,16 @@ public class SparkDialectParserTest {
     }
 
     @Test
+    public void continuesAfterBadSqlInScript() {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_bad_sql_recovery"));
+
+        assertEquals(2, results.size());
+        assertDiagnostics("script_bad_sql_recovery", singletonTextArray("SPARK_PARSE_ERROR"), results.get(0));
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertEquals("ods.users", tableNames(results.get(1).getInputTables()).get(0));
+    }
+
+    @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {
         JsonNode manifest = new ObjectMapper().readTree(resource("/sql/spark/manifest.json"));
 
@@ -203,6 +213,10 @@ public class SparkDialectParserTest {
                 .map(diagnostic -> diagnostic.getCode())
                 .collect(Collectors.toList());
         assertTrue(caseId + " diagnostics " + actual + " did not include " + expected, actual.containsAll(expected));
+    }
+
+    private static JsonNode singletonTextArray(String value) {
+        return new ObjectMapper().createArrayNode().add(value);
     }
 
     private static List<String> collectInputTables(List<LineageResult> results) {

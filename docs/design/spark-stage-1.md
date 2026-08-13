@@ -46,6 +46,7 @@ Every newly supported Spark scenario must update both:
 - `MERGE INTO`
 - `CACHE TABLE ... AS SELECT`
 - Script-local `CREATE TEMPORARY VIEW ... AS SELECT`
+- Bad SQL recovery in multi-statement scripts
 
 ## Initial Column Lineage Coverage
 

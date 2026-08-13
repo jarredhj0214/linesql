@@ -52,6 +52,14 @@
       "description": "Script-local temporary view table and column lineage propagation"
     },
     {
+      "id": "script_bad_sql_recovery",
+      "file": "cases/script_bad_sql_recovery.sql",
+      "statementType": "MULTI",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "description": "Bad SQL statement returns diagnostics without blocking later script statements"
+    },
+    {
       "id": "join_basic",
       "file": "cases/join_basic.sql",
       "statementType": "SELECT",
