@@ -60,6 +60,14 @@
       "description": "Bad SQL statement returns diagnostics without blocking later script statements"
     },
     {
+      "id": "script_drop_temp_view",
+      "file": "cases/script_drop_temp_view.sql",
+      "statementType": "MULTI",
+      "inputTables": ["ods.users", "tmp_users"],
+      "outputTables": ["tmp_users"],
+      "description": "DROP VIEW removes script-local temporary view lineage propagation"
+    },
+    {
       "id": "join_basic",
       "file": "cases/join_basic.sql",
       "statementType": "SELECT",

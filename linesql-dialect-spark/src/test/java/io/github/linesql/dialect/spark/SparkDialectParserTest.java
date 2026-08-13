@@ -129,6 +129,17 @@ public class SparkDialectParserTest {
     }
 
     @Test
+    public void dropsTemporaryViewFromScriptContext() {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_drop_temp_view"));
+
+        assertEquals(3, results.size());
+        assertEquals(StatementType.CREATE_VIEW, results.get(0).getStatementType());
+        assertEquals(StatementType.DROP_VIEW, results.get(1).getStatementType());
+        assertEquals(StatementType.SELECT, results.get(2).getStatementType());
+        assertEquals("tmp_users", tableNames(results.get(2).getInputTables()).get(0));
+    }
+
+    @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {
         JsonNode manifest = new ObjectMapper().readTree(resource("/sql/spark/manifest.json"));
 

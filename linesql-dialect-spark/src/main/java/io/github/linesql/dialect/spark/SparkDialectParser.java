@@ -163,6 +163,13 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitDropView(SqlBaseParser.DropViewContext ctx) {
+            result.setStatementType(StatementType.DROP_VIEW);
+            unregisterTemporaryRelation(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);
@@ -337,6 +344,13 @@ public class SparkDialectParser implements DialectParser {
             }
             refreshColumnLineage();
             context.getTemporaryRelations().put(relationKey(tableRef(identifier.getText())), copyResult(result));
+        }
+
+        private void unregisterTemporaryRelation(SqlBaseParser.IdentifierReferenceContext identifier) {
+            if (context == null) {
+                return;
+            }
+            context.getTemporaryRelations().remove(relationKey(tableRef(identifier.getText())));
         }
 
         private void addTemporaryRelationReference(String relationName, SqlBaseParser.TableAliasContext aliasContext) {

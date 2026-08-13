@@ -5,6 +5,7 @@ public enum StatementType {
     INSERT,
     CREATE_TABLE_AS_SELECT,
     CREATE_VIEW,
+    DROP_VIEW,
     MERGE,
     UPDATE,
     DELETE,
