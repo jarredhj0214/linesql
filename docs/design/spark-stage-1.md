@@ -54,6 +54,7 @@ Every newly supported Spark scenario must update both:
 - `DROP VIEW` cleanup for script-local temporary views
 - Bad SQL recovery in multi-statement scripts
 - Unquoted scheduler placeholders in expressions
+- Backquoted non-ASCII identifiers
 
 ## Initial Column Lineage Coverage
 

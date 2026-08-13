@@ -23,6 +23,7 @@ Implemented Spark table-level lineage scenarios:
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | SELECT with scheduler placeholders | `select ... from ods.s where dt = ${bizdate} and region = {{ region }}` | `select_with_placeholders` |
+| Backquoted Chinese identifiers | `` select `用户ID` as `用户标识` from `ods层`.`用户表` `` | `quoted_chinese_identifiers` |
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | INSERT OVERWRITE with static partition and target columns | `insert overwrite table ads.t partition (...) (c1) select ...` | `insert_overwrite_partition_column_list` |
 | FROM-first multi-insert targets | `from ods.s insert overwrite table t1 select ... insert overwrite table t2 select ...` | `multi_insert` |
@@ -87,6 +88,7 @@ Implemented Spark tolerance scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Unquoted scheduler placeholders | `${bizdate}`, `{{ region }}` in expressions | `select_with_placeholders` |
+| Backquoted non-ASCII identifiers | Chinese table and column identifiers | `quoted_chinese_identifiers` |
 | Bad SQL isolation in scripts | one invalid statement does not block later statements | `script_bad_sql_recovery` |
 
 ### Known Gaps

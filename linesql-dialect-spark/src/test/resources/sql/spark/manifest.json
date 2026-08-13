@@ -18,6 +18,20 @@
       "description": "SELECT table lineage with unquoted scheduler placeholders"
     },
     {
+      "id": "quoted_chinese_identifiers",
+      "file": "cases/quoted_chinese_identifiers.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods层.用户表"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "用户标识",
+          "sources": ["ods层.用户表.用户ID"]
+        }
+      ],
+      "description": "Backquoted Chinese table and column identifiers"
+    },
+    {
       "id": "insert_overwrite",
       "file": "cases/insert_overwrite.sql",
       "statementType": "INSERT",
