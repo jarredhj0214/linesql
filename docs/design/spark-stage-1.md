@@ -82,6 +82,7 @@ Every newly supported Spark scenario must update both:
 - `DROP VIEW` cleanup for script-local temporary views
 - Bad SQL recovery in multi-statement scripts
 - Dynamic SQL degradation for `EXECUTE IMMEDIATE`
+- Parse-only non-lineage handling for `USE`, `SET CATALOG`, and `RESET`
 - Unquoted scheduler placeholders in expressions
 - Backquoted non-ASCII identifiers
 

@@ -59,7 +59,7 @@ public class SparkDialectParser implements DialectParser {
         visitor.setContext(context);
         visitor.visit(statement);
         visitor.addColumnLineageDiagnostics();
-        if (result.getColumnLineage().isEmpty()) {
+        if (visitor.shouldWarnMissingColumnLineage() && result.getColumnLineage().isEmpty()) {
             result.getDiagnostics().add(Diagnostic.warning(
                     "COLUMN_LINEAGE_NOT_IMPLEMENTED",
                     "Spark column lineage is not implemented in this stage."));
@@ -89,6 +89,7 @@ public class SparkDialectParser implements DialectParser {
         private int selectExpressionCount;
         private int skippedProjectionCount;
         private boolean suppressColumnLineage;
+        private boolean suppressMissingColumnLineageDiagnostic;
         private ParseContext context;
 
         SparkLineageVisitor(LineageResult result) {
@@ -467,15 +468,77 @@ public class SparkDialectParser implements DialectParser {
                 return visit(ctx.statement());
             }
             result.setStatementType(StatementType.UNKNOWN);
+            suppressMissingColumnLineageDiagnostic = true;
             return null;
         }
 
         @Override
         public Void visitVisitExecuteImmediate(SqlBaseParser.VisitExecuteImmediateContext ctx) {
             result.setStatementType(StatementType.UNKNOWN);
+            suppressMissingColumnLineageDiagnostic = true;
             result.getDiagnostics().add(Diagnostic.warning(
                     "DYNAMIC_SQL_NOT_EXPANDED",
                     "Spark EXECUTE IMMEDIATE dynamic SQL is not expanded; table and column lineage are degraded."));
+            return null;
+        }
+
+        @Override
+        public Void visitUse(SqlBaseParser.UseContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitUseNamespace(SqlBaseParser.UseNamespaceContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetCatalog(SqlBaseParser.SetCatalogContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetTimeZone(SqlBaseParser.SetTimeZoneContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetPath(SqlBaseParser.SetPathContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetVariable(SqlBaseParser.SetVariableContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetQuotedConfiguration(SqlBaseParser.SetQuotedConfigurationContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitSetConfiguration(SqlBaseParser.SetConfigurationContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitResetQuotedConfiguration(SqlBaseParser.ResetQuotedConfigurationContext ctx) {
+            markNonLineageStatement();
+            return null;
+        }
+
+        @Override
+        public Void visitResetConfiguration(SqlBaseParser.ResetConfigurationContext ctx) {
+            markNonLineageStatement();
             return null;
         }
 
@@ -671,6 +734,15 @@ public class SparkDialectParser implements DialectParser {
                         "COLUMN_LINEAGE_PARTIAL",
                         "Spark column lineage was partially extracted; some projections are not supported yet."));
             }
+        }
+
+        boolean shouldWarnMissingColumnLineage() {
+            return !suppressMissingColumnLineageDiagnostic;
+        }
+
+        private void markNonLineageStatement() {
+            result.setStatementType(StatementType.UNKNOWN);
+            suppressMissingColumnLineageDiagnostic = true;
         }
 
         private void addInput(SqlBaseParser.IdentifierReferenceContext ctx) {

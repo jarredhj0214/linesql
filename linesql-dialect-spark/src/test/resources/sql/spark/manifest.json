@@ -1000,6 +1000,30 @@
       "description": "EXECUTE IMMEDIATE dynamic SQL is parsed but not expanded for lineage"
     },
     {
+      "id": "use_database",
+      "file": "cases/use_database.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "USE database statement is parsed as a non-lineage statement"
+    },
+    {
+      "id": "set_catalog",
+      "file": "cases/set_catalog.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SET CATALOG statement is parsed as a non-lineage statement"
+    },
+    {
+      "id": "reset_configuration",
+      "file": "cases/reset_configuration.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "RESET configuration statement is parsed as a non-lineage statement"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

@@ -155,6 +155,13 @@ public class SparkDialectParserTest {
     }
 
     @Test
+    public void parsesNonLineageStatementsWithoutDiagnostics() {
+        assertNonLineageStatement("use_database");
+        assertNonLineageStatement("set_catalog");
+        assertNonLineageStatement("reset_configuration");
+    }
+
+    @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {
         JsonNode manifest = new ObjectMapper().readTree(resource("/sql/spark/manifest.json"));
 
@@ -239,6 +246,15 @@ public class SparkDialectParserTest {
                 .map(diagnostic -> diagnostic.getCode())
                 .collect(Collectors.toList());
         assertTrue(caseId + " diagnostics " + actual + " did not include " + expected, actual.containsAll(expected));
+    }
+
+    private static void assertNonLineageStatement(String caseId) {
+        LineageResult result = LineSql.parse(sqlCase(caseId));
+        assertEquals(caseId, StatementType.UNKNOWN, result.getStatementType());
+        assertTrue(caseId, result.getInputTables().isEmpty());
+        assertTrue(caseId, result.getOutputTables().isEmpty());
+        assertTrue(caseId, result.getColumnLineage().isEmpty());
+        assertTrue(caseId, result.getDiagnostics().isEmpty());
     }
 
     private static JsonNode singletonTextArray(String value) {

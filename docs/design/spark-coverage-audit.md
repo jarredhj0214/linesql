@@ -22,7 +22,7 @@ Status legend:
 | Table lifecycle and maintenance | Covered | DROP, TRUNCATE, LOAD DATA, CACHE/UNCACHE, ALTER TABLE maintenance, RENAME TABLE, REPAIR TABLE, index maintenance, COMMENT ON TABLE/COLUMN. |
 | Metadata reads | Covered | ANALYZE, DESCRIBE TABLE, SHOW CREATE TABLE, SHOW COLUMNS, SHOW PARTITIONS, REFRESH TABLE. |
 | Script handling | Covered | Multi-statement splitting, bad SQL isolation, temporary view/cache propagation and cleanup. |
-| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation. |
+| Production SQL tolerance | Covered | Scheduler placeholders, quoted non-ASCII identifiers, semicolon in strings, dynamic SQL degradation, non-lineage session statements. |
 | PIVOT / UNPIVOT | Partial | Source table lineage only; generated columns are not propagated yet. |
 | TRANSFORM | Partial | Source table lineage only; external script output semantics are not propagated. |
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
@@ -77,7 +77,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 
 | Branch | Suggested handling |
 | --- | --- |
-| `USE`, `SET CATALOG`, `SET`, `RESET` | Not lineage-bearing; may eventually update parse context. |
+| `USE`, `SET CATALOG`, `SET`, `RESET` | `USE`, `SET CATALOG`, and `RESET` have explicit non-lineage cases; additional `SET` variants may eventually update parse context. |
 | Namespace DDL and SHOW namespace/catalog commands | Not table lineage-bearing; may be modeled as metadata operations later. |
 | CREATE/DROP FUNCTION, REFRESH FUNCTION | Not table lineage-bearing unless function bodies contain queries. |
 | SQL variables, cursors, execute immediate | EXECUTE IMMEDIATE returns `DYNAMIC_SQL_NOT_EXPANDED`; SQL variables and cursors remain parse-only. |
@@ -95,7 +95,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 
 1. Add function-specific output column semantics for selected table-valued functions.
 2. Improve column lineage for PIVOT/UNPIVOT and pipe EXTEND/AGGREGATE only after target/source column semantics are clear.
-3. Add explicit parse-only/degraded cases for SQL variables, cursors, namespace DDL, function DDL, and CALL statements.
+3. Add explicit parse-only/degraded cases for remaining SQL variables, cursors, namespace DDL, function DDL, and CALL statements.
 
 ## Documentation Rule
 
