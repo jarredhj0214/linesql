@@ -55,6 +55,7 @@ public class SparkDialectParser implements DialectParser {
         }
 
         SparkLineageVisitor visitor = new SparkLineageVisitor(result);
+        visitor.setContext(context);
         visitor.visit(statement);
         visitor.addColumnLineageDiagnostics();
         if (result.getColumnLineage().isEmpty()) {
@@ -79,9 +80,14 @@ public class SparkDialectParser implements DialectParser {
         private int visibleRelationCount;
         private int selectExpressionCount;
         private int skippedProjectionCount;
+        private ParseContext context;
 
         SparkLineageVisitor(LineageResult result) {
             this.result = result;
+        }
+
+        void setContext(ParseContext context) {
+            this.context = context;
         }
 
         @Override
@@ -148,7 +154,11 @@ public class SparkDialectParser implements DialectParser {
         public Void visitCreateView(SqlBaseParser.CreateViewContext ctx) {
             result.setStatementType(StatementType.CREATE_VIEW);
             addOutput(ctx.identifierReference());
-            return visitChildren(ctx);
+            visitChildren(ctx);
+            if (ctx.TEMPORARY() != null) {
+                registerTemporaryRelation(ctx.identifierReference());
+            }
+            return null;
         }
 
         @Override
@@ -200,6 +210,11 @@ public class SparkDialectParser implements DialectParser {
             TableRef table = tableRef(identifier.getText());
             if (isCteReference(table)) {
                 addDerivedReference(table.getName(), ctx.tableAlias());
+                return null;
+            }
+            String temporaryRelationName = temporaryRelationName(table);
+            if (temporaryRelationName != null) {
+                addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
                 return null;
             }
             addInputTable(table, ctx.tableAlias(), true);
@@ -286,6 +301,7 @@ public class SparkDialectParser implements DialectParser {
             SparkLineageVisitor relationVisitor = new SparkLineageVisitor(relationResult);
             relationVisitor.cteNames.addAll(cteNames);
             relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+            relationVisitor.setContext(context);
             relationVisitor.visit(query);
             relationVisitor.refreshColumnLineage();
 
@@ -297,6 +313,60 @@ public class SparkDialectParser implements DialectParser {
             for (TableRef table : relationResult.getInputTables()) {
                 addInputTable(table, false);
             }
+        }
+
+        private void registerTemporaryRelation(SqlBaseParser.IdentifierReferenceContext identifier) {
+            if (context == null) {
+                return;
+            }
+            refreshColumnLineage();
+            context.getTemporaryRelations().put(relationKey(tableRef(identifier.getText())), copyResult(result));
+        }
+
+        private void addTemporaryRelationReference(String relationName, SqlBaseParser.TableAliasContext aliasContext) {
+            LineageResult relation = context.getTemporaryRelations().get(relationName);
+            if (relation == null) {
+                return;
+            }
+            visibleRelationCount++;
+            derivedReferences.add(relationName);
+            derivedAliases.put(relationName, relationName);
+            String alias = tableAlias(aliasContext);
+            if (alias != null) {
+                derivedAliases.put(alias.toLowerCase(java.util.Locale.ROOT), relationName);
+            }
+            Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+            for (ColumnLineage lineage : relation.getColumnLineage()) {
+                columns.put(lineage.getTarget().getName(), lineage.getSources());
+            }
+            derivedColumnLineage.put(relationName, columns);
+            for (TableRef table : relation.getInputTables()) {
+                addInputTable(table, false);
+            }
+            refreshColumnLineage();
+        }
+
+        private String temporaryRelationName(TableRef table) {
+            if (context == null) {
+                return null;
+            }
+            String key = relationKey(table);
+            if (context.getTemporaryRelations().containsKey(key)) {
+                return key;
+            }
+            return null;
+        }
+
+        private static LineageResult copyResult(LineageResult source) {
+            LineageResult copy = new LineageResult();
+            copy.setDialect(source.getDialect());
+            copy.setDialectConfidence(source.getDialectConfidence());
+            copy.setStatementType(source.getStatementType());
+            copy.setInputTables(new ArrayList<>(source.getInputTables()));
+            copy.setOutputTables(new ArrayList<>(source.getOutputTables()));
+            copy.setColumnLineage(new ArrayList<>(source.getColumnLineage()));
+            copy.setDiagnostics(new ArrayList<>(source.getDiagnostics()));
+            return copy;
         }
 
         private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx) {
@@ -443,6 +513,18 @@ public class SparkDialectParser implements DialectParser {
                 return new TableRef(null, parts[0], parts[1]);
             }
             return new TableRef(null, null, parts[0]);
+        }
+
+        private static String relationKey(TableRef table) {
+            List<String> parts = new ArrayList<>();
+            if (table.getCatalog() != null) {
+                parts.add(table.getCatalog());
+            }
+            if (table.getSchema() != null) {
+                parts.add(table.getSchema());
+            }
+            parts.add(table.getName());
+            return String.join(".", parts).toLowerCase(java.util.Locale.ROOT);
         }
 
         private static List<String> splitIdentifier(String raw) {

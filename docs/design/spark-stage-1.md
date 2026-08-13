@@ -43,6 +43,7 @@ Every newly supported Spark scenario must update both:
 - `UNION`
 - `MERGE INTO`
 - `CACHE TABLE ... AS SELECT`
+- Script-local `CREATE TEMPORARY VIEW ... AS SELECT`
 
 ## Initial Column Lineage Coverage
 
@@ -57,6 +58,7 @@ Every newly supported Spark scenario must update both:
 - CREATE VIEW and CTAS output table targets
 - Single-level CTE direct column propagation
 - Single-level aliased subquery direct column propagation
+- Script-local temporary view propagation
 
 Unresolved cases should produce diagnostics instead of failing the entire result.
 

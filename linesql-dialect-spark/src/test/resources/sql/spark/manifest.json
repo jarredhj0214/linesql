@@ -26,6 +26,14 @@
       "description": "Multi-statement splitter preserves semicolon inside string literal"
     },
     {
+      "id": "script_temp_view_lineage",
+      "file": "cases/script_temp_view_lineage.sql",
+      "statementType": "MULTI",
+      "inputTables": ["ods.users"],
+      "outputTables": ["tmp_users", "ads.user_summary"],
+      "description": "Script-local temporary view table and column lineage propagation"
+    },
+    {
       "id": "join_basic",
       "file": "cases/join_basic.sql",
       "statementType": "SELECT",
