@@ -89,6 +89,24 @@
       "inputTables": ["ods.users"],
       "outputTables": [],
       "description": "Nested subquery input table lineage"
+    },
+    {
+      "id": "column_direct_projection",
+      "file": "cases/column_direct_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "Direct single-table column projection lineage"
     }
   ]
 }

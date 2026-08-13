@@ -1,6 +1,8 @@
 package io.github.linesql.dialect.spark;
 
 import io.github.linesql.core.model.Diagnostic;
+import io.github.linesql.core.model.ColumnLineage;
+import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
@@ -18,6 +20,7 @@ import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -64,6 +67,7 @@ public class SparkDialectParser implements DialectParser {
         private final Set<TableRef> inputTables = new LinkedHashSet<>();
         private final Set<TableRef> outputTables = new LinkedHashSet<>();
         private final Set<String> cteNames = new LinkedHashSet<>();
+        private final List<Projection> projections = new ArrayList<>();
 
         SparkLineageVisitor(LineageResult result) {
             this.result = result;
@@ -176,6 +180,17 @@ public class SparkDialectParser implements DialectParser {
             return null;
         }
 
+        @Override
+        public Void visitSelectClause(SqlBaseParser.SelectClauseContext ctx) {
+            for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
+                Projection projection = projection(namedExpression);
+                if (projection != null) {
+                    projections.add(projection);
+                }
+            }
+            return visitChildren(ctx);
+        }
+
         private void addInput(SqlBaseParser.IdentifierReferenceContext ctx) {
             TableRef table = tableRef(ctx.getText());
             if (table.getCatalog() == null
@@ -185,11 +200,62 @@ public class SparkDialectParser implements DialectParser {
             }
             inputTables.add(table);
             result.setInputTables(new ArrayList<>(inputTables));
+            refreshColumnLineage();
         }
 
         private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx) {
             outputTables.add(tableRef(ctx.getText()));
             result.setOutputTables(new ArrayList<>(outputTables));
+            refreshColumnLineage();
+        }
+
+        private void refreshColumnLineage() {
+            if (inputTables.size() != 1 || projections.isEmpty()) {
+                return;
+            }
+            TableRef sourceTable = inputTables.iterator().next();
+            TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;
+            List<ColumnLineage> columnLineage = new ArrayList<>();
+            for (Projection projection : projections) {
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(new ColumnRef(targetTable, projection.targetColumn));
+                lineage.setSources(Collections.singletonList(new ColumnRef(sourceTable, projection.sourceColumn)));
+                lineage.setExpression(projection.expression);
+                columnLineage.add(lineage);
+            }
+            result.setColumnLineage(columnLineage);
+        }
+
+        private static Projection projection(SqlBaseParser.NamedExpressionContext ctx) {
+            String expression = ctx.expression().getText();
+            String sourceColumn = directColumnName(ctx.expression());
+            if (sourceColumn == null) {
+                return null;
+            }
+            String targetColumn = ctx.name == null ? sourceColumn : cleanIdentifier(ctx.name.getText());
+            return new Projection(sourceColumn, targetColumn, expression);
+        }
+
+        private static String directColumnName(SqlBaseParser.ExpressionContext ctx) {
+            if (!(ctx.booleanExpression() instanceof SqlBaseParser.PredicatedContext)) {
+                return null;
+            }
+            SqlBaseParser.PredicatedContext predicated = (SqlBaseParser.PredicatedContext) ctx.booleanExpression();
+            if (predicated.predicate() != null
+                    || !(predicated.valueExpression() instanceof SqlBaseParser.ValueExpressionDefaultContext)) {
+                return null;
+            }
+            SqlBaseParser.ValueExpressionDefaultContext value =
+                    (SqlBaseParser.ValueExpressionDefaultContext) predicated.valueExpression();
+            if (value.primaryExpression() instanceof SqlBaseParser.ColumnReferenceContext) {
+                return cleanIdentifier(value.primaryExpression().getText());
+            }
+            if (value.primaryExpression() instanceof SqlBaseParser.DereferenceContext) {
+                SqlBaseParser.DereferenceContext dereference =
+                        (SqlBaseParser.DereferenceContext) value.primaryExpression();
+                return cleanIdentifier(dereference.fieldName.getText());
+            }
+            return null;
         }
 
         private static TableRef tableRef(String raw) {
@@ -232,6 +298,18 @@ public class SparkDialectParser implements DialectParser {
                 return value.substring(1, value.length() - 1).replace("``", "`");
             }
             return value;
+        }
+
+        private static class Projection {
+            private final String sourceColumn;
+            private final String targetColumn;
+            private final String expression;
+
+            Projection(String sourceColumn, String targetColumn, String expression) {
+                this.sourceColumn = sourceColumn;
+                this.targetColumn = targetColumn;
+                this.expression = expression;
+            }
         }
     }
 

@@ -138,6 +138,9 @@ public class SparkDialectParserTest {
             assertEquals(caseId, StatementType.valueOf(statementType), result.getStatementType());
             assertTables(caseId, sqlCase.get("inputTables"), tableNames(result.getInputTables()));
             assertTables(caseId, sqlCase.get("outputTables"), tableNames(result.getOutputTables()));
+            if (sqlCase.has("columnLineage")) {
+                assertColumnLineage(caseId, sqlCase.get("columnLineage"), result);
+            }
         }
     }
 
@@ -211,5 +214,20 @@ public class SparkDialectParserTest {
         }
         parts.add(table.getName());
         return String.join(".", parts);
+    }
+
+    private static void assertColumnLineage(String caseId, JsonNode expectedNode, LineageResult result) {
+        assertEquals(caseId, expectedNode.size(), result.getColumnLineage().size());
+        for (int i = 0; i < expectedNode.size(); i++) {
+            JsonNode expected = expectedNode.get(i);
+            io.github.linesql.core.model.ColumnLineage actual = result.getColumnLineage().get(i);
+            assertEquals(caseId, expected.get("target").asText(), actual.getTarget().getName());
+            List<String> expectedSources = new ArrayList<>();
+            expected.get("sources").forEach(node -> expectedSources.add(node.asText()));
+            List<String> actualSources = actual.getSources().stream()
+                    .map(source -> tableName(source.getTable()) + "." + source.getName())
+                    .collect(Collectors.toList());
+            assertEquals(caseId, expectedSources, actualSources);
+        }
     }
 }
