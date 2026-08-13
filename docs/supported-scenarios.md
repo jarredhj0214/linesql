@@ -31,6 +31,7 @@ Implemented MySQL table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from app.s join app.o` | `create_view` |
 | UPDATE JOIN table lineage | `update mart.t join app.s on ... set ...` | `update_join` |
 | DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...` | `delete_using` |
+| DELETE alias FROM JOIN table lineage | `delete t from mart.t t join app.s s ...` | `delete_join` |
 | Backquoted non-ASCII identifiers | `` select `用户ID` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 
 Implemented MySQL column-level lineage scenarios:

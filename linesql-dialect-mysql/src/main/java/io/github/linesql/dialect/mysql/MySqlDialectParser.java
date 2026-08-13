@@ -236,6 +236,8 @@ public class MySqlDialectParser implements DialectParser {
             int using = indexOfTopLevel(0, tokens.size(), MySqlLineageLexer.USING);
             if (using >= 0) {
                 inputs.addAll(readTableSources(using + 1, tokens.size()));
+            } else if (from >= 0) {
+                inputs.addAll(readTableSources(from + 1, tokens.size()));
             }
         }
 

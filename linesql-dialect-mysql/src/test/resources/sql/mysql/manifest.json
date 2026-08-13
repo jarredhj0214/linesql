@@ -220,6 +220,14 @@
       "description": "MySQL DELETE USING table-level lineage"
     },
     {
+      "id": "delete_join",
+      "file": "cases/delete_join.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.users", "app.deleted_users"],
+      "outputTables": ["mart.users"],
+      "description": "MySQL DELETE alias FROM JOIN table-level lineage"
+    },
+    {
       "id": "backquoted_identifiers",
       "file": "cases/backquoted_identifiers.sql",
       "statementType": "SELECT",

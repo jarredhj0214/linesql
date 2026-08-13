@@ -62,6 +62,10 @@ public class MySqlDialectParserTest {
         LineageResult delete = LineSql.parse(sqlCase("delete_using"));
         assertEquals(SqlDialect.MYSQL, delete.getDialect());
         assertEquals(StatementType.DELETE, delete.getStatementType());
+
+        LineageResult deleteJoin = LineSql.parse(sqlCase("delete_join"));
+        assertEquals(SqlDialect.MYSQL, deleteJoin.getDialect());
+        assertEquals(StatementType.DELETE, deleteJoin.getStatementType());
     }
 
     private static String sqlCase(String caseId) {

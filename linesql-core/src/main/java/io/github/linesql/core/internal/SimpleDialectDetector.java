@@ -15,6 +15,7 @@ public class SimpleDialectDetector implements DialectDetector {
 
         if (normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
+                || normalized.matches("(?s).*\\bdelete\\b.+\\bfrom\\b.+\\bjoin\\b.*")
                 || normalized.matches("(?s)^\\s*replace\\s+into\\b.*")
                 || normalized.contains(" on duplicate key ")
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*")) {
