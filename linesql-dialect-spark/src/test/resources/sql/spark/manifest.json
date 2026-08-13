@@ -129,6 +129,21 @@
         }
       ],
       "description": "Function, arithmetic, and constant projection lineage"
+    },
+    {
+      "id": "column_partial_projection",
+      "file": "cases/column_partial_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.users.id"]
+        }
+      ],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_PARTIAL"],
+      "description": "Partial column lineage warning when some projections are unsupported"
     }
   ]
 }

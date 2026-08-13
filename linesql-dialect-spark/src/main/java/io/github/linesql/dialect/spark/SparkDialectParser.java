@@ -54,6 +54,7 @@ public class SparkDialectParser implements DialectParser {
 
         SparkLineageVisitor visitor = new SparkLineageVisitor(result);
         visitor.visit(statement);
+        visitor.addColumnLineageDiagnostics();
         if (result.getColumnLineage().isEmpty()) {
             result.getDiagnostics().add(Diagnostic.warning(
                     "COLUMN_LINEAGE_NOT_IMPLEMENTED",
@@ -68,6 +69,8 @@ public class SparkDialectParser implements DialectParser {
         private final Set<TableRef> outputTables = new LinkedHashSet<>();
         private final Set<String> cteNames = new LinkedHashSet<>();
         private final List<Projection> projections = new ArrayList<>();
+        private int selectExpressionCount;
+        private int skippedProjectionCount;
 
         SparkLineageVisitor(LineageResult result) {
             this.result = result;
@@ -183,12 +186,23 @@ public class SparkDialectParser implements DialectParser {
         @Override
         public Void visitSelectClause(SqlBaseParser.SelectClauseContext ctx) {
             for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
+                selectExpressionCount++;
                 Projection projection = projection(namedExpression);
                 if (projection != null) {
                     projections.add(projection);
+                } else {
+                    skippedProjectionCount++;
                 }
             }
             return visitChildren(ctx);
+        }
+
+        void addColumnLineageDiagnostics() {
+            if (selectExpressionCount > 0 && !result.getColumnLineage().isEmpty() && skippedProjectionCount > 0) {
+                result.getDiagnostics().add(Diagnostic.warning(
+                        "COLUMN_LINEAGE_PARTIAL",
+                        "Spark column lineage was partially extracted; some projections are not supported yet."));
+            }
         }
 
         private void addInput(SqlBaseParser.IdentifierReferenceContext ctx) {

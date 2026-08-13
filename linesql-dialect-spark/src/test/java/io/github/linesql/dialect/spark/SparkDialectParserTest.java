@@ -141,6 +141,9 @@ public class SparkDialectParserTest {
             if (sqlCase.has("columnLineage")) {
                 assertColumnLineage(caseId, sqlCase.get("columnLineage"), result);
             }
+            if (sqlCase.has("expectedDiagnostics")) {
+                assertDiagnostics(caseId, sqlCase.get("expectedDiagnostics"), result);
+            }
         }
     }
 
