@@ -991,6 +991,15 @@
       "description": "Pipe EXCEPT source table lineage with set column lineage degradation"
     },
     {
+      "id": "execute_immediate_dynamic_sql",
+      "file": "cases/execute_immediate_dynamic_sql.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "expectedDiagnostics": ["DYNAMIC_SQL_NOT_EXPANDED"],
+      "description": "EXECUTE IMMEDIATE dynamic SQL is parsed but not expanded for lineage"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",

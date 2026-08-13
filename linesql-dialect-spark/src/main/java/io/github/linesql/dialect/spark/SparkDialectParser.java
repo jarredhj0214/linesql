@@ -471,6 +471,15 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitVisitExecuteImmediate(SqlBaseParser.VisitExecuteImmediateContext ctx) {
+            result.setStatementType(StatementType.UNKNOWN);
+            result.getDiagnostics().add(Diagnostic.warning(
+                    "DYNAMIC_SQL_NOT_EXPANDED",
+                    "Spark EXECUTE IMMEDIATE dynamic SQL is not expanded; table and column lineage are degraded."));
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);

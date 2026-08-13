@@ -55,6 +55,7 @@ Implemented Spark table-level lineage scenarios:
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
 | Temporary view drop lifecycle | `create temporary view v as ...; drop view v; select ... from v` | `script_drop_temp_view` |
+| Dynamic SQL graceful degradation | `execute immediate 'select ... from ods.s'` | `execute_immediate_dynamic_sql` |
 | JOIN source tables | `from ods.users join ods.orders` | `join_basic` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from ods.s` | `create_view` |
 | CREATE TEMPORARY VIEW USING provider | `create temporary view v using csv options (...)` | `create_temp_view_using` |
@@ -156,6 +157,7 @@ Current Spark diagnostics:
 | Code | Meaning |
 | --- | --- |
 | `SPARK_PARSE_ERROR` | Spark SQL could not be parsed by the current grammar entry point. |
+| `DYNAMIC_SQL_NOT_EXPANDED` | Dynamic SQL was parsed but intentionally not expanded for lineage extraction. |
 | `COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for the statement. Table lineage may still be available. |
 | `COLUMN_LINEAGE_PARTIAL` | Some column lineage was produced, but at least one projection could not be resolved safely. |
 
@@ -168,6 +170,7 @@ Implemented Spark tolerance scenarios:
 | Unquoted scheduler placeholders | `${bizdate}`, `{{ region }}` in expressions | `select_with_placeholders` |
 | Backquoted non-ASCII identifiers | Chinese table and column identifiers | `quoted_chinese_identifiers` |
 | Bad SQL isolation in scripts | one invalid statement does not block later statements | `script_bad_sql_recovery` |
+| Dynamic SQL degradation | `EXECUTE IMMEDIATE` returns diagnostics instead of guessing embedded SQL lineage | `execute_immediate_dynamic_sql` |
 
 ### Known Gaps
 
@@ -185,5 +188,6 @@ The following Spark lineage features are intentionally not complete yet:
 | PIVOT/UNPIVOT column lineage | Table-level lineage is supported; generated pivot/unpivot columns are not propagated yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |
 | Pipe EXTEND and AGGREGATE column lineage | Table-level lineage is supported; generated pipe columns and aggregate outputs are not propagated yet. |
+| Dynamic SQL expansion | `EXECUTE IMMEDIATE` is parsed and diagnosed, but embedded SQL text is not recursively parsed. |
 | Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
 | Complex nested fields and structs | Basic nested field paths are preserved; schema-aware struct expansion is not implemented yet. |
