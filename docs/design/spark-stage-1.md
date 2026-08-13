@@ -108,6 +108,8 @@ Unresolved cases should produce diagnostics instead of failing the entire result
 
 See [Supported Scenarios](../supported-scenarios.md) for the current executable scenario matrix.
 
+See [Spark Coverage Audit](spark-coverage-audit.md) for the implementation checklist that maps Spark grammar families to current LineSQL behavior.
+
 ## Grammar Strategy
 
 The Spark dialect uses grammar files adapted from Apache Spark's official ANTLR grammar:
