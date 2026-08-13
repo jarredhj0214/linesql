@@ -350,6 +350,12 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitRepairTable(SqlBaseParser.RepairTableContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
         public Void visitAlterClusterBy(SqlBaseParser.AlterClusterByContext ctx) {
             markAlterTable(ctx.identifierReference());
             return null;
@@ -370,6 +376,42 @@ public class SparkDialectParser implements DialectParser {
         @Override
         public Void visitDropTableConstraint(SqlBaseParser.DropTableConstraintContext ctx) {
             markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitAnalyze(SqlBaseParser.AnalyzeContext ctx) {
+            markReadMetadata(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitDescribeRelation(SqlBaseParser.DescribeRelationContext ctx) {
+            markReadMetadata(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitShowCreateTable(SqlBaseParser.ShowCreateTableContext ctx) {
+            markReadMetadata(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitShowColumns(SqlBaseParser.ShowColumnsContext ctx) {
+            markReadMetadata(ctx.table);
+            return null;
+        }
+
+        @Override
+        public Void visitShowPartitions(SqlBaseParser.ShowPartitionsContext ctx) {
+            markReadMetadata(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitShowTblProperties(SqlBaseParser.ShowTblPropertiesContext ctx) {
+            markReadMetadata(ctx.table);
             return null;
         }
 
@@ -717,6 +759,11 @@ public class SparkDialectParser implements DialectParser {
         private void markAlterTable(SqlBaseParser.IdentifierReferenceContext ctx) {
             result.setStatementType(StatementType.ALTER_TABLE);
             addOutput(ctx);
+        }
+
+        private void markReadMetadata(SqlBaseParser.IdentifierReferenceContext ctx) {
+            result.setStatementType(StatementType.READ_METADATA);
+            addInput(ctx);
         }
 
         private void refreshColumnLineage() {

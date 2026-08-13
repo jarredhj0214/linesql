@@ -38,6 +38,11 @@ Implemented Spark table-level lineage scenarios:
 | ALTER TABLE property maintenance | `alter table mart.t set tblproperties (...)` | `alter_table_set_properties` |
 | ALTER TABLE partition maintenance | `alter table mart.t drop partition (...)` | `alter_table_drop_partition` |
 | ALTER TABLE recover partitions | `alter table mart.t recover partitions` | `recover_partitions` |
+| ANALYZE TABLE metadata reads | `analyze table mart.t compute statistics` | `analyze_table` |
+| DESCRIBE TABLE metadata reads | `describe table formatted mart.t` | `describe_table` |
+| SHOW CREATE TABLE metadata reads | `show create table mart.t` | `show_create_table` |
+| SHOW COLUMNS metadata reads | `show columns in mart.t` | `show_columns` |
+| SHOW PARTITIONS metadata reads | `show partitions mart.t` | `show_partitions` |
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |

@@ -201,6 +201,51 @@
       "description": "ALTER TABLE RECOVER PARTITIONS affected table lineage"
     },
     {
+      "id": "analyze_table",
+      "file": "cases/analyze_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "ANALYZE TABLE metadata read table lineage"
+    },
+    {
+      "id": "describe_table",
+      "file": "cases/describe_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "DESCRIBE TABLE metadata read table lineage"
+    },
+    {
+      "id": "show_create_table",
+      "file": "cases/show_create_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "SHOW CREATE TABLE metadata read table lineage"
+    },
+    {
+      "id": "show_columns",
+      "file": "cases/show_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "SHOW COLUMNS metadata read table lineage"
+    },
+    {
+      "id": "show_partitions",
+      "file": "cases/show_partitions.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "SHOW PARTITIONS metadata read table lineage"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",

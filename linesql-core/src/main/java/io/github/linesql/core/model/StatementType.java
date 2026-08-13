@@ -18,5 +18,6 @@ public enum StatementType {
     UPDATE,
     DELETE,
     LOAD_DATA,
+    READ_METADATA,
     UNKNOWN
 }

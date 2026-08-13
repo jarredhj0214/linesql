@@ -46,6 +46,7 @@ Every newly supported Spark scenario must update both:
 - `ALTER TABLE ... RENAME TO ...`
 - `ALTER TABLE` column/property/partition maintenance
 - `ALTER TABLE ... RECOVER PARTITIONS`
+- Table metadata reads: `ANALYZE TABLE`, `DESCRIBE TABLE`, `SHOW CREATE TABLE`, `SHOW COLUMNS`, `SHOW PARTITIONS`
 - FROM-first multi-insert table lineage
 - `CREATE TABLE ... AS SELECT`
 - `CREATE TABLE ... USING ... PARTITIONED BY ... AS SELECT`
