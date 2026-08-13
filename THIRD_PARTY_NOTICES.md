@@ -2,7 +2,7 @@
 
 This file records third-party source code, grammar files, generated parser artifacts, and license obligations included in LineSQL.
 
-At this stage, LineSQL does not include copied third-party grammar or parser source files.
+At this stage, LineSQL does not include copied third-party grammar or parser source files. Spark grammar files are independently authored for LineSQL.
 
 Runtime and build dependencies are managed through Maven and must be reviewed before release.
 

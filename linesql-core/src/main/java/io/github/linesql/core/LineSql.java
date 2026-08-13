@@ -1,6 +1,7 @@
 package io.github.linesql.core;
 
 import io.github.linesql.core.facade.SqlLineageParser;
+import io.github.linesql.core.internal.DefaultSqlLineageParser;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
@@ -29,7 +30,8 @@ public final class LineSql {
     public static List<LineageResult> parseScript(String script, ParseOptions options, ParseContext context) {
         SqlLineageParser current = parser;
         if (current == null) {
-            throw new IllegalStateException("No SqlLineageParser provider is configured yet.");
+            current = new DefaultSqlLineageParser();
+            parser = current;
         }
         return current.parseScript(script, options, context);
     }

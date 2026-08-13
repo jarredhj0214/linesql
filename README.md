@@ -53,6 +53,15 @@ LineageResult result = LineSql.parse(sql);
 List<LineageResult> results = LineSql.parseScript(script);
 ```
 
+CLI:
+
+```bash
+./scripts/mvn-jdk11 -q -pl linesql-cli -am package
+"/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" \
+  -jar linesql-cli/target/linesql-cli-0.1.0-SNAPSHOT.jar \
+  "insert overwrite table ads.user_summary select id from ods.users"
+```
+
 Target output shape:
 
 ```json
