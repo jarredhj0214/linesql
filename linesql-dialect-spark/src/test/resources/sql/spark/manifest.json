@@ -781,6 +781,42 @@
       "description": "CREATE OR REPLACE TABLE AS SELECT table and column lineage"
     },
     {
+      "id": "create_materialized_view_as_select",
+      "file": "cases/create_materialized_view_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.mv_users"],
+      "columnLineage": [
+        {
+          "target": "mart.mv_users.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "mart.mv_users.name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "CREATE MATERIALIZED VIEW AS SELECT table and column lineage"
+    },
+    {
+      "id": "create_streaming_table_as_select",
+      "file": "cases/create_streaming_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": ["mart.streaming_events"],
+      "columnLineage": [
+        {
+          "target": "mart.streaming_events.event_id",
+          "sources": ["ods.events.id"]
+        },
+        {
+          "target": "mart.streaming_events.event_time",
+          "sources": ["ods.events.event_time"]
+        }
+      ],
+      "description": "CREATE STREAMING TABLE AS SELECT table and column lineage"
+    },
+    {
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",

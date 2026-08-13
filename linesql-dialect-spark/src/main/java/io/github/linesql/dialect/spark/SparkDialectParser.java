@@ -190,6 +190,17 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCreatePipelineDataset(SqlBaseParser.CreatePipelineDatasetContext ctx) {
+            if (ctx.query() != null) {
+                result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            } else {
+                result.setStatementType(StatementType.UNKNOWN);
+            }
+            addOutput(ctx.createPipelineDatasetHeader().identifierReference());
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitCreateView(SqlBaseParser.CreateViewContext ctx) {
             result.setStatementType(StatementType.CREATE_VIEW);
             addOutput(ctx.identifierReference());
