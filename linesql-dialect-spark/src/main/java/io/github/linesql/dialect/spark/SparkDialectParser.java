@@ -932,6 +932,21 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitOperatorPipeRightSide(SqlBaseParser.OperatorPipeRightSideContext ctx) {
+            if (ctx.extendList != null) {
+                for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.extendList.namedExpression()) {
+                    Projection projection = projection(namedExpression);
+                    if (projection != null) {
+                        addGeneratedColumn(null, projection.targetColumn, projection.sourceColumns);
+                    }
+                }
+                refreshColumnLineage();
+                return null;
+            }
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitLateralView(SqlBaseParser.LateralViewContext ctx) {
             List<SourceColumn> sources = new ArrayList<>();
             for (SqlBaseParser.ExpressionContext expression : ctx.expression()) {

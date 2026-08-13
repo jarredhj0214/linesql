@@ -959,6 +959,24 @@
       "description": "Pipe EXTEND source table lineage with generated column lineage degradation"
     },
     {
+      "id": "pipe_extend_column_lineage",
+      "file": "cases/pipe_extend_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "name_upper",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "Pipe EXTEND generated column propagation into a following SELECT"
+    },
+    {
       "id": "pipe_aggregate_table_lineage",
       "file": "cases/pipe_aggregate_table_lineage.sql",
       "statementType": "SELECT",

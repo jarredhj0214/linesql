@@ -110,6 +110,7 @@ Every newly supported Spark scenario must update both:
 - Single-value UNPIVOT generated name/value propagation
 - Pipe SELECT direct projection
 - Pipe DROP then SELECT direct projection
+- Pipe EXTEND generated column projection
 - Pipe JOIN direct projection
 - Nested field paths: `profile.city`, `u.profile.city`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
