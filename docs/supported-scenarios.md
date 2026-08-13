@@ -44,6 +44,7 @@ Implemented Spark table-level lineage scenarios:
 | Subquery input tables | `select ... from (select ... from ods.s)` | `subquery_basic` |
 | CTAS output and source tables | `create table mart.t as select ... from ods.s` | `ctas_column_projection` |
 | CTAS with provider and partition clauses | `create table mart.t using parquet partitioned by (...) as select ...` | `ctas_using_partitioned` |
+| CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 
 Invalid SQL returns a diagnostic instead of throwing for the whole parse result. See `parse_error`.
 

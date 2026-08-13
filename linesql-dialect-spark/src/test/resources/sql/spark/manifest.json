@@ -129,6 +129,15 @@
       "description": "CREATE VIEW AS SELECT lineage"
     },
     {
+      "id": "create_table_like",
+      "file": "cases/create_table_like.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.users_like"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "CREATE TABLE LIKE source and target table lineage"
+    },
+    {
       "id": "parse_error",
       "file": "cases/parse_error.sql",
       "statementType": "ERROR",

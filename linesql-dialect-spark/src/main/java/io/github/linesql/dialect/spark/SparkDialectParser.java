@@ -168,6 +168,14 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitCreateTableLike(SqlBaseParser.CreateTableLikeContext ctx) {
+            result.setStatementType(StatementType.CREATE_TABLE_LIKE);
+            addOutput(ctx.target);
+            addInput(ctx.source);
+            return null;
+        }
+
+        @Override
         public Void visitReplaceTable(SqlBaseParser.ReplaceTableContext ctx) {
             if (ctx.query() != null) {
                 result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
