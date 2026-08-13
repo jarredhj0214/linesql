@@ -165,6 +165,42 @@
       "description": "ALTER TABLE RENAME TO old and new table lineage"
     },
     {
+      "id": "alter_table_add_columns",
+      "file": "cases/alter_table_add_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "ALTER TABLE ADD COLUMNS affected table lineage"
+    },
+    {
+      "id": "alter_table_set_properties",
+      "file": "cases/alter_table_set_properties.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "ALTER TABLE SET TBLPROPERTIES affected table lineage"
+    },
+    {
+      "id": "alter_table_drop_partition",
+      "file": "cases/alter_table_drop_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "ALTER TABLE DROP PARTITION affected table lineage"
+    },
+    {
+      "id": "recover_partitions",
+      "file": "cases/recover_partitions.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "ALTER TABLE RECOVER PARTITIONS affected table lineage"
+    },
+    {
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",

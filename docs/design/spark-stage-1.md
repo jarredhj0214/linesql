@@ -44,6 +44,8 @@ Every newly supported Spark scenario must update both:
 - `DROP TABLE`
 - `TRUNCATE TABLE`
 - `ALTER TABLE ... RENAME TO ...`
+- `ALTER TABLE` column/property/partition maintenance
+- `ALTER TABLE ... RECOVER PARTITIONS`
 - FROM-first multi-insert table lineage
 - `CREATE TABLE ... AS SELECT`
 - `CREATE TABLE ... USING ... PARTITIONED BY ... AS SELECT`

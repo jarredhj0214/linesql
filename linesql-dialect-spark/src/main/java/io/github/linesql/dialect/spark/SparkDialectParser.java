@@ -266,6 +266,114 @@ public class SparkDialectParser implements DialectParser {
         }
 
         @Override
+        public Void visitAddTableColumns(SqlBaseParser.AddTableColumnsContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitRenameTableColumn(SqlBaseParser.RenameTableColumnContext ctx) {
+            markAlterTable(ctx.table);
+            return null;
+        }
+
+        @Override
+        public Void visitDropTableColumns(SqlBaseParser.DropTableColumnsContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitSetTableProperties(SqlBaseParser.SetTablePropertiesContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitUnsetTableProperties(SqlBaseParser.UnsetTablePropertiesContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitAlterTableAlterColumn(SqlBaseParser.AlterTableAlterColumnContext ctx) {
+            markAlterTable(ctx.table);
+            return null;
+        }
+
+        @Override
+        public Void visitHiveChangeColumn(SqlBaseParser.HiveChangeColumnContext ctx) {
+            markAlterTable(ctx.table);
+            return null;
+        }
+
+        @Override
+        public Void visitHiveReplaceColumns(SqlBaseParser.HiveReplaceColumnsContext ctx) {
+            markAlterTable(ctx.table);
+            return null;
+        }
+
+        @Override
+        public Void visitSetTableSerDe(SqlBaseParser.SetTableSerDeContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitAddTablePartition(SqlBaseParser.AddTablePartitionContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitRenameTablePartition(SqlBaseParser.RenameTablePartitionContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitDropTablePartitions(SqlBaseParser.DropTablePartitionsContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitSetTableLocation(SqlBaseParser.SetTableLocationContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitRecoverPartitions(SqlBaseParser.RecoverPartitionsContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitAlterClusterBy(SqlBaseParser.AlterClusterByContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitAlterTableCollation(SqlBaseParser.AlterTableCollationContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitAddTableConstraint(SqlBaseParser.AddTableConstraintContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
+        public Void visitDropTableConstraint(SqlBaseParser.DropTableConstraintContext ctx) {
+            markAlterTable(ctx.identifierReference());
+            return null;
+        }
+
+        @Override
         public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
             String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
             cteNames.add(cteName);
@@ -604,6 +712,11 @@ public class SparkDialectParser implements DialectParser {
             outputTables.add(tableRef(ctx.getText()));
             result.setOutputTables(new ArrayList<>(outputTables));
             refreshColumnLineage();
+        }
+
+        private void markAlterTable(SqlBaseParser.IdentifierReferenceContext ctx) {
+            result.setStatementType(StatementType.ALTER_TABLE);
+            addOutput(ctx);
         }
 
         private void refreshColumnLineage() {
