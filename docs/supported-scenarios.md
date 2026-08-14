@@ -79,6 +79,9 @@ Implemented SQL Server table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE FROM JOIN target and source tables | `delete t from ads.t t join ods.s s ...` | `delete_from_join` |
+| DROP TABLE affected table | `drop table if exists dbo.t` | `drop_table` |
+| TRUNCATE TABLE affected table | `truncate table dbo.t` | `truncate_table` |
+| ALTER TABLE column maintenance | `alter table dbo.t add c int` | `alter_table_add_column` |
 
 Implemented SQL Server column-level lineage scenarios:
 
@@ -148,6 +151,12 @@ Implemented Oracle table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
+| DROP TABLE affected table | `drop table mart.t` | `drop_table` |
+| TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
+| ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to new_name` | `rename_table` |
+| ALTER TABLE column maintenance | `alter table mart.t add c number` | `alter_table_add_column` |
+| COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |
+| COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
 
 Implemented Oracle column-level lineage scenarios:
 
@@ -214,6 +223,9 @@ Implemented StarRocks table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE USING target and source tables | `delete from ads.t using ods.s s where ...` | `delete_using` |
+| DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
+| TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
+| ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
 
 Implemented StarRocks column-level lineage scenarios:
 
@@ -277,6 +289,10 @@ Implemented Flink table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods_s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads_t where ...` | `delete_where` |
+| DROP TABLE affected table | `drop table if exists mart_t` | `drop_table` |
+| ALTER TABLE RENAME TO old and new tables | `alter table mart_old rename to mart_new` | `rename_table` |
+| ALTER TABLE column maintenance | `alter table mart_t add c int` | `alter_table_add_column` |
+| DESCRIBE TABLE metadata read | `describe table mart_t` | `describe_table` |
 
 Implemented Flink column-level lineage scenarios:
 
@@ -340,6 +356,11 @@ Implemented Hive table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
+| DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
+| TRUNCATE TABLE affected table | `truncate table ads.t partition (...)` | `truncate_table` |
+| ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |
+| ALTER TABLE column maintenance | `alter table mart.t add columns (...)` | `alter_table_add_columns` |
+| DESCRIBE TABLE metadata read | `describe table mart.t` | `describe_table` |
 
 Implemented Hive column-level lineage scenarios:
 
@@ -410,6 +431,11 @@ Implemented MySQL table-level lineage scenarios:
 | DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...` | `delete_using` |
 | DELETE alias FROM JOIN table lineage | `delete t from mart.t t join app.s s ...` | `delete_join` |
 | Backquoted non-ASCII identifiers | `` select `用户ID` from `业务库`.`用户表` `` | `backquoted_identifiers` |
+| DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
+| TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
+| ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |
+| ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
+| SHOW CREATE TABLE metadata read | `show create table mart.t` | `show_create_table` |
 
 Implemented MySQL column-level lineage scenarios:
 

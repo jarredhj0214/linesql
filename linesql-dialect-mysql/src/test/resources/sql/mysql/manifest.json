@@ -5,16 +5,22 @@
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["app.users"],
+      "inputTables": [
+        "app.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["app.users.name"]
+          "sources": [
+            "app.users.name"
+          ]
         }
       ],
       "description": "MySQL basic SELECT table and column lineage"
@@ -23,16 +29,23 @@
       "id": "join_projection",
       "file": "cases/join_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["app.users", "app.orders"],
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["app.orders.amount"]
+          "sources": [
+            "app.orders.amount"
+          ]
         }
       ],
       "description": "MySQL JOIN table lineage and alias-qualified column lineage"
@@ -41,16 +54,22 @@
       "id": "subquery_column_projection",
       "file": "cases/subquery_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["app.users"],
+      "inputTables": [
+        "app.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "user_name",
-          "sources": ["app.users.name"]
+          "sources": [
+            "app.users.name"
+          ]
         }
       ],
       "description": "MySQL aliased subquery direct column propagation"
@@ -59,16 +78,22 @@
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["app.users"],
+      "inputTables": [
+        "app.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "user_name",
-          "sources": ["app.users.name"]
+          "sources": [
+            "app.users.name"
+          ]
         }
       ],
       "description": "MySQL single CTE direct column propagation"
@@ -77,12 +102,18 @@
       "id": "union_column_projection",
       "file": "cases/union_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["app.users", "app.admins"],
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["app.users.id", "app.admins.id"]
+          "sources": [
+            "app.users.id",
+            "app.admins.id"
+          ]
         }
       ],
       "description": "MySQL UNION ALL column sources merged by output position"
@@ -91,16 +122,24 @@
       "id": "insert_select",
       "file": "cases/insert_select.sql",
       "statementType": "INSERT",
-      "inputTables": ["app.users"],
-      "outputTables": ["mart.user_summary"],
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "mart.user_summary.user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "mart.user_summary.user_name",
-          "sources": ["app.users.name"]
+          "sources": [
+            "app.users.name"
+          ]
         }
       ],
       "description": "MySQL INSERT INTO column list with SELECT source"
@@ -110,23 +149,33 @@
       "file": "cases/insert_values.sql",
       "statementType": "INSERT",
       "inputTables": [],
-      "outputTables": ["mart.user_summary"],
+      "outputTables": [
+        "mart.user_summary"
+      ],
       "description": "MySQL INSERT INTO VALUES target table lineage"
     },
     {
       "id": "insert_select_on_duplicate",
       "file": "cases/insert_select_on_duplicate.sql",
       "statementType": "INSERT",
-      "inputTables": ["app.users_delta"],
-      "outputTables": ["mart.user_summary"],
+      "inputTables": [
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "mart.user_summary.user_id",
-          "sources": ["app.users_delta.id"]
+          "sources": [
+            "app.users_delta.id"
+          ]
         },
         {
           "target": "mart.user_summary.user_name",
-          "sources": ["app.users_delta.name"]
+          "sources": [
+            "app.users_delta.name"
+          ]
         }
       ],
       "description": "MySQL INSERT SELECT with ON DUPLICATE KEY UPDATE keeps SELECT lineage"
@@ -135,16 +184,24 @@
       "id": "replace_select",
       "file": "cases/replace_select.sql",
       "statementType": "INSERT",
-      "inputTables": ["app.users_delta"],
-      "outputTables": ["mart.user_summary"],
+      "inputTables": [
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "mart.user_summary.user_id",
-          "sources": ["app.users_delta.id"]
+          "sources": [
+            "app.users_delta.id"
+          ]
         },
         {
           "target": "mart.user_summary.user_name",
-          "sources": ["app.users_delta.name"]
+          "sources": [
+            "app.users_delta.name"
+          ]
         }
       ],
       "description": "MySQL REPLACE INTO SELECT target and source lineage"
@@ -154,23 +211,33 @@
       "file": "cases/replace_values.sql",
       "statementType": "INSERT",
       "inputTables": [],
-      "outputTables": ["mart.user_summary"],
+      "outputTables": [
+        "mart.user_summary"
+      ],
       "description": "MySQL REPLACE INTO VALUES target table lineage"
     },
     {
       "id": "create_table_as_select",
       "file": "cases/create_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["app.users"],
-      "outputTables": ["mart.user_summary"],
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "mart.user_summary.user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "mart.user_summary.name",
-          "sources": ["app.users.name"]
+          "sources": [
+            "app.users.name"
+          ]
         }
       ],
       "description": "MySQL CREATE TABLE AS SELECT table and column lineage"
@@ -179,16 +246,25 @@
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
-      "inputTables": ["app.users", "app.orders"],
-      "outputTables": ["mart.v_user_orders"],
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [
+        "mart.v_user_orders"
+      ],
       "columnLineage": [
         {
           "target": "mart.v_user_orders.user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "mart.v_user_orders.amount",
-          "sources": ["app.orders.amount"]
+          "sources": [
+            "app.orders.amount"
+          ]
         }
       ],
       "description": "MySQL CREATE VIEW AS SELECT table and column lineage"
@@ -197,16 +273,24 @@
       "id": "create_or_replace_view",
       "file": "cases/create_or_replace_view.sql",
       "statementType": "CREATE_VIEW",
-      "inputTables": ["app.users"],
-      "outputTables": ["mart.v_active_users"],
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.v_active_users"
+      ],
       "columnLineage": [
         {
           "target": "mart.v_active_users.user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "mart.v_active_users.name",
-          "sources": ["app.users.name"]
+          "sources": [
+            "app.users.name"
+          ]
         }
       ],
       "description": "MySQL CREATE OR REPLACE VIEW AS SELECT table and column lineage"
@@ -215,16 +299,24 @@
       "id": "create_temporary_table_as_select",
       "file": "cases/create_temporary_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["app.users"],
-      "outputTables": ["mart.tmp_users"],
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.tmp_users"
+      ],
       "columnLineage": [
         {
           "target": "mart.tmp_users.user_id",
-          "sources": ["app.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
         },
         {
           "target": "mart.tmp_users.name",
-          "sources": ["app.users.name"]
+          "sources": [
+            "app.users.name"
+          ]
         }
       ],
       "description": "MySQL CREATE TEMPORARY TABLE IF NOT EXISTS AS SELECT table and column lineage"
@@ -233,12 +325,19 @@
       "id": "update_join",
       "file": "cases/update_join.sql",
       "statementType": "UPDATE",
-      "inputTables": ["mart.users", "app.users_delta"],
-      "outputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users",
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
       "columnLineage": [
         {
           "target": "mart.users.name",
-          "sources": ["app.users_delta.name"]
+          "sources": [
+            "app.users_delta.name"
+          ]
         },
         {
           "target": "mart.users.status",
@@ -251,31 +350,102 @@
       "id": "delete_using",
       "file": "cases/delete_using.sql",
       "statementType": "DELETE",
-      "inputTables": ["mart.users", "app.deleted_users"],
-      "outputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users",
+        "app.deleted_users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
       "description": "MySQL DELETE USING table-level lineage"
     },
     {
       "id": "delete_join",
       "file": "cases/delete_join.sql",
       "statementType": "DELETE",
-      "inputTables": ["mart.users", "app.deleted_users"],
-      "outputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users",
+        "app.deleted_users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
       "description": "MySQL DELETE alias FROM JOIN table-level lineage"
     },
     {
       "id": "backquoted_identifiers",
       "file": "cases/backquoted_identifiers.sql",
       "statementType": "SELECT",
-      "inputTables": ["业务库.用户表"],
+      "inputTables": [
+        "业务库.用户表"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "用户标识",
-          "sources": ["业务库.用户表.用户ID"]
+          "sources": [
+            "业务库.用户表.用户ID"
+          ]
         }
       ],
       "description": "MySQL backquoted non-ASCII table and column identifiers"
+    },
+    {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users_old"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DROP TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "rename_table",
+      "file": "cases/rename_table.sql",
+      "statementType": "RENAME_TABLE",
+      "inputTables": [
+        "mart.users_tmp"
+      ],
+      "outputTables": [
+        "mart.users_archive"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE RENAME TO old and new table lineage"
+    },
+    {
+      "id": "alter_table_add_column",
+      "file": "cases/alter_table_add_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD COLUMN affected table lineage"
+    },
+    {
+      "id": "show_create_table",
+      "file": "cases/show_create_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW CREATE TABLE metadata read table lineage"
     }
   ]
 }

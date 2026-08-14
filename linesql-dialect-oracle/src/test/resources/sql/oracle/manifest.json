@@ -438,6 +438,74 @@
         }
       ],
       "description": "Oracle INSERT target column list mapping over derived subquery propagation"
+    },
+    {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users_old"
+      ],
+      "columnLineage": [],
+      "description": "Oracle DROP TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "rename_table",
+      "file": "cases/rename_table.sql",
+      "statementType": "RENAME_TABLE",
+      "inputTables": [
+        "mart.users_tmp"
+      ],
+      "outputTables": [
+        "users_archive"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE RENAME TO old and new table lineage"
+    },
+    {
+      "id": "alter_table_add_column",
+      "file": "cases/alter_table_add_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE ADD column affected table lineage"
+    },
+    {
+      "id": "comment_table",
+      "file": "cases/comment_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle COMMENT ON TABLE affected table lineage"
+    },
+    {
+      "id": "comment_column",
+      "file": "cases/comment_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle COMMENT ON COLUMN affected table lineage"
     }
   ]
 }

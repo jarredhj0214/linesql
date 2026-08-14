@@ -100,6 +100,16 @@ public class MySqlDialectParser implements DialectParser {
                 parseUpdate();
             } else if (is(0, MySqlLineageLexer.DELETE)) {
                 parseDelete();
+            } else if (is(0, MySqlLineageLexer.DROP)) {
+                parseDrop();
+            } else if (is(0, MySqlLineageLexer.TRUNCATE)) {
+                parseTruncate();
+            } else if (is(0, MySqlLineageLexer.ALTER)) {
+                parseAlter();
+            } else if (is(0, MySqlLineageLexer.SHOW) || is(0, MySqlLineageLexer.DESCRIBE)) {
+                parseMetadataRead();
+            } else if (is(0, MySqlLineageLexer.COMMENT)) {
+                parseComment();
             } else {
                 result.setStatementType(StatementType.UNKNOWN);
                 result.getDiagnostics().add(Diagnostic.warning(
@@ -219,6 +229,13 @@ public class MySqlDialectParser implements DialectParser {
             return index;
         }
 
+        private int skipIfExists(int index) {
+            if (is(index, MySqlLineageLexer.IF) && is(index + 1, MySqlLineageLexer.EXISTS)) {
+                return index + 2;
+            }
+            return index;
+        }
+
         private void parseUpdate() {
             result.setStatementType(StatementType.UPDATE);
             TableScan target = readTable(1, tokens.size());
@@ -263,6 +280,92 @@ public class MySqlDialectParser implements DialectParser {
             } else if (from >= 0) {
                 inputs.addAll(readTableSources(from + 1, tokens.size()));
             }
+        }
+
+        private void parseDrop() {
+            result.setStatementType(StatementType.DROP_TABLE);
+            int table = indexOfTopLevel(1, tokens.size(), MySqlLineageLexer.TABLE);
+            if (table < 0) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int targetStart = skipIfExists(table + 1);
+            TableScan target = readTable(targetStart, tokens.size());
+            if (target != null) {
+                outputs.add(target.table);
+            }
+        }
+
+        private void parseTruncate() {
+            result.setStatementType(StatementType.TRUNCATE_TABLE);
+            int table = indexOfTopLevel(1, tokens.size(), MySqlLineageLexer.TABLE);
+            int targetStart = table >= 0 ? table + 1 : 1;
+            TableScan target = readTable(targetStart, tokens.size());
+            if (target != null) {
+                outputs.add(target.table);
+            }
+        }
+
+        private void parseAlter() {
+            int table = indexOfTopLevel(1, tokens.size(), MySqlLineageLexer.TABLE);
+            if (table < 0) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            TableScan target = readTable(table + 1, tokens.size());
+            if (target == null) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int rename = indexOfTopLevel(target.nextIndex, tokens.size(), MySqlLineageLexer.RENAME);
+            int to = rename >= 0 ? indexOfTopLevel(rename + 1, tokens.size(), MySqlLineageLexer.TO) : -1;
+            if (to >= 0) {
+                TableScan renamed = readTable(to + 1, tokens.size());
+                if (renamed != null) {
+                    result.setStatementType(StatementType.RENAME_TABLE);
+                    inputs.add(target.table);
+                    outputs.add(renamed.table);
+                    return;
+                }
+            }
+            result.setStatementType(StatementType.ALTER_TABLE);
+            outputs.add(target.table);
+        }
+
+        private void parseMetadataRead() {
+            result.setStatementType(StatementType.READ_METADATA);
+            int table = indexOfTopLevel(1, tokens.size(), MySqlLineageLexer.TABLE);
+            int targetStart = table >= 0 ? table + 1 : 1;
+            TableScan target = readTable(targetStart, tokens.size());
+            if (target != null) {
+                inputs.add(target.table);
+            }
+        }
+
+        private void parseComment() {
+            int on = indexOfTopLevel(1, tokens.size(), MySqlLineageLexer.ON);
+            if (on < 0) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int objectIndex = on + 1;
+            if (is(objectIndex, MySqlLineageLexer.COLUMN)) {
+                result.setStatementType(StatementType.ALTER_TABLE);
+                IdentifierRead column = readIdentifierParts(objectIndex + 1, tokens.size());
+                if (column.parts.size() > 1) {
+                    outputs.add(tableRef(column.parts.subList(0, column.parts.size() - 1)));
+                }
+                return;
+            }
+            if (is(objectIndex, MySqlLineageLexer.TABLE)) {
+                result.setStatementType(StatementType.ALTER_TABLE);
+                TableScan target = readTable(objectIndex + 1, tokens.size());
+                if (target != null) {
+                    outputs.add(target.table);
+                }
+                return;
+            }
+            result.setStatementType(StatementType.UNKNOWN);
         }
 
         private SelectLineage parseSelect(int start, int end) {

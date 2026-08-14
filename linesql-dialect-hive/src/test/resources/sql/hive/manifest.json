@@ -387,6 +387,63 @@
         }
       ],
       "description": "Hive INSERT target column list mapping over derived subquery propagation"
+    },
+    {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users_old"
+      ],
+      "columnLineage": [],
+      "description": "Hive DROP TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "Hive TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "rename_table",
+      "file": "cases/rename_table.sql",
+      "statementType": "RENAME_TABLE",
+      "inputTables": [
+        "mart.users_tmp"
+      ],
+      "outputTables": [
+        "mart.users_archive"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE RENAME TO old and new table lineage"
+    },
+    {
+      "id": "alter_table_add_columns",
+      "file": "cases/alter_table_add_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE ADD COLUMNS affected table lineage"
+    },
+    {
+      "id": "describe_table",
+      "file": "cases/describe_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive DESCRIBE TABLE metadata read table lineage"
     }
   ]
 }

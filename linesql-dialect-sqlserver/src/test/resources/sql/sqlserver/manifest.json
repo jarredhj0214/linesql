@@ -449,6 +449,39 @@
         }
       ],
       "description": "SQL Server INSERT target column list mapping over derived subquery propagation"
+    },
+    {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users_old"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "alter_table_add_column",
+      "file": "cases/alter_table_add_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server ALTER TABLE ADD column affected table lineage"
     }
   ]
 }

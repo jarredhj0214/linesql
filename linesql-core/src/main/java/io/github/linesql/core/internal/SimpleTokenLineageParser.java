@@ -52,6 +52,12 @@ public final class SimpleTokenLineageParser {
         private int update = -1;
         private int delete = -1;
         private int create = -1;
+        private int drop = -1;
+        private int truncate = -1;
+        private int alter = -1;
+        private int show = -1;
+        private int describe = -1;
+        private int comment = -1;
         private int overwrite = -1;
         private int into = -1;
         private int external = -1;
@@ -62,6 +68,9 @@ public final class SimpleTokenLineageParser {
         private int not = -1;
         private int exists = -1;
         private int as = -1;
+        private int rename = -1;
+        private int to = -1;
+        private int column = -1;
         private int set = -1;
         private int with = -1;
         private int from = -1;
@@ -132,6 +141,36 @@ public final class SimpleTokenLineageParser {
             return this;
         }
 
+        public Config drop(int token) {
+            this.drop = token;
+            return this;
+        }
+
+        public Config truncate(int token) {
+            this.truncate = token;
+            return this;
+        }
+
+        public Config alter(int token) {
+            this.alter = token;
+            return this;
+        }
+
+        public Config show(int token) {
+            this.show = token;
+            return this;
+        }
+
+        public Config describe(int token) {
+            this.describe = token;
+            return this;
+        }
+
+        public Config comment(int token) {
+            this.comment = token;
+            return this;
+        }
+
         public Config overwrite(int token) {
             this.overwrite = token;
             return this;
@@ -179,6 +218,21 @@ public final class SimpleTokenLineageParser {
 
         public Config as(int token) {
             this.as = token;
+            return this;
+        }
+
+        public Config rename(int token) {
+            this.rename = token;
+            return this;
+        }
+
+        public Config to(int token) {
+            this.to = token;
+            return this;
+        }
+
+        public Config column(int token) {
+            this.column = token;
             return this;
         }
 
@@ -386,6 +440,16 @@ public final class SimpleTokenLineageParser {
                 parseDelete();
             } else if (is(0, config.create)) {
                 parseCreate();
+            } else if (is(0, config.drop)) {
+                parseDrop();
+            } else if (is(0, config.truncate)) {
+                parseTruncate();
+            } else if (is(0, config.alter)) {
+                parseAlter();
+            } else if (is(0, config.show) || is(0, config.describe)) {
+                parseMetadataRead();
+            } else if (is(0, config.comment)) {
+                parseComment();
             } else {
                 result.setStatementType(StatementType.UNKNOWN);
                 result.getDiagnostics().add(Diagnostic.warning(
@@ -520,6 +584,92 @@ public final class SimpleTokenLineageParser {
             SelectLineage selectLineage = parseQuery(target.nextIndex, tokens.size(), select);
             inputs.addAll(selectLineage.inputs);
             result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, targetColumns));
+        }
+
+        private void parseDrop() {
+            result.setStatementType(StatementType.DROP_TABLE);
+            int table = indexOfTopLevel(1, tokens.size(), config.table);
+            if (table < 0) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int targetStart = skipIfExists(table + 1);
+            TableScan target = readTable(targetStart, tokens.size());
+            if (target != null) {
+                outputs.add(target.table);
+            }
+        }
+
+        private void parseTruncate() {
+            result.setStatementType(StatementType.TRUNCATE_TABLE);
+            int table = indexOfTopLevel(1, tokens.size(), config.table);
+            int targetStart = table >= 0 ? table + 1 : 1;
+            TableScan target = readTable(targetStart, tokens.size());
+            if (target != null) {
+                outputs.add(target.table);
+            }
+        }
+
+        private void parseAlter() {
+            int table = indexOfTopLevel(1, tokens.size(), config.table);
+            if (table < 0) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            TableScan target = readTable(table + 1, tokens.size());
+            if (target == null) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int rename = indexOfTopLevel(target.nextIndex, tokens.size(), config.rename);
+            int to = rename >= 0 ? indexOfTopLevel(rename + 1, tokens.size(), config.to) : -1;
+            if (to >= 0) {
+                TableScan renamed = readTable(to + 1, tokens.size());
+                if (renamed != null) {
+                    result.setStatementType(StatementType.RENAME_TABLE);
+                    inputs.add(target.table);
+                    outputs.add(renamed.table);
+                    return;
+                }
+            }
+            result.setStatementType(StatementType.ALTER_TABLE);
+            outputs.add(target.table);
+        }
+
+        private void parseMetadataRead() {
+            result.setStatementType(StatementType.READ_METADATA);
+            int table = indexOfTopLevel(1, tokens.size(), config.table);
+            int targetStart = table >= 0 ? table + 1 : 1;
+            TableScan target = readTable(targetStart, tokens.size());
+            if (target != null) {
+                inputs.add(target.table);
+            }
+        }
+
+        private void parseComment() {
+            int on = indexOfTopLevel(1, tokens.size(), config.on);
+            if (on < 0) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int objectIndex = on + 1;
+            if (is(objectIndex, config.column)) {
+                result.setStatementType(StatementType.ALTER_TABLE);
+                IdentifierRead column = readIdentifierParts(objectIndex + 1, tokens.size());
+                if (column.parts.size() > 1) {
+                    outputs.add(tableRef(column.parts.subList(0, column.parts.size() - 1)));
+                }
+                return;
+            }
+            if (is(objectIndex, config.table)) {
+                result.setStatementType(StatementType.ALTER_TABLE);
+                TableScan target = readTable(objectIndex + 1, tokens.size());
+                if (target != null) {
+                    outputs.add(target.table);
+                }
+                return;
+            }
+            result.setStatementType(StatementType.UNKNOWN);
         }
 
         private SelectLineage parseQuery(int start, int end, int fallbackSelect) {
@@ -923,6 +1073,13 @@ public final class SimpleTokenLineageParser {
                     && is(index + 1, config.not)
                     && is(index + 2, config.exists)) {
                 return index + 3;
+            }
+            return index;
+        }
+
+        private int skipIfExists(int index) {
+            if (is(index, config.ifToken) && is(index + 1, config.exists)) {
+                return index + 2;
             }
             return index;
         }

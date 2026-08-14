@@ -389,6 +389,39 @@
         }
       ],
       "description": "StarRocks INSERT target column list mapping over derived subquery propagation"
+    },
+    {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users_old"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks DROP TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "alter_table_add_column",
+      "file": "cases/alter_table_add_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks ALTER TABLE ADD COLUMN affected table lineage"
     }
   ]
 }

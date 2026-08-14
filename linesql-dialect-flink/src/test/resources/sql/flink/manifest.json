@@ -361,6 +361,52 @@
         }
       ],
       "description": "Flink INSERT target column list mapping over derived subquery propagation"
+    },
+    {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart_users_old"
+      ],
+      "columnLineage": [],
+      "description": "Flink DROP TABLE affected table lineage"
+    },
+    {
+      "id": "rename_table",
+      "file": "cases/rename_table.sql",
+      "statementType": "RENAME_TABLE",
+      "inputTables": [
+        "mart_users_tmp"
+      ],
+      "outputTables": [
+        "mart_users_archive"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE RENAME TO old and new table lineage"
+    },
+    {
+      "id": "alter_table_add_column",
+      "file": "cases/alter_table_add_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart_users"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE ADD column affected table lineage"
+    },
+    {
+      "id": "describe_table",
+      "file": "cases/describe_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink DESCRIBE TABLE metadata read table lineage"
     }
   ]
 }
