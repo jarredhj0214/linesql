@@ -598,6 +598,28 @@
         }
       ],
       "description": "Hive GROUP BY aggregate expression column lineage"
+    },
+    {
+      "id": "create_table_stored_as",
+      "file": "cases/create_table_stored_as.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "ods.users"
+      ],
+      "columnLineage": [],
+      "description": "Hive CREATE TABLE with STORED AS clause"
+    },
+    {
+      "id": "load_data",
+      "file": "cases/load_data.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.users"
+      ],
+      "columnLineage": [],
+      "description": "Hive LOAD DATA INPATH into table lineage"
     }
   ]
 }

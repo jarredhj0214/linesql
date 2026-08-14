@@ -1,77 +1,20 @@
 package io.github.linesql.dialect.hive;
 
-import io.github.linesql.core.internal.SimpleTokenLineageParser;
+import io.github.linesql.core.model.Diagnostic;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.DialectParser;
 import io.github.linesql.dialect.hive.antlr.HiveLineageLexer;
+import io.github.linesql.dialect.hive.antlr.HiveParser;
+import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.Token;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.Recognizer;
 
 public class HiveDialectParser implements DialectParser {
-    private static final SimpleTokenLineageParser.Config CONFIG =
-            SimpleTokenLineageParser.Config.forDialect(SqlDialect.HIVE, "Hive", "HIVE")
-                    .select(HiveLineageLexer.SELECT)
-                    .insert(HiveLineageLexer.INSERT)
-                    .update(HiveLineageLexer.UPDATE)
-                    .delete(HiveLineageLexer.DELETE)
-                    .create(HiveLineageLexer.CREATE)
-                    .drop(HiveLineageLexer.DROP)
-                    .truncate(HiveLineageLexer.TRUNCATE)
-                    .alter(HiveLineageLexer.ALTER)
-                    .show(HiveLineageLexer.SHOW)
-                    .describe(HiveLineageLexer.DESCRIBE)
-                    .comment(HiveLineageLexer.COMMENT)
-                    .overwrite(HiveLineageLexer.OVERWRITE)
-                    .into(HiveLineageLexer.INTO)
-                    .external(HiveLineageLexer.EXTERNAL)
-                    .temporary(HiveLineageLexer.TEMPORARY)
-                    .table(HiveLineageLexer.TABLE)
-                    .view(HiveLineageLexer.VIEW)
-                    .ifToken(HiveLineageLexer.IF)
-                    .not(HiveLineageLexer.NOT)
-                    .exists(HiveLineageLexer.EXISTS)
-                    .as(HiveLineageLexer.AS)
-                    .like(HiveLineageLexer.LIKE)
-                    .rename(HiveLineageLexer.RENAME)
-                    .to(HiveLineageLexer.TO)
-                    .column(HiveLineageLexer.COLUMN)
-                    .set(HiveLineageLexer.SET)
-                    .with(HiveLineageLexer.WITH)
-                    .from(HiveLineageLexer.FROM)
-                    .using(HiveLineageLexer.USING)
-                    .join(HiveLineageLexer.JOIN)
-                    .inner(HiveLineageLexer.INNER)
-                    .left(HiveLineageLexer.LEFT)
-                    .right(HiveLineageLexer.RIGHT)
-                    .full(HiveLineageLexer.FULL)
-                    .cross(HiveLineageLexer.CROSS)
-                    .outer(HiveLineageLexer.OUTER)
-                    .on(HiveLineageLexer.ON)
-                    .where(HiveLineageLexer.WHERE)
-                    .group(HiveLineageLexer.GROUP)
-                    .having(HiveLineageLexer.HAVING)
-                    .order(HiveLineageLexer.ORDER)
-                    .limit(HiveLineageLexer.LIMIT)
-                    .union(HiveLineageLexer.UNION)
-                    .partition(HiveLineageLexer.PARTITION)
-                    .stored(HiveLineageLexer.STORED)
-                    .row(HiveLineageLexer.ROW)
-                    .identifier(HiveLineageLexer.IDENTIFIER)
-                    .backquotedIdentifier(HiveLineageLexer.BACKQUOTED_IDENTIFIER)
-                    .dot(HiveLineageLexer.DOT)
-                    .comma(HiveLineageLexer.COMMA)
-                    .semi(HiveLineageLexer.SEMI)
-                    .lparen(HiveLineageLexer.LPAREN)
-                    .rparen(HiveLineageLexer.RPAREN)
-                    .star(HiveLineageLexer.STAR)
-                    .eq(HiveLineageLexer.EQ);
 
     @Override
     public SqlDialect dialect() {
@@ -80,19 +23,52 @@ public class HiveDialectParser implements DialectParser {
 
     @Override
     public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
-        return SimpleTokenLineageParser.parse(tokens(sql), CONFIG);
+        LineageResult result = new LineageResult();
+        result.setDialect(SqlDialect.HIVE);
+        result.setDialectConfidence(1.0d);
+
+        CollectingErrorListener errorListener = new CollectingErrorListener();
+        HiveLineageLexer lexer = new HiveLineageLexer(CharStreams.fromString(sql));
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
+
+        HiveParser parser = new HiveParser(new CommonTokenStream(lexer));
+        parser.removeErrorListeners();
+        parser.addErrorListener(errorListener);
+
+        HiveParser.SingleStatementContext statement = parser.singleStatement();
+        if (errorListener.hasErrors() || parser.getNumberOfSyntaxErrors() > 0) {
+            result.getDiagnostics().add(Diagnostic.error("HIVE_PARSE_ERROR", errorListener.message()));
+            return result;
+        }
+
+        HiveLineageVisitor visitor = new HiveLineageVisitor(result);
+        visitor.visit(statement);
+        visitor.finalizeResult();
+        return result;
     }
 
-    private static List<Token> tokens(String sql) {
-        HiveLineageLexer lexer = new HiveLineageLexer(CharStreams.fromString(sql));
-        CommonTokenStream stream = new CommonTokenStream(lexer);
-        stream.fill();
-        List<Token> tokens = new ArrayList<>();
-        for (Token token : stream.getTokens()) {
-            if (token.getType() != Token.EOF) {
-                tokens.add(token);
+    private static class CollectingErrorListener extends BaseErrorListener {
+        private String message;
+
+        @Override
+        public void syntaxError(Recognizer<?, ?> recognizer,
+                                Object offendingSymbol,
+                                int line,
+                                int charPositionInLine,
+                                String msg,
+                                RecognitionException e) {
+            if (message == null) {
+                message = "line " + line + ":" + charPositionInLine + " " + msg;
             }
         }
-        return tokens;
+
+        boolean hasErrors() {
+            return message != null;
+        }
+
+        String message() {
+            return message == null ? "Hive SQL parse failed." : message;
+        }
     }
 }
