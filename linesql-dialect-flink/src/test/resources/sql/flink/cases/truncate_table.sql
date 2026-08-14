@@ -1,0 +1,1 @@
+TRUNCATE TABLE ads.user_summary;

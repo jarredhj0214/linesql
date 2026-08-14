@@ -561,6 +561,43 @@
         }
       ],
       "description": "Flink GROUP BY aggregate expression column lineage"
+    },
+    {
+      "id": "create_table_as_select",
+      "file": "cases/create_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Flink CREATE TABLE AS SELECT table and column lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [],
+      "description": "Flink TRUNCATE TABLE affected table lineage"
     }
   ]
 }
