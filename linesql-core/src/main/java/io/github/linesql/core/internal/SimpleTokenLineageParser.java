@@ -358,6 +358,8 @@ public final class SimpleTokenLineageParser {
         private final LineageResult result;
         private final Config config;
         private final Map<String, TableRef> aliases = new LinkedHashMap<>();
+        private final Map<String, SelectLineage> derivedRelations = new LinkedHashMap<>();
+        private Map<String, SelectLineage> activeDerivedRelations = new LinkedHashMap<>();
         private final Set<TableRef> inputs = new LinkedHashSet<>();
         private final Set<TableRef> outputs = new LinkedHashSet<>();
 
@@ -374,6 +376,8 @@ public final class SimpleTokenLineageParser {
             }
             if (is(0, config.select)) {
                 parseSelectStatement(0, tokens.size(), null, new ArrayList<String>());
+            } else if (is(0, config.with)) {
+                parseWithSelect();
             } else if (is(0, config.insert)) {
                 parseInsert();
             } else if (is(0, config.update)) {
@@ -390,6 +394,18 @@ public final class SimpleTokenLineageParser {
             }
             result.setInputTables(new ArrayList<>(inputs));
             result.setOutputTables(new ArrayList<>(outputs));
+        }
+
+        private void parseWithSelect() {
+            int select = registerCtes(0, tokens.size());
+            if (select < 0) {
+                result.setStatementType(StatementType.SELECT);
+                result.getDiagnostics().add(Diagnostic.warning(
+                        config.diagnosticPrefix + "_CTE_NOT_SUPPORTED",
+                        config.displayName + " CTE shape is not supported by the current parser."));
+                return;
+            }
+            parseSelectStatement(select, tokens.size(), null, new ArrayList<String>());
         }
 
         private void parseSelectStatement(int start, int end, TableRef outputTable, List<String> targetColumns) {
@@ -505,12 +521,21 @@ public final class SimpleTokenLineageParser {
         }
 
         private SelectLineage parseSelect(int start, int end) {
+            Map<String, TableRef> savedAliases = new LinkedHashMap<>(aliases);
+            Map<String, SelectLineage> savedActiveDerivedRelations = activeDerivedRelations;
+            activeDerivedRelations = new LinkedHashMap<>();
             int from = indexOfTopLevel(start, end, config.from);
             SelectLineage lineage = new SelectLineage();
-            if (from >= 0) {
-                lineage.inputs.addAll(readTableSources(from + 1, end));
+            try {
+                if (from >= 0) {
+                    lineage.inputs.addAll(readTableSources(from + 1, end));
+                }
+                lineage.columnLineage.addAll(readProjections(start + 1, from < 0 ? end : from, lineage.inputs));
+            } finally {
+                aliases.clear();
+                aliases.putAll(savedAliases);
+                activeDerivedRelations = savedActiveDerivedRelations;
             }
-            lineage.columnLineage.addAll(readProjections(start + 1, from < 0 ? end : from, lineage.inputs));
             return lineage;
         }
 
@@ -525,10 +550,31 @@ public final class SimpleTokenLineageParser {
                     i++;
                     continue;
                 }
+                if (is(i, config.lparen)) {
+                    int close = matchingParen(i, end);
+                    int nestedSelect = indexOfTopLevel(i + 1, close, config.select);
+                    if (nestedSelect >= 0) {
+                        SelectLineage nested = parseSelect(nestedSelect, close);
+                        tables.addAll(nested.inputs);
+                        String alias = readAlias(close + 1, end);
+                        if (alias != null) {
+                            activeDerivedRelations.put(lower(alias), nested);
+                        }
+                    }
+                    i = nextAfterAlias(close + 1, end);
+                    continue;
+                }
                 if (isIdentifier(i)) {
                     TableScan scan = readTable(i, end);
                     if (scan != null) {
-                        if (!isIgnoredTable(scan.table)) {
+                        SelectLineage derived = derivedRelations.get(lower(scan.table.getName()));
+                        if (derived != null) {
+                            tables.addAll(derived.inputs);
+                            activeDerivedRelations.put(lower(scan.table.getName()), derived);
+                            if (scan.alias != null) {
+                                activeDerivedRelations.put(lower(scan.alias), derived);
+                            }
+                        } else if (!isIgnoredTable(scan.table)) {
                             tables.add(scan.table);
                             registerAlias(scan);
                         }
@@ -539,6 +585,39 @@ public final class SimpleTokenLineageParser {
                 i++;
             }
             return tables;
+        }
+
+        private int registerCtes(int start, int end) {
+            int i = start + 1;
+            while (i < end) {
+                if (!isIdentifier(i)) {
+                    return -1;
+                }
+                String name = clean(tokens.get(i).getText());
+                i++;
+                if (is(i, config.lparen)) {
+                    int close = matchingParen(i, end);
+                    i = close + 1;
+                }
+                if (!is(i, config.as) || !is(i + 1, config.lparen)) {
+                    return -1;
+                }
+                int close = matchingParen(i + 1, end);
+                int cteSelect = indexOfTopLevel(i + 2, close, config.select);
+                if (cteSelect >= 0) {
+                    derivedRelations.put(lower(name), parseSelect(cteSelect, close));
+                }
+                i = close + 1;
+                if (is(i, config.comma)) {
+                    i++;
+                    continue;
+                }
+                if (is(i, config.select)) {
+                    return i;
+                }
+                return indexOfTopLevel(i, end, config.select);
+            }
+            return -1;
         }
 
         private List<ColumnLineage> readProjections(int start, int end, List<TableRef> inputTables) {
@@ -632,8 +711,22 @@ public final class SimpleTokenLineageParser {
             for (SourceColumn column : columns) {
                 TableRef table = null;
                 if (column.qualifier != null) {
-                    table = aliases.get(column.qualifier.toLowerCase(Locale.ROOT));
+                    SelectLineage derived = activeDerivedRelations.get(lower(column.qualifier));
+                    if (derived != null) {
+                        List<ColumnRef> derivedSources = resolveDerivedColumn(derived, column.name);
+                        if (derivedSources == null) {
+                            return null;
+                        }
+                        refs.addAll(derivedSources);
+                        continue;
+                    }
+                    table = aliases.get(lower(column.qualifier));
                 } else if (inputTables.size() == 1) {
+                    List<ColumnRef> derivedSources = resolveUnqualifiedDerivedColumn(column.name);
+                    if (derivedSources != null) {
+                        refs.addAll(derivedSources);
+                        continue;
+                    }
                     table = inputTables.get(0);
                 }
                 if (table == null) {
@@ -642,6 +735,23 @@ public final class SimpleTokenLineageParser {
                 refs.add(new ColumnRef(table, column.name));
             }
             return refs;
+        }
+
+        private List<ColumnRef> resolveUnqualifiedDerivedColumn(String name) {
+            Set<SelectLineage> active = new LinkedHashSet<>(activeDerivedRelations.values());
+            if (active.size() != 1) {
+                return null;
+            }
+            return resolveDerivedColumn(active.iterator().next(), name);
+        }
+
+        private List<ColumnRef> resolveDerivedColumn(SelectLineage derived, String name) {
+            for (ColumnLineage lineage : derived.columnLineage) {
+                if (lineage.getTarget() != null && lineage.getTarget().getName().equalsIgnoreCase(name)) {
+                    return lineage.getSources();
+                }
+            }
+            return null;
         }
 
         private List<ColumnLineage> targetLineage(List<ColumnLineage> source, TableRef targetTable, List<String> targetColumns) {
@@ -819,6 +929,43 @@ public final class SimpleTokenLineageParser {
             return index < end ? index + 1 : index;
         }
 
+        private int matchingParen(int open, int end) {
+            int depth = 0;
+            for (int i = open; i < end; i++) {
+                if (is(i, config.lparen)) {
+                    depth++;
+                } else if (is(i, config.rparen)) {
+                    depth--;
+                    if (depth == 0) {
+                        return i;
+                    }
+                }
+            }
+            return end;
+        }
+
+        private String readAlias(int start, int end) {
+            int i = start;
+            if (is(i, config.as)) {
+                i++;
+            }
+            if (i < end && isIdentifier(i) && !isClauseBoundary(i) && !isJoinToken(i)) {
+                return clean(tokens.get(i).getText());
+            }
+            return null;
+        }
+
+        private int nextAfterAlias(int start, int end) {
+            int i = start;
+            if (is(i, config.as)) {
+                i++;
+            }
+            if (i < end && isIdentifier(i) && !isClauseBoundary(i) && !isJoinToken(i)) {
+                return i + 1;
+            }
+            return start;
+        }
+
         private boolean isClauseBoundary(int index) {
             int type = tokens.get(index).getType();
             return type == config.where
@@ -973,6 +1120,10 @@ public final class SimpleTokenLineageParser {
                     : table.getCatalog() + "." + table.getSchema() + "." + table.getName();
             return config.ignoredTableNames.contains(fullName.toLowerCase(Locale.ROOT))
                     || config.ignoredTableNames.contains(table.getName().toLowerCase(Locale.ROOT));
+        }
+
+        private String lower(String value) {
+            return value.toLowerCase(Locale.ROOT);
         }
 
         private List<Token> trimSemicolon(List<Token> input) {

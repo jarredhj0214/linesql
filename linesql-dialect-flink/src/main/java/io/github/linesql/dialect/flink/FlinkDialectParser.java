@@ -33,6 +33,7 @@ public class FlinkDialectParser implements DialectParser {
                     .exists(FlinkLineageLexer.EXISTS)
                     .as(FlinkLineageLexer.AS)
                     .set(FlinkLineageLexer.SET)
+                    .with(FlinkLineageLexer.WITH)
                     .from(FlinkLineageLexer.FROM)
                     .using(FlinkLineageLexer.USING)
                     .join(FlinkLineageLexer.JOIN)

@@ -73,6 +73,8 @@ Implemented SQL Server table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | Bracketed non-ASCII identifiers | `select [用户ID] from [业务库].[用户表]` | `bracket_identifiers` |
 | SELECT TOP and table hint | `select top 10 ... from dbo.users with (nolock)` | `top_with_nolock` |
+| Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
+| Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE FROM JOIN target and source tables | `delete t from ads.t t join ods.s s ...` | `delete_from_join` |
 
@@ -87,6 +89,8 @@ Implemented SQL Server column-level lineage scenarios:
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
 | Bracketed identifier column mapping | `select [用户ID] as [用户标识] from [业务库].[用户表]` | `bracket_identifiers` |
 | SELECT TOP projection mapping | `select top (10) u.id as user_id from dbo.users u` | `top_parenthesized` |
+| Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
+| Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 
 Current SQL Server diagnostics:
@@ -104,7 +108,7 @@ Known SQL Server gaps:
 | Full SQL Server grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Advanced T-SQL DML and procedural syntax | `MERGE`, `OUTPUT`, table variables, temp tables, and stored-procedure bodies are not yet covered. Basic `UPDATE FROM` and `DELETE FROM JOIN` lineage is covered. |
-| CTEs and subqueries | Not yet covered in the SQL Server MVP path. |
+| Complex CTEs and subqueries | Single CTE and single derived subquery direct projection propagation are covered. Recursive CTEs, chained CTEs, and complex nested subqueries are not complete yet. |
 
 ## Oracle
 
@@ -129,6 +133,8 @@ Implemented Oracle table-level lineage scenarios:
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | DUAL pseudo table | `select sysdate from dual` | `dual_pseudo_table` |
 | Hierarchical query clauses | `select ... from app.org start with ... connect by ...` | `hierarchical_query` |
+| Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
+| Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
 
@@ -143,6 +149,8 @@ Implemented Oracle column-level lineage scenarios:
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
 | Double-quoted identifier column mapping | `select "用户ID" as "用户标识" from "业务库"."用户表"` | `quoted_identifiers` |
 | Hierarchical query projection mapping | `select id as org_id from app.org start with ... connect by ...` | `hierarchical_query` |
+| Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
+| Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
 
 Current Oracle diagnostics:
@@ -160,7 +168,7 @@ Known Oracle gaps:
 | Full Oracle grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Oracle-specific query syntax | `MODEL`, `PIVOT`, `MERGE`, packages, and PL/SQL blocks are not yet covered. `START WITH` and `CONNECT BY` are recognized as lineage clause boundaries. |
-| CTEs and subqueries | Not yet covered in the Oracle MVP path. |
+| Complex CTEs and subqueries | Single CTE and single derived subquery direct projection propagation are covered. Recursive CTEs, chained CTEs, and complex nested subqueries are not complete yet. |
 
 ## StarRocks
 
@@ -182,6 +190,8 @@ Implemented StarRocks table-level lineage scenarios:
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
+| Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE USING target and source tables | `delete from ads.t using ods.s s where ...` | `delete_using` |
 
@@ -194,6 +204,8 @@ Implemented StarRocks column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
+| Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 
 Current StarRocks diagnostics:
@@ -211,7 +223,7 @@ Known StarRocks gaps:
 | Full StarRocks grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | StarRocks table model DDL | `DUPLICATE KEY`, `AGGREGATE KEY`, and distribution clauses are used for dialect detection, not yet modeled as lineage. |
-| CTEs, subqueries, materialized views, and routine-load syntax | Not yet covered in the StarRocks MVP path. |
+| Complex CTEs, subqueries, materialized views, and routine-load syntax | Single CTE and single derived subquery direct projection propagation are covered. Recursive CTEs, chained CTEs, materialized views, and routine-load syntax are not complete yet. |
 
 ## Flink
 
@@ -232,6 +244,8 @@ Implemented Flink table-level lineage scenarios:
 | JOIN source tables | `select ... from ods_users u join dwd_orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads_t select ... from ods_s` | `insert_into` |
 | CREATE VIEW AS SELECT | `create view v as select ... from ods_s join dwd_o` | `create_view` |
+| Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
+| Single derived subquery source table propagation | `select ... from (select ... from ods_s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads_t where ...` | `delete_where` |
 
@@ -243,6 +257,8 @@ Implemented Flink column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads_t select a as c1 from ods_s` | `insert_into` |
 | CREATE VIEW output column targets | `create view v as select u.id from ods_users u` | `create_view` |
+| Single CTE direct column propagation | `with q as (select id as user_id from ods_s) select q.user_id from q` | `cte_column_projection` |
+| Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods_s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads_t set c = c2 where ...` | `update_set` |
 
 Current Flink diagnostics:
@@ -260,7 +276,7 @@ Known Flink gaps:
 | Full Flink grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Flink DDL connector options | Used for dialect detection, not yet modeled as lineage. |
-| CTEs, subqueries, temporal joins, and window TVFs | Not yet covered in the Flink MVP path. |
+| Complex CTEs, subqueries, temporal joins, and window TVFs | Single CTE and single derived subquery direct projection propagation are covered. Recursive CTEs, chained CTEs, temporal joins, and window TVFs are not complete yet. |
 
 ## Hive
 
@@ -282,6 +298,8 @@ Implemented Hive table-level lineage scenarios:
 | INSERT OVERWRITE TABLE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
+| Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
 
@@ -294,6 +312,8 @@ Implemented Hive column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert overwrite table ads.t select a as c1 from ods.s` | `insert_overwrite` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
+| Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
 
 Current Hive diagnostics:
@@ -310,7 +330,7 @@ Known Hive gaps:
 | --- | --- |
 | Full Hive grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
-| Complex expressions, CTEs, subqueries, and lateral view | Not yet covered in the Hive MVP path. |
+| Complex expressions, CTEs, subqueries, and lateral view | Single CTE and single derived subquery direct projection propagation are covered. Complex expressions, recursive CTEs, chained CTEs, nested subqueries, and lateral view are not complete yet. |
 
 ## MySQL
 

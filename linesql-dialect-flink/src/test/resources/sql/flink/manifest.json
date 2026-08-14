@@ -95,6 +95,42 @@
       "outputTables": ["ads_user_summary"],
       "columnLineage": [],
       "description": "Flink DELETE target table lineage"
+    },
+    {
+      "id": "cte_column_projection",
+      "file": "cases/cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods_users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods_users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods_users.name"]
+        }
+      ],
+      "description": "Flink single CTE table and direct column propagation"
+    },
+    {
+      "id": "subquery_column_projection",
+      "file": "cases/subquery_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods_users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods_users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods_users.name"]
+        }
+      ],
+      "description": "Flink single derived subquery table and direct column propagation"
     }
   ]
 }

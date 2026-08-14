@@ -33,6 +33,7 @@ public class HiveDialectParser implements DialectParser {
                     .exists(HiveLineageLexer.EXISTS)
                     .as(HiveLineageLexer.AS)
                     .set(HiveLineageLexer.SET)
+                    .with(HiveLineageLexer.WITH)
                     .from(HiveLineageLexer.FROM)
                     .using(HiveLineageLexer.USING)
                     .join(HiveLineageLexer.JOIN)

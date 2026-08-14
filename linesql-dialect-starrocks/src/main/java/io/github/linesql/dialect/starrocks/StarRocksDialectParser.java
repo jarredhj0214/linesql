@@ -33,6 +33,7 @@ public class StarRocksDialectParser implements DialectParser {
                     .exists(StarRocksLineageLexer.EXISTS)
                     .as(StarRocksLineageLexer.AS)
                     .set(StarRocksLineageLexer.SET)
+                    .with(StarRocksLineageLexer.WITH)
                     .from(StarRocksLineageLexer.FROM)
                     .using(StarRocksLineageLexer.USING)
                     .join(StarRocksLineageLexer.JOIN)

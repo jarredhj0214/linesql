@@ -113,6 +113,42 @@
       "outputTables": ["ads.user_summary"],
       "columnLineage": [],
       "description": "StarRocks DELETE USING target and source table lineage"
+    },
+    {
+      "id": "cte_column_projection",
+      "file": "cases/cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "StarRocks single CTE table and direct column propagation"
+    },
+    {
+      "id": "subquery_column_projection",
+      "file": "cases/subquery_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "StarRocks single derived subquery table and direct column propagation"
     }
   ]
 }
