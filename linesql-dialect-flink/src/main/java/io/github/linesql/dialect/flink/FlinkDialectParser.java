@@ -38,6 +38,7 @@ public class FlinkDialectParser implements DialectParser {
                     .not(FlinkLineageLexer.NOT)
                     .exists(FlinkLineageLexer.EXISTS)
                     .as(FlinkLineageLexer.AS)
+                    .like(FlinkLineageLexer.LIKE)
                     .rename(FlinkLineageLexer.RENAME)
                     .to(FlinkLineageLexer.TO)
                     .column(FlinkLineageLexer.COLUMN)

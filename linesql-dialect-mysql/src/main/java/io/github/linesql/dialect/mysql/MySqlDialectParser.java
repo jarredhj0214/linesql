@@ -194,6 +194,15 @@ public class MySqlDialectParser implements DialectParser {
             if (target != null) {
                 outputs.add(target.table);
             }
+            int like = indexOfTopLevel(objectIndex, tokens.size(), MySqlLineageLexer.LIKE);
+            if (select < 0 && like >= 0 && objectType == MySqlLineageLexer.TABLE && target != null) {
+                TableScan source = readTable(like + 1, tokens.size());
+                if (source != null) {
+                    result.setStatementType(StatementType.CREATE_TABLE_LIKE);
+                    inputs.add(source.table);
+                    return;
+                }
+            }
             if (objectType == MySqlLineageLexer.VIEW) {
                 result.setStatementType(StatementType.CREATE_VIEW);
             } else {

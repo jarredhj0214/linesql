@@ -68,6 +68,7 @@ public final class SimpleTokenLineageParser {
         private int not = -1;
         private int exists = -1;
         private int as = -1;
+        private int like = -1;
         private int rename = -1;
         private int to = -1;
         private int column = -1;
@@ -218,6 +219,11 @@ public final class SimpleTokenLineageParser {
 
         public Config as(int token) {
             this.as = token;
+            return this;
+        }
+
+        public Config like(int token) {
+            this.like = token;
             return this;
         }
 
@@ -576,7 +582,20 @@ public final class SimpleTokenLineageParser {
             if (target != null) {
                 outputs.add(target.table);
             }
-            if (select < 0 || target == null) {
+            if (target == null) {
+                result.setStatementType(StatementType.UNKNOWN);
+                return;
+            }
+            int like = indexOfTopLevel(target.nextIndex, tokens.size(), config.like);
+            if (select < 0 && like >= 0 && objectType == config.table) {
+                TableScan source = readTable(like + 1, tokens.size());
+                if (source != null) {
+                    result.setStatementType(StatementType.CREATE_TABLE_LIKE);
+                    inputs.add(source.table);
+                    return;
+                }
+            }
+            if (select < 0) {
                 result.setStatementType(StatementType.UNKNOWN);
                 return;
             }

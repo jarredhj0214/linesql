@@ -38,6 +38,7 @@ public class StarRocksDialectParser implements DialectParser {
                     .not(StarRocksLineageLexer.NOT)
                     .exists(StarRocksLineageLexer.EXISTS)
                     .as(StarRocksLineageLexer.AS)
+                    .like(StarRocksLineageLexer.LIKE)
                     .rename(StarRocksLineageLexer.RENAME)
                     .to(StarRocksLineageLexer.TO)
                     .column(StarRocksLineageLexer.COLUMN)

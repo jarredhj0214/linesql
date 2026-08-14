@@ -446,6 +446,19 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "MySQL SHOW CREATE TABLE metadata read table lineage"
+    },
+    {
+      "id": "create_table_like",
+      "file": "cases/create_table_like.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.users_copy"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE LIKE source and target table lineage"
     }
   ]
 }

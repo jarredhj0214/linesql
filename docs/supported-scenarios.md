@@ -231,6 +231,7 @@ Implemented StarRocks table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE USING target and source tables | `delete from ads.t using ods.s s where ...` | `delete_using` |
+| CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
 | ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
@@ -292,6 +293,7 @@ Implemented Flink table-level lineage scenarios:
 | JOIN source tables | `select ... from ods_users u join dwd_orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads_t select ... from ods_s` | `insert_into` |
 | INSERT INTO VALUES target lineage | `insert into ads_t(c1) values (...)` | `insert_values` |
+| CREATE TABLE LIKE structure lineage | `create table mart_t like ods_s` | `create_table_like` |
 | CREATE VIEW AS SELECT | `create view v as select ... from ods_s join dwd_o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads_t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view v as with q as (...) select ... from q` | `create_view_with_cte` |
@@ -362,6 +364,7 @@ Implemented Hive table-level lineage scenarios:
 | INSERT OVERWRITE TABLE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | INSERT INTO VALUES target lineage | `insert into table ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
+| CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
@@ -439,6 +442,7 @@ Implemented MySQL table-level lineage scenarios:
 | REPLACE INTO SELECT target and source | `replace into mart.t(c1) select a from app.s` | `replace_select` |
 | REPLACE INTO VALUES target lineage | `replace into mart.t(c1) values (...)` | `replace_values` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `create_table_as_select` |
+| CREATE TABLE LIKE structure lineage | `create table mart.t like app.s` | `create_table_like` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from app.s join app.o` | `create_view` |
 | CREATE OR REPLACE VIEW AS SELECT | `create or replace view mart.v as select ... from app.s` | `create_or_replace_view` |
 | CREATE TEMPORARY TABLE AS SELECT | `create temporary table if not exists mart.t as select ...` | `create_temporary_table_as_select` |

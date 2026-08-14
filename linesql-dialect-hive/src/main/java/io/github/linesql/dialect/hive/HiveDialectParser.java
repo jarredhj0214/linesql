@@ -38,6 +38,7 @@ public class HiveDialectParser implements DialectParser {
                     .not(HiveLineageLexer.NOT)
                     .exists(HiveLineageLexer.EXISTS)
                     .as(HiveLineageLexer.AS)
+                    .like(HiveLineageLexer.LIKE)
                     .rename(HiveLineageLexer.RENAME)
                     .to(HiveLineageLexer.TO)
                     .column(HiveLineageLexer.COLUMN)

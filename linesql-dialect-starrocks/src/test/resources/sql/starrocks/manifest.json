@@ -453,6 +453,19 @@
         }
       ],
       "description": "StarRocks UNION ALL column sources merged by projection position"
+    },
+    {
+      "id": "create_table_like",
+      "file": "cases/create_table_like.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.users_copy"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE TABLE LIKE source and target table lineage"
     }
   ]
 }

@@ -22,6 +22,7 @@ IF: I F;
 NOT: N O T;
 EXISTS: E X I S T S;
 AS: A S;
+LIKE: L I K E;
 RENAME: R E N A M E;
 TO: T O;
 COLUMN: C O L U M N;
