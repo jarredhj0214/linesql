@@ -1,77 +1,20 @@
 package io.github.linesql.dialect.starrocks;
 
-import io.github.linesql.core.internal.SimpleTokenLineageParser;
+import io.github.linesql.core.model.Diagnostic;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.DialectParser;
 import io.github.linesql.dialect.starrocks.antlr.StarRocksLineageLexer;
+import io.github.linesql.dialect.starrocks.antlr.StarRocksParser;
+import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.Token;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.Recognizer;
 
 public class StarRocksDialectParser implements DialectParser {
-    private static final SimpleTokenLineageParser.Config CONFIG =
-            SimpleTokenLineageParser.Config.forDialect(SqlDialect.STARROCKS, "StarRocks", "STARROCKS")
-                    .select(StarRocksLineageLexer.SELECT)
-                    .insert(StarRocksLineageLexer.INSERT)
-                    .update(StarRocksLineageLexer.UPDATE)
-                    .delete(StarRocksLineageLexer.DELETE)
-                    .create(StarRocksLineageLexer.CREATE)
-                    .drop(StarRocksLineageLexer.DROP)
-                    .truncate(StarRocksLineageLexer.TRUNCATE)
-                    .alter(StarRocksLineageLexer.ALTER)
-                    .show(StarRocksLineageLexer.SHOW)
-                    .describe(StarRocksLineageLexer.DESCRIBE)
-                    .comment(StarRocksLineageLexer.COMMENT)
-                    .overwrite(StarRocksLineageLexer.OVERWRITE)
-                    .into(StarRocksLineageLexer.INTO)
-                    .external(StarRocksLineageLexer.EXTERNAL)
-                    .temporary(StarRocksLineageLexer.TEMPORARY)
-                    .table(StarRocksLineageLexer.TABLE)
-                    .view(StarRocksLineageLexer.VIEW)
-                    .ifToken(StarRocksLineageLexer.IF)
-                    .not(StarRocksLineageLexer.NOT)
-                    .exists(StarRocksLineageLexer.EXISTS)
-                    .as(StarRocksLineageLexer.AS)
-                    .like(StarRocksLineageLexer.LIKE)
-                    .rename(StarRocksLineageLexer.RENAME)
-                    .to(StarRocksLineageLexer.TO)
-                    .column(StarRocksLineageLexer.COLUMN)
-                    .set(StarRocksLineageLexer.SET)
-                    .with(StarRocksLineageLexer.WITH)
-                    .from(StarRocksLineageLexer.FROM)
-                    .using(StarRocksLineageLexer.USING)
-                    .join(StarRocksLineageLexer.JOIN)
-                    .inner(StarRocksLineageLexer.INNER)
-                    .left(StarRocksLineageLexer.LEFT)
-                    .right(StarRocksLineageLexer.RIGHT)
-                    .full(StarRocksLineageLexer.FULL)
-                    .cross(StarRocksLineageLexer.CROSS)
-                    .outer(StarRocksLineageLexer.OUTER)
-                    .on(StarRocksLineageLexer.ON)
-                    .where(StarRocksLineageLexer.WHERE)
-                    .group(StarRocksLineageLexer.GROUP)
-                    .having(StarRocksLineageLexer.HAVING)
-                    .order(StarRocksLineageLexer.ORDER)
-                    .limit(StarRocksLineageLexer.LIMIT)
-                    .union(StarRocksLineageLexer.UNION)
-                    .partition(StarRocksLineageLexer.PARTITION)
-                    .stored(StarRocksLineageLexer.STORED)
-                    .row(StarRocksLineageLexer.ROW)
-                    .identifier(StarRocksLineageLexer.IDENTIFIER)
-                    .backquotedIdentifier(StarRocksLineageLexer.BACKQUOTED_IDENTIFIER)
-                    .dot(StarRocksLineageLexer.DOT)
-                    .comma(StarRocksLineageLexer.COMMA)
-                    .semi(StarRocksLineageLexer.SEMI)
-                    .lparen(StarRocksLineageLexer.LPAREN)
-                    .rparen(StarRocksLineageLexer.RPAREN)
-                    .star(StarRocksLineageLexer.STAR)
-                    .eq(StarRocksLineageLexer.EQ);
 
     @Override
     public SqlDialect dialect() {
@@ -80,19 +23,52 @@ public class StarRocksDialectParser implements DialectParser {
 
     @Override
     public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
-        return SimpleTokenLineageParser.parse(tokens(sql), CONFIG);
+        LineageResult result = new LineageResult();
+        result.setDialect(SqlDialect.STARROCKS);
+        result.setDialectConfidence(1.0d);
+
+        CollectingErrorListener errorListener = new CollectingErrorListener();
+        StarRocksLineageLexer lexer = new StarRocksLineageLexer(CharStreams.fromString(sql));
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
+
+        StarRocksParser parser = new StarRocksParser(new CommonTokenStream(lexer));
+        parser.removeErrorListeners();
+        parser.addErrorListener(errorListener);
+
+        StarRocksParser.SingleStatementContext statement = parser.singleStatement();
+        if (errorListener.hasErrors() || parser.getNumberOfSyntaxErrors() > 0) {
+            result.getDiagnostics().add(Diagnostic.error("STARROCKS_PARSE_ERROR", errorListener.message()));
+            return result;
+        }
+
+        StarRocksLineageVisitor visitor = new StarRocksLineageVisitor(result);
+        visitor.visit(statement);
+        visitor.finalizeResult();
+        return result;
     }
 
-    private static List<Token> tokens(String sql) {
-        StarRocksLineageLexer lexer = new StarRocksLineageLexer(CharStreams.fromString(sql));
-        CommonTokenStream stream = new CommonTokenStream(lexer);
-        stream.fill();
-        List<Token> tokens = new ArrayList<>();
-        for (Token token : stream.getTokens()) {
-            if (token.getType() != Token.EOF) {
-                tokens.add(token);
+    private static class CollectingErrorListener extends BaseErrorListener {
+        private String message;
+
+        @Override
+        public void syntaxError(Recognizer<?, ?> recognizer,
+                                Object offendingSymbol,
+                                int line,
+                                int charPositionInLine,
+                                String msg,
+                                RecognitionException e) {
+            if (message == null) {
+                message = "line " + line + ":" + charPositionInLine + " " + msg;
             }
         }
-        return tokens;
+
+        boolean hasErrors() {
+            return message != null;
+        }
+
+        String message() {
+            return message == null ? "StarRocks SQL parse failed." : message;
+        }
     }
 }
