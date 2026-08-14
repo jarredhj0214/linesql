@@ -224,19 +224,19 @@
       ],
       "columnLineage": [
         {
-          "target": "ads.user_summary.user_id",
+          "target": "ads.user_summary.uid",
           "sources": [
             "ods.users.id"
           ]
         },
         {
-          "target": "ads.user_summary.user_name",
+          "target": "ads.user_summary.uname",
           "sources": [
             "ods.users.name"
           ]
         }
       ],
-      "description": "StarRocks INSERT SELECT over single CTE direct column propagation"
+      "description": "StarRocks INSERT target column list mapping over single CTE direct column propagation"
     },
     {
       "id": "create_view_with_cte",
@@ -311,6 +311,32 @@
         }
       ],
       "description": "StarRocks CTE column alias list propagation"
+    },
+    {
+      "id": "insert_column_list",
+      "file": "cases/insert_column_list.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.uname",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "StarRocks INSERT target column list mapping"
     }
   ]
 }

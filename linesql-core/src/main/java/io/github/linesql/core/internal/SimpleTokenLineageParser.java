@@ -433,10 +433,11 @@ public final class SimpleTokenLineageParser {
             if (target == null) {
                 return;
             }
+            List<String> targetColumns = readColumnList(target.nextIndex);
             SelectLineage selectLineage = parseQuery(target.nextIndex, tokens.size(), select);
             inputs.addAll(selectLineage.inputs);
             outputs.add(target.table);
-            result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, new ArrayList<String>()));
+            result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, targetColumns));
         }
 
         private void parseUpdate() {
@@ -888,6 +889,14 @@ public final class SimpleTokenLineageParser {
                 }
             }
             return identifiers;
+        }
+
+        private List<String> readColumnList(int start) {
+            if (!is(start, config.lparen)) {
+                return new ArrayList<>();
+            }
+            int close = matchingParen(start, tokens.size());
+            return readIdentifierList(start + 1, close);
         }
 
         private void registerAlias(TableScan scan) {

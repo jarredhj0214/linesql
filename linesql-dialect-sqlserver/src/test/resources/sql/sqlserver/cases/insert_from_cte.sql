@@ -1,4 +1,4 @@
-insert into ads.user_summary
+insert into ads.user_summary (uid, uname)
 with q as (
   select id as user_id, name as user_name
   from ods.users

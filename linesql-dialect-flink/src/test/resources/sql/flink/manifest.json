@@ -196,19 +196,19 @@
       ],
       "columnLineage": [
         {
-          "target": "ads_user_summary.user_id",
+          "target": "ads_user_summary.uid",
           "sources": [
             "ods_users.id"
           ]
         },
         {
-          "target": "ads_user_summary.user_name",
+          "target": "ads_user_summary.uname",
           "sources": [
             "ods_users.name"
           ]
         }
       ],
-      "description": "Flink INSERT SELECT over single CTE direct column propagation"
+      "description": "Flink INSERT target column list mapping over single CTE direct column propagation"
     },
     {
       "id": "create_view_with_cte",
@@ -283,6 +283,32 @@
         }
       ],
       "description": "Flink CTE column alias list propagation"
+    },
+    {
+      "id": "insert_column_list",
+      "file": "cases/insert_column_list.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.uid",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "ads_user_summary.uname",
+          "sources": [
+            "ods_users.name"
+          ]
+        }
+      ],
+      "description": "Flink INSERT target column list mapping"
     }
   ]
 }
