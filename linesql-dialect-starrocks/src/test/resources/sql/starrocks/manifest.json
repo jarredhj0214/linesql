@@ -337,6 +337,32 @@
         }
       ],
       "description": "StarRocks INSERT target column list mapping"
+    },
+    {
+      "id": "create_view_column_list",
+      "file": "cases/create_view_column_list.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.v_user_columns"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_user_columns.uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.v_user_columns.uname",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "StarRocks CREATE VIEW column list target name mapping"
     }
   ]
 }

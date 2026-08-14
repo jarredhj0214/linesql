@@ -309,6 +309,32 @@
         }
       ],
       "description": "Flink INSERT target column list mapping"
+    },
+    {
+      "id": "create_view_column_list",
+      "file": "cases/create_view_column_list.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [
+        "v_user_columns"
+      ],
+      "columnLineage": [
+        {
+          "target": "v_user_columns.uid",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "v_user_columns.uname",
+          "sources": [
+            "ods_users.name"
+          ]
+        }
+      ],
+      "description": "Flink CREATE VIEW column list target name mapping"
     }
   ]
 }

@@ -516,9 +516,10 @@ public final class SimpleTokenLineageParser {
             result.setStatementType(objectType == config.view
                     ? StatementType.CREATE_VIEW
                     : StatementType.CREATE_TABLE_AS_SELECT);
+            List<String> targetColumns = readColumnList(target.nextIndex);
             SelectLineage selectLineage = parseQuery(target.nextIndex, tokens.size(), select);
             inputs.addAll(selectLineage.inputs);
-            result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, new ArrayList<String>()));
+            result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, targetColumns));
         }
 
         private SelectLineage parseQuery(int start, int end, int fallbackSelect) {
