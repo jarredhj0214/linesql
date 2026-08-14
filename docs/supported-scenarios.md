@@ -42,6 +42,15 @@ Implemented script-level public API scenarios:
 | Per-statement auto detection in scripts | Hive DDL; Flink DDL; SQL Server `TOP` query | `LineSqlAutoDetectionIntegrationTest.parseScriptAutoDetectsEachStatementIndependently` |
 | Partial results after bad SQL | valid SELECT; invalid statement; valid Flink DDL | `LineSqlAutoDetectionIntegrationTest.parseScriptKeepsPartialResultsAfterBadStatement` |
 
+Implemented CLI scenarios:
+
+| Scenario | Example shape | Test asset |
+| --- | --- | --- |
+| Explicit dialect option | `linesql --dialect MYSQL "select id from ods.users"` | `MainTest.acceptsExplicitDialectOption` |
+| Equals-style dialect option | `linesql --dialect=SQLSERVER "select top 10 id from dbo.users"` | `MainTest.acceptsDialectEqualsOption` |
+| STDIN with explicit dialect | `cat query.sql \| linesql --dialect ORACLE` | `MainTest.readsSqlFromStdinWhenNoSqlArgsProvided` |
+| Unsupported dialect rejection | `linesql --dialect postgres "select 1"` | `MainTest.rejectsUnknownDialect` |
+
 ## SQL Server
 
 SQL Server is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common SQL Server query and write shapes.
