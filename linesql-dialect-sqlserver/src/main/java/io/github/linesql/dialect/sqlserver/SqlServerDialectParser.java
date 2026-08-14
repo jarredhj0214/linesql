@@ -30,6 +30,7 @@ public class SqlServerDialectParser implements DialectParser {
                     .not(SqlServerLineageLexer.NOT)
                     .exists(SqlServerLineageLexer.EXISTS)
                     .as(SqlServerLineageLexer.AS)
+                    .with(SqlServerLineageLexer.WITH)
                     .from(SqlServerLineageLexer.FROM)
                     .join(SqlServerLineageLexer.JOIN)
                     .inner(SqlServerLineageLexer.INNER)
@@ -55,7 +56,9 @@ public class SqlServerDialectParser implements DialectParser {
                     .semi(SqlServerLineageLexer.SEMI)
                     .lparen(SqlServerLineageLexer.LPAREN)
                     .rparen(SqlServerLineageLexer.RPAREN)
-                    .star(SqlServerLineageLexer.STAR);
+                    .star(SqlServerLineageLexer.STAR)
+                    .leadingProjectionToken(SqlServerLineageLexer.TOP)
+                    .leadingProjectionKeyword("top");
 
     @Override
     public SqlDialect dialect() {

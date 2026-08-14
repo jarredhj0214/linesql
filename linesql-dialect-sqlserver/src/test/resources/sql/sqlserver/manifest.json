@@ -104,6 +104,38 @@
         }
       ],
       "description": "SQL Server bracketed non-ASCII identifiers"
+    },
+    {
+      "id": "top_with_nolock",
+      "file": "cases/top_with_nolock.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["dbo.users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["dbo.users.name"]
+        }
+      ],
+      "description": "SQL Server SELECT TOP and WITH (NOLOCK) table hint lineage"
+    },
+    {
+      "id": "top_parenthesized",
+      "file": "cases/top_parenthesized.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["dbo.users.id"]
+        }
+      ],
+      "description": "SQL Server SELECT TOP with parenthesized row count"
     }
   ]
 }

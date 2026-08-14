@@ -60,6 +60,7 @@ public final class SimpleTokenLineageParser {
         private int not = -1;
         private int exists = -1;
         private int as = -1;
+        private int with = -1;
         private int from = -1;
         private int join = -1;
         private int inner = -1;
@@ -86,6 +87,10 @@ public final class SimpleTokenLineageParser {
         private int lparen = -1;
         private int rparen = -1;
         private int star = -1;
+        private final Set<String> ignoredTableNames = new LinkedHashSet<>();
+        private final Set<String> leadingProjectionKeywords = new LinkedHashSet<>();
+        private final Set<Integer> leadingProjectionTokens = new LinkedHashSet<>();
+        private final Set<Integer> extraClauseBoundaries = new LinkedHashSet<>();
 
         private Config(SqlDialect dialect, String displayName, String diagnosticPrefix) {
             this.dialect = dialect;
@@ -159,6 +164,11 @@ public final class SimpleTokenLineageParser {
 
         public Config as(int token) {
             this.as = token;
+            return this;
+        }
+
+        public Config with(int token) {
+            this.with = token;
             return this;
         }
 
@@ -291,6 +301,26 @@ public final class SimpleTokenLineageParser {
             this.star = token;
             return this;
         }
+
+        public Config ignoredTableName(String tableName) {
+            this.ignoredTableNames.add(tableName.toLowerCase(Locale.ROOT));
+            return this;
+        }
+
+        public Config leadingProjectionKeyword(String keyword) {
+            this.leadingProjectionKeywords.add(keyword.toLowerCase(Locale.ROOT));
+            return this;
+        }
+
+        public Config leadingProjectionToken(int token) {
+            this.leadingProjectionTokens.add(token);
+            return this;
+        }
+
+        public Config extraClauseBoundary(int token) {
+            this.extraClauseBoundaries.add(token);
+            return this;
+        }
     }
 
     private static class Walker {
@@ -408,9 +438,11 @@ public final class SimpleTokenLineageParser {
                 if (isIdentifier(i)) {
                     TableScan scan = readTable(i, end);
                     if (scan != null) {
-                        tables.add(scan.table);
-                        registerAlias(scan);
-                        i = scan.nextIndex;
+                        if (!isIgnoredTable(scan.table)) {
+                            tables.add(scan.table);
+                            registerAlias(scan);
+                        }
+                        i = skipTableHint(scan.nextIndex, end);
                         continue;
                     }
                 }
@@ -436,6 +468,7 @@ public final class SimpleTokenLineageParser {
         }
 
         private Projection readProjection(int start, int end, List<TableRef> inputTables) {
+            start = skipLeadingProjectionKeywords(start, end);
             if (start >= end || is(start, config.star)) {
                 return null;
             }
@@ -603,6 +636,57 @@ public final class SimpleTokenLineageParser {
             return is(index, config.table) ? index + 1 : index;
         }
 
+        private int skipTableHint(int index, int end) {
+            if (is(index, config.with) && is(index + 1, config.lparen)) {
+                int depth = 0;
+                for (int i = index + 1; i < end; i++) {
+                    if (is(i, config.lparen)) {
+                        depth++;
+                    } else if (is(i, config.rparen)) {
+                        depth--;
+                        if (depth == 0) {
+                            return i + 1;
+                        }
+                    }
+                }
+            }
+            return index;
+        }
+
+        private int skipLeadingProjectionKeywords(int start, int end) {
+            int i = start;
+            while (i < end) {
+                String keyword = clean(tokens.get(i).getText()).toLowerCase(Locale.ROOT);
+                if (!config.leadingProjectionTokens.contains(tokens.get(i).getType())
+                        && !config.leadingProjectionKeywords.contains(keyword)) {
+                    break;
+                }
+                i++;
+                if ("top".equals(keyword)) {
+                    i = skipTopLimit(i, end);
+                }
+            }
+            return i;
+        }
+
+        private int skipTopLimit(int index, int end) {
+            if (is(index, config.lparen)) {
+                int depth = 0;
+                for (int i = index; i < end; i++) {
+                    if (is(i, config.lparen)) {
+                        depth++;
+                    } else if (is(i, config.rparen)) {
+                        depth--;
+                        if (depth == 0) {
+                            return i + 1;
+                        }
+                    }
+                }
+                return end;
+            }
+            return index < end ? index + 1 : index;
+        }
+
         private boolean isClauseBoundary(int index) {
             int type = tokens.get(index).getType();
             return type == config.where
@@ -614,7 +698,8 @@ public final class SimpleTokenLineageParser {
                     || type == config.on
                     || type == config.partition
                     || type == config.stored
-                    || type == config.row;
+                    || type == config.row
+                    || config.extraClauseBoundaries.contains(type);
         }
 
         private boolean isJoinToken(int index) {
@@ -747,6 +832,14 @@ public final class SimpleTokenLineageParser {
                 return new TableRef(null, parts.get(0), parts.get(1));
             }
             return new TableRef(null, null, parts.get(0));
+        }
+
+        private boolean isIgnoredTable(TableRef table) {
+            String fullName = table.getCatalog() == null
+                    ? (table.getSchema() == null ? table.getName() : table.getSchema() + "." + table.getName())
+                    : table.getCatalog() + "." + table.getSchema() + "." + table.getName();
+            return config.ignoredTableNames.contains(fullName.toLowerCase(Locale.ROOT))
+                    || config.ignoredTableNames.contains(table.getName().toLowerCase(Locale.ROOT));
         }
 
         private List<Token> trimSemicolon(List<Token> input) {

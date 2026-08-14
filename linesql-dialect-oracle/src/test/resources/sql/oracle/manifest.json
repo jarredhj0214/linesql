@@ -104,6 +104,33 @@
         }
       ],
       "description": "Oracle double-quoted non-ASCII identifiers"
+    },
+    {
+      "id": "dual_pseudo_table",
+      "file": "cases/dual_pseudo_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DUAL pseudo table is ignored as a real lineage input"
+    },
+    {
+      "id": "hierarchical_query",
+      "file": "cases/hierarchical_query.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.org_units"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "org_id",
+          "sources": ["app.org_units.id"]
+        },
+        {
+          "target": "parent_id",
+          "sources": ["app.org_units.parent_id"]
+        }
+      ],
+      "description": "Oracle hierarchical query table lineage with START WITH and CONNECT BY clauses"
     }
   ]
 }

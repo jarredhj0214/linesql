@@ -30,6 +30,7 @@ public class OracleDialectParser implements DialectParser {
                     .not(OracleLineageLexer.NOT)
                     .exists(OracleLineageLexer.EXISTS)
                     .as(OracleLineageLexer.AS)
+                    .with(OracleLineageLexer.WITH)
                     .from(OracleLineageLexer.FROM)
                     .join(OracleLineageLexer.JOIN)
                     .inner(OracleLineageLexer.INNER)
@@ -55,7 +56,10 @@ public class OracleDialectParser implements DialectParser {
                     .semi(OracleLineageLexer.SEMI)
                     .lparen(OracleLineageLexer.LPAREN)
                     .rparen(OracleLineageLexer.RPAREN)
-                    .star(OracleLineageLexer.STAR);
+                    .star(OracleLineageLexer.STAR)
+                    .ignoredTableName("dual")
+                    .extraClauseBoundary(OracleLineageLexer.START)
+                    .extraClauseBoundary(OracleLineageLexer.CONNECT);
 
     @Override
     public SqlDialect dialect() {

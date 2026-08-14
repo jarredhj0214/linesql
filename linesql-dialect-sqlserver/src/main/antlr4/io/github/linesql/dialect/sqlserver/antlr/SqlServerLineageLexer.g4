@@ -1,6 +1,7 @@
 lexer grammar SqlServerLineageLexer;
 
 SELECT: S E L E C T;
+TOP: T O P;
 WITH: W I T H;
 INSERT: I N S E R T;
 OVERWRITE: O V E R W R I T E;

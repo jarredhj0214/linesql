@@ -52,6 +52,7 @@ Implemented SQL Server table-level lineage scenarios:
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | Bracketed non-ASCII identifiers | `select [用户ID] from [业务库].[用户表]` | `bracket_identifiers` |
+| SELECT TOP and table hint | `select top 10 ... from dbo.users with (nolock)` | `top_with_nolock` |
 
 Implemented SQL Server column-level lineage scenarios:
 
@@ -63,6 +64,7 @@ Implemented SQL Server column-level lineage scenarios:
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
 | Bracketed identifier column mapping | `select [用户ID] as [用户标识] from [业务库].[用户表]` | `bracket_identifiers` |
+| SELECT TOP projection mapping | `select top (10) u.id as user_id from dbo.users u` | `top_parenthesized` |
 
 Current SQL Server diagnostics:
 
@@ -102,6 +104,8 @@ Implemented Oracle table-level lineage scenarios:
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
+| DUAL pseudo table | `select sysdate from dual` | `dual_pseudo_table` |
+| Hierarchical query clauses | `select ... from app.org start with ... connect by ...` | `hierarchical_query` |
 
 Implemented Oracle column-level lineage scenarios:
 
@@ -113,6 +117,7 @@ Implemented Oracle column-level lineage scenarios:
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
 | Double-quoted identifier column mapping | `select "用户ID" as "用户标识" from "业务库"."用户表"` | `quoted_identifiers` |
+| Hierarchical query projection mapping | `select id as org_id from app.org start with ... connect by ...` | `hierarchical_query` |
 
 Current Oracle diagnostics:
 
@@ -128,7 +133,7 @@ Known Oracle gaps:
 | --- | --- |
 | Full Oracle grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
-| Oracle-specific query syntax | `CONNECT BY`, `MODEL`, `PIVOT`, `MERGE`, packages, and PL/SQL blocks are not yet covered. |
+| Oracle-specific query syntax | `MODEL`, `PIVOT`, `MERGE`, packages, and PL/SQL blocks are not yet covered. `START WITH` and `CONNECT BY` are recognized as lineage clause boundaries. |
 | CTEs and subqueries | Not yet covered in the Oracle MVP path. |
 
 ## StarRocks
