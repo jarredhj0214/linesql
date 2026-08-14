@@ -1,77 +1,20 @@
 package io.github.linesql.dialect.flink;
 
-import io.github.linesql.core.internal.SimpleTokenLineageParser;
+import io.github.linesql.core.model.Diagnostic;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.DialectParser;
 import io.github.linesql.dialect.flink.antlr.FlinkLineageLexer;
+import io.github.linesql.dialect.flink.antlr.FlinkParser;
+import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.Token;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.Recognizer;
 
 public class FlinkDialectParser implements DialectParser {
-    private static final SimpleTokenLineageParser.Config CONFIG =
-            SimpleTokenLineageParser.Config.forDialect(SqlDialect.FLINK, "Flink", "FLINK")
-                    .select(FlinkLineageLexer.SELECT)
-                    .insert(FlinkLineageLexer.INSERT)
-                    .update(FlinkLineageLexer.UPDATE)
-                    .delete(FlinkLineageLexer.DELETE)
-                    .create(FlinkLineageLexer.CREATE)
-                    .drop(FlinkLineageLexer.DROP)
-                    .truncate(FlinkLineageLexer.TRUNCATE)
-                    .alter(FlinkLineageLexer.ALTER)
-                    .show(FlinkLineageLexer.SHOW)
-                    .describe(FlinkLineageLexer.DESCRIBE)
-                    .comment(FlinkLineageLexer.COMMENT)
-                    .overwrite(FlinkLineageLexer.OVERWRITE)
-                    .into(FlinkLineageLexer.INTO)
-                    .external(FlinkLineageLexer.EXTERNAL)
-                    .temporary(FlinkLineageLexer.TEMPORARY)
-                    .table(FlinkLineageLexer.TABLE)
-                    .view(FlinkLineageLexer.VIEW)
-                    .ifToken(FlinkLineageLexer.IF)
-                    .not(FlinkLineageLexer.NOT)
-                    .exists(FlinkLineageLexer.EXISTS)
-                    .as(FlinkLineageLexer.AS)
-                    .like(FlinkLineageLexer.LIKE)
-                    .rename(FlinkLineageLexer.RENAME)
-                    .to(FlinkLineageLexer.TO)
-                    .column(FlinkLineageLexer.COLUMN)
-                    .set(FlinkLineageLexer.SET)
-                    .with(FlinkLineageLexer.WITH)
-                    .from(FlinkLineageLexer.FROM)
-                    .using(FlinkLineageLexer.USING)
-                    .join(FlinkLineageLexer.JOIN)
-                    .inner(FlinkLineageLexer.INNER)
-                    .left(FlinkLineageLexer.LEFT)
-                    .right(FlinkLineageLexer.RIGHT)
-                    .full(FlinkLineageLexer.FULL)
-                    .cross(FlinkLineageLexer.CROSS)
-                    .outer(FlinkLineageLexer.OUTER)
-                    .on(FlinkLineageLexer.ON)
-                    .where(FlinkLineageLexer.WHERE)
-                    .group(FlinkLineageLexer.GROUP)
-                    .having(FlinkLineageLexer.HAVING)
-                    .order(FlinkLineageLexer.ORDER)
-                    .limit(FlinkLineageLexer.LIMIT)
-                    .union(FlinkLineageLexer.UNION)
-                    .partition(FlinkLineageLexer.PARTITION)
-                    .stored(FlinkLineageLexer.STORED)
-                    .row(FlinkLineageLexer.ROW)
-                    .identifier(FlinkLineageLexer.IDENTIFIER)
-                    .backquotedIdentifier(FlinkLineageLexer.BACKQUOTED_IDENTIFIER)
-                    .dot(FlinkLineageLexer.DOT)
-                    .comma(FlinkLineageLexer.COMMA)
-                    .semi(FlinkLineageLexer.SEMI)
-                    .lparen(FlinkLineageLexer.LPAREN)
-                    .rparen(FlinkLineageLexer.RPAREN)
-                    .star(FlinkLineageLexer.STAR)
-                    .eq(FlinkLineageLexer.EQ);
 
     @Override
     public SqlDialect dialect() {
@@ -80,19 +23,52 @@ public class FlinkDialectParser implements DialectParser {
 
     @Override
     public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
-        return SimpleTokenLineageParser.parse(tokens(sql), CONFIG);
+        LineageResult result = new LineageResult();
+        result.setDialect(SqlDialect.FLINK);
+        result.setDialectConfidence(1.0d);
+
+        CollectingErrorListener errorListener = new CollectingErrorListener();
+        FlinkLineageLexer lexer = new FlinkLineageLexer(CharStreams.fromString(sql));
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
+
+        FlinkParser parser = new FlinkParser(new CommonTokenStream(lexer));
+        parser.removeErrorListeners();
+        parser.addErrorListener(errorListener);
+
+        FlinkParser.SingleStatementContext statement = parser.singleStatement();
+        if (errorListener.hasErrors() || parser.getNumberOfSyntaxErrors() > 0) {
+            result.getDiagnostics().add(Diagnostic.error("FLINK_PARSE_ERROR", errorListener.message()));
+            return result;
+        }
+
+        FlinkLineageVisitor visitor = new FlinkLineageVisitor(result);
+        visitor.visit(statement);
+        visitor.finalizeResult();
+        return result;
     }
 
-    private static List<Token> tokens(String sql) {
-        FlinkLineageLexer lexer = new FlinkLineageLexer(CharStreams.fromString(sql));
-        CommonTokenStream stream = new CommonTokenStream(lexer);
-        stream.fill();
-        List<Token> tokens = new ArrayList<>();
-        for (Token token : stream.getTokens()) {
-            if (token.getType() != Token.EOF) {
-                tokens.add(token);
+    private static class CollectingErrorListener extends BaseErrorListener {
+        private String message;
+
+        @Override
+        public void syntaxError(Recognizer<?, ?> recognizer,
+                                Object offendingSymbol,
+                                int line,
+                                int charPositionInLine,
+                                String msg,
+                                RecognitionException e) {
+            if (message == null) {
+                message = "line " + line + ":" + charPositionInLine + " " + msg;
             }
         }
-        return tokens;
+
+        boolean hasErrors() {
+            return message != null;
+        }
+
+        String message() {
+            return message == null ? "Flink SQL parse failed." : message;
+        }
     }
 }
