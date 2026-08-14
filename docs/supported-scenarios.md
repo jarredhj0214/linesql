@@ -4,12 +4,57 @@ This document records implemented behavior as LineSQL evolves. Every new parser 
 
 ## Dialect Scaffolds
 
-Flink and StarRocks modules are registered in Maven, CLI dependencies, and Java `ServiceLoader`. They intentionally return scaffold diagnostics instead of lineage so that later grammar work can land behind stable module boundaries.
+StarRocks is registered in Maven, CLI dependencies, and Java `ServiceLoader`. It intentionally returns scaffold diagnostics instead of lineage so that later grammar work can land behind stable module boundaries.
 
 | Dialect | Module | Detection anchor | Case manifest | Current diagnostic |
 | --- | --- | --- | --- | --- |
-| Flink | `linesql-dialect-flink` | connector options, `WATERMARK FOR` | `linesql-dialect-flink/src/test/resources/sql/flink/manifest.json` | `FLINK_PARSER_SCAFFOLD` |
 | StarRocks | `linesql-dialect-starrocks` | `DUPLICATE KEY`, `AGGREGATE KEY`, `DISTRIBUTED BY HASH` | `linesql-dialect-starrocks/src/test/resources/sql/starrocks/manifest.json` | `STARROCKS_PARSER_SCAFFOLD` |
+
+## Flink
+
+Flink is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Flink query and write shapes.
+
+Current Flink SQL case assets:
+
+```text
+linesql-dialect-flink/src/test/resources/sql/flink/manifest.json
+linesql-dialect-flink/src/test/resources/sql/flink/cases/*.sql
+```
+
+Implemented Flink table-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Basic SELECT source table | `select ... from ods_users` | `select_basic` |
+| JOIN source tables | `select ... from ods_users u join dwd_orders o ...` | `join_projection` |
+| INSERT INTO target and source | `insert into ads_t select ... from ods_s` | `insert_into` |
+| CREATE VIEW AS SELECT | `create view v as select ... from ods_s join dwd_o` | `create_view` |
+
+Implemented Flink column-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Direct single-table projection | `select id as user_id, name from ods_users` | `select_basic` |
+| Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
+| INSERT SELECT target mapping | `insert into ads_t select a as c1 from ods_s` | `insert_into` |
+| CREATE VIEW output column targets | `create view v as select u.id from ods_users u` | `create_view` |
+
+Current Flink diagnostics:
+
+| Code | Meaning |
+| --- | --- |
+| `FLINK_PARSE_ERROR` | Flink SQL could not be tokenized or walked by the current MVP parser. |
+| `FLINK_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Flink but is not in the current MVP statement set. |
+| `FLINK_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
+
+Known Flink gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Full Flink grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| `select *` expansion | Not expanded without schema metadata. |
+| Flink DDL connector options | Used for dialect detection, not yet modeled as lineage. |
+| CTEs, subqueries, temporal joins, and window TVFs | Not yet covered in the Flink MVP path. |
 
 ## Hive
 

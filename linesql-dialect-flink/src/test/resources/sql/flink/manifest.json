@@ -1,11 +1,77 @@
 {
   "dialect": "FLINK",
-  "status": "SCAFFOLD",
   "cases": [
     {
-      "id": "create_table_connector",
-      "file": "cases/create_table_connector.sql",
-      "description": "Flink scaffold case for connector and watermark syntax detection"
+      "id": "select_basic",
+      "file": "cases/select_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods_users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods_users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods_users.name"]
+        }
+      ],
+      "description": "Flink basic SELECT table and column lineage"
+    },
+    {
+      "id": "join_projection",
+      "file": "cases/join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods_users", "dwd_orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods_users.id"]
+        },
+        {
+          "target": "amount",
+          "sources": ["dwd_orders.amount"]
+        }
+      ],
+      "description": "Flink JOIN table lineage and alias-qualified column lineage"
+    },
+    {
+      "id": "insert_into",
+      "file": "cases/insert_into.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods_users"],
+      "outputTables": ["ads_user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.user_id",
+          "sources": ["ods_users.id"]
+        },
+        {
+          "target": "ads_user_summary.user_name",
+          "sources": ["ods_users.name"]
+        }
+      ],
+      "description": "Flink INSERT INTO SELECT table and column lineage"
+    },
+    {
+      "id": "create_view",
+      "file": "cases/create_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["ods_users", "dwd_orders"],
+      "outputTables": ["v_user_orders"],
+      "columnLineage": [
+        {
+          "target": "v_user_orders.user_id",
+          "sources": ["ods_users.id"]
+        },
+        {
+          "target": "v_user_orders.amount",
+          "sources": ["dwd_orders.amount"]
+        }
+      ],
+      "description": "Flink CREATE VIEW AS SELECT table and column lineage"
     }
   ]
 }
