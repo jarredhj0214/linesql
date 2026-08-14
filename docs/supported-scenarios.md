@@ -74,6 +74,7 @@ Implemented SQL Server table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
+| UNION source table propagation | `select a from dbo.s1 union all select b from dbo.s2` | `union_column_projection` |
 | Bracketed non-ASCII identifiers | `select [用户ID] from [业务库].[用户表]` | `bracket_identifiers` |
 | SELECT TOP and table hint | `select top 10 ... from dbo.users with (nolock)` | `top_with_nolock` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
@@ -104,6 +105,7 @@ Implemented SQL Server column-level lineage scenarios:
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
+| UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 
 Current SQL Server diagnostics:
@@ -146,6 +148,7 @@ Implemented Oracle table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
+| UNION source table propagation | `select a from ods.s1 union all select b from ods.s2` | `union_column_projection` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | DUAL pseudo table | `select sysdate from dual` | `dual_pseudo_table` |
 | Hierarchical query clauses | `select ... from app.org start with ... connect by ...` | `hierarchical_query` |
@@ -180,6 +183,7 @@ Implemented Oracle column-level lineage scenarios:
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
+| UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
 
 Current Oracle diagnostics:
@@ -222,6 +226,7 @@ Implemented StarRocks table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
+| UNION source table propagation | `select a from ods.s1 union all select b from ods.s2` | `union_column_projection` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
@@ -248,6 +253,7 @@ Implemented StarRocks column-level lineage scenarios:
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
+| UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 
 Current StarRocks diagnostics:
@@ -289,6 +295,7 @@ Implemented Flink table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view v as select ... from ods_s join dwd_o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads_t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view v as with q as (...) select ... from q` | `create_view_with_cte` |
+| UNION source table propagation | `select a from ods_s1 union all select b from ods_s2` | `union_column_projection` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods_s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
@@ -315,6 +322,7 @@ Implemented Flink column-level lineage scenarios:
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods_s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods_s) q` | `subquery_column_projection` |
+| UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads_t set c = c2 where ...` | `update_set` |
 
 Current Flink diagnostics:
@@ -357,6 +365,7 @@ Implemented Hive table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
+| UNION source table propagation | `select a from ods.s1 union all select b from ods.s2` | `union_column_projection` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
@@ -385,6 +394,7 @@ Implemented Hive column-level lineage scenarios:
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
+| UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
 
 Current Hive diagnostics:

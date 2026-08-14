@@ -493,6 +493,26 @@
       ],
       "columnLineage": [],
       "description": "SQL Server INSERT INTO VALUES target table lineage"
+    },
+    {
+      "id": "union_column_projection",
+      "file": "cases/union_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users_a",
+        "dbo.users_b"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dbo.users_a.id",
+            "dbo.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "SQL Server UNION ALL column sources merged by projection position"
     }
   ]
 }

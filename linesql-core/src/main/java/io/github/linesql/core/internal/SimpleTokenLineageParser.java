@@ -687,6 +687,17 @@ public final class SimpleTokenLineageParser {
         }
 
         private SelectLineage parseSelect(int start, int end) {
+            int union = indexOfTopLevel(start + 1, end, config.union);
+            if (union >= 0) {
+                SelectLineage left = parseSelect(start, union);
+                int rightStart = skipSetQuantifier(union + 1, end);
+                SelectLineage right = parseSelect(rightStart, end);
+                SelectLineage merged = new SelectLineage();
+                merged.inputs.addAll(left.inputs);
+                merged.inputs.addAll(right.inputs);
+                merged.columnLineage.addAll(mergeSetColumnLineage(left.columnLineage, right.columnLineage));
+                return merged;
+            }
             Map<String, TableRef> savedAliases = new LinkedHashMap<>(aliases);
             Map<String, SelectLineage> savedActiveDerivedRelations = activeDerivedRelations;
             activeDerivedRelations = new LinkedHashMap<>();
@@ -703,6 +714,52 @@ public final class SimpleTokenLineageParser {
                 activeDerivedRelations = savedActiveDerivedRelations;
             }
             return lineage;
+        }
+
+        private int skipSetQuantifier(int index, int end) {
+            if (index < end && isSetQuantifier(index)) {
+                return index + 1;
+            }
+            return index;
+        }
+
+        private boolean isSetQuantifier(int index) {
+            String value = clean(tokens.get(index).getText()).toLowerCase(Locale.ROOT);
+            return "all".equals(value) || "distinct".equals(value);
+        }
+
+        private List<ColumnLineage> mergeSetColumnLineage(List<ColumnLineage> left, List<ColumnLineage> right) {
+            int size = Math.min(left.size(), right.size());
+            List<ColumnLineage> merged = new ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                ColumnLineage leftColumn = left.get(i);
+                ColumnLineage rightColumn = right.get(i);
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(leftColumn.getTarget());
+                lineage.setSources(mergeColumnRefs(leftColumn.getSources(), rightColumn.getSources()));
+                lineage.setExpression(leftColumn.getExpression());
+                merged.add(lineage);
+            }
+            return merged;
+        }
+
+        private List<ColumnRef> mergeColumnRefs(List<ColumnRef> left, List<ColumnRef> right) {
+            Map<String, ColumnRef> refs = new LinkedHashMap<>();
+            for (ColumnRef ref : left) {
+                refs.put(columnKey(ref), ref);
+            }
+            for (ColumnRef ref : right) {
+                refs.put(columnKey(ref), ref);
+            }
+            return new ArrayList<>(refs.values());
+        }
+
+        private String columnKey(ColumnRef ref) {
+            TableRef table = ref.getTable();
+            String tableKey = table == null
+                    ? ""
+                    : String.valueOf(table.getCatalog()) + "." + table.getSchema() + "." + table.getName();
+            return tableKey + "." + ref.getName();
         }
 
         private List<TableRef> readTableSources(int start, int end) {

@@ -433,6 +433,26 @@
       ],
       "columnLineage": [],
       "description": "StarRocks INSERT INTO VALUES target table lineage"
+    },
+    {
+      "id": "union_column_projection",
+      "file": "cases/union_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "StarRocks UNION ALL column sources merged by projection position"
     }
   ]
 }

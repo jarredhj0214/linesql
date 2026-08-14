@@ -418,6 +418,26 @@
       ],
       "columnLineage": [],
       "description": "Flink INSERT INTO VALUES target table lineage"
+    },
+    {
+      "id": "union_column_projection",
+      "file": "cases/union_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users_a",
+        "ods_users_b"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods_users_a.id",
+            "ods_users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Flink UNION ALL column sources merged by projection position"
     }
   ]
 }
