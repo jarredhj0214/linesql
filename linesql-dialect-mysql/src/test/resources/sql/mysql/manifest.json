@@ -459,6 +459,25 @@
       ],
       "columnLineage": [],
       "description": "MySQL CREATE TABLE LIKE source and target table lineage"
+    },
+    {
+      "id": "case_expression",
+      "file": "cases/case_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "active_score",
+          "sources": [
+            "app.users.status",
+            "app.users.score"
+          ]
+        }
+      ],
+      "description": "MySQL CASE expression column lineage from condition and value columns"
     }
   ]
 }

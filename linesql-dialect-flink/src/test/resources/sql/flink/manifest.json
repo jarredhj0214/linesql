@@ -480,6 +480,25 @@
       ],
       "columnLineage": [],
       "description": "Flink DELETE target table with WHERE subquery source table"
+    },
+    {
+      "id": "case_expression",
+      "file": "cases/case_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "active_score",
+          "sources": [
+            "ods_users.status",
+            "ods_users.score"
+          ]
+        }
+      ],
+      "description": "Flink CASE expression column lineage from condition and value columns"
     }
   ]
 }

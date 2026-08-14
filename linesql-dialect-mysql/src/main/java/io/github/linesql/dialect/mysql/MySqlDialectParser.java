@@ -950,7 +950,20 @@ public class MySqlDialectParser implements DialectParser {
             String normalized = value.toLowerCase(Locale.ROOT);
             return "as".equals(normalized)
                     || "distinct".equals(normalized)
-                    || "all".equals(normalized);
+                    || "all".equals(normalized)
+                    || "case".equals(normalized)
+                    || "when".equals(normalized)
+                    || "then".equals(normalized)
+                    || "else".equals(normalized)
+                    || "end".equals(normalized)
+                    || "and".equals(normalized)
+                    || "or".equals(normalized)
+                    || "not".equals(normalized)
+                    || "is".equals(normalized)
+                    || "in".equals(normalized)
+                    || "null".equals(normalized)
+                    || "true".equals(normalized)
+                    || "false".equals(normalized);
         }
 
         private static String clean(String text) {

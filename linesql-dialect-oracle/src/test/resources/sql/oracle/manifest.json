@@ -566,6 +566,25 @@
       ],
       "columnLineage": [],
       "description": "Oracle DELETE target table with WHERE subquery source table"
+    },
+    {
+      "id": "case_expression",
+      "file": "cases/case_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "active_score",
+          "sources": [
+            "ods.users.status",
+            "ods.users.score"
+          ]
+        }
+      ],
+      "description": "Oracle CASE expression column lineage from condition and value columns"
     }
   ]
 }
