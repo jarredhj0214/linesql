@@ -27,11 +27,11 @@ LineSQL 目前已经可以用于 Spark、MySQL、Hive、Flink、StarRocks、Orac
 | --- | --- | --- | --- |
 | Spark | Active parser / 可用 | Spark-specific syntax | Broad stage-1 table and column lineage |
 | MySQL | Active MVP / 可用 MVP | MySQL-specific syntax | Common SELECT, write, DDL, DML, direct column mappings |
-| Hive | Active MVP / 可用 MVP | Hive anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW |
-| Flink | Active MVP / 可用 MVP | Flink anchors | SELECT, JOIN, INSERT SELECT, CREATE VIEW |
-| StarRocks | Active MVP / 可用 MVP | StarRocks anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW |
-| Oracle | Active MVP / 可用 MVP | Oracle anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW |
-| SQL Server | Active MVP / 可用 MVP | SQL Server anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW |
+| Hive | Active MVP / 可用 MVP | Hive anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE, DELETE |
+| Flink | Active MVP / 可用 MVP | Flink anchors | SELECT, JOIN, INSERT SELECT, CREATE VIEW, UPDATE, DELETE |
+| StarRocks | Active MVP / 可用 MVP | StarRocks anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE USING |
+| Oracle | Active MVP / 可用 MVP | Oracle anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE, DELETE |
+| SQL Server | Active MVP / 可用 MVP | SQL Server anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE FROM JOIN |
 
 Detailed, case-backed compatibility is tracked in [Supported Scenarios](docs/supported-scenarios.md).
 

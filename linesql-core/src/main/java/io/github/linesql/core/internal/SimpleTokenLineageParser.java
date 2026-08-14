@@ -49,6 +49,8 @@ public final class SimpleTokenLineageParser {
         private final String diagnosticPrefix;
         private int select = -1;
         private int insert = -1;
+        private int update = -1;
+        private int delete = -1;
         private int create = -1;
         private int overwrite = -1;
         private int into = -1;
@@ -60,8 +62,10 @@ public final class SimpleTokenLineageParser {
         private int not = -1;
         private int exists = -1;
         private int as = -1;
+        private int set = -1;
         private int with = -1;
         private int from = -1;
+        private int using = -1;
         private int join = -1;
         private int inner = -1;
         private int left = -1;
@@ -87,6 +91,7 @@ public final class SimpleTokenLineageParser {
         private int lparen = -1;
         private int rparen = -1;
         private int star = -1;
+        private int eq = -1;
         private final Set<String> ignoredTableNames = new LinkedHashSet<>();
         private final Set<String> leadingProjectionKeywords = new LinkedHashSet<>();
         private final Set<Integer> leadingProjectionTokens = new LinkedHashSet<>();
@@ -109,6 +114,16 @@ public final class SimpleTokenLineageParser {
 
         public Config insert(int token) {
             this.insert = token;
+            return this;
+        }
+
+        public Config update(int token) {
+            this.update = token;
+            return this;
+        }
+
+        public Config delete(int token) {
+            this.delete = token;
             return this;
         }
 
@@ -167,6 +182,11 @@ public final class SimpleTokenLineageParser {
             return this;
         }
 
+        public Config set(int token) {
+            this.set = token;
+            return this;
+        }
+
         public Config with(int token) {
             this.with = token;
             return this;
@@ -174,6 +194,11 @@ public final class SimpleTokenLineageParser {
 
         public Config from(int token) {
             this.from = token;
+            return this;
+        }
+
+        public Config using(int token) {
+            this.using = token;
             return this;
         }
 
@@ -302,6 +327,11 @@ public final class SimpleTokenLineageParser {
             return this;
         }
 
+        public Config eq(int token) {
+            this.eq = token;
+            return this;
+        }
+
         public Config ignoredTableName(String tableName) {
             this.ignoredTableNames.add(tableName.toLowerCase(Locale.ROOT));
             return this;
@@ -346,6 +376,10 @@ public final class SimpleTokenLineageParser {
                 parseSelectStatement(0, tokens.size(), null, new ArrayList<String>());
             } else if (is(0, config.insert)) {
                 parseInsert();
+            } else if (is(0, config.update)) {
+                parseUpdate();
+            } else if (is(0, config.delete)) {
+                parseDelete();
             } else if (is(0, config.create)) {
                 parseCreate();
             } else {
@@ -387,6 +421,62 @@ public final class SimpleTokenLineageParser {
             inputs.addAll(selectLineage.inputs);
             outputs.add(target.table);
             result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, new ArrayList<String>()));
+        }
+
+        private void parseUpdate() {
+            result.setStatementType(StatementType.UPDATE);
+            int set = indexOfTopLevel(0, tokens.size(), config.set);
+            if (set < 0) {
+                return;
+            }
+            TableScan target = readTable(1, set);
+            if (target == null) {
+                return;
+            }
+            inputs.add(target.table);
+            outputs.add(target.table);
+            registerAlias(target);
+            inputs.addAll(readTableSources(target.nextIndex, set));
+
+            int from = indexOfTopLevel(set + 1, tokens.size(), config.from);
+            if (from >= 0) {
+                inputs.addAll(readTableSources(from + 1, tokens.size()));
+            }
+
+            int setEnd = firstPositive(from, indexOfTopLevel(set + 1, tokens.size(), config.where), -1, tokens.size());
+            result.setColumnLineage(readUpdateAssignments(set + 1, setEnd, target.table));
+        }
+
+        private void parseDelete() {
+            result.setStatementType(StatementType.DELETE);
+            int firstFrom = indexOfTopLevel(0, tokens.size(), config.from);
+            int using = indexOfTopLevel(0, tokens.size(), config.using);
+            if (firstFrom < 0) {
+                return;
+            }
+
+            if (is(1, config.from)) {
+                int targetEnd = firstPositive(using, indexOfTopLevel(firstFrom + 1, tokens.size(), config.where), -1, tokens.size());
+                TableScan target = readTable(firstFrom + 1, targetEnd);
+                if (target != null) {
+                    inputs.add(target.table);
+                    outputs.add(target.table);
+                    registerAlias(target);
+                }
+                if (using >= 0) {
+                    inputs.addAll(readTableSources(using + 1, tokens.size()));
+                }
+                return;
+            }
+
+            String targetAlias = isIdentifier(1) ? clean(tokens.get(1).getText()).toLowerCase(Locale.ROOT) : null;
+            List<TableRef> sources = readTableSources(firstFrom + 1, tokens.size());
+            inputs.addAll(sources);
+            if (targetAlias != null && aliases.containsKey(targetAlias)) {
+                outputs.add(aliases.get(targetAlias));
+            } else if (!sources.isEmpty()) {
+                outputs.add(sources.get(0));
+            }
         }
 
         private void parseCreate() {
@@ -571,6 +661,48 @@ public final class SimpleTokenLineageParser {
             return mapped;
         }
 
+        private List<ColumnLineage> readUpdateAssignments(int start, int end, TableRef defaultTarget) {
+            List<ColumnLineage> result = new ArrayList<>();
+            for (Range range : splitTopLevel(start, end, config.comma)) {
+                int equals = indexOfTopLevel(range.start, range.end, config.eq);
+                if (equals <= range.start || equals >= range.end - 1) {
+                    continue;
+                }
+                ColumnRef target = readAssignmentTarget(range.start, equals, defaultTarget);
+                if (target == null) {
+                    continue;
+                }
+                List<ColumnRef> sources = resolveSources(sourceColumns(equals + 1, range.end), new ArrayList<>(inputs));
+                if (sources == null) {
+                    continue;
+                }
+                ColumnLineage lineage = new ColumnLineage();
+                lineage.setTarget(target);
+                lineage.setSources(sources);
+                lineage.setExpression(text(range.start, range.end));
+                result.add(lineage);
+            }
+            return result;
+        }
+
+        private ColumnRef readAssignmentTarget(int start, int end, TableRef defaultTarget) {
+            IdentifierRead targetRead = readIdentifierParts(start, end);
+            if (targetRead.parts.isEmpty() || targetRead.nextIndex != end) {
+                return null;
+            }
+            String column = targetRead.parts.get(targetRead.parts.size() - 1);
+            TableRef table = defaultTarget;
+            if (targetRead.parts.size() >= 2) {
+                String qualifier = targetRead.parts.get(targetRead.parts.size() - 2).toLowerCase(Locale.ROOT);
+                table = aliases.get(qualifier);
+            }
+            if (table == null) {
+                return null;
+            }
+            outputs.add(table);
+            return new ColumnRef(table, column);
+        }
+
         private TableScan readTable(int start, int end) {
             int i = start;
             if (i >= end || !isIdentifier(i)) {
@@ -696,6 +828,7 @@ public final class SimpleTokenLineageParser {
                     || type == config.limit
                     || type == config.union
                     || type == config.on
+                    || type == config.using
                     || type == config.partition
                     || type == config.stored
                     || type == config.row

@@ -19,6 +19,8 @@ public class SqlServerDialectParser implements DialectParser {
             SimpleTokenLineageParser.Config.forDialect(SqlDialect.SQLSERVER, "SQL Server", "SQLSERVER")
                     .select(SqlServerLineageLexer.SELECT)
                     .insert(SqlServerLineageLexer.INSERT)
+                    .update(SqlServerLineageLexer.UPDATE)
+                    .delete(SqlServerLineageLexer.DELETE)
                     .create(SqlServerLineageLexer.CREATE)
                     .overwrite(SqlServerLineageLexer.OVERWRITE)
                     .into(SqlServerLineageLexer.INTO)
@@ -30,8 +32,10 @@ public class SqlServerDialectParser implements DialectParser {
                     .not(SqlServerLineageLexer.NOT)
                     .exists(SqlServerLineageLexer.EXISTS)
                     .as(SqlServerLineageLexer.AS)
+                    .set(SqlServerLineageLexer.SET)
                     .with(SqlServerLineageLexer.WITH)
                     .from(SqlServerLineageLexer.FROM)
+                    .using(SqlServerLineageLexer.USING)
                     .join(SqlServerLineageLexer.JOIN)
                     .inner(SqlServerLineageLexer.INNER)
                     .left(SqlServerLineageLexer.LEFT)
@@ -57,6 +61,7 @@ public class SqlServerDialectParser implements DialectParser {
                     .lparen(SqlServerLineageLexer.LPAREN)
                     .rparen(SqlServerLineageLexer.RPAREN)
                     .star(SqlServerLineageLexer.STAR)
+                    .eq(SqlServerLineageLexer.EQ)
                     .leadingProjectionToken(SqlServerLineageLexer.TOP)
                     .leadingProjectionKeyword("top");
 

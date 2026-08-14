@@ -19,6 +19,8 @@ public class HiveDialectParser implements DialectParser {
             SimpleTokenLineageParser.Config.forDialect(SqlDialect.HIVE, "Hive", "HIVE")
                     .select(HiveLineageLexer.SELECT)
                     .insert(HiveLineageLexer.INSERT)
+                    .update(HiveLineageLexer.UPDATE)
+                    .delete(HiveLineageLexer.DELETE)
                     .create(HiveLineageLexer.CREATE)
                     .overwrite(HiveLineageLexer.OVERWRITE)
                     .into(HiveLineageLexer.INTO)
@@ -30,7 +32,9 @@ public class HiveDialectParser implements DialectParser {
                     .not(HiveLineageLexer.NOT)
                     .exists(HiveLineageLexer.EXISTS)
                     .as(HiveLineageLexer.AS)
+                    .set(HiveLineageLexer.SET)
                     .from(HiveLineageLexer.FROM)
+                    .using(HiveLineageLexer.USING)
                     .join(HiveLineageLexer.JOIN)
                     .inner(HiveLineageLexer.INNER)
                     .left(HiveLineageLexer.LEFT)
@@ -55,7 +59,8 @@ public class HiveDialectParser implements DialectParser {
                     .semi(HiveLineageLexer.SEMI)
                     .lparen(HiveLineageLexer.LPAREN)
                     .rparen(HiveLineageLexer.RPAREN)
-                    .star(HiveLineageLexer.STAR);
+                    .star(HiveLineageLexer.STAR)
+                    .eq(HiveLineageLexer.EQ);
 
     @Override
     public SqlDialect dialect() {

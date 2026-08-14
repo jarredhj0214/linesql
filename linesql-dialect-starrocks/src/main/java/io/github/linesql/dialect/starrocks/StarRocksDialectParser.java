@@ -19,6 +19,8 @@ public class StarRocksDialectParser implements DialectParser {
             SimpleTokenLineageParser.Config.forDialect(SqlDialect.STARROCKS, "StarRocks", "STARROCKS")
                     .select(StarRocksLineageLexer.SELECT)
                     .insert(StarRocksLineageLexer.INSERT)
+                    .update(StarRocksLineageLexer.UPDATE)
+                    .delete(StarRocksLineageLexer.DELETE)
                     .create(StarRocksLineageLexer.CREATE)
                     .overwrite(StarRocksLineageLexer.OVERWRITE)
                     .into(StarRocksLineageLexer.INTO)
@@ -30,7 +32,9 @@ public class StarRocksDialectParser implements DialectParser {
                     .not(StarRocksLineageLexer.NOT)
                     .exists(StarRocksLineageLexer.EXISTS)
                     .as(StarRocksLineageLexer.AS)
+                    .set(StarRocksLineageLexer.SET)
                     .from(StarRocksLineageLexer.FROM)
+                    .using(StarRocksLineageLexer.USING)
                     .join(StarRocksLineageLexer.JOIN)
                     .inner(StarRocksLineageLexer.INNER)
                     .left(StarRocksLineageLexer.LEFT)
@@ -55,7 +59,8 @@ public class StarRocksDialectParser implements DialectParser {
                     .semi(StarRocksLineageLexer.SEMI)
                     .lparen(StarRocksLineageLexer.LPAREN)
                     .rparen(StarRocksLineageLexer.RPAREN)
-                    .star(StarRocksLineageLexer.STAR);
+                    .star(StarRocksLineageLexer.STAR)
+                    .eq(StarRocksLineageLexer.EQ);
 
     @Override
     public SqlDialect dialect() {

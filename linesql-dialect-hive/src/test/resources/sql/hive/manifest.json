@@ -90,6 +90,29 @@
         }
       ],
       "description": "Hive CREATE VIEW AS SELECT table and column lineage"
+    },
+    {
+      "id": "update_set",
+      "file": "cases/update_set.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["ads.user_summary"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": ["ads.user_summary.name"]
+        }
+      ],
+      "description": "Hive UPDATE target table lineage and deterministic assignment column lineage"
+    },
+    {
+      "id": "delete_where",
+      "file": "cases/delete_where.sql",
+      "statementType": "DELETE",
+      "inputTables": ["ads.user_summary"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [],
+      "description": "Hive DELETE target table lineage"
     }
   ]
 }

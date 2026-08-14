@@ -19,6 +19,8 @@ public class FlinkDialectParser implements DialectParser {
             SimpleTokenLineageParser.Config.forDialect(SqlDialect.FLINK, "Flink", "FLINK")
                     .select(FlinkLineageLexer.SELECT)
                     .insert(FlinkLineageLexer.INSERT)
+                    .update(FlinkLineageLexer.UPDATE)
+                    .delete(FlinkLineageLexer.DELETE)
                     .create(FlinkLineageLexer.CREATE)
                     .overwrite(FlinkLineageLexer.OVERWRITE)
                     .into(FlinkLineageLexer.INTO)
@@ -30,7 +32,9 @@ public class FlinkDialectParser implements DialectParser {
                     .not(FlinkLineageLexer.NOT)
                     .exists(FlinkLineageLexer.EXISTS)
                     .as(FlinkLineageLexer.AS)
+                    .set(FlinkLineageLexer.SET)
                     .from(FlinkLineageLexer.FROM)
+                    .using(FlinkLineageLexer.USING)
                     .join(FlinkLineageLexer.JOIN)
                     .inner(FlinkLineageLexer.INNER)
                     .left(FlinkLineageLexer.LEFT)
@@ -55,7 +59,8 @@ public class FlinkDialectParser implements DialectParser {
                     .semi(FlinkLineageLexer.SEMI)
                     .lparen(FlinkLineageLexer.LPAREN)
                     .rparen(FlinkLineageLexer.RPAREN)
-                    .star(FlinkLineageLexer.STAR);
+                    .star(FlinkLineageLexer.STAR)
+                    .eq(FlinkLineageLexer.EQ);
 
     @Override
     public SqlDialect dialect() {

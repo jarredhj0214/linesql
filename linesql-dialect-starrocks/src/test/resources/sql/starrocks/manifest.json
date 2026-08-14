@@ -90,6 +90,29 @@
         }
       ],
       "description": "StarRocks CREATE VIEW AS SELECT table and column lineage"
+    },
+    {
+      "id": "update_from",
+      "file": "cases/update_from.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["ads.user_summary", "ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "StarRocks UPDATE FROM table lineage and deterministic assignment column lineage"
+    },
+    {
+      "id": "delete_using",
+      "file": "cases/delete_using.sql",
+      "statementType": "DELETE",
+      "inputTables": ["ads.user_summary", "ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [],
+      "description": "StarRocks DELETE USING target and source table lineage"
     }
   ]
 }

@@ -72,6 +72,29 @@
         }
       ],
       "description": "Flink CREATE VIEW AS SELECT table and column lineage"
+    },
+    {
+      "id": "update_set",
+      "file": "cases/update_set.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["ads_user_summary"],
+      "outputTables": ["ads_user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.user_name",
+          "sources": ["ads_user_summary.name"]
+        }
+      ],
+      "description": "Flink UPDATE target table lineage and deterministic assignment column lineage"
+    },
+    {
+      "id": "delete_where",
+      "file": "cases/delete_where.sql",
+      "statementType": "DELETE",
+      "inputTables": ["ads_user_summary"],
+      "outputTables": ["ads_user_summary"],
+      "columnLineage": [],
+      "description": "Flink DELETE target table lineage"
     }
   ]
 }
