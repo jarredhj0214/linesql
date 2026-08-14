@@ -11,6 +11,7 @@ statement
     | insertStatement                                                #insertStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
+    | mergeStatement                                                 #mergeStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropTableStatement                                             #dropTableStmt
@@ -93,10 +94,15 @@ relationPrimary
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
+    | TABLE LPAREN functionName LPAREN tableFunctionArgList RPAREN RPAREN tableAlias  #tableFunction
     ;
 
 joinRelation
-    : joinType? JOIN relationPrimary joinCriteria?
+    : joinType? JOIN relationPrimary temporalClause? joinCriteria?
+    ;
+
+temporalClause
+    : FOR SYSTEM_TIME AS OF expression
     ;
 
 joinType
@@ -197,7 +203,20 @@ whenClause
     ;
 
 windowSpec
-    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? RPAREN
+    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    ;
+
+windowFrame
+    : (ROWS | RANGE) BETWEEN frameBound AND frameBound
+    | (ROWS | RANGE) frameBound
+    ;
+
+frameBound
+    : UNBOUNDED PRECEDING
+    | UNBOUNDED FOLLOWING
+    | CURRENT ROW
+    | expression PRECEDING
+    | expression FOLLOWING
     ;
 
 functionName
@@ -241,6 +260,41 @@ assignmentList
 
 assignment
     : multipartIdentifier EQ expression
+    ;
+
+// ============ TVF Arguments ============
+
+tableFunctionArgList
+    : tableFunctionArg (COMMA tableFunctionArg)*
+    ;
+
+tableFunctionArg
+    : TABLE multipartIdentifier                                      #tvfTableArg
+    | DESCRIPTOR LPAREN identifier RPAREN                            #tvfDescriptorArg
+    | expression                                                     #tvfExprArg
+    ;
+
+// ============ MERGE Statement ============
+
+mergeStatement
+    : MERGE INTO multipartIdentifier tableAlias
+      USING (multipartIdentifier tableAlias | LPAREN query RPAREN tableAlias)
+      ON expression
+      mergeClause+
+    ;
+
+mergeClause
+    : WHEN MATCHED (AND expression)? THEN mergeMatchedAction
+    | WHEN NOT MATCHED (AND expression)? THEN mergeNotMatchedAction
+    ;
+
+mergeMatchedAction
+    : UPDATE SET assignmentList
+    | DELETE
+    ;
+
+mergeNotMatchedAction
+    : INSERT (LPAREN identifierList RPAREN)? VALUES LPAREN expressionList RPAREN
     ;
 
 // ============ DDL Statements ============
@@ -365,12 +419,14 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ASC | BEGIN | CAST | COLUMN | COMMENT | CONNECTOR | DEFAULT
-    | DESCRIBE | DESC | END | ENFORCED | EXISTS | EXECUTE | EXTERNAL | FALSE
-    | FOR | FORMAT | IF | INTERVAL | KEY | LATERAL | LIKE | LIMIT | NULL
-    | OFFSET | OVER | OVERWRITE | PARTITION | PERIOD | PRIMARY | RENAME | REPLACE
-    | ROW | SET | SHOW | STATEMENT | STORED | TABLE | TEMPORARY | TO | TRUE
-    | TRUNCATE | VALUES | VIEW | WATERMARK
+    : ADD | ASC | BEGIN | CAST | COLUMN | COMMENT | CONNECTOR | CUMULATE | CURRENT
+    | DEFAULT | DESCRIBE | DESC | DESCRIPTOR | END | ENFORCED | EXISTS | EXECUTE
+    | EXTERNAL | FALSE | FOLLOWING | FOR | FORMAT | HOP | IF | INTERVAL | KEY
+    | LATERAL | LIKE | LIMIT | MATCHED | MERGE | NULL | OF | OFFSET | OVER
+    | OVERWRITE | PARTITION | PRECEDING | PERIOD | PRIMARY | RANGE | RENAME
+    | REPLACE | ROW | ROWS | SESSION | SET | SHOW | STATEMENT | STORED | TABLE
+    | TEMPORARY | TO | TRUE | TRUNCATE | TUMBLE | UNBOUNDED | VALUES | VIEW
+    | WATERMARK
     ;
 
 number

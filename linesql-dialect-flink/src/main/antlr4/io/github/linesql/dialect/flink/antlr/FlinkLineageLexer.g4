@@ -88,6 +88,28 @@ PRIMARY: P R I M A R Y;
 KEY: K E Y;
 ENFORCED: E N F O R C E D;
 
+// Window frame
+ROWS: R O W S;
+RANGE: R A N G E;
+UNBOUNDED: U N B O U N D E D;
+PRECEDING: P R E C E D I N G;
+FOLLOWING: F O L L O W I N G;
+CURRENT: C U R R E N T;
+
+// Temporal join
+OF: O F;
+
+// TVF windowing
+TUMBLE: T U M B L E;
+HOP: H O P;
+SESSION: S E S S I O N;
+CUMULATE: C U M U L A T E;
+DESCRIPTOR: D E S C R I P T O R;
+
+// MERGE
+MERGE: M E R G E;
+MATCHED: M A T C H E D;
+
 IDENTIFIER: [a-zA-Z_$-￿] [a-zA-Z0-9_$-￿]*;
 BACKQUOTED_IDENTIFIER: '`' ('``' | ~'`')* '`';
 STRING_LITERAL: '\'' ('\\' . | '\'\'' | ~['\\])* '\'';

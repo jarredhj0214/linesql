@@ -598,6 +598,261 @@
       ],
       "columnLineage": [],
       "description": "Flink TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "window_column_projection",
+      "file": "cases/window_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": [
+            "ods.orders.user_id",
+            "ods.orders.created_at"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "ods.orders.amount",
+            "ods.orders.user_id"
+          ]
+        }
+      ],
+      "description": "Flink window function OVER clause column lineage from PARTITION BY and ORDER BY"
+    },
+    {
+      "id": "insert_overwrite",
+      "file": "cases/insert_overwrite.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Flink INSERT OVERWRITE with target column list table and column lineage"
+    },
+    {
+      "id": "except_column_projection",
+      "file": "cases/except_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.blocked_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id",
+            "ods.blocked_users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name",
+            "ods.blocked_users.name"
+          ]
+        }
+      ],
+      "description": "Flink EXCEPT set operation column sources merged by position"
+    },
+    {
+      "id": "intersect_column_projection",
+      "file": "cases/intersect_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.vip_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id",
+            "ods.vip_users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name",
+            "ods.vip_users.name"
+          ]
+        }
+      ],
+      "description": "Flink INTERSECT set operation column sources merged by position"
+    },
+    {
+      "id": "exists_subquery",
+      "file": "cases/exists_subquery.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Flink EXISTS subquery adds input table without affecting column lineage"
+    },
+    {
+      "id": "in_subquery",
+      "file": "cases/in_subquery.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.active_sessions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Flink IN subquery adds input table without affecting column lineage"
+    },
+    {
+      "id": "scalar_subquery",
+      "file": "cases/scalar_subquery.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders",
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": []
+        }
+      ],
+      "description": "Flink scalar subquery in SELECT adds input table with opaque column lineage"
+    },
+    {
+      "id": "execute_statement_set",
+      "file": "cases/execute_statement_set.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "ads.order_summary"
+      ],
+      "columnLineage": [],
+      "description": "Flink EXECUTE STATEMENT SET merges input and output tables from all inserts"
+    },
+    {
+      "id": "lateral_subquery",
+      "file": "cases/lateral_subquery.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders",
+        "ods.order_items"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        }
+      ],
+      "description": "Flink LATERAL subquery table lineage with partial column resolution"
+    },
+    {
+      "id": "nested_field_projection",
+      "file": "cases/nested_field_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "description": "Flink nested field dereference resolves simple qualified columns only"
     }
   ]
 }

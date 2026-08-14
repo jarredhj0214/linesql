@@ -99,6 +99,58 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitMergeStmt(FlinkParser.MergeStmtContext ctx) {
+        result.setStatementType(StatementType.MERGE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitMergeStatement(FlinkParser.MergeStatementContext ctx) {
+        // Output table = MERGE INTO target
+        TableRef target = tableRef(ctx.multipartIdentifier(0));
+        outputTables.add(target);
+        inputTables.add(target);
+        String alias = tableAlias(ctx.tableAlias(0));
+        if (alias != null) {
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
+        }
+        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+
+        // Input table from USING clause - either table name or subquery
+        if (ctx.multipartIdentifier().size() > 1) {
+            // USING tableName
+            TableRef source = tableRef(ctx.multipartIdentifier(1));
+            inputTables.add(source);
+            tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
+            String sourceAlias = tableAlias(ctx.tableAlias(1));
+            if (sourceAlias != null) {
+                tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
+            }
+        }
+        if (ctx.query() != null) {
+            // USING (subquery) alias - collect input tables from the subquery
+            LineageResult subResult = lineageForQuery(ctx.query());
+            inputTables.addAll(subResult.getInputTables());
+        }
+
+        // Collect column lineage from WHEN MATCHED THEN UPDATE SET assignments
+        List<ColumnLineage> assignments = new ArrayList<>();
+        for (FlinkParser.MergeClauseContext clause : ctx.mergeClause()) {
+            if (clause.mergeMatchedAction() != null
+                    && clause.mergeMatchedAction().assignmentList() != null) {
+                assignments.addAll(readAssignments(clause.mergeMatchedAction().assignmentList(), target));
+            }
+        }
+        if (!assignments.isEmpty()) {
+            result.setColumnLineage(assignments);
+        }
+
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitDeleteStatement(FlinkParser.DeleteStatementContext ctx) {
         TableRef target = tableRef(ctx.multipartIdentifier());
         inputTables.add(target);
@@ -342,6 +394,20 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
         registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), new ArrayList<>());
         addDerivedReference(relationName, ctx.tableAlias());
+        return null;
+    }
+
+    @Override
+    public Void visitTableFunction(FlinkParser.TableFunctionContext ctx) {
+        // TABLE(fn(TABLE source, DESCRIPTOR(col), expr)) - visit args to collect table refs
+        visitChildren(ctx);
+        return null;
+    }
+
+    @Override
+    public Void visitTvfTableArg(FlinkParser.TvfTableArgContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        addInputTable(table, true);
         return null;
     }
 
