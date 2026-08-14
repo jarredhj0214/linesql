@@ -540,6 +540,236 @@
         }
       ],
       "description": "MySQL GROUP BY aggregate expression column lineage"
+    },
+    {
+      "id": "chained_cte_column_projection",
+      "file": "cases/chained_cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL chained CTE direct column propagation"
+    },
+    {
+      "id": "cte_column_aliases",
+      "file": "cases/cte_column_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "uname",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL CTE column alias list propagation"
+    },
+    {
+      "id": "insert_column_list",
+      "file": "cases/insert_column_list.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT target column list mapping"
+    },
+    {
+      "id": "insert_from_cte",
+      "file": "cases/insert_from_cte.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.active_users.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.active_users.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT target column list mapping over CTE direct column propagation"
+    },
+    {
+      "id": "insert_from_subquery",
+      "file": "cases/insert_from_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT target column list mapping over derived subquery propagation"
+    },
+    {
+      "id": "create_view_with_cte",
+      "file": "cases/create_view_with_cte.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.active_view"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.active_view.id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.active_view.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL CREATE VIEW AS WITH SELECT direct column propagation"
+    },
+    {
+      "id": "create_view_column_list",
+      "file": "cases/create_view_column_list.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_view"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_view.uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_view.uname",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL CREATE VIEW column list target name mapping"
+    },
+    {
+      "id": "update_with_subquery",
+      "file": "cases/update_with_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [],
+      "description": "MySQL UPDATE target table with SET and WHERE subquery source tables"
+    },
+    {
+      "id": "delete_with_subquery",
+      "file": "cases/delete_with_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DELETE target table with WHERE subquery source table"
+    },
+    {
+      "id": "insert_into",
+      "file": "cases/insert_into.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT INTO SELECT without column list"
     }
   ]
 }
