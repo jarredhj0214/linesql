@@ -606,8 +606,10 @@ public final class SimpleTokenLineageParser {
                 }
                 String name = clean(tokens.get(i).getText());
                 i++;
+                List<String> cteColumns = new ArrayList<>();
                 if (is(i, config.lparen)) {
                     int close = matchingParen(i, end);
+                    cteColumns = readIdentifierList(i + 1, close);
                     i = close + 1;
                 }
                 if (!is(i, config.as) || !is(i + 1, config.lparen)) {
@@ -616,7 +618,8 @@ public final class SimpleTokenLineageParser {
                 int close = matchingParen(i + 1, end);
                 int cteSelect = indexOfTopLevel(i + 2, close, config.select);
                 if (cteSelect >= 0) {
-                    derivedRelations.put(lower(name), parseSelect(cteSelect, close));
+                    SelectLineage cteLineage = parseSelect(cteSelect, close);
+                    derivedRelations.put(lower(name), remapTargetColumns(cteLineage, cteColumns));
                 }
                 i = close + 1;
                 if (is(i, config.comma)) {
@@ -629,6 +632,24 @@ public final class SimpleTokenLineageParser {
                 return indexOfTopLevel(i, end, config.select);
             }
             return -1;
+        }
+
+        private SelectLineage remapTargetColumns(SelectLineage lineage, List<String> targetColumns) {
+            if (targetColumns.isEmpty()) {
+                return lineage;
+            }
+            SelectLineage mapped = new SelectLineage();
+            mapped.inputs.addAll(lineage.inputs);
+            for (int i = 0; i < lineage.columnLineage.size(); i++) {
+                ColumnLineage original = lineage.columnLineage.get(i);
+                String targetColumn = i < targetColumns.size() ? targetColumns.get(i) : original.getTarget().getName();
+                ColumnLineage column = new ColumnLineage();
+                column.setTarget(new ColumnRef(null, targetColumn));
+                column.setSources(original.getSources());
+                column.setExpression(original.getExpression());
+                mapped.columnLineage.add(column);
+            }
+            return mapped;
         }
 
         private List<ColumnLineage> readProjections(int start, int end, List<TableRef> inputTables) {
@@ -856,6 +877,17 @@ public final class SimpleTokenLineageParser {
                 }
             }
             return new IdentifierRead(parts, i);
+        }
+
+        private List<String> readIdentifierList(int start, int end) {
+            List<String> identifiers = new ArrayList<>();
+            for (Range range : splitTopLevel(start, end, config.comma)) {
+                IdentifierRead read = readIdentifierParts(range.start, range.end);
+                if (!read.parts.isEmpty()) {
+                    identifiers.add(read.parts.get(read.parts.size() - 1));
+                }
+            }
+            return identifiers;
         }
 
         private void registerAlias(TableScan scan) {

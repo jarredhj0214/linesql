@@ -323,6 +323,54 @@
         }
       ],
       "description": "SQL Server CREATE VIEW AS WITH SELECT direct column propagation"
+    },
+    {
+      "id": "chained_cte_column_projection",
+      "file": "cases/chained_cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server chained CTE direct column propagation"
+    },
+    {
+      "id": "cte_column_aliases",
+      "file": "cases/cte_column_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server CTE column alias list propagation"
     }
   ]
 }
