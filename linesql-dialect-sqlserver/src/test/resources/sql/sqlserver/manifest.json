@@ -423,6 +423,32 @@
         }
       ],
       "description": "SQL Server CREATE VIEW column list target name mapping"
+    },
+    {
+      "id": "insert_from_subquery",
+      "file": "cases/insert_from_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.uname",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server INSERT target column list mapping over derived subquery propagation"
     }
   ]
 }
