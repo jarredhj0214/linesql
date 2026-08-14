@@ -1,11 +1,16 @@
 package io.github.linesql.cli;
 
 import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.SqlDialect;
+import io.github.linesql.core.model.StatementType;
 import org.junit.Test;
 
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class LineSqlAutoDetectionIntegrationTest {
     @Test
@@ -33,6 +38,33 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals(SqlDialect.SQLSERVER, result.getDialect());
         assertEquals("ads", result.getOutputTables().get(0).getSchema());
         assertEquals("user_summary", result.getOutputTables().get(0).getName());
+    }
+
+    @Test
+    public void parseScriptAutoDetectsEachStatementIndependently() {
+        List<LineageResult> results = LineSql.parseScript(
+                "create table ods.users(id bigint) stored as parquet;"
+                        + "create table ods_users(id bigint) with ('connector' = 'kafka');"
+                        + "select top 10 id from dbo.users;");
+
+        assertEquals(3, results.size());
+        assertEquals(SqlDialect.HIVE, results.get(0).getDialect());
+        assertEquals(SqlDialect.FLINK, results.get(1).getDialect());
+        assertEquals(SqlDialect.SQLSERVER, results.get(2).getDialect());
+    }
+
+    @Test
+    public void parseScriptKeepsPartialResultsAfterBadStatement() {
+        List<LineageResult> results = LineSql.parseScript(
+                "select id from ods.users;"
+                        + "select id from (;"
+                        + "create table ods_users(id bigint) with ('connector' = 'kafka');");
+
+        assertEquals(3, results.size());
+        assertEquals(StatementType.SELECT, results.get(0).getStatementType());
+        assertFalse(results.get(1).getDiagnostics().isEmpty());
+        assertEquals(DiagnosticSeverity.ERROR, results.get(1).getDiagnostics().get(0).getSeverity());
+        assertEquals(SqlDialect.FLINK, results.get(2).getDialect());
     }
 
     private static void assertDialect(SqlDialect expected, String sql) {
