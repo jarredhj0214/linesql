@@ -2,6 +2,35 @@
 
 This document records implemented behavior as LineSQL evolves. Every new parser capability should update this file and add or update SQL cases under the related dialect test resources.
 
+## Dialect Detection
+
+Dialect detection is intentionally conservative: LineSQL uses clear syntax anchors to rank dialect candidates and keeps Spark as the current generic fallback for dialect-neutral SQL.
+
+Current detector case assets:
+
+```text
+linesql-core/src/test/java/io/github/linesql/core/internal/SimpleDialectDetectorTest.java
+```
+
+Implemented detection anchors:
+
+| Dialect | Anchor examples |
+| --- | --- |
+| MySQL | `REPLACE INTO`, `ON DUPLICATE KEY`, `LIMIT offset, size`, `UPDATE ... JOIN ... SET` |
+| Hive | `ROW FORMAT`, `STORED AS`, `SERDEPROPERTIES`, `CLUSTERED BY` |
+| Flink | connector options, `WATERMARK FOR` |
+| StarRocks | `DUPLICATE KEY`, `AGGREGATE KEY`, `DISTRIBUTED BY HASH`, replication properties |
+| Oracle | `FROM DUAL`, `CONNECT BY`, `START WITH` |
+| SQL Server | `SELECT TOP n`, bracketed identifiers, `WITH (NOLOCK)` |
+| Spark | `INSERT OVERWRITE`, `LATERAL VIEW`, `CREATE TEMPORARY VIEW`, `USING`, fallback |
+
+Known conflict guards:
+
+| Guard | Reason |
+| --- | --- |
+| Spark `MERGE INTO` is not classified as Oracle | `MERGE INTO` is shared across engines and is not a safe Oracle-only anchor. |
+| JSON path array wildcard `[*]` is not classified as SQL Server | Brackets inside strings are not SQL Server identifiers. |
+
 ## SQL Server
 
 SQL Server is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common SQL Server query and write shapes.
