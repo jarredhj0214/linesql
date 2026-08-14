@@ -537,6 +537,35 @@
         }
       ],
       "description": "Oracle UNION ALL column sources merged by projection position"
+    },
+    {
+      "id": "update_with_subquery",
+      "file": "cases/update_with_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.users",
+        "ods.user_flags",
+        "ods.active_users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle UPDATE target table with SET and WHERE subquery source tables"
+    },
+    {
+      "id": "delete_with_subquery",
+      "file": "cases/delete_with_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ads.users",
+        "ods.inactive_users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle DELETE target table with WHERE subquery source table"
     }
   ]
 }

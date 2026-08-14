@@ -513,6 +513,35 @@
         }
       ],
       "description": "SQL Server UNION ALL column sources merged by projection position"
+    },
+    {
+      "id": "update_with_subquery",
+      "file": "cases/update_with_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "dbo.users",
+        "ods.user_flags",
+        "ods.active_users"
+      ],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server UPDATE target table with SET and WHERE subquery source tables"
+    },
+    {
+      "id": "delete_with_subquery",
+      "file": "cases/delete_with_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "dbo.users",
+        "ods.inactive_users"
+      ],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DELETE target table with WHERE subquery source table"
     }
   ]
 }

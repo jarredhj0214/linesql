@@ -534,6 +534,7 @@ public final class SimpleTokenLineageParser {
             }
 
             int setEnd = firstPositive(from, indexOfTopLevel(set + 1, tokens.size(), config.where), -1, tokens.size());
+            inputs.addAll(readNestedSelectSources(set + 1, tokens.size()));
             result.setColumnLineage(readUpdateAssignments(set + 1, setEnd, target.table));
         }
 
@@ -556,6 +557,7 @@ public final class SimpleTokenLineageParser {
                 if (using >= 0) {
                     inputs.addAll(readTableSources(using + 1, tokens.size()));
                 }
+                inputs.addAll(readNestedSelectSources(targetEnd, tokens.size()));
                 return;
             }
 
@@ -567,6 +569,7 @@ public final class SimpleTokenLineageParser {
             } else if (!sources.isEmpty()) {
                 outputs.add(sources.get(0));
             }
+            inputs.addAll(readNestedSelectSources(firstFrom + 1, tokens.size()));
         }
 
         private void parseCreate() {
@@ -823,6 +826,25 @@ public final class SimpleTokenLineageParser {
                         i = skipTableHint(scan.nextIndex, end);
                         continue;
                     }
+                }
+                i++;
+            }
+            return tables;
+        }
+
+        private List<TableRef> readNestedSelectSources(int start, int end) {
+            List<TableRef> tables = new ArrayList<>();
+            int i = start;
+            while (i < end) {
+                if (is(i, config.lparen)) {
+                    int close = matchingParen(i, end);
+                    int nestedSelect = indexOfTopLevel(i + 1, close, config.select);
+                    if (nestedSelect >= 0) {
+                        SelectLineage nested = parseSelect(nestedSelect, close);
+                        tables.addAll(nested.inputs);
+                    }
+                    i = close + 1;
+                    continue;
                 }
                 i++;
             }

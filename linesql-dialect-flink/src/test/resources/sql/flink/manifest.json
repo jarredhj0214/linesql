@@ -451,6 +451,35 @@
       ],
       "columnLineage": [],
       "description": "Flink CREATE TABLE LIKE source and target table lineage"
+    },
+    {
+      "id": "update_with_subquery",
+      "file": "cases/update_with_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads_users",
+        "ods_user_flags",
+        "ods_active_users"
+      ],
+      "outputTables": [
+        "ads_users"
+      ],
+      "columnLineage": [],
+      "description": "Flink UPDATE target table with SET and WHERE subquery source tables"
+    },
+    {
+      "id": "delete_with_subquery",
+      "file": "cases/delete_with_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ads_users",
+        "ods_inactive_users"
+      ],
+      "outputTables": [
+        "ads_users"
+      ],
+      "columnLineage": [],
+      "description": "Flink DELETE target table with WHERE subquery source table"
     }
   ]
 }

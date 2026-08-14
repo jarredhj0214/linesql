@@ -81,6 +81,8 @@ Implemented SQL Server table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE FROM JOIN target and source tables | `delete t from ads.t t join ods.s s ...` | `delete_from_join` |
+| UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
+| DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table if exists dbo.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table dbo.t` | `truncate_table` |
 | ALTER TABLE column maintenance | `alter table dbo.t add c int` | `alter_table_add_column` |
@@ -156,6 +158,8 @@ Implemented Oracle table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
+| UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
+| DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table mart.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to new_name` | `rename_table` |
@@ -231,6 +235,8 @@ Implemented StarRocks table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE USING target and source tables | `delete from ads.t using ods.s s where ...` | `delete_using` |
+| UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
+| DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
@@ -302,6 +308,8 @@ Implemented Flink table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods_s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads_t where ...` | `delete_where` |
+| UPDATE with subquery sources | `update ads_t set c = (select ... from ods_s1) where id in (select ... from ods_s2)` | `update_with_subquery` |
+| DELETE with subquery sources | `delete from ads_t where id in (select ... from ods_s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table if exists mart_t` | `drop_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart_old rename to mart_new` | `rename_table` |
 | ALTER TABLE column maintenance | `alter table mart_t add c int` | `alter_table_add_column` |
@@ -373,6 +381,8 @@ Implemented Hive table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
+| UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
+| DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t partition (...)` | `truncate_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |

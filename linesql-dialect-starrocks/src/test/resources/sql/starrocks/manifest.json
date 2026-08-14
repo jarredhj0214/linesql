@@ -466,6 +466,35 @@
       ],
       "columnLineage": [],
       "description": "StarRocks CREATE TABLE LIKE source and target table lineage"
+    },
+    {
+      "id": "update_with_subquery",
+      "file": "cases/update_with_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.users",
+        "ods.user_flags",
+        "ods.active_users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks UPDATE target table with SET and WHERE subquery source tables"
+    },
+    {
+      "id": "delete_with_subquery",
+      "file": "cases/delete_with_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ads.users",
+        "ods.inactive_users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks DELETE target table with WHERE subquery source table"
     }
   ]
 }
