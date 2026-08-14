@@ -244,6 +244,7 @@ Implemented StarRocks table-level lineage scenarios:
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
+| CREATE TABLE table model DDL | `create table t (...) duplicate/aggregate/unique/primary key (...) distributed by ...` | `create_table_duplicate_key`, `create_table_aggregate_key`, `create_table_unique_key`, `create_table_primary_key_random` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
 | ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
@@ -258,6 +259,7 @@ Implemented StarRocks column-level lineage scenarios:
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| CREATE MATERIALIZED VIEW output column targets | `create materialized view ads.mv as select u.id from ods.users u` | `create_materialized_view` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
@@ -286,8 +288,8 @@ Known StarRocks gaps:
 | --- | --- |
 | Full StarRocks grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
-| StarRocks table model DDL | `DUPLICATE KEY`, `AGGREGATE KEY`, and distribution clauses are used for dialect detection, not yet modeled as lineage. |
-| Complex CTEs, subqueries, materialized views, and routine-load syntax | Single CTE, chained CTE direct projection, CTE column aliases, and single derived subquery direct projection propagation are covered. Recursive CTEs, materialized views, and routine-load syntax are not complete yet. |
+| StarRocks table model DDL | `DUPLICATE KEY`, `AGGREGATE KEY`, `UNIQUE KEY`, `PRIMARY KEY`, hash/random distribution, and properties are covered as affected target table lineage. |
+| Complex CTEs, subqueries, and routine-load syntax | Single CTE, chained CTE direct projection, CTE column aliases, single derived subquery direct projection propagation, and materialized-view SELECT lineage are covered. Recursive CTEs and routine-load syntax are not complete yet. |
 
 ## Flink
 
@@ -323,6 +325,10 @@ Implemented Flink table-level lineage scenarios:
 | UPDATE with subquery sources | `update ads_t set c = (select ... from ods_s1) where id in (select ... from ods_s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads_t where id in (select ... from ods_s)` | `delete_with_subquery` |
 | Statement set write lineage | `execute statement set begin insert into ...; end` | `execute_statement_set` |
+| CREATE TABLE connector DDL | `create table ods_t (...) with ('connector' = 'kafka')` | `create_table_connector` |
+| MERGE INTO target and source tables | `merge into ads.t using ods.s on ... when matched then update ...` | `merge_into` |
+| Temporal join source tables | `join rates for system_time as of o.proc_time` | `temporal_join` |
+| TUMBLE table-valued function source table | `from table(tumble(table ods.orders, descriptor(ts), interval '1' hour))` | `tumble_window` |
 | DROP TABLE affected table | `drop table if exists mart_t` | `drop_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart_old rename to mart_new` | `rename_table` |
 | ALTER TABLE column maintenance | `alter table mart_t add c int` | `alter_table_add_column` |
@@ -344,6 +350,9 @@ Implemented Flink column-level lineage scenarios:
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as string), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
+| Temporal join projection dependencies | `select o.amount * r.rate from orders o join rates for system_time as of ... r` | `temporal_join` |
+| TUMBLE window projection dependencies | `select window_start, user_id, count(order_id) from table(tumble(...))` | `tumble_window` |
+| Window frame aggregate dependencies | `sum(amount) over (partition by user_id order by ts rows between ...)` | `window_frame` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods_s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods_s) select c1 from q` | `cte_column_aliases` |
@@ -365,8 +374,8 @@ Known Flink gaps:
 | --- | --- |
 | Full Flink grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
-| Flink DDL connector options | Used for dialect detection, not yet modeled as lineage. |
-| Complex CTEs, subqueries, temporal joins, and window TVFs | Single CTE, chained CTE direct projection, CTE column aliases, and single derived subquery direct projection propagation are covered. Recursive CTEs, temporal joins, and window TVFs are not complete yet. |
+| Flink DDL connector options | Connector DDL is covered as affected target table lineage; connector properties are not exposed as a separate lineage model yet. |
+| Complex CTEs, subqueries, temporal joins, and window TVFs | Single CTE, chained CTE direct projection, CTE column aliases, single derived subquery direct projection propagation, temporal join table lineage, and basic TUMBLE source table lineage are covered. Recursive CTEs and full window TVF generated-column semantics are not complete yet. |
 
 ## Hive
 

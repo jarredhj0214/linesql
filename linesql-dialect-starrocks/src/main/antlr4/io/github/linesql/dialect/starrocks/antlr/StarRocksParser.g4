@@ -258,7 +258,7 @@ createTableStatement
     ;
 
 createViewStatement
-    : CREATE (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
+    : CREATE MATERIALIZED? (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       AS query
     ;
@@ -304,7 +304,14 @@ tableElementList
     ;
 
 tableElement
-    : identifier dataType columnConstraint*
+    : identifier dataType aggregateType? columnConstraint*
+    ;
+
+aggregateType
+    : SUM
+    | MIN
+    | MAX
+    | REPLACE
     ;
 
 columnConstraint
@@ -373,9 +380,10 @@ strictIdentifier
 nonReservedKeyword
     : ADD | AGGREGATE | ASC | BUCKETS | CAST | COLUMN | COMMENT | DEFAULT
     | DESCRIBE | DESC | DISTRIBUTED | DUPLICATE | END | EXISTS | EXTERNAL | FALSE
-    | FORMAT | HASH | IF | INTERVAL | KEY | LATERAL | LIKE | LIMIT | NULL
+    | FORMAT | HASH | IF | INTERVAL | KEY | LATERAL | LIKE | LIMIT | MATERIALIZED
+    | MAX | MIN | NULL
     | OFFSET | OVER | OVERWRITE | PARTITION | PRIMARY | PROPERTIES
-    | RANDOM | RENAME | REPLACE | ROW | SHOW | STORED | TABLE
+    | RANDOM | RENAME | REPLACE | ROW | SHOW | STORED | SUM | TABLE
     | TEMPORARY | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
     ;
 
@@ -387,4 +395,3 @@ string
     : STRING_LITERAL
     | DOUBLE_QUOTED_STRING
     ;
-

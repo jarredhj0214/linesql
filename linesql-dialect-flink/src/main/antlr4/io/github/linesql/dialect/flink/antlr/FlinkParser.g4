@@ -90,7 +90,8 @@ relation
     ;
 
 relationPrimary
-    : multipartIdentifier tableAlias                                 #tableName
+    : multipartIdentifier temporalClause tableAlias                  #temporalTableName
+    | multipartIdentifier tableAlias                                 #tableName
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery

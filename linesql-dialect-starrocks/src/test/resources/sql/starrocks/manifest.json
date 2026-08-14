@@ -130,6 +130,33 @@
       "description": "StarRocks CREATE VIEW AS SELECT table and column lineage"
     },
     {
+      "id": "create_materialized_view",
+      "file": "cases/create_materialized_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.mv_user_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.mv_user_orders.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.mv_user_orders.amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "description": "StarRocks CREATE MATERIALIZED VIEW table and column lineage"
+    },
+    {
       "id": "update_from",
       "file": "cases/update_from.sql",
       "statementType": "UPDATE",
@@ -466,6 +493,50 @@
       ],
       "columnLineage": [],
       "description": "StarRocks CREATE TABLE LIKE source and target table lineage"
+    },
+    {
+      "id": "create_table_duplicate_key",
+      "file": "cases/create_table_duplicate_key.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "ods.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE TABLE DUPLICATE KEY table model affected table lineage"
+    },
+    {
+      "id": "create_table_aggregate_key",
+      "file": "cases/create_table_aggregate_key.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "ads.user_metrics"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE TABLE AGGREGATE KEY table model affected table lineage"
+    },
+    {
+      "id": "create_table_unique_key",
+      "file": "cases/create_table_unique_key.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "ads.unique_users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE TABLE UNIQUE KEY table model affected table lineage"
+    },
+    {
+      "id": "create_table_primary_key_random",
+      "file": "cases/create_table_primary_key_random.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "ads.primary_users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE TABLE PRIMARY KEY with random distribution affected table lineage"
     },
     {
       "id": "update_with_subquery",

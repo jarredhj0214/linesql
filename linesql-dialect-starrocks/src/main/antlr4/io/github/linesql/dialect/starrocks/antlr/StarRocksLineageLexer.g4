@@ -8,6 +8,7 @@ DELETE: D E L E T E;
 OVERWRITE: O V E R W R I T E;
 INTO: I N T O;
 CREATE: C R E A T E;
+MATERIALIZED: M A T E R I A L I Z E D;
 DROP: D R O P;
 TRUNCATE: T R U N C A T E;
 ALTER: A L T E R;
@@ -88,6 +89,9 @@ OVER: O V E R;
 INTERVAL: I N T E R V A L;
 LATERAL: L A T E R A L;
 DEFAULT: D E F A U L T;
+SUM: S U M;
+MIN: M I N;
+MAX: M A X;
 
 IDENTIFIER: [a-zA-Z_$-￿] [a-zA-Z0-9_$-￿]*;
 BACKQUOTED_IDENTIFIER: '`' ('``' | ~'`')* '`';

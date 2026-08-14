@@ -812,6 +812,144 @@
       "description": "Flink EXECUTE STATEMENT SET merges input and output tables from all inserts"
     },
     {
+      "id": "create_table_connector",
+      "file": "cases/create_table_connector.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "ods_users"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE TABLE connector DDL affected table lineage"
+    },
+    {
+      "id": "merge_into",
+      "file": "cases/merge_into.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Flink MERGE INTO target/source table lineage and matched update assignment lineage"
+    },
+    {
+      "id": "temporal_join",
+      "file": "cases/temporal_join.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders",
+        "ods.currency_rates"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        },
+        {
+          "target": "currency",
+          "sources": [
+            "ods.orders.currency"
+          ]
+        },
+        {
+          "target": "rate",
+          "sources": [
+            "ods.currency_rates.rate"
+          ]
+        },
+        {
+          "target": "converted",
+          "sources": [
+            "ods.orders.amount",
+            "ods.currency_rates.rate"
+          ]
+        }
+      ],
+      "description": "Flink temporal join table lineage and qualified projection lineage"
+    },
+    {
+      "id": "tumble_window",
+      "file": "cases/tumble_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "window_start",
+          "sources": [
+            "ods.orders.window_start"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "description": "Flink TUMBLE table-valued function table lineage with projected column dependencies"
+    },
+    {
+      "id": "window_frame",
+      "file": "cases/window_frame.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "ts",
+          "sources": [
+            "ods.orders.ts"
+          ]
+        },
+        {
+          "target": "rolling_sum",
+          "sources": [
+            "ods.orders.amount",
+            "ods.orders.user_id",
+            "ods.orders.ts"
+          ]
+        }
+      ],
+      "description": "Flink window frame aggregate expression column lineage"
+    },
+    {
       "id": "lateral_subquery",
       "file": "cases/lateral_subquery.sql",
       "statementType": "SELECT",

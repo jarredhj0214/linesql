@@ -35,11 +35,13 @@ public class SqlCaseManifestQualityTest {
             assertTrue(manifest.dialect + " cases must be an array", manifest.root.get("cases").isArray());
 
             Set<String> ids = new LinkedHashSet<>();
+            Set<String> files = new LinkedHashSet<>();
             for (JsonNode sqlCase : manifest.root.get("cases")) {
                 String id = requiredText(manifest, sqlCase, "id");
                 assertTrue(manifest.dialect + " duplicate case id: " + id, ids.add(id));
 
                 String file = requiredText(manifest, sqlCase, "file");
+                assertTrue(manifest.dialect + " duplicate case file: " + file, files.add(file));
                 assertTrue(manifest.dialect + " case file should live under cases/: " + id,
                         file.startsWith("cases/") && file.endsWith(".sql"));
                 assertTrue(manifest.dialect + " missing SQL case file for " + id + ": " + file,
@@ -59,6 +61,7 @@ public class SqlCaseManifestQualityTest {
                     assertArrayField(manifest, sqlCase, id, "expectedDiagnostics");
                 }
             }
+            assertNoOrphanSqlCaseFiles(manifest, files);
         }
     }
 
@@ -129,6 +132,20 @@ public class SqlCaseManifestQualityTest {
                     requiredText(manifest, column, "target").trim().isEmpty());
             assertArrayField(manifest, column, id, "sources");
         }
+    }
+
+    private static void assertNoOrphanSqlCaseFiles(DialectManifest manifest, Set<String> manifestFiles) throws IOException {
+        Path casesDir = manifest.sqlRoot.resolve("cases");
+        assertTrue(manifest.dialect + " missing cases directory: " + casesDir, Files.isDirectory(casesDir));
+        List<String> orphans = new ArrayList<>();
+        try (java.util.stream.Stream<Path> stream = Files.list(casesDir)) {
+            stream.filter(path -> path.getFileName().toString().endsWith(".sql"))
+                    .map(path -> "cases/" + path.getFileName())
+                    .filter(file -> !manifestFiles.contains(file))
+                    .sorted()
+                    .forEach(orphans::add);
+        }
+        assertTrue(manifest.dialect + " SQL case files missing from manifest: " + orphans, orphans.isEmpty());
     }
 
     private static String requiredText(DialectManifest manifest, JsonNode node, String field) {

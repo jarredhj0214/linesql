@@ -389,6 +389,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitTemporalTableName(FlinkParser.TemporalTableNameContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        addInputTable(table, ctx.tableAlias(), true);
+        return null;
+    }
+
+    @Override
     public Void visitAliasedQuery(FlinkParser.AliasedQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
