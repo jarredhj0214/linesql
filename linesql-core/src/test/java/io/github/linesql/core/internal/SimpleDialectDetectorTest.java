@@ -1,5 +1,6 @@
 package io.github.linesql.core.internal;
 
+import io.github.linesql.core.model.DialectCandidate;
 import io.github.linesql.core.model.SqlDialect;
 import org.junit.Test;
 
@@ -77,6 +78,26 @@ public class SimpleDialectDetectorTest {
 
         assertEquals(SqlDialect.SPARK, candidates.get(0));
         assertFalse(candidates.contains(SqlDialect.SQLSERVER));
+    }
+
+    @Test
+    public void returnsStructuredDetectionMetadata() {
+        List<DialectCandidate> candidates = detector.detectCandidates(
+                "create table ods_users(id bigint) with ('connector' = 'kafka')");
+
+        assertFalse(candidates.isEmpty());
+        assertEquals(SqlDialect.FLINK, candidates.get(0).getDialect());
+        assertEquals(0.93, candidates.get(0).getConfidence(), 0.001);
+        assertTrue(candidates.get(0).getReason().contains("Flink"));
+    }
+
+    @Test
+    public void returnsFallbackReasonForDialectNeutralSql() {
+        DialectCandidate candidate = detector.detectCandidates("select id from ods.users").get(0);
+
+        assertEquals(SqlDialect.SPARK, candidate.getDialect());
+        assertEquals(0.50, candidate.getConfidence(), 0.001);
+        assertTrue(candidate.getReason().contains("fallback"));
     }
 
     private void assertFirst(SqlDialect expected, String sql) {

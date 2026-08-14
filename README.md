@@ -109,6 +109,7 @@ Target output shape / 目标输出结构：
     "version": "0.1",
     "dialect": "SPARK",
     "dialectConfidence": 0.92,
+    "dialectDetectionReason": "Spark insert overwrite, lateral view, temporary view, or USING syntax",
     "statementType": "INSERT",
     "inputTables": [
       {

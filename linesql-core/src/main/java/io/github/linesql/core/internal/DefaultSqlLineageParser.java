@@ -1,6 +1,7 @@
 package io.github.linesql.core.internal;
 
 import io.github.linesql.core.facade.SqlLineageParser;
+import io.github.linesql.core.model.DialectCandidate;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
@@ -43,8 +44,10 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     public List<LineageResult> parseScript(String script, ParseOptions options, ParseContext context) {
         List<LineageResult> results = new ArrayList<>();
         for (String statement : statementSplitter.split(script)) {
-            SqlDialect dialect = selectDialect(statement, options);
-            results.add(parseStatement(statement, dialect, options, context));
+            DialectCandidate candidate = selectDialect(statement, options);
+            LineageResult result = parseStatement(statement, candidate.getDialect(), options, context);
+            applyDetection(result, candidate);
+            results.add(result);
         }
         return results;
     }
@@ -58,14 +61,21 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         return parser.parse(sql, options, context);
     }
 
-    private SqlDialect selectDialect(String statement, ParseOptions options) {
+    private DialectCandidate selectDialect(String statement, ParseOptions options) {
         if (!options.getDialectHints().isEmpty()) {
-            return options.getDialectHints().get(0);
+            return new DialectCandidate(options.getDialectHints().get(0), 1.0, "Dialect selected from parse options hint");
         }
         if (!options.isDialectDetectionEnabled()) {
-            return SqlDialect.UNKNOWN;
+            return new DialectCandidate(SqlDialect.UNKNOWN, 0.0, "Dialect detection is disabled");
         }
-        List<SqlDialect> candidates = dialectDetector.detect(statement);
-        return candidates.isEmpty() ? SqlDialect.UNKNOWN : candidates.get(0);
+        List<DialectCandidate> candidates = dialectDetector.detectCandidates(statement);
+        return candidates.isEmpty()
+                ? new DialectCandidate(SqlDialect.UNKNOWN, 0.0, "No dialect candidate detected")
+                : candidates.get(0);
+    }
+
+    private void applyDetection(LineageResult result, DialectCandidate candidate) {
+        result.setDialectConfidence(candidate.getConfidence());
+        result.setDialectDetectionReason(candidate.getReason());
     }
 }

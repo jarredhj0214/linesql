@@ -7,6 +7,7 @@ public class LineageResult {
     private String version = "0.1";
     private SqlDialect dialect = SqlDialect.UNKNOWN;
     private double dialectConfidence;
+    private String dialectDetectionReason;
     private StatementType statementType = StatementType.UNKNOWN;
     private List<TableRef> inputTables = new ArrayList<TableRef>();
     private List<TableRef> outputTables = new ArrayList<TableRef>();
@@ -42,6 +43,14 @@ public class LineageResult {
 
     public void setDialectConfidence(double dialectConfidence) {
         this.dialectConfidence = dialectConfidence;
+    }
+
+    public String getDialectDetectionReason() {
+        return dialectDetectionReason;
+    }
+
+    public void setDialectDetectionReason(String dialectDetectionReason) {
+        this.dialectDetectionReason = dialectDetectionReason;
     }
 
     public StatementType getStatementType() {

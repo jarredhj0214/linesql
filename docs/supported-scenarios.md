@@ -4,7 +4,7 @@ This document records implemented behavior as LineSQL evolves. Every new parser 
 
 ## Dialect Detection
 
-Dialect detection is intentionally conservative: LineSQL uses clear syntax anchors to rank dialect candidates and keeps Spark as the current generic fallback for dialect-neutral SQL.
+Dialect detection is intentionally conservative: LineSQL uses clear syntax anchors to rank dialect candidates, records confidence and reason metadata, and keeps Spark as the current generic fallback for dialect-neutral SQL.
 
 Current detector case assets:
 
