@@ -81,6 +81,15 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void doesNotMisclassifyMySqlOnDuplicateKeyAsStarRocks() {
+        List<SqlDialect> candidates = detector.detect(
+                "insert into mart.t(c1) select a from app.s on duplicate key update c1 = values(c1)");
+
+        assertEquals(SqlDialect.MYSQL, candidates.get(0));
+        assertFalse(candidates.contains(SqlDialect.STARROCKS));
+    }
+
+    @Test
     public void returnsStructuredDetectionMetadata() {
         List<DialectCandidate> candidates = detector.detectCandidates(
                 "create table ods_users(id bigint) with ('connector' = 'kafka')");

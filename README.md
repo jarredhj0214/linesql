@@ -29,9 +29,13 @@ LineSQL 目前已经可以用于 Spark、MySQL、Hive、Flink、StarRocks、Orac
 | MySQL | Active MVP / 可用 MVP | MySQL-specific syntax | Common SELECT, write, DDL, DML, direct column mappings |
 | Hive | Active MVP / 可用 MVP | Hive anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE, DELETE |
 | Flink | Active MVP / 可用 MVP | Flink anchors | SELECT, JOIN, INSERT SELECT, CREATE VIEW, UPDATE, DELETE |
-| StarRocks | Active MVP / 可用 MVP | StarRocks anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE USING |
+| StarRocks | Active MVP / 可用 MVP | StarRocks CREATE TABLE anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE USING |
 | Oracle | Active MVP / 可用 MVP | Oracle anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE, DELETE |
-| SQL Server | Active MVP / 可用 MVP | SQL Server anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE FROM JOIN |
+| SQL Server | Active MVP / 可用 MVP | SQL Server anchors, including bracketed DML | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE FROM JOIN |
+
+Auto detection is anchor-based. Dialect-neutral SQL still uses Spark as the current generic fallback; callers can pass `SqlDialect` or `ParseOptions` when they already know the engine.
+
+自动识别基于明确方言锚点。中性 SQL 当前会回落到 Spark；调用方已知引擎时，可以显式传入 `SqlDialect` 或 `ParseOptions`。
 
 Detailed, case-backed compatibility is tracked in [Supported Scenarios](docs/supported-scenarios.md).
 

@@ -10,6 +10,7 @@ Current detector case assets:
 
 ```text
 linesql-core/src/test/java/io/github/linesql/core/internal/SimpleDialectDetectorTest.java
+linesql-cli/src/test/java/io/github/linesql/cli/LineSqlAutoDetectionIntegrationTest.java
 ```
 
 Implemented detection anchors:
@@ -19,9 +20,9 @@ Implemented detection anchors:
 | MySQL | `REPLACE INTO`, `ON DUPLICATE KEY`, `LIMIT offset, size`, `UPDATE ... JOIN ... SET` |
 | Hive | `ROW FORMAT`, `STORED AS`, `SERDEPROPERTIES`, `CLUSTERED BY` |
 | Flink | connector options, `WATERMARK FOR` |
-| StarRocks | `DUPLICATE KEY`, `AGGREGATE KEY`, `DISTRIBUTED BY HASH`, replication properties |
+| StarRocks | `CREATE TABLE ... DUPLICATE KEY`, `CREATE TABLE ... AGGREGATE KEY`, `CREATE TABLE ... DISTRIBUTED BY HASH`, replication properties |
 | Oracle | `FROM DUAL`, `CONNECT BY`, `START WITH` |
-| SQL Server | `SELECT TOP n`, bracketed identifiers, `WITH (NOLOCK)` |
+| SQL Server | `SELECT TOP n`, bracketed identifiers, `WITH (NOLOCK)`, bracketed DML identifiers |
 | Spark | `INSERT OVERWRITE`, `LATERAL VIEW`, `CREATE TEMPORARY VIEW`, `USING`, fallback |
 
 Known conflict guards:
@@ -30,6 +31,9 @@ Known conflict guards:
 | --- | --- |
 | Spark `MERGE INTO` is not classified as Oracle | `MERGE INTO` is shared across engines and is not a safe Oracle-only anchor. |
 | JSON path array wildcard `[*]` is not classified as SQL Server | Brackets inside strings are not SQL Server identifiers. |
+| MySQL `ON DUPLICATE KEY` is not classified as StarRocks | StarRocks key anchors are scoped to `CREATE TABLE` statements. |
+
+Ambiguous DML such as bare `UPDATE ... FROM`, `DELETE ... USING`, or `DELETE ... JOIN` can be valid in more than one engine. Automatic detection should rely on additional anchors when available; callers can pass an explicit dialect hint when the execution engine is known.
 
 ## SQL Server
 

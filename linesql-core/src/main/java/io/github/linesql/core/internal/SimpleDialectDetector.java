@@ -5,6 +5,7 @@ import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.DialectDetector;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -43,9 +44,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.93, "Flink connector or watermark syntax"));
         }
-        if (normalized.matches("(?s).*\\bduplicate\\s+key\\b.*")
-                || normalized.matches("(?s).*\\baggregate\\s+key\\b.*")
-                || normalized.matches("(?s).*\\bdistributed\\s+by\\s+hash\\b.*")
+        if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
+                || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\baggregate\\s+key\\b.*")
+                || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bdistributed\\s+by\\s+hash\\b.*")
                 || normalized.contains(" properties (\"replication_num\"")) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.93, "StarRocks key, distribution, or replication syntax"));
         }
@@ -68,6 +69,7 @@ public class SimpleDialectDetector implements DialectDetector {
         if (!contains(candidates, SqlDialect.SPARK)) {
             candidates.add(candidate(SqlDialect.SPARK, 0.50, "Dialect-neutral SQL; Spark is the current generic fallback"));
         }
+        candidates.sort(Comparator.comparingDouble(DialectCandidate::getConfidence).reversed());
         return candidates;
     }
 
