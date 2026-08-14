@@ -71,6 +71,8 @@ Implemented SQL Server table-level lineage scenarios:
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
+| CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
 | Bracketed non-ASCII identifiers | `select [用户ID] from [业务库].[用户表]` | `bracket_identifiers` |
 | SELECT TOP and table hint | `select top 10 ... from dbo.users with (nolock)` | `top_with_nolock` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
@@ -87,6 +89,8 @@ Implemented SQL Server column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
+| CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Bracketed identifier column mapping | `select [用户ID] as [用户标识] from [业务库].[用户表]` | `bracket_identifiers` |
 | SELECT TOP projection mapping | `select top (10) u.id as user_id from dbo.users u` | `top_parenthesized` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
@@ -130,6 +134,8 @@ Implemented Oracle table-level lineage scenarios:
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
+| CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | DUAL pseudo table | `select sysdate from dual` | `dual_pseudo_table` |
 | Hierarchical query clauses | `select ... from app.org start with ... connect by ...` | `hierarchical_query` |
@@ -147,6 +153,8 @@ Implemented Oracle column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
+| CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Double-quoted identifier column mapping | `select "用户ID" as "用户标识" from "业务库"."用户表"` | `quoted_identifiers` |
 | Hierarchical query projection mapping | `select id as org_id from app.org start with ... connect by ...` | `hierarchical_query` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
@@ -190,6 +198,8 @@ Implemented StarRocks table-level lineage scenarios:
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
+| CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
@@ -204,6 +214,8 @@ Implemented StarRocks column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
+| CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
@@ -244,6 +256,8 @@ Implemented Flink table-level lineage scenarios:
 | JOIN source tables | `select ... from ods_users u join dwd_orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads_t select ... from ods_s` | `insert_into` |
 | CREATE VIEW AS SELECT | `create view v as select ... from ods_s join dwd_o` | `create_view` |
+| INSERT SELECT over CTE | `insert into ads_t with q as (...) select ... from q` | `insert_from_cte` |
+| CREATE VIEW over CTE | `create view v as with q as (...) select ... from q` | `create_view_with_cte` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods_s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
@@ -257,6 +271,8 @@ Implemented Flink column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads_t select a as c1 from ods_s` | `insert_into` |
 | CREATE VIEW output column targets | `create view v as select u.id from ods_users u` | `create_view` |
+| INSERT SELECT target mapping over CTE | `insert into ads_t with q as (...) select q.c1 from q` | `insert_from_cte` |
+| CREATE VIEW output columns over CTE | `create view v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods_s) select q.user_id from q` | `cte_column_projection` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods_s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads_t set c = c2 where ...` | `update_set` |
@@ -298,6 +314,8 @@ Implemented Hive table-level lineage scenarios:
 | INSERT OVERWRITE TABLE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
+| CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
@@ -312,6 +330,8 @@ Implemented Hive column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert overwrite table ads.t select a as c1 from ods.s` | `insert_overwrite` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
+| CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |

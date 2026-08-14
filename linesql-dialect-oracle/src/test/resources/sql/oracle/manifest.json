@@ -5,16 +5,22 @@
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Oracle basic SELECT table and column lineage"
@@ -23,16 +29,23 @@
       "id": "join_projection",
       "file": "cases/join_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "dwd.orders"],
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["dwd.orders.amount"]
+          "sources": [
+            "dwd.orders.amount"
+          ]
         }
       ],
       "description": "Oracle JOIN table lineage and alias-qualified column lineage"
@@ -41,16 +54,24 @@
       "id": "insert_into",
       "file": "cases/insert_into.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Oracle INSERT INTO SELECT table and column lineage"
@@ -59,16 +80,24 @@
       "id": "create_table_as_select",
       "file": "cases/create_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Oracle CREATE TABLE AS SELECT table and column lineage"
@@ -77,16 +106,25 @@
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
-      "inputTables": ["ods.users", "dwd.orders"],
-      "outputTables": ["ads.v_user_orders"],
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.v_user_orders"
+      ],
       "columnLineage": [
         {
           "target": "ads.v_user_orders.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.v_user_orders.amount",
-          "sources": ["dwd.orders.amount"]
+          "sources": [
+            "dwd.orders.amount"
+          ]
         }
       ],
       "description": "Oracle CREATE VIEW AS SELECT table and column lineage"
@@ -95,12 +133,16 @@
       "id": "quoted_identifiers",
       "file": "cases/quoted_identifiers.sql",
       "statementType": "SELECT",
-      "inputTables": ["业务库.用户表"],
+      "inputTables": [
+        "业务库.用户表"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "用户标识",
-          "sources": ["业务库.用户表.用户ID"]
+          "sources": [
+            "业务库.用户表.用户ID"
+          ]
         }
       ],
       "description": "Oracle double-quoted non-ASCII identifiers"
@@ -118,16 +160,22 @@
       "id": "hierarchical_query",
       "file": "cases/hierarchical_query.sql",
       "statementType": "SELECT",
-      "inputTables": ["app.org_units"],
+      "inputTables": [
+        "app.org_units"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "org_id",
-          "sources": ["app.org_units.id"]
+          "sources": [
+            "app.org_units.id"
+          ]
         },
         {
           "target": "parent_id",
-          "sources": ["app.org_units.parent_id"]
+          "sources": [
+            "app.org_units.parent_id"
+          ]
         }
       ],
       "description": "Oracle hierarchical query table lineage with START WITH and CONNECT BY clauses"
@@ -136,12 +184,18 @@
       "id": "update_set",
       "file": "cases/update_set.sql",
       "statementType": "UPDATE",
-      "inputTables": ["ads.user_summary"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ads.user_summary.name"]
+          "sources": [
+            "ads.user_summary.name"
+          ]
         }
       ],
       "description": "Oracle UPDATE target table lineage and deterministic assignment column lineage"
@@ -150,8 +204,12 @@
       "id": "delete_where",
       "file": "cases/delete_where.sql",
       "statementType": "DELETE",
-      "inputTables": ["ads.user_summary"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [],
       "description": "Oracle DELETE target table lineage"
     },
@@ -159,16 +217,22 @@
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Oracle single CTE table and direct column propagation"
@@ -177,19 +241,77 @@
       "id": "subquery_column_projection",
       "file": "cases/subquery_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Oracle single derived subquery table and direct column propagation"
+    },
+    {
+      "id": "insert_from_cte",
+      "file": "cases/insert_from_cte.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Oracle INSERT SELECT over single CTE direct column propagation"
+    },
+    {
+      "id": "create_view_with_cte",
+      "file": "cases/create_view_with_cte.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.v_user_cte"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_user_cte.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.v_user_cte.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Oracle CREATE VIEW AS WITH SELECT direct column propagation"
     }
   ]
 }

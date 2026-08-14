@@ -5,16 +5,22 @@
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods_users"],
+      "inputTables": [
+        "ods_users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods_users.id"]
+          "sources": [
+            "ods_users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods_users.name"]
+          "sources": [
+            "ods_users.name"
+          ]
         }
       ],
       "description": "Flink basic SELECT table and column lineage"
@@ -23,16 +29,23 @@
       "id": "join_projection",
       "file": "cases/join_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods_users", "dwd_orders"],
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods_users.id"]
+          "sources": [
+            "ods_users.id"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["dwd_orders.amount"]
+          "sources": [
+            "dwd_orders.amount"
+          ]
         }
       ],
       "description": "Flink JOIN table lineage and alias-qualified column lineage"
@@ -41,16 +54,24 @@
       "id": "insert_into",
       "file": "cases/insert_into.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods_users"],
-      "outputTables": ["ads_user_summary"],
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads_user_summary.user_id",
-          "sources": ["ods_users.id"]
+          "sources": [
+            "ods_users.id"
+          ]
         },
         {
           "target": "ads_user_summary.user_name",
-          "sources": ["ods_users.name"]
+          "sources": [
+            "ods_users.name"
+          ]
         }
       ],
       "description": "Flink INSERT INTO SELECT table and column lineage"
@@ -59,16 +80,25 @@
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
-      "inputTables": ["ods_users", "dwd_orders"],
-      "outputTables": ["v_user_orders"],
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [
+        "v_user_orders"
+      ],
       "columnLineage": [
         {
           "target": "v_user_orders.user_id",
-          "sources": ["ods_users.id"]
+          "sources": [
+            "ods_users.id"
+          ]
         },
         {
           "target": "v_user_orders.amount",
-          "sources": ["dwd_orders.amount"]
+          "sources": [
+            "dwd_orders.amount"
+          ]
         }
       ],
       "description": "Flink CREATE VIEW AS SELECT table and column lineage"
@@ -77,12 +107,18 @@
       "id": "update_set",
       "file": "cases/update_set.sql",
       "statementType": "UPDATE",
-      "inputTables": ["ads_user_summary"],
-      "outputTables": ["ads_user_summary"],
+      "inputTables": [
+        "ads_user_summary"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads_user_summary.user_name",
-          "sources": ["ads_user_summary.name"]
+          "sources": [
+            "ads_user_summary.name"
+          ]
         }
       ],
       "description": "Flink UPDATE target table lineage and deterministic assignment column lineage"
@@ -91,8 +127,12 @@
       "id": "delete_where",
       "file": "cases/delete_where.sql",
       "statementType": "DELETE",
-      "inputTables": ["ads_user_summary"],
-      "outputTables": ["ads_user_summary"],
+      "inputTables": [
+        "ads_user_summary"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
       "columnLineage": [],
       "description": "Flink DELETE target table lineage"
     },
@@ -100,16 +140,22 @@
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods_users"],
+      "inputTables": [
+        "ods_users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods_users.id"]
+          "sources": [
+            "ods_users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods_users.name"]
+          "sources": [
+            "ods_users.name"
+          ]
         }
       ],
       "description": "Flink single CTE table and direct column propagation"
@@ -118,19 +164,77 @@
       "id": "subquery_column_projection",
       "file": "cases/subquery_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods_users"],
+      "inputTables": [
+        "ods_users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods_users.id"]
+          "sources": [
+            "ods_users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods_users.name"]
+          "sources": [
+            "ods_users.name"
+          ]
         }
       ],
       "description": "Flink single derived subquery table and direct column propagation"
+    },
+    {
+      "id": "insert_from_cte",
+      "file": "cases/insert_from_cte.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.user_id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "ads_user_summary.user_name",
+          "sources": [
+            "ods_users.name"
+          ]
+        }
+      ],
+      "description": "Flink INSERT SELECT over single CTE direct column propagation"
+    },
+    {
+      "id": "create_view_with_cte",
+      "file": "cases/create_view_with_cte.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [
+        "v_user_cte"
+      ],
+      "columnLineage": [
+        {
+          "target": "v_user_cte.user_id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "v_user_cte.name",
+          "sources": [
+            "ods_users.name"
+          ]
+        }
+      ],
+      "description": "Flink CREATE VIEW AS WITH SELECT direct column propagation"
     }
   ]
 }

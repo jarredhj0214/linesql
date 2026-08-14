@@ -5,16 +5,22 @@
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "SQL Server basic SELECT table and column lineage"
@@ -23,16 +29,23 @@
       "id": "join_projection",
       "file": "cases/join_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "dwd.orders"],
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["dwd.orders.amount"]
+          "sources": [
+            "dwd.orders.amount"
+          ]
         }
       ],
       "description": "SQL Server JOIN table lineage and alias-qualified column lineage"
@@ -41,16 +54,24 @@
       "id": "insert_into",
       "file": "cases/insert_into.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "SQL Server INSERT INTO SELECT table and column lineage"
@@ -59,16 +80,24 @@
       "id": "create_table_as_select",
       "file": "cases/create_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "SQL Server CREATE TABLE AS SELECT table and column lineage"
@@ -77,16 +106,25 @@
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
-      "inputTables": ["ods.users", "dwd.orders"],
-      "outputTables": ["ads.v_user_orders"],
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.v_user_orders"
+      ],
       "columnLineage": [
         {
           "target": "ads.v_user_orders.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.v_user_orders.amount",
-          "sources": ["dwd.orders.amount"]
+          "sources": [
+            "dwd.orders.amount"
+          ]
         }
       ],
       "description": "SQL Server CREATE VIEW AS SELECT table and column lineage"
@@ -95,12 +133,16 @@
       "id": "bracket_identifiers",
       "file": "cases/bracket_identifiers.sql",
       "statementType": "SELECT",
-      "inputTables": ["业务库.用户表"],
+      "inputTables": [
+        "业务库.用户表"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "用户标识",
-          "sources": ["业务库.用户表.用户ID"]
+          "sources": [
+            "业务库.用户表.用户ID"
+          ]
         }
       ],
       "description": "SQL Server bracketed non-ASCII identifiers"
@@ -109,16 +151,22 @@
       "id": "top_with_nolock",
       "file": "cases/top_with_nolock.sql",
       "statementType": "SELECT",
-      "inputTables": ["dbo.users"],
+      "inputTables": [
+        "dbo.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["dbo.users.id"]
+          "sources": [
+            "dbo.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["dbo.users.name"]
+          "sources": [
+            "dbo.users.name"
+          ]
         }
       ],
       "description": "SQL Server SELECT TOP and WITH (NOLOCK) table hint lineage"
@@ -127,12 +175,16 @@
       "id": "top_parenthesized",
       "file": "cases/top_parenthesized.sql",
       "statementType": "SELECT",
-      "inputTables": ["dbo.users"],
+      "inputTables": [
+        "dbo.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["dbo.users.id"]
+          "sources": [
+            "dbo.users.id"
+          ]
         }
       ],
       "description": "SQL Server SELECT TOP with parenthesized row count"
@@ -141,12 +193,19 @@
       "id": "update_from",
       "file": "cases/update_from.sql",
       "statementType": "UPDATE",
-      "inputTables": ["ads.user_summary", "ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "SQL Server UPDATE FROM table lineage and deterministic assignment column lineage"
@@ -155,8 +214,13 @@
       "id": "delete_from_join",
       "file": "cases/delete_from_join.sql",
       "statementType": "DELETE",
-      "inputTables": ["ads.user_summary", "ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [],
       "description": "SQL Server DELETE FROM JOIN target and source table lineage"
     },
@@ -164,16 +228,22 @@
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "SQL Server single CTE table and direct column propagation"
@@ -182,19 +252,77 @@
       "id": "subquery_column_projection",
       "file": "cases/subquery_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "SQL Server single derived subquery table and direct column propagation"
+    },
+    {
+      "id": "insert_from_cte",
+      "file": "cases/insert_from_cte.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server INSERT SELECT over single CTE direct column propagation"
+    },
+    {
+      "id": "create_view_with_cte",
+      "file": "cases/create_view_with_cte.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.v_user_cte"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_user_cte.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.v_user_cte.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server CREATE VIEW AS WITH SELECT direct column propagation"
     }
   ]
 }

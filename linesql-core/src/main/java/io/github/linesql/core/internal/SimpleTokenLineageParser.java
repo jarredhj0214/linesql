@@ -433,7 +433,7 @@ public final class SimpleTokenLineageParser {
             if (target == null) {
                 return;
             }
-            SelectLineage selectLineage = parseSelect(select, tokens.size());
+            SelectLineage selectLineage = parseQuery(target.nextIndex, tokens.size(), select);
             inputs.addAll(selectLineage.inputs);
             outputs.add(target.table);
             result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, new ArrayList<String>()));
@@ -515,9 +515,20 @@ public final class SimpleTokenLineageParser {
             result.setStatementType(objectType == config.view
                     ? StatementType.CREATE_VIEW
                     : StatementType.CREATE_TABLE_AS_SELECT);
-            SelectLineage selectLineage = parseSelect(select, tokens.size());
+            SelectLineage selectLineage = parseQuery(target.nextIndex, tokens.size(), select);
             inputs.addAll(selectLineage.inputs);
             result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, new ArrayList<String>()));
+        }
+
+        private SelectLineage parseQuery(int start, int end, int fallbackSelect) {
+            int with = indexOfTopLevel(start, end, config.with);
+            if (with >= 0 && (fallbackSelect < 0 || with < fallbackSelect)) {
+                int select = registerCtes(with, end);
+                if (select >= 0) {
+                    return parseSelect(select, end);
+                }
+            }
+            return fallbackSelect >= 0 ? parseSelect(fallbackSelect, end) : new SelectLineage();
         }
 
         private SelectLineage parseSelect(int start, int end) {
