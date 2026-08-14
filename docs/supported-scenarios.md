@@ -2,13 +2,53 @@
 
 This document records implemented behavior as LineSQL evolves. Every new parser capability should update this file and add or update SQL cases under the related dialect test resources.
 
-## Dialect Scaffolds
+## StarRocks
 
-StarRocks is registered in Maven, CLI dependencies, and Java `ServiceLoader`. It intentionally returns scaffold diagnostics instead of lineage so that later grammar work can land behind stable module boundaries.
+StarRocks is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common StarRocks query and write shapes.
 
-| Dialect | Module | Detection anchor | Case manifest | Current diagnostic |
-| --- | --- | --- | --- | --- |
-| StarRocks | `linesql-dialect-starrocks` | `DUPLICATE KEY`, `AGGREGATE KEY`, `DISTRIBUTED BY HASH` | `linesql-dialect-starrocks/src/test/resources/sql/starrocks/manifest.json` | `STARROCKS_PARSER_SCAFFOLD` |
+Current StarRocks SQL case assets:
+
+```text
+linesql-dialect-starrocks/src/test/resources/sql/starrocks/manifest.json
+linesql-dialect-starrocks/src/test/resources/sql/starrocks/cases/*.sql
+```
+
+Implemented StarRocks table-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Basic SELECT source table | `select ... from ods.users` | `select_basic` |
+| JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
+| INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
+| CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+
+Implemented StarRocks column-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
+| Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
+| INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
+| CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+
+Current StarRocks diagnostics:
+
+| Code | Meaning |
+| --- | --- |
+| `STARROCKS_PARSE_ERROR` | StarRocks SQL could not be tokenized or walked by the current MVP parser. |
+| `STARROCKS_STATEMENT_NOT_SUPPORTED` | The statement was recognized as StarRocks but is not in the current MVP statement set. |
+| `STARROCKS_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
+
+Known StarRocks gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Full StarRocks grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| `select *` expansion | Not expanded without schema metadata. |
+| StarRocks table model DDL | `DUPLICATE KEY`, `AGGREGATE KEY`, and distribution clauses are used for dialect detection, not yet modeled as lineage. |
+| CTEs, subqueries, materialized views, and routine-load syntax | Not yet covered in the StarRocks MVP path. |
 
 ## Flink
 

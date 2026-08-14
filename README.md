@@ -19,9 +19,9 @@ JVM-native, ANTLR4-based, lineage-first SQL parser framework for real-world data
 
 ## Support Matrix / 支持矩阵
 
-LineSQL is usable today for Spark, MySQL, Hive, and Flink lineage experiments. StarRocks is already registered as a scaffold. Oracle and SQL Server are planned.
+LineSQL is usable today for Spark, MySQL, Hive, Flink, and StarRocks lineage experiments. Oracle and SQL Server are planned.
 
-LineSQL 目前已经可以用于 Spark、MySQL、Hive、Flink 血缘解析实验。StarRocks 的模块架子已经接入，Oracle 和 SQL Server 在规划中。
+LineSQL 目前已经可以用于 Spark、MySQL、Hive、Flink、StarRocks 血缘解析实验。Oracle 和 SQL Server 在规划中。
 
 | Dialect | Status | Auto Detection | Lineage Coverage |
 | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ LineSQL 目前已经可以用于 Spark、MySQL、Hive、Flink 血缘解析实验
 | MySQL | Active MVP / 可用 MVP | MySQL-specific syntax | Common SELECT, write, DDL, DML, direct column mappings |
 | Hive | Active MVP / 可用 MVP | Hive anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW |
 | Flink | Active MVP / 可用 MVP | Flink anchors | SELECT, JOIN, INSERT SELECT, CREATE VIEW |
-| StarRocks | Scaffold / 架子已接入 | StarRocks anchors | Not implemented yet |
+| StarRocks | Active MVP / 可用 MVP | StarRocks anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW |
 | Oracle | Planned / 规划中 | Planned | Planned |
 | SQL Server | Planned / 规划中 | Planned | Planned |
 
@@ -44,7 +44,7 @@ Detailed, case-backed compatibility is tracked in [Supported Scenarios](docs/sup
 - `linesql-dialect-mysql`: MySQL dialect parser.
 - `linesql-dialect-hive`: Hive dialect parser.
 - `linesql-dialect-flink`: Flink dialect parser.
-- `linesql-dialect-starrocks`: StarRocks dialect parser scaffold.
+- `linesql-dialect-starrocks`: StarRocks dialect parser.
 - `linesql-cli`: command-line entry.
 
 中文说明：

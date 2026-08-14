@@ -1,11 +1,95 @@
 {
   "dialect": "STARROCKS",
-  "status": "SCAFFOLD",
   "cases": [
     {
-      "id": "create_table_duplicate_key",
-      "file": "cases/create_table_duplicate_key.sql",
-      "description": "StarRocks scaffold case for duplicate key and distribution syntax detection"
+      "id": "select_basic",
+      "file": "cases/select_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "StarRocks basic SELECT table and column lineage"
+    },
+    {
+      "id": "join_projection",
+      "file": "cases/join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "dwd.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "amount",
+          "sources": ["dwd.orders.amount"]
+        }
+      ],
+      "description": "StarRocks JOIN table lineage and alias-qualified column lineage"
+    },
+    {
+      "id": "insert_into",
+      "file": "cases/insert_into.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "StarRocks INSERT INTO SELECT table and column lineage"
+    },
+    {
+      "id": "create_table_as_select",
+      "file": "cases/create_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "ads.user_summary.name",
+          "sources": ["ods.users.name"]
+        }
+      ],
+      "description": "StarRocks CREATE TABLE AS SELECT table and column lineage"
+    },
+    {
+      "id": "create_view",
+      "file": "cases/create_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["ods.users", "dwd.orders"],
+      "outputTables": ["ads.v_user_orders"],
+      "columnLineage": [
+        {
+          "target": "ads.v_user_orders.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "ads.v_user_orders.amount",
+          "sources": ["dwd.orders.amount"]
+        }
+      ],
+      "description": "StarRocks CREATE VIEW AS SELECT table and column lineage"
     }
   ]
 }
