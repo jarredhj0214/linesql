@@ -2,6 +2,106 @@
 
 This document records implemented behavior as LineSQL evolves. Every new parser capability should update this file and add or update SQL cases under the related dialect test resources.
 
+## SQL Server
+
+SQL Server is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common SQL Server query and write shapes.
+
+Current SQL Server SQL case assets:
+
+```text
+linesql-dialect-sqlserver/src/test/resources/sql/sqlserver/manifest.json
+linesql-dialect-sqlserver/src/test/resources/sql/sqlserver/cases/*.sql
+```
+
+Implemented SQL Server table-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Basic SELECT source table | `select ... from ods.users` | `select_basic` |
+| JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
+| INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
+| CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| Bracketed non-ASCII identifiers | `select [用户ID] from [业务库].[用户表]` | `bracket_identifiers` |
+
+Implemented SQL Server column-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
+| Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
+| INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
+| CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| Bracketed identifier column mapping | `select [用户ID] as [用户标识] from [业务库].[用户表]` | `bracket_identifiers` |
+
+Current SQL Server diagnostics:
+
+| Code | Meaning |
+| --- | --- |
+| `SQLSERVER_PARSE_ERROR` | SQL Server SQL could not be tokenized or walked by the current MVP parser. |
+| `SQLSERVER_STATEMENT_NOT_SUPPORTED` | The statement was recognized as SQL Server but is not in the current MVP statement set. |
+| `SQLSERVER_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
+
+Known SQL Server gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Full SQL Server grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| `select *` expansion | Not expanded without schema metadata. |
+| T-SQL specific DML and procedural syntax | `MERGE`, `OUTPUT`, table variables, temp tables, and stored-procedure bodies are not yet covered. |
+| CTEs and subqueries | Not yet covered in the SQL Server MVP path. |
+
+## Oracle
+
+Oracle is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Oracle query and write shapes.
+
+Current Oracle SQL case assets:
+
+```text
+linesql-dialect-oracle/src/test/resources/sql/oracle/manifest.json
+linesql-dialect-oracle/src/test/resources/sql/oracle/cases/*.sql
+```
+
+Implemented Oracle table-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Basic SELECT source table | `select ... from ods.users` | `select_basic` |
+| JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
+| INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
+| CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
+
+Implemented Oracle column-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
+| Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
+| INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
+| CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| Double-quoted identifier column mapping | `select "用户ID" as "用户标识" from "业务库"."用户表"` | `quoted_identifiers` |
+
+Current Oracle diagnostics:
+
+| Code | Meaning |
+| --- | --- |
+| `ORACLE_PARSE_ERROR` | Oracle SQL could not be tokenized or walked by the current MVP parser. |
+| `ORACLE_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Oracle but is not in the current MVP statement set. |
+| `ORACLE_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
+
+Known Oracle gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Full Oracle grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| `select *` expansion | Not expanded without schema metadata. |
+| Oracle-specific query syntax | `CONNECT BY`, `MODEL`, `PIVOT`, `MERGE`, packages, and PL/SQL blocks are not yet covered. |
+| CTEs and subqueries | Not yet covered in the Oracle MVP path. |
+
 ## StarRocks
 
 StarRocks is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common StarRocks query and write shapes.

@@ -45,6 +45,16 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.github.linesql</groupId>
+            <artifactId>linesql-dialect-oracle</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.linesql</groupId>
+            <artifactId>linesql-dialect-sqlserver</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>

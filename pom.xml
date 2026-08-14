@@ -33,6 +33,8 @@
         <module>linesql-dialect-flink</module>
         <module>linesql-dialect-starrocks</module>
         <module>linesql-dialect-mysql</module>
+        <module>linesql-dialect-oracle</module>
+        <module>linesql-dialect-sqlserver</module>
         <module>linesql-cli</module>
     </modules>
 

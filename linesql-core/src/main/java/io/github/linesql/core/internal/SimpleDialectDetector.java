@@ -39,6 +39,16 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.contains(" properties (\"replication_num\"")) {
             candidates.add(SqlDialect.STARROCKS);
         }
+        if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
+                || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")
+                || normalized.matches("(?s).*\\bstart\\s+with\\b.*")) {
+            candidates.add(SqlDialect.ORACLE);
+        }
+        if (normalized.matches("(?s).*\\bselect\\s+top\\s+\\d+\\b.*")
+                || normalized.matches("(?s).*\\[[\\p{L}_@#][^\\]]*\\].*")
+                || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")) {
+            candidates.add(SqlDialect.SQLSERVER);
+        }
         if (normalized.contains("insert overwrite")
                 || normalized.contains("lateral view")
                 || normalized.contains("create temporary view")
