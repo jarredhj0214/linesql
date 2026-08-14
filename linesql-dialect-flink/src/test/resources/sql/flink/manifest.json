@@ -499,6 +499,68 @@
         }
       ],
       "description": "Flink CASE expression column lineage from condition and value columns"
+    },
+    {
+      "id": "common_expression_projection",
+      "file": "cases/common_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id_text",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "display_name",
+          "sources": [
+            "ods_users.name",
+            "ods_users.nickname"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods_users.price",
+            "ods_users.quantity"
+          ]
+        }
+      ],
+      "description": "Flink CAST, function, and arithmetic expression column lineage"
+    },
+    {
+      "id": "aggregate_expression_projection",
+      "file": "cases/aggregate_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods_orders.user_id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "ods_orders.order_id"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "ods_orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink GROUP BY aggregate expression column lineage"
     }
   ]
 }

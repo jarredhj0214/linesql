@@ -948,22 +948,51 @@ public class MySqlDialectParser implements DialectParser {
 
         private boolean isKeywordLike(String value) {
             String normalized = value.toLowerCase(Locale.ROOT);
-            return "as".equals(normalized)
-                    || "distinct".equals(normalized)
-                    || "all".equals(normalized)
-                    || "case".equals(normalized)
-                    || "when".equals(normalized)
-                    || "then".equals(normalized)
-                    || "else".equals(normalized)
-                    || "end".equals(normalized)
-                    || "and".equals(normalized)
-                    || "or".equals(normalized)
-                    || "not".equals(normalized)
-                    || "is".equals(normalized)
-                    || "in".equals(normalized)
-                    || "null".equals(normalized)
-                    || "true".equals(normalized)
-                    || "false".equals(normalized);
+            switch (normalized) {
+                case "as":
+                case "distinct":
+                case "all":
+                case "case":
+                case "when":
+                case "then":
+                case "else":
+                case "end":
+                case "and":
+                case "or":
+                case "not":
+                case "is":
+                case "in":
+                case "null":
+                case "true":
+                case "false":
+                case "boolean":
+                case "tinyint":
+                case "smallint":
+                case "int":
+                case "integer":
+                case "bigint":
+                case "float":
+                case "double":
+                case "decimal":
+                case "numeric":
+                case "number":
+                case "char":
+                case "varchar":
+                case "string":
+                case "text":
+                case "date":
+                case "time":
+                case "timestamp":
+                case "datetime":
+                case "binary":
+                case "varbinary":
+                case "array":
+                case "map":
+                case "struct":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static String clean(String text) {

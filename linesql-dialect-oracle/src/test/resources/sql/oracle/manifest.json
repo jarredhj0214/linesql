@@ -585,6 +585,68 @@
         }
       ],
       "description": "Oracle CASE expression column lineage from condition and value columns"
+    },
+    {
+      "id": "common_expression_projection",
+      "file": "cases/common_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id_text",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "display_name",
+          "sources": [
+            "ods.users.name",
+            "ods.users.nickname"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.users.price",
+            "ods.users.quantity"
+          ]
+        }
+      ],
+      "description": "Oracle CAST, function, and arithmetic expression column lineage"
+    },
+    {
+      "id": "aggregate_expression_projection",
+      "file": "cases/aggregate_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Oracle GROUP BY aggregate expression column lineage"
     }
   ]
 }

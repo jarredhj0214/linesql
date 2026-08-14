@@ -561,6 +561,68 @@
         }
       ],
       "description": "SQL Server CASE expression column lineage from condition and value columns"
+    },
+    {
+      "id": "common_expression_projection",
+      "file": "cases/common_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id_text",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "display_name",
+          "sources": [
+            "dbo.users.name",
+            "dbo.users.nickname"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dbo.users.price",
+            "dbo.users.quantity"
+          ]
+        }
+      ],
+      "description": "SQL Server CAST, function, and arithmetic expression column lineage"
+    },
+    {
+      "id": "aggregate_expression_projection",
+      "file": "cases/aggregate_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dbo.orders.user_id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "dbo.orders.order_id"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "description": "SQL Server GROUP BY aggregate expression column lineage"
     }
   ]
 }
