@@ -34,7 +34,14 @@ LineageResult result = LineSql.parse(sql);
 List<LineageResult> results = LineSql.parseScript(script);
 ```
 
-Advanced API:
+Explicit dialect API:
+
+```java
+LineageResult result = LineSql.parse(sql, SqlDialect.MYSQL);
+List<LineageResult> results = LineSql.parseScript(script, SqlDialect.HIVE);
+```
+
+Options API:
 
 ```java
 LineageResult result = LineSql.parse(sql, ParseOptions.builder()

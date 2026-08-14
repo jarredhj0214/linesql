@@ -89,7 +89,13 @@ API:
 
 ```java
 LineageResult result = LineSql.parse(sql);
+LineageResult mysqlResult = LineSql.parse(sql, SqlDialect.MYSQL);
+LineageResult optionResult = LineSql.parse(sql, ParseOptions.builder()
+    .dialectHints(List.of(SqlDialect.SPARK))
+    .build());
+
 List<LineageResult> results = LineSql.parseScript(script);
+List<LineageResult> hiveResults = LineSql.parseScript(script, SqlDialect.HIVE);
 ```
 
 CLI:
