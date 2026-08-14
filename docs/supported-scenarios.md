@@ -4,13 +4,59 @@ This document records implemented behavior as LineSQL evolves. Every new parser 
 
 ## Dialect Scaffolds
 
-Hive, Flink, and StarRocks modules are registered in Maven, CLI dependencies, and Java `ServiceLoader`. Their first commit intentionally returns scaffold diagnostics instead of lineage so that later grammar work can land behind stable module boundaries.
+Flink and StarRocks modules are registered in Maven, CLI dependencies, and Java `ServiceLoader`. They intentionally return scaffold diagnostics instead of lineage so that later grammar work can land behind stable module boundaries.
 
 | Dialect | Module | Detection anchor | Case manifest | Current diagnostic |
 | --- | --- | --- | --- | --- |
-| Hive | `linesql-dialect-hive` | `STORED AS`, `ROW FORMAT`, `SERDEPROPERTIES`, `CLUSTERED BY` | `linesql-dialect-hive/src/test/resources/sql/hive/manifest.json` | `HIVE_PARSER_SCAFFOLD` |
 | Flink | `linesql-dialect-flink` | connector options, `WATERMARK FOR` | `linesql-dialect-flink/src/test/resources/sql/flink/manifest.json` | `FLINK_PARSER_SCAFFOLD` |
 | StarRocks | `linesql-dialect-starrocks` | `DUPLICATE KEY`, `AGGREGATE KEY`, `DISTRIBUTED BY HASH` | `linesql-dialect-starrocks/src/test/resources/sql/starrocks/manifest.json` | `STARROCKS_PARSER_SCAFFOLD` |
+
+## Hive
+
+Hive is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Hive query and write shapes.
+
+Current Hive SQL case assets:
+
+```text
+linesql-dialect-hive/src/test/resources/sql/hive/manifest.json
+linesql-dialect-hive/src/test/resources/sql/hive/cases/*.sql
+```
+
+Implemented Hive table-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Basic SELECT source table | `select ... from ods.users` | `select_basic` |
+| JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
+| INSERT OVERWRITE TABLE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
+| CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
+| CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+
+Implemented Hive column-level lineage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
+| Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
+| INSERT SELECT target mapping | `insert overwrite table ads.t select a as c1 from ods.s` | `insert_overwrite` |
+| CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+
+Current Hive diagnostics:
+
+| Code | Meaning |
+| --- | --- |
+| `HIVE_PARSE_ERROR` | Hive SQL could not be tokenized or walked by the current MVP parser. |
+| `HIVE_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Hive but is not in the current MVP statement set. |
+| `HIVE_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
+
+Known Hive gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Full Hive grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| `select *` expansion | Not expanded without schema metadata. |
+| Complex expressions, CTEs, subqueries, and lateral view | Not yet covered in the Hive MVP path. |
 
 ## MySQL
 
