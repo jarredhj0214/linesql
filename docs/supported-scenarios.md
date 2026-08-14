@@ -315,10 +315,14 @@ Implemented Flink table-level lineage scenarios:
 | UNION source table propagation | `select a from ods_s1 union all select b from ods_s2` | `union_column_projection` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods_s) q` | `subquery_column_projection` |
+| Scalar subquery source propagation | `select (select max(v) from ods_s) as c from src_t` | `scalar_subquery` |
+| IN/EXISTS subquery source propagation | `where id in (select id from ods_s)` / `where exists (...)` | `in_subquery`, `exists_subquery` |
+| LATERAL subquery source propagation | `from src_t, lateral (select ... from ods_s)` | `lateral_subquery` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads_t where ...` | `delete_where` |
 | UPDATE with subquery sources | `update ads_t set c = (select ... from ods_s1) where id in (select ... from ods_s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads_t where id in (select ... from ods_s)` | `delete_with_subquery` |
+| Statement set write lineage | `execute statement set begin insert into ...; end` | `execute_statement_set` |
 | DROP TABLE affected table | `drop table if exists mart_t` | `drop_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart_old rename to mart_new` | `rename_table` |
 | ALTER TABLE column maintenance | `alter table mart_t add c int` | `alter_table_add_column` |
@@ -385,6 +389,7 @@ Implemented Hive table-level lineage scenarios:
 | INSERT INTO VALUES target lineage | `insert into table ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
+| CREATE TABLE with storage format | `create table ods.t (...) stored as parquet` | `create_table_stored_as` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
@@ -395,6 +400,7 @@ Implemented Hive table-level lineage scenarios:
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
+| LOAD DATA target table lineage | `load data inpath '...' into table ads.t` | `load_data` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t partition (...)` | `truncate_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |
@@ -721,6 +727,7 @@ Implemented Spark tolerance scenarios:
 | Namespace and catalog statements | Namespace DDL and table-free metadata reads parse without table/column diagnostics | `create_namespace`, `drop_namespace`, `show_namespaces`, `show_catalogs`, `analyze_tables` |
 | Function/procedure/variable/cursor statements | Function DDL, CALL, variable, and cursor control statements parse without table/column diagnostics | `create_function`, `call_procedure`, `create_variable`, `declare_cursor` |
 | Resource/cache/metadata statements | Resource commands, cache clearing, and table-free metadata reads parse without table/column diagnostics | `refresh_resource`, `clear_cache`, `add_jar_resource`, `show_tables`, `describe_namespace` |
+| Namespace comments | Namespace comment statements parse without table or column diagnostics | `comment_namespace` |
 
 ### Known Gaps
 

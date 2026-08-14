@@ -26,3 +26,25 @@ Then rerun:
 ```bash
 ./scripts/mvn-jdk11 clean test
 ```
+
+## SQL Case Quality Checks
+
+SQL case manifests are treated as compatibility assets, not loose fixtures. The core test suite includes a cross-dialect quality check that validates:
+
+- every manifest has unique case ids
+- every manifest entry points to an existing `cases/*.sql` file
+- every `statementType` is either a public `StatementType` or a test-only script/error marker
+- table arrays, column lineage arrays, diagnostics arrays, and descriptions have the expected shape
+- every case id appears in `docs/supported-scenarios.md`
+
+Run the guardrail directly:
+
+```bash
+./scripts/mvn-jdk11 -pl linesql-core -Dtest=SqlCaseManifestQualityTest test
+```
+
+Print the current coverage summary:
+
+```bash
+./scripts/mvn-jdk11 -q -pl linesql-core -Dtest=SqlCaseManifestQualityTest#printsCoverageReport test
+```
