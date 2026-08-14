@@ -407,6 +407,17 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Flink DESCRIBE TABLE metadata read table lineage"
+    },
+    {
+      "id": "insert_values",
+      "file": "cases/insert_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "ads_user_flags"
+      ],
+      "columnLineage": [],
+      "description": "Flink INSERT INTO VALUES target table lineage"
     }
   ]
 }

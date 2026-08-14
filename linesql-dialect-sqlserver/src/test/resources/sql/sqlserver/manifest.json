@@ -482,6 +482,17 @@
       ],
       "columnLineage": [],
       "description": "SQL Server ALTER TABLE ADD column affected table lineage"
+    },
+    {
+      "id": "insert_values",
+      "file": "cases/insert_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.user_flags"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server INSERT INTO VALUES target table lineage"
     }
   ]
 }

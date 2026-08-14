@@ -490,17 +490,20 @@ public final class SimpleTokenLineageParser {
                     -1);
             int select = indexOfTopLevel(0, tokens.size(), config.select);
             result.setStatementType(StatementType.INSERT);
-            if (targetStart < 0 || select < 0) {
+            if (targetStart < 0) {
                 return;
             }
-            TableScan target = readTable(skipTableKeyword(targetStart + 1), select);
+            TableScan target = readTable(skipTableKeyword(targetStart + 1), select < 0 ? tokens.size() : select);
             if (target == null) {
+                return;
+            }
+            outputs.add(target.table);
+            if (select < 0) {
                 return;
             }
             List<String> targetColumns = readColumnList(target.nextIndex);
             SelectLineage selectLineage = parseQuery(target.nextIndex, tokens.size(), select);
             inputs.addAll(selectLineage.inputs);
-            outputs.add(target.table);
             result.setColumnLineage(targetLineage(selectLineage.columnLineage, target.table, targetColumns));
         }
 

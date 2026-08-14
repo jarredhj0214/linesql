@@ -69,6 +69,7 @@ Implemented SQL Server table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
@@ -140,6 +141,7 @@ Implemented Oracle table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
@@ -215,6 +217,7 @@ Implemented StarRocks table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
@@ -282,6 +285,7 @@ Implemented Flink table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods_users` | `select_basic` |
 | JOIN source tables | `select ... from ods_users u join dwd_orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads_t select ... from ods_s` | `insert_into` |
+| INSERT INTO VALUES target lineage | `insert into ads_t(c1) values (...)` | `insert_values` |
 | CREATE VIEW AS SELECT | `create view v as select ... from ods_s join dwd_o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads_t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view v as with q as (...) select ... from q` | `create_view_with_cte` |
@@ -348,6 +352,7 @@ Implemented Hive table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT OVERWRITE TABLE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
+| INSERT INTO VALUES target lineage | `insert into table ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |

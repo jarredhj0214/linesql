@@ -506,6 +506,17 @@
       ],
       "columnLineage": [],
       "description": "Oracle COMMENT ON COLUMN affected table lineage"
+    },
+    {
+      "id": "insert_values",
+      "file": "cases/insert_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "ads.user_flags"
+      ],
+      "columnLineage": [],
+      "description": "Oracle INSERT INTO VALUES target table lineage"
     }
   ]
 }

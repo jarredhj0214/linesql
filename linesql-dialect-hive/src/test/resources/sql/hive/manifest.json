@@ -444,6 +444,17 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Hive DESCRIBE TABLE metadata read table lineage"
+    },
+    {
+      "id": "insert_values",
+      "file": "cases/insert_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "ads.user_flags"
+      ],
+      "columnLineage": [],
+      "description": "Hive INSERT INTO VALUES target table lineage"
     }
   ]
 }
