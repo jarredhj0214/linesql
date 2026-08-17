@@ -107,6 +107,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     @Override
     public Void visitUpdateStatement(MySqlParser.UpdateStatementContext ctx) {
         visitRelationForUpdate(ctx.relation());
+        if (ctx.whereClause() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+        }
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), firstOutputTable());
         result.setColumnLineage(assignments);
         result.setInputTables(new ArrayList<>(inputTables));
@@ -139,6 +142,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                     tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
                 }
             }
+            if (join.joinCriteria() != null) {
+                collectJoinColumnUsages(join.joinCriteria());
+            }
         }
     }
 
@@ -161,6 +167,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (ctx.relationList() != null) {
             visitRelationListForInputs(ctx.relationList());
         }
+        if (ctx.whereClause() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+        }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -173,6 +182,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         TableRef target = tableAliases.get(deleteAlias);
         if (target != null) {
             outputTables.add(target);
+        }
+        if (ctx.whereClause() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -203,6 +215,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                     if (joinAlias != null) {
                         tableAliases.put(joinAlias.toLowerCase(Locale.ROOT), table);
                     }
+                }
+                if (join.joinCriteria() != null) {
+                    collectJoinColumnUsages(join.joinCriteria());
                 }
             }
         }
@@ -450,6 +465,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitJoinCriteria(MySqlParser.JoinCriteriaContext ctx) {
+        collectJoinColumnUsages(ctx);
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitGroupByClause(MySqlParser.GroupByClauseContext ctx) {
         for (MySqlParser.ExpressionContext expression : ctx.expression()) {
             addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
@@ -572,6 +593,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         List<ColumnRef> refs = columnRefs(sourceColumns);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
+        }
+    }
+
+    private void collectJoinColumnUsages(MySqlParser.JoinCriteriaContext ctx) {
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
         }
     }
 

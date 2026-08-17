@@ -75,6 +75,14 @@
       ],
       "columnUsages": [
         {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
           "type": "WHERE",
           "column": "app.users.status"
         },
@@ -126,6 +134,45 @@
         }
       ],
       "description": "MySQL clause column usages are merged across UNION branches"
+    },
+    {
+      "id": "dml_predicate_column_usage",
+      "file": "cases/dml_predicate_column_usage.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [
+        "app.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "app.users.last_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.dt"
+        }
+      ],
+      "description": "MySQL UPDATE JOIN predicate column usages"
     },
     {
       "id": "subquery_column_projection",

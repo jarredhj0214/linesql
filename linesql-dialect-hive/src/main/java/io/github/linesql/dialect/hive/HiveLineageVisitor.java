@@ -86,6 +86,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         collectSubqueryInputs(ctx.assignmentList());
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), target);
         result.setColumnLineage(assignments);
@@ -108,6 +109,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -332,6 +334,14 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     @Override
     public Void visitWhereClause(HiveParser.WhereClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitJoinCriteria(HiveParser.JoinCriteriaContext ctx) {
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
+        }
         return visitChildren(ctx);
     }
 

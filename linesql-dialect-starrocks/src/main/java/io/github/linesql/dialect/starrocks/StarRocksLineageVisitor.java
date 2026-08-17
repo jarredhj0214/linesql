@@ -87,6 +87,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         collectSubqueryInputs(ctx.assignmentList());
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), target);
         result.setColumnLineage(assignments);
@@ -116,6 +117,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         }
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -327,6 +329,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitJoinCriteria(StarRocksParser.JoinCriteriaContext ctx) {
+        collectJoinColumnUsages(ctx);
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitGroupByClause(StarRocksParser.GroupByClauseContext ctx) {
         for (StarRocksParser.ExpressionContext expression : ctx.expression()) {
             addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
@@ -445,6 +453,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         List<ColumnRef> refs = columnRefs(sourceColumns, new LinkedHashSet<>());
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
+        }
+    }
+
+    private void collectJoinColumnUsages(StarRocksParser.JoinCriteriaContext ctx) {
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
         }
     }
 

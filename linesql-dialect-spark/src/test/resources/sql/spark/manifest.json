@@ -35,6 +35,14 @@
       ],
       "columnUsages": [
         {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        },
+        {
           "type": "WHERE",
           "column": "ods.users.status"
         },
@@ -149,9 +157,45 @@
         {
           "type": "GROUP_BY",
           "column": "dwd.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
         }
       ],
       "description": "Same-name GROUP BY columns in joined subqueries stay scoped to the local single-table subquery"
+    },
+    {
+      "id": "join_on_column_usage",
+      "file": "cases/join_on_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "dwd.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "amount",
+          "sources": ["dwd.orders.amount"]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.dt"
+        }
+      ],
+      "description": "JOIN ON predicate column usages"
     },
     {
       "id": "table_query",
@@ -606,6 +650,32 @@
       "inputTables": ["ods.users_delta"],
       "outputTables": ["ads.users"],
       "description": "MERGE source subquery table lineage"
+    },
+    {
+      "id": "merge_predicate_column_usage",
+      "file": "cases/merge_predicate_column_usage.sql",
+      "statementType": "MERGE",
+      "inputTables": ["ods.user_updates"],
+      "outputTables": ["ads.users"],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.users.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.user_updates.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.user_updates.dt"
+        },
+        {
+          "type": "MERGE_WHEN",
+          "column": "ods.user_updates.status"
+        }
+      ],
+      "description": "MERGE ON and WHEN predicate column usages"
     },
     {
       "id": "update_with_subquery",

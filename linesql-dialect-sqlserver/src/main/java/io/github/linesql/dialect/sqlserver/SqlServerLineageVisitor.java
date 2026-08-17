@@ -97,6 +97,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         collectSubqueryInputs(ctx.assignmentList());
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
 
         // Check if assignments have subqueries; if so, suppress column lineage
@@ -136,6 +137,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         }
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -152,6 +154,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         TableRef target = tableAliases.get(deleteTarget);
         if (target != null) {
             outputTables.add(target);
+        }
+        if (ctx.whereClause() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -182,6 +187,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                     if (joinAlias != null) {
                         tableAliases.put(joinAlias.toLowerCase(Locale.ROOT), table);
                     }
+                }
+                if (join.joinCriteria() != null) {
+                    collectJoinColumnUsages(join.joinCriteria());
                 }
             }
         }
@@ -412,6 +420,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitJoinCriteria(SqlServerParser.JoinCriteriaContext ctx) {
+        collectJoinColumnUsages(ctx);
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitGroupByClause(SqlServerParser.GroupByClauseContext ctx) {
         for (SqlServerParser.ExpressionContext expression : ctx.expression()) {
             addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
@@ -534,6 +548,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         List<ColumnRef> refs = columnRefs(sourceColumns);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
+        }
+    }
+
+    private void collectJoinColumnUsages(SqlServerParser.JoinCriteriaContext ctx) {
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
         }
     }
 

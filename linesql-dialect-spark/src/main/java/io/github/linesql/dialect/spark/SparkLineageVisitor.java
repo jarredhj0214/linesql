@@ -773,9 +773,34 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitMergeIntoTable(SqlBaseParser.MergeIntoTableContext ctx) {
         result.setStatementType(StatementType.MERGE);
-        addOutput(ctx.target);
+        addOutput(ctx.target, ctx.targetAlias);
         if (ctx.source != null) {
-            addInput(ctx.source);
+            addInput(ctx.source, ctx.sourceAlias);
+        }
+        addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.mergeCondition));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitMatchedClause(SqlBaseParser.MatchedClauseContext ctx) {
+        if (ctx.matchedCond != null) {
+            addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(ctx.matchedCond));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitNotMatchedClause(SqlBaseParser.NotMatchedClauseContext ctx) {
+        if (ctx.notMatchedCond != null) {
+            addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(ctx.notMatchedCond));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitNotMatchedBySourceClause(SqlBaseParser.NotMatchedBySourceClauseContext ctx) {
+        if (ctx.notMatchedBySourceCond != null) {
+            addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(ctx.notMatchedBySourceCond));
         }
         return visitChildren(ctx);
     }
@@ -905,6 +930,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitWhereClause(SqlBaseParser.WhereClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.booleanExpression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitJoinCriteria(SqlBaseParser.JoinCriteriaContext ctx) {
+        if (ctx.booleanExpression() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.booleanExpression()));
+        }
         return visitChildren(ctx);
     }
 
@@ -1331,7 +1364,17 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx) {
-        outputTables.add(tableRef(ctx.getText()));
+        addOutput(ctx, null);
+    }
+
+    private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx, SqlBaseParser.TableAliasContext aliasContext) {
+        TableRef table = tableRef(ctx.getText());
+        outputTables.add(table);
+        tableAliases.put(table.getName().toLowerCase(java.util.Locale.ROOT), table);
+        String alias = tableAlias(aliasContext);
+        if (alias != null) {
+            tableAliases.put(alias.toLowerCase(java.util.Locale.ROOT), table);
+        }
         result.setOutputTables(new ArrayList<>(outputTables));
         refreshColumnLineage();
     }

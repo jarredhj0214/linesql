@@ -91,6 +91,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         collectSubqueryInputs(ctx.assignmentList());
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), table);
         result.setColumnLineage(assignments);
@@ -118,6 +119,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         // Collect subquery inputs from where clause
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -349,6 +351,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     @Override
     public Void visitWhereClause(OracleParser.WhereClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitJoinCriteria(OracleParser.JoinCriteriaContext ctx) {
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
+        }
         return visitChildren(ctx);
     }
 

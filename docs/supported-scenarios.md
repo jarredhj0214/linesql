@@ -211,6 +211,8 @@ Implemented Oracle clause-level column usage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| JOIN ON source columns | `select u.id, o.amount from users u join orders o on ...` | `join_on_column_usage` |
+| UPDATE WHERE source columns | `update ads.t set c = s.c from ods.s s where ...` | `dml_where_column_usage` |
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 
 Current Oracle diagnostics:
@@ -575,6 +577,7 @@ Implemented MySQL clause-level column usage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| UPDATE JOIN and WHERE source columns | `update users u join orders o on ... set ... where ...` | `dml_predicate_column_usage` |
 | UNION branch WHERE source columns | `select id from app.s1 where ... union all select id from app.s2 where ...` | `set_operation_clause_column_usage` |
 
 Current MySQL diagnostics:
@@ -779,7 +782,7 @@ Implemented Spark column-level lineage scenarios:
 
 ### Clause Column Usage
 
-LineSQL distinguishes projection lineage from columns used by filtering, grouping, HAVING, and ordering clauses. These fields are returned as `columnUsages` with usage types such as `WHERE`, `GROUP_BY`, `HAVING`, and `ORDER_BY`.
+LineSQL distinguishes projection lineage from columns used by filtering, joining, grouping, HAVING, ordering, and MERGE predicates. These fields are returned as `columnUsages` with usage types such as `WHERE`, `JOIN_ON`, `GROUP_BY`, `HAVING`, `ORDER_BY`, `MERGE_ON`, and `MERGE_WHEN`.
 
 Implemented Spark clause-level column usage scenarios:
 
@@ -790,6 +793,8 @@ Implemented Spark clause-level column usage scenarios:
 | CTE WHERE and GROUP BY source columns | `with q as (select id from ods.s where ...) select id from q where ... group by ...` | `cte_clause_column_usage` |
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 | Same-name GROUP BY columns in joined subqueries | `select ... from (select id ... group by id) t1 join (select id ... group by id) t2 ...` | `joined_subquery_same_name_group_usage` |
+| JOIN ON source columns | `select u.id, o.amount from users u join orders o on ...` | `join_on_column_usage` |
+| MERGE ON and WHEN source columns | `merge into t using s on ... when matched and ... then ...` | `merge_predicate_column_usage` |
 
 ### Diagnostics
 

@@ -75,6 +75,14 @@
       ],
       "columnUsages": [
         {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        },
+        {
           "type": "WHERE",
           "column": "ods.users.status"
         },

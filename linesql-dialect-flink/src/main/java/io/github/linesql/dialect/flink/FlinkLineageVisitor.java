@@ -86,6 +86,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
         // Collect subquery inputs from assignments and where clause
         collectSubqueryInputs(ctx);
+        if (ctx.whereClause() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+        }
 
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), target);
         result.setColumnLineage(assignments);
@@ -134,6 +137,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             LineageResult subResult = lineageForQuery(ctx.query());
             inputTables.addAll(subResult.getInputTables());
         }
+        addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
 
         // Collect column lineage from WHEN MATCHED THEN UPDATE SET assignments
         List<ColumnLineage> assignments = new ArrayList<>();
@@ -153,6 +157,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitMergeClause(FlinkParser.MergeClauseContext ctx) {
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(ctx.expression()));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitDeleteStatement(FlinkParser.DeleteStatementContext ctx) {
         TableRef target = tableRef(ctx.multipartIdentifier());
         inputTables.add(target);
@@ -162,6 +174,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         // Collect subquery inputs from where clause
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
 
         result.setInputTables(new ArrayList<>(inputTables));
@@ -438,6 +451,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitWhereClause(FlinkParser.WhereClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitJoinCriteria(FlinkParser.JoinCriteriaContext ctx) {
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
+        }
         return visitChildren(ctx);
     }
 

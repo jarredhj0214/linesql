@@ -75,6 +75,14 @@
       ],
       "columnUsages": [
         {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        },
+        {
           "type": "WHERE",
           "column": "ods.users.status"
         },
@@ -126,6 +134,80 @@
         }
       ],
       "description": "StarRocks clause column usages are merged across UNION branches"
+    },
+    {
+      "id": "join_on_column_usage",
+      "file": "cases/join_on_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.dt"
+        }
+      ],
+      "description": "StarRocks JOIN ON predicate column usages"
+    },
+    {
+      "id": "dml_where_column_usage",
+      "file": "cases/dml_where_column_usage.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.users",
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.users.last_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.dt"
+        }
+      ],
+      "description": "StarRocks UPDATE WHERE predicate column usages"
     },
     {
       "id": "insert_into",
