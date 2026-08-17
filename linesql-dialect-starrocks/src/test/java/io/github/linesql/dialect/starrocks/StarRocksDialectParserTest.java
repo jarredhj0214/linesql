@@ -3,6 +3,7 @@ package io.github.linesql.dialect.starrocks;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
@@ -49,6 +50,9 @@ public class StarRocksDialectParserTest {
             assertTables(caseId, sqlCase.get("inputTables"), tableNames(result.getInputTables()));
             assertTables(caseId, sqlCase.get("outputTables"), tableNames(result.getOutputTables()));
             assertColumnLineage(caseId, sqlCase.get("columnLineage"), result);
+            if (sqlCase.has("columnUsages")) {
+                assertColumnUsages(caseId, sqlCase.get("columnUsages"), result);
+            }
         }
     }
 
@@ -110,6 +114,19 @@ public class StarRocksDialectParserTest {
                     .collect(Collectors.toList());
             assertEquals(caseId, expectedSources, actualSources);
         }
+    }
+
+    private static void assertColumnUsages(String caseId, JsonNode expectedNode, LineageResult result) {
+        List<String> expected = new ArrayList<>();
+        expectedNode.forEach(node -> expected.add(node.get("type").asText() + ":" + node.get("column").asText()));
+        List<String> actual = result.getColumnUsages().stream()
+                .map(StarRocksDialectParserTest::columnUsageName)
+                .collect(Collectors.toList());
+        assertEquals(caseId, expected, actual);
+    }
+
+    private static String columnUsageName(ColumnUsage usage) {
+        return usage.getType().name() + ":" + columnName(usage.getColumn());
     }
 
     private static List<String> tableNames(List<io.github.linesql.core.model.TableRef> tables) {

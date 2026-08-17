@@ -51,6 +51,83 @@
       "description": "MySQL JOIN table lineage and alias-qualified column lineage"
     },
     {
+      "id": "clause_column_usage",
+      "file": "cases/clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.amount"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.id"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.id"
+        }
+      ],
+      "description": "MySQL clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
+    },
+    {
+      "id": "set_operation_clause_column_usage",
+      "file": "cases/set_operation_clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id",
+            "app.admins.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.admins.enabled"
+        }
+      ],
+      "description": "MySQL clause column usages are merged across UNION branches"
+    },
+    {
       "id": "subquery_column_projection",
       "file": "cases/subquery_column_projection.sql",
       "statementType": "SELECT",

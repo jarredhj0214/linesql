@@ -279,6 +279,13 @@ Implemented StarRocks column-level lineage scenarios:
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 
+Implemented StarRocks clause-level column usage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
+
 Current StarRocks diagnostics:
 
 | Code | Meaning |
@@ -534,6 +541,13 @@ Implemented MySQL column-level lineage scenarios:
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
 | Window function expression dependencies | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Backquoted non-ASCII column identifiers | `` select `用户ID` as `用户标识` from `业务库`.`用户表` `` | `backquoted_identifiers` |
+
+Implemented MySQL clause-level column usage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| UNION branch WHERE source columns | `select id from app.s1 where ... union all select id from app.s2 where ...` | `set_operation_clause_column_usage` |
 
 Current MySQL diagnostics:
 
