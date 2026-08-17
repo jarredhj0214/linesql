@@ -2,13 +2,13 @@ package io.github.linesql.dialect.spark;
 
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
-import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.Diagnostic;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
+import io.github.linesql.core.util.LineageModelUtils;
 import io.github.linesql.dialect.spark.antlr.SqlBaseParser;
 import io.github.linesql.dialect.spark.antlr.SqlBaseParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -749,8 +749,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         for (TableRef table : right.getInputTables()) {
             addInputTable(table, false);
         }
-        mergeColumnUsages(left);
-        mergeColumnUsages(right);
+        LineageModelUtils.mergeColumnUsages(result, left);
+        LineageModelUtils.mergeColumnUsages(result, right);
         result.setColumnLineage(mergeSetColumnLineage(left, right));
         return null;
     }
@@ -864,7 +864,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             for (TableRef table : queryResult.getInputTables()) {
                 addInputTable(table, false);
             }
-            mergeColumnUsages(queryResult);
+            LineageModelUtils.mergeColumnUsages(result, queryResult);
         }
         return null;
     }
@@ -987,7 +987,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             for (TableRef table : right.getInputTables()) {
                 addInputTable(table, false);
             }
-            mergeColumnUsages(right);
+            LineageModelUtils.mergeColumnUsages(result, right);
             result.setColumnLineage(mergeSetColumnLineage(left, right));
             projections.clear();
             return null;
@@ -1200,7 +1200,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         for (TableRef table : relationResult.getInputTables()) {
             addInputTable(table, false);
         }
-        mergeColumnUsages(relationResult);
+        LineageModelUtils.mergeColumnUsages(result, relationResult);
     }
 
     private LineageResult lineageForQueryTerm(SqlBaseParser.QueryTermContext queryTerm) {
@@ -1250,22 +1250,11 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             ColumnLineage rightColumn = right.getColumnLineage().get(i);
             ColumnLineage lineage = new ColumnLineage();
             lineage.setTarget(leftColumn.getTarget());
-            lineage.setSources(mergeColumnRefs(leftColumn.getSources(), rightColumn.getSources()));
+            lineage.setSources(LineageModelUtils.mergeColumnRefs(leftColumn.getSources(), rightColumn.getSources()));
             lineage.setExpression(leftColumn.getExpression());
             merged.add(lineage);
         }
         return merged;
-    }
-
-    private static List<ColumnRef> mergeColumnRefs(List<ColumnRef> left, List<ColumnRef> right) {
-        Map<String, ColumnRef> refs = new LinkedHashMap<>();
-        for (ColumnRef columnRef : left) {
-            refs.put(columnKey(columnRef), columnRef);
-        }
-        for (ColumnRef columnRef : right) {
-            refs.put(columnKey(columnRef), columnRef);
-        }
-        return new ArrayList<>(refs.values());
     }
 
     private static String columnKey(ColumnRef columnRef) {
@@ -1313,7 +1302,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         for (TableRef table : relation.getInputTables()) {
             addInputTable(table, false);
         }
-        mergeColumnUsages(relation);
+        LineageModelUtils.mergeColumnUsages(result, relation);
         refreshColumnLineage();
     }
 
@@ -1478,25 +1467,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = partialColumnRefs(sourceColumns);
-        Map<String, ColumnUsage> usages = new LinkedHashMap<>();
-        for (ColumnUsage usage : result.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
-        }
-        for (ColumnRef ref : refs) {
-            usages.put(type.name() + ":" + columnKey(ref), new ColumnUsage(type, ref));
-        }
-        result.setColumnUsages(new ArrayList<>(usages.values()));
-    }
-
-    private void mergeColumnUsages(LineageResult source) {
-        Map<String, ColumnUsage> usages = new LinkedHashMap<>();
-        for (ColumnUsage usage : result.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
-        }
-        for (ColumnUsage usage : source.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
-        }
-        result.setColumnUsages(new ArrayList<>(usages.values()));
+        LineageModelUtils.addColumnUsages(result, type, refs);
     }
 
     private List<ColumnRef> partialColumnRefs(List<SourceColumn> sourceColumns) {
@@ -1591,10 +1562,6 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             refs.add(new ColumnRef(table, sourceColumn.name));
         }
         return refs;
-    }
-
-    private static String columnUsageKey(ColumnUsage usage) {
-        return usage.getType().name() + ":" + columnKey(usage.getColumn());
     }
 
     private SourceColumn scopedSourceColumn(SourceColumn sourceColumn) {

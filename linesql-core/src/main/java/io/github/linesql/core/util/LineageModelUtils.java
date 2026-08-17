@@ -2,12 +2,15 @@ package io.github.linesql.core.util;
 
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
+import io.github.linesql.core.model.ColumnUsage;
+import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.TableRef;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public final class LineageModelUtils {
@@ -68,13 +71,34 @@ public final class LineageModelUtils {
         return new ArrayList<ColumnRef>(refs.values());
     }
 
+    public static void addColumnUsages(LineageResult result, ColumnUsageType type, List<ColumnRef> columns) {
+        Map<String, ColumnUsage> usages = columnUsageMap(result);
+        for (ColumnRef column : columns) {
+            ColumnUsage usage = new ColumnUsage(type, column);
+            usages.put(columnUsageKey(usage), usage);
+        }
+        result.setColumnUsages(new ArrayList<ColumnUsage>(usages.values()));
+    }
+
+    public static void mergeColumnUsages(LineageResult target, LineageResult source) {
+        Map<String, ColumnUsage> usages = columnUsageMap(target);
+        for (ColumnUsage usage : source.getColumnUsages()) {
+            usages.put(columnUsageKey(usage), usage);
+        }
+        target.setColumnUsages(new ArrayList<ColumnUsage>(usages.values()));
+    }
+
+    public static String columnUsageKey(ColumnUsage usage) {
+        return usage.getType().name() + ":" + columnKey(usage.getColumn());
+    }
+
     public static String columnKey(ColumnRef ref) {
         TableRef table = ref.getTable();
         String tableKey = table == null ? ""
                 : (table.getCatalog() == null ? "" : table.getCatalog()) + "."
                 + (table.getSchema() == null ? "" : table.getSchema()) + "."
                 + table.getName();
-        return tableKey + "." + ref.getName();
+        return (tableKey + "." + ref.getName()).toLowerCase(Locale.ROOT);
     }
 
     public static TableRef tableRefFromParts(List<String> parts) {
@@ -85,5 +109,13 @@ public final class LineageModelUtils {
             return new TableRef(null, parts.get(0), parts.get(1));
         }
         return new TableRef(null, null, parts.get(0));
+    }
+
+    private static Map<String, ColumnUsage> columnUsageMap(LineageResult result) {
+        Map<String, ColumnUsage> usages = new LinkedHashMap<String, ColumnUsage>();
+        for (ColumnUsage usage : result.getColumnUsages()) {
+            usages.put(columnUsageKey(usage), usage);
+        }
+        return usages;
     }
 }

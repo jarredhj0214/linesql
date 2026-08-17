@@ -2,6 +2,8 @@ package io.github.linesql.core.util;
 
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
+import io.github.linesql.core.model.ColumnUsage;
+import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.TableRef;
 import org.junit.Test;
@@ -65,5 +67,29 @@ public class LineageModelUtilsTest {
         assertEquals("catalog", table.getCatalog());
         assertEquals("db", table.getSchema());
         assertEquals("table", table.getName());
+    }
+
+    @Test
+    public void mergesColumnUsagesByTypeAndCaseInsensitiveColumnKey() {
+        TableRef table = new TableRef(null, "ods", "users");
+        LineageResult result = new LineageResult();
+        result.getColumnUsages().add(new ColumnUsage(ColumnUsageType.WHERE, new ColumnRef(table, "ID")));
+
+        LineageModelUtils.addColumnUsages(
+                result,
+                ColumnUsageType.WHERE,
+                Arrays.asList(new ColumnRef(table, "id"), new ColumnRef(table, "name")));
+        LineageModelUtils.addColumnUsages(
+                result,
+                ColumnUsageType.GROUP_BY,
+                Arrays.asList(new ColumnRef(table, "id")));
+
+        assertEquals(3, result.getColumnUsages().size());
+        assertEquals(ColumnUsageType.WHERE, result.getColumnUsages().get(0).getType());
+        assertEquals("id", result.getColumnUsages().get(0).getColumn().getName());
+        assertEquals(ColumnUsageType.WHERE, result.getColumnUsages().get(1).getType());
+        assertEquals("name", result.getColumnUsages().get(1).getColumn().getName());
+        assertEquals(ColumnUsageType.GROUP_BY, result.getColumnUsages().get(2).getType());
+        assertEquals("id", result.getColumnUsages().get(2).getColumn().getName());
     }
 }

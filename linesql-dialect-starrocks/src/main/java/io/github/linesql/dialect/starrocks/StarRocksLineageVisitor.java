@@ -2,7 +2,6 @@ package io.github.linesql.dialect.starrocks;
 
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
-import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.StatementType;
@@ -282,8 +281,8 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         for (TableRef table : rightResult.getInputTables()) {
             addInputTable(table, false);
         }
-        mergeColumnUsages(leftResult);
-        mergeColumnUsages(rightResult);
+        LineageModelUtils.mergeColumnUsages(result, leftResult);
+        LineageModelUtils.mergeColumnUsages(result, rightResult);
         result.setColumnLineage(LineageModelUtils.mergeSetColumnLineage(leftResult, rightResult));
         return null;
     }
@@ -427,7 +426,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         for (TableRef table : relationResult.getInputTables()) {
             addInputTable(table, false);
         }
-        mergeColumnUsages(relationResult);
+        LineageModelUtils.mergeColumnUsages(result, relationResult);
     }
 
     private LineageResult lineageForQueryTerm(StarRocksParser.QueryTermContext queryTerm) {
@@ -444,28 +443,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = columnRefs(sourceColumns, new LinkedHashSet<>());
-        if (refs == null) {
-            return;
+        if (refs != null) {
+            LineageModelUtils.addColumnUsages(result, type, refs);
         }
-        Map<String, ColumnUsage> usages = new LinkedHashMap<>();
-        for (ColumnUsage usage : result.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
-        }
-        for (ColumnRef ref : refs) {
-            usages.put(type.name() + ":" + columnKey(ref), new ColumnUsage(type, ref));
-        }
-        result.setColumnUsages(new ArrayList<>(usages.values()));
-    }
-
-    private void mergeColumnUsages(LineageResult source) {
-        Map<String, ColumnUsage> usages = new LinkedHashMap<>();
-        for (ColumnUsage usage : result.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
-        }
-        for (ColumnUsage usage : source.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
-        }
-        result.setColumnUsages(new ArrayList<>(usages.values()));
     }
 
     private void refreshColumnLineage() {
@@ -502,10 +482,6 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     private List<ColumnRef> columnRefs(Projection projection) {
         return columnRefs(projection.sourceColumns, new LinkedHashSet<>());
-    }
-
-    private static String columnUsageKey(ColumnUsage usage) {
-        return usage.getType().name() + ":" + columnKey(usage.getColumn());
     }
 
     private static String columnKey(ColumnRef column) {
