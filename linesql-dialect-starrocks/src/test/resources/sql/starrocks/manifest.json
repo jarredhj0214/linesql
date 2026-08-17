@@ -77,6 +77,32 @@
       "description": "StarRocks INSERT INTO SELECT table and column lineage"
     },
     {
+      "id": "insert_overwrite",
+      "file": "cases/insert_overwrite.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "StarRocks INSERT OVERWRITE SELECT table and column lineage"
+    },
+    {
       "id": "create_table_as_select",
       "file": "cases/create_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
@@ -647,6 +673,39 @@
         }
       ],
       "description": "StarRocks GROUP BY aggregate expression column lineage"
+    },
+    {
+      "id": "window_function_projection",
+      "file": "cases/window_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": [
+            "ods.orders.region",
+            "ods.orders.created_at"
+          ]
+        },
+        {
+          "target": "running_amount",
+          "sources": [
+            "ods.orders.amount",
+            "ods.orders.user_id",
+            "ods.orders.created_at"
+          ]
+        }
+      ],
+      "description": "StarRocks window function projection column lineage"
     }
   ]
 }

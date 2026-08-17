@@ -69,6 +69,7 @@ Implemented SQL Server table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
@@ -94,6 +95,7 @@ Implemented SQL Server column-level lineage scenarios:
 | Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
+| INSERT OVERWRITE target column mapping | `insert overwrite table ads.t(c1, c2) select a, b from ods.s` | `insert_overwrite` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
@@ -106,6 +108,7 @@ Implemented SQL Server column-level lineage scenarios:
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as varchar), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
+| Window function expression dependencies | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
@@ -521,6 +524,7 @@ Implemented MySQL column-level lineage scenarios:
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as char), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
+| Window function expression dependencies | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Backquoted non-ASCII column identifiers | `` select `用户ID` as `用户标识` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 
 Current MySQL diagnostics:

@@ -594,6 +594,39 @@
       "description": "MySQL GROUP BY aggregate expression column lineage"
     },
     {
+      "id": "window_function_projection",
+      "file": "cases/window_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": [
+            "app.orders.region",
+            "app.orders.created_at"
+          ]
+        },
+        {
+          "target": "running_amount",
+          "sources": [
+            "app.orders.amount",
+            "app.orders.user_id",
+            "app.orders.created_at"
+          ]
+        }
+      ],
+      "description": "MySQL window function projection column lineage"
+    },
+    {
       "id": "chained_cte_column_projection",
       "file": "cases/chained_cte_column_projection.sql",
       "statementType": "SELECT",
