@@ -1586,8 +1586,8 @@ unitToUnitInterval
     ;
 
 intervalValue
-    : (PLUS | MINUS)?
-      (INTEGER_VALUE | DECIMAL_VALUE | stringLit)
+    : (PLUS | MINUS)? (INTEGER_VALUE | DECIMAL_VALUE | stringLit)
+    | stringLit (PLUS | MINUS) (INTEGER_VALUE | DECIMAL_VALUE)
     ;
 
 unitInMultiUnits

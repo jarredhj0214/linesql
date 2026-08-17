@@ -1647,6 +1647,30 @@
       "outputTables": ["ods.event_feedback"],
       "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
       "description": "Spark INSERT VALUES with backslash-escaped quotes inside string literals"
+    },
+    {
+      "id": "double_quoted_escaped_string",
+      "file": "cases/double_quoted_escaped_string.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.object_access_log"],
+      "outputTables": [],
+      "description": "Spark double-quoted string literal containing escaped quotes"
+    },
+    {
+      "id": "nested_collect_set_expression",
+      "file": "cases/nested_collect_set_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.accounting_flow"],
+      "outputTables": [],
+      "description": "Spark nested collect_set and concat_ws aggregate expression"
+    },
+    {
+      "id": "date_add_interval_compatibility",
+      "file": "cases/date_add_interval_compatibility.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.user_events"],
+      "outputTables": [],
+      "description": "Spark compatibility syntax for date_add with interval arithmetic"
     }
   ]
 }

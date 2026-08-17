@@ -481,6 +481,7 @@ Implemented MySQL table-level lineage scenarios:
 | Subquery source table propagation | `select q.c from (select a as c from app.s) q` | `subquery_column_projection` |
 | CTE source table propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
 | UNION source table propagation | `select a from app.s1 union all select b from app.s2` | `union_column_projection` |
+| GROUP_CONCAT separator syntax | `select * from (select group_concat(c separator '、') from app.t group by k) q limit 0, 10` | `group_concat_separator` |
 | INSERT INTO SELECT target and source | `insert into mart.t(c1) select a from app.s` | `insert_select` |
 | INSERT IGNORE SELECT target and source | `insert ignore into mart.t(c1) select a from app.s` | `insert_ignore_select` |
 | INSERT INTO VALUES target lineage | `insert into mart.t(c1) values (...)` | `insert_values` |
@@ -668,6 +669,9 @@ Implemented Spark table-level lineage scenarios:
 | Null-safe equality predicates | `where not (a.c1 <=> b.c1)` | `null_safe_equal_operator` |
 | Compatibility expression syntax | `select id::varchar ... where name ilike ... qualify row_number() ...` | `compatibility_cast_ilike_qualify` |
 | Backslash-escaped string literals in VALUES | `insert overwrite table t partition (...) values ('用户反馈有\\'异响\\'')` | `backslash_escaped_string_values` |
+| Double-quoted escaped string literals | `where file_key = "\"bucket/path/file.mp4\""` | `double_quoted_escaped_string` |
+| Nested aggregate expressions | `concat_ws(',', collect_set(concat(...)))` | `nested_collect_set_expression` |
+| Interval arithmetic compatibility | `date_add(ds, interval '' - 1 day)` | `date_add_interval_compatibility` |
 
 Invalid SQL returns a diagnostic instead of throwing for the whole parse result. See `parse_error`.
 

@@ -910,6 +910,16 @@
         }
       ],
       "description": "MySQL INSERT INTO SELECT without column list"
+    },
+    {
+      "id": "group_concat_separator",
+      "file": "cases/group_concat_separator.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.tag_values"
+      ],
+      "outputTables": [],
+      "description": "MySQL GROUP_CONCAT with SEPARATOR syntax in derived query"
     }
   ]
 }

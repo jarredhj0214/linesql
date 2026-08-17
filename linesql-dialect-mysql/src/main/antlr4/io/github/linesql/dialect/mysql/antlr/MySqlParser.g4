@@ -131,7 +131,7 @@ havingClause
 
 queryOrganization
     : (ORDER BY sortItem (COMMA sortItem)*)?
-      (LIMIT expression)?
+      (LIMIT expression (COMMA expression)?)?
       (OFFSET expression)?
     ;
 
@@ -178,7 +178,7 @@ primaryExpression
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
     | functionName LPAREN STAR RPAREN (OVER windowSpec)?             #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList RPAREN (OVER windowSpec)?  #functionCall
+    | functionName LPAREN setQuantifier? expressionList functionSeparator? RPAREN (OVER windowSpec)?  #functionCall
     | functionName LPAREN RPAREN (OVER windowSpec)?                  #functionCallEmpty
     | LPAREN query RPAREN                                            #scalarSubquery
     | LPAREN expression RPAREN                                       #parenthesizedExpression
@@ -214,6 +214,10 @@ functionName
 
 expressionList
     : expression (COMMA expression)*
+    ;
+
+functionSeparator
+    : SEPARATOR expression
     ;
 
 // ============ DML Statements ============
@@ -399,7 +403,7 @@ nonReservedKeyword
     : ADD | ASC | AUTO_INCREMENT | CAST | CHARSET | CHARACTER | COLLATE
     | COLUMN | COMMENT | CONSTRAINT | DEFAULT | DESCRIBE | DESC | DUPLICATE | END
     | ENGINE | EXISTS | EXTERNAL | FALSE | IF | IGNORE | INDEX | INTERVAL | KEY | LATERAL | LIKE | LIMIT | NULL
-    | OFFSET | OVER | PARTITION | REPLACE | RENAME
+    | OFFSET | OVER | PARTITION | REPLACE | RENAME | SEPARATOR
     | PRIMARY | SET | SHOW | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
     ;
 
