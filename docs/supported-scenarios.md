@@ -477,11 +477,13 @@ Implemented MySQL table-level lineage scenarios:
 | CTE source table propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
 | UNION source table propagation | `select a from app.s1 union all select b from app.s2` | `union_column_projection` |
 | INSERT INTO SELECT target and source | `insert into mart.t(c1) select a from app.s` | `insert_select` |
+| INSERT IGNORE SELECT target and source | `insert ignore into mart.t(c1) select a from app.s` | `insert_ignore_select` |
 | INSERT INTO VALUES target lineage | `insert into mart.t(c1) values (...)` | `insert_values` |
 | INSERT SELECT with duplicate-key update | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
 | REPLACE INTO SELECT target and source | `replace into mart.t(c1) select a from app.s` | `replace_select` |
 | REPLACE INTO VALUES target lineage | `replace into mart.t(c1) values (...)` | `replace_values` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `create_table_as_select` |
+| CREATE TABLE options before AS SELECT | `create table mart.t (...) engine=InnoDB default charset=utf8mb4 as select ...` | `create_table_options_as_select` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like app.s` | `create_table_like` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from app.s join app.o` | `create_view` |
 | CREATE OR REPLACE VIEW AS SELECT | `create or replace view mart.v as select ... from app.s` | `create_or_replace_view` |
@@ -506,9 +508,11 @@ Implemented MySQL column-level lineage scenarios:
 | Single CTE direct propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | INSERT target column list mapping | `insert into mart.t(c1, c2) select a, b from app.s` | `insert_select` |
+| INSERT IGNORE target column list mapping | `insert ignore into mart.t(c1, c2) select a, b from app.s` | `insert_ignore_select` |
 | INSERT duplicate-key SELECT mapping | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
 | REPLACE SELECT target column list mapping | `replace into mart.t(c1, c2) select a, b from app.s` | `replace_select` |
 | CTAS output column targets | `create table mart.t as select id as c1 from app.s` | `create_table_as_select` |
+| CTAS with table options output column targets | `create table mart.t (...) engine=InnoDB as select id as c1 from app.s` | `create_table_options_as_select` |
 | CREATE VIEW output column targets | `create view mart.v as select u.id from app.users u` | `create_view` |
 | CREATE OR REPLACE VIEW output column targets | `create or replace view mart.v as select id as c1 from app.s` | `create_or_replace_view` |
 | CREATE TEMPORARY TABLE output column targets | `create temporary table mart.t as select id as c1 from app.s` | `create_temporary_table_as_select` |

@@ -218,7 +218,7 @@ expressionList
 // ============ DML Statements ============
 
 insertStatement
-    : INSERT INTO? TABLE? multipartIdentifier
+    : INSERT IGNORE? INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
       onDuplicateKeyUpdate?
@@ -261,6 +261,7 @@ createTableStatement
     : CREATE TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
       commentClause?
+      tableOption*
       (AS query)?
     | CREATE TEMPORARY? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
     ;
@@ -335,6 +336,15 @@ property
     : string EQ string
     ;
 
+tableOption
+    : ENGINE EQ? identifier
+    | DEFAULT? CHARSET EQ? identifier
+    | DEFAULT? CHARACTER SET EQ? identifier
+    | COLLATE EQ? identifier
+    | AUTO_INCREMENT EQ? number
+    | COMMENT EQ? string
+    ;
+
 dataType
     : identifier (LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN)?
     | identifier LT dataType (COMMA dataType)* GT
@@ -367,9 +377,9 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ASC | CAST | COLUMN | COMMENT | DEFAULT
-    | DESCRIBE | DESC | DUPLICATE | END | EXISTS | EXTERNAL | FALSE
-    | IF | INTERVAL | KEY | LATERAL | LIKE | LIMIT | NULL
+    : ADD | ASC | AUTO_INCREMENT | CAST | CHARSET | CHARACTER | COLLATE
+    | COLUMN | COMMENT | DEFAULT | DESCRIBE | DESC | DUPLICATE | END
+    | ENGINE | EXISTS | EXTERNAL | FALSE | IF | IGNORE | INTERVAL | KEY | LATERAL | LIKE | LIMIT | NULL
     | OFFSET | OVER | PARTITION | REPLACE | RENAME
     | SET | SHOW | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | VALUES | VIEW
     ;

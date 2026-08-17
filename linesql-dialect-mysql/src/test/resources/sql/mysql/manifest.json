@@ -145,6 +145,32 @@
       "description": "MySQL INSERT INTO column list with SELECT source"
     },
     {
+      "id": "insert_ignore_select",
+      "file": "cases/insert_ignore_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT IGNORE SELECT target mapping"
+    },
+    {
       "id": "insert_values",
       "file": "cases/insert_values.sql",
       "statementType": "INSERT",
@@ -241,6 +267,32 @@
         }
       ],
       "description": "MySQL CREATE TABLE AS SELECT table and column lineage"
+    },
+    {
+      "id": "create_table_options_as_select",
+      "file": "cases/create_table_options_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary_options"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary_options.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary_options.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL CREATE TABLE with ENGINE and charset options before AS SELECT"
     },
     {
       "id": "create_view",
