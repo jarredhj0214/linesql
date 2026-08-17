@@ -12,6 +12,7 @@ public class LineageResult {
     private List<TableRef> inputTables = new ArrayList<TableRef>();
     private List<TableRef> outputTables = new ArrayList<TableRef>();
     private List<ColumnLineage> columnLineage = new ArrayList<ColumnLineage>();
+    private List<ColumnUsage> columnUsages = new ArrayList<ColumnUsage>();
     private List<Diagnostic> diagnostics = new ArrayList<Diagnostic>();
 
     public static LineageResult error(SqlDialect dialect, String code, String message) {
@@ -83,6 +84,14 @@ public class LineageResult {
 
     public void setColumnLineage(List<ColumnLineage> columnLineage) {
         this.columnLineage = columnLineage;
+    }
+
+    public List<ColumnUsage> getColumnUsages() {
+        return columnUsages;
+    }
+
+    public void setColumnUsages(List<ColumnUsage> columnUsages) {
+        this.columnUsages = columnUsages;
     }
 
     public List<Diagnostic> getDiagnostics() {

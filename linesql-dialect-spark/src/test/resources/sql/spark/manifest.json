@@ -18,6 +18,46 @@
       "description": "SELECT table lineage with unquoted scheduler placeholders"
     },
     {
+      "id": "clause_column_usage",
+      "file": "cases/clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "dwd.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "order_count",
+          "sources": ["dwd.orders.order_id"]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.pay_amount"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "HAVING",
+          "column": "dwd.orders.order_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "Clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
+    },
+    {
       "id": "table_query",
       "file": "cases/table_query.sql",
       "statementType": "SELECT",

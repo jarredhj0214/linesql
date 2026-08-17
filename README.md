@@ -1,178 +1,288 @@
 # LineSQL
 
-JVM-native, ANTLR4-based, lineage-first SQL parser framework for real-world data platform SQL.
+[![Maven](https://github.com/jarredhj0214/linesql/actions/workflows/maven.yml/badge.svg)](https://github.com/jarredhj0214/linesql/actions/workflows/maven.yml)
 
-一个 JVM 原生、基于 ANTLR4、血缘优先、面向真实数据平台 SQL 的多方言解析框架。
+LineSQL is a JVM-native, ANTLR4-based, lineage-first SQL parser framework for real-world data platform SQL.
 
-## At A Glance / 一眼看懂
+It is not a SQL execution engine, optimizer, or query planner. Its goal is to parse production SQL and return a unified lineage model that Java data platform services can consume directly.
 
-- **Not a SQL engine**: LineSQL does not execute, optimize, or plan SQL.
-  **不是 SQL 引擎**：不执行 SQL，不做优化器，也不做完整查询规划。
-- **Lineage-first**: the public output is a unified lineage model, not only an AST.
-  **血缘优先**：输出统一血缘模型，而不仅是 AST。
-- **JVM-native**: designed for Java data platform services.
-  **JVM 原生**：方便 Java 数据平台服务直接接入。
-- **Dialect auto-detection first**: users should not need to know the SQL engine in advance.
-  **优先自动识别方言**：用户不应该必须提前知道 SQL 来自哪种引擎。
-- **Production SQL friendly**: scripts, variables, temp views, UDTF, Chinese identifiers, bad SQL isolation, and partial results are first-class goals.
-  **面向生产 SQL**：多语句脚本、变量、临时视图、UDTF、中文标识符、坏 SQL 隔离和 partial result 都是核心目标。
+## Why LineSQL
 
-## Support Matrix / 支持矩阵
+Modern data platforms rarely run one clean SQL dialect. Real SQL often mixes Spark, Hive, Flink, StarRocks, MySQL, Oracle, SQL Server, scheduler placeholders, temporary views, UDTFs, Chinese identifiers, long scripts, and partially broken statements.
 
-LineSQL is usable today for Spark, MySQL, Hive, Flink, StarRocks, Oracle, and SQL Server lineage experiments.
+LineSQL is designed around these constraints:
 
-LineSQL 目前已经可以用于 Spark、MySQL、Hive、Flink、StarRocks、Oracle、SQL Server 血缘解析实验。
+- **Automatic dialect detection**: `LineSql.parse(sql)` is the default entry point.
+- **Lineage-first output**: table lineage, column lineage, and clause-level column usages are part of the public model.
+- **Graceful degradation**: return table lineage and diagnostics when column lineage is partial.
+- **Script-friendly parsing**: bad statements should not block the rest of a script.
+- **JVM-native integration**: suitable for Java catalog, governance, metadata, quality, and impact-analysis services.
 
-| Dialect | Status | Auto Detection | Lineage Coverage |
-| --- | --- | --- | --- |
-| Spark | Active parser / 可用 | Spark-specific syntax | Broad stage-1 table and column lineage |
-| MySQL | Active MVP / 可用 MVP | MySQL-specific syntax | Common SELECT, write, DDL, DML, direct column mappings |
-| Hive | Active MVP / 可用 MVP | Hive anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE, DELETE |
-| Flink | Active MVP / 可用 MVP | Flink anchors | SELECT, JOIN, INSERT SELECT, CREATE VIEW, UPDATE, DELETE |
-| StarRocks | Active MVP / 可用 MVP | StarRocks CREATE TABLE anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE USING |
-| Oracle | Active MVP / 可用 MVP | Oracle anchors | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE, DELETE |
-| SQL Server | Active MVP / 可用 MVP | SQL Server anchors, including bracketed DML | SELECT, JOIN, INSERT SELECT, CTAS, CREATE VIEW, UPDATE FROM, DELETE FROM JOIN |
+## Current Status
 
-Auto detection is anchor-based. Dialect-neutral SQL still uses Spark as the current generic fallback; callers can pass `SqlDialect` or `ParseOptions` when they already know the engine.
+LineSQL is in early alpha. The APIs and model are being shaped around production SQL cases, so incompatible changes may still happen before a stable release.
 
-自动识别基于明确方言锚点。中性 SQL 当前会回落到 Spark；调用方已知引擎时，可以显式传入 `SqlDialect` 或 `ParseOptions`。
+Current development version:
 
-Detailed, case-backed compatibility is tracked in [Supported Scenarios](docs/supported-scenarios.md).
+```text
+0.1.0-alpha.3
+```
 
-详细、由 SQL case 支撑的兼容性记录见 [Supported Scenarios](docs/supported-scenarios.md)。
+Java compatibility:
 
-## Modules / 模块
+- Runtime target: Java 8 bytecode
+- Recommended build JDK: JDK 11
+- ANTLR runtime: 4.9.3
 
-- `linesql-core`: model, SPI, facade, statement splitter, dialect detector, and shared utilities.
-- `linesql-dialect-spark`: Spark dialect parser.
-- `linesql-dialect-mysql`: MySQL dialect parser.
-- `linesql-dialect-hive`: Hive dialect parser.
-- `linesql-dialect-flink`: Flink dialect parser.
-- `linesql-dialect-starrocks`: StarRocks dialect parser.
-- `linesql-dialect-oracle`: Oracle dialect parser.
-- `linesql-dialect-sqlserver`: SQL Server dialect parser.
-- `linesql-cli`: command-line entry.
+## Support Matrix
 
-中文说明：
+Detailed compatibility is case-backed and tracked in [Supported Scenarios](docs/supported-scenarios.md).
 
-- `linesql-core`：模型、SPI、门面入口、语句拆分、方言识别和共享工具。
-- `linesql-dialect-*`：各 SQL 方言解析模块。
-- `linesql-cli`：命令行入口。
+| Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Clause Column Usage |
+| --- | --- | --- | --- | --- | --- |
+| Spark | Active parser | Yes | Broad stage-1 coverage | Broad stage-1 coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
+| MySQL | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
+| Hive | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
+| Flink | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
+| StarRocks | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
+| Oracle | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
+| SQL Server | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
 
-## Current Scope / 当前范围
+Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to Spark; callers can pass an explicit dialect when the execution engine is known.
 
-LineSQL is in early implementation. The first-stage implementation targets common SQL lineage scenarios in modern data platforms.
+## Modules
 
-LineSQL 仍处于早期实现阶段。第一阶段聚焦现代数据平台中常见的 SQL 血缘场景。
+| Module | Description |
+| --- | --- |
+| `linesql-core` | Public model, facade API, parser SPI, statement splitter, dialect detector, diagnostics |
+| `linesql-dialect-spark` | Spark SQL parser and lineage visitor |
+| `linesql-dialect-mysql` | MySQL parser MVP |
+| `linesql-dialect-hive` | Hive parser MVP |
+| `linesql-dialect-flink` | Flink parser MVP |
+| `linesql-dialect-starrocks` | StarRocks parser MVP |
+| `linesql-dialect-oracle` | Oracle parser MVP |
+| `linesql-dialect-sqlserver` | SQL Server parser MVP |
+| `linesql-cli` | Command-line JSON output |
 
-- Java 11
-- ANTLR4-based dialect parsers
-- Automatic dialect detection through `LineSql.parse(sql)`
-- Table-level lineage and column-level lineage
-- Graceful degradation when only partial lineage can be resolved
-- Real production SQL cases as primary test assets
+## Installation
 
-中文重点：
-
-- 基于 Java 11。
-- 方言解析器基于 ANTLR4。
-- 通过 `LineSql.parse(sql)` 自动识别方言。
-- 目标同时覆盖表级血缘和字段级血缘。
-- 支持优雅降级：字段血缘解析不完整时，尽量返回表级血缘和诊断信息。
-- 真实生产 SQL case 是核心测试资产。
-
-## Usage / 使用方式
-
-Maven:
+Use `linesql-core` plus the dialect modules you need. LineSQL discovers available dialect parsers from the classpath.
 
 ```xml
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-core</artifactId>
-    <version>0.1.0-alpha.2</version>
+    <version>0.1.0-alpha.3</version>
 </dependency>
 
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-dialect-spark</artifactId>
-    <version>0.1.0-alpha.2</version>
+    <version>0.1.0-alpha.3</version>
 </dependency>
 
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-dialect-mysql</artifactId>
-    <version>0.1.0-alpha.2</version>
+    <version>0.1.0-alpha.3</version>
 </dependency>
 ```
 
-Add the dialect modules you need. LineSQL discovers available dialect parsers from the classpath.
+For all currently supported dialects, add the corresponding `linesql-dialect-*` artifacts.
 
-按需引入方言模块。LineSQL 会从 classpath 中发现可用的方言解析器。
+## Quick Start
 
-Build:
-
-```bash
-./scripts/mvn-jdk11 clean test
-```
-
-API:
+Automatic dialect detection:
 
 ```java
-LineageResult result = LineSql.parse(sql);
-LineageResult mysqlResult = LineSql.parse(sql, SqlDialect.MYSQL);
-LineageResult optionResult = LineSql.parse(sql, ParseOptions.builder()
-    .dialectHints(Arrays.asList(SqlDialect.SPARK))
-    .build());
+import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.LineageResult;
 
-List<LineageResult> results = LineSql.parseScript(script);
-List<LineageResult> hiveResults = LineSql.parseScript(script, SqlDialect.HIVE);
+LineageResult result = LineSql.parse(
+    "insert overwrite table ads.user_summary select id, name from ods.users"
+);
 ```
 
-CLI:
+Explicit dialect:
+
+```java
+import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.SqlDialect;
+
+LineageResult result = LineSql.parse(
+    "select id from ods.users",
+    SqlDialect.SPARK
+);
+```
+
+Script parsing:
+
+```java
+import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.LineageResult;
+
+import java.util.List;
+
+List<LineageResult> results = LineSql.parseScript(
+    "create temporary view v as select id from ods.users; "
+        + "insert into ads.user_ids select id from v;"
+);
+```
+
+Parse options:
+
+```java
+import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseOptions;
+import io.github.linesql.core.model.SqlDialect;
+
+import java.util.Arrays;
+
+LineageResult result = LineSql.parse(
+    "select id from ods.users",
+    ParseOptions.builder()
+        .dialectHints(Arrays.asList(SqlDialect.SPARK, SqlDialect.HIVE))
+        .build()
+);
+```
+
+## Output Model
+
+`LineageResult` is the main public output.
+
+| Field | Meaning |
+| --- | --- |
+| `version` | Output model version |
+| `dialect` | Selected SQL dialect |
+| `dialectConfidence` | Auto-detection confidence |
+| `dialectDetectionReason` | Why the dialect was selected |
+| `statementType` | Statement category such as `SELECT`, `INSERT`, `CREATE_VIEW` |
+| `inputTables` | Source tables |
+| `outputTables` | Target or affected tables |
+| `columnLineage` | Projection lineage edges from source columns to target columns |
+| `columnUsages` | Clause-level column usages such as `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
+| `diagnostics` | Parser warnings and errors |
+
+Example JSON:
+
+```json
+{
+  "version": "0.1",
+  "dialect": "SPARK",
+  "dialectConfidence": 0.92,
+  "dialectDetectionReason": "Spark insert overwrite, lateral view, temporary view, or USING syntax",
+  "statementType": "INSERT",
+  "inputTables": [
+    {
+      "catalog": null,
+      "schema": "ods",
+      "name": "users"
+    }
+  ],
+  "outputTables": [
+    {
+      "catalog": null,
+      "schema": "ads",
+      "name": "user_summary"
+    }
+  ],
+  "columnLineage": [
+    {
+      "target": {
+        "table": {
+          "catalog": null,
+          "schema": "ads",
+          "name": "user_summary"
+        },
+        "name": "user_id"
+      },
+      "sources": [
+        {
+          "table": {
+            "catalog": null,
+            "schema": "ods",
+            "name": "users"
+          },
+          "name": "id"
+        }
+      ],
+      "expression": "id"
+    }
+  ],
+  "columnUsages": [
+    {
+      "type": "WHERE",
+      "column": {
+        "table": {
+          "catalog": null,
+          "schema": "ods",
+          "name": "users"
+        },
+        "name": "dt"
+      }
+    }
+  ],
+  "diagnostics": []
+}
+```
+
+## CLI
+
+Build the CLI:
 
 ```bash
 ./scripts/mvn-jdk11 -q -pl linesql-cli -am package
-"/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" \
-  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.2.jar \
-  "insert overwrite table ads.user_summary select id from ods.users"
+```
 
-"/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" \
-  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.2.jar \
+Run with auto detection:
+
+```bash
+java -jar linesql-cli/target/linesql-cli-0.1.0-alpha.3.jar \
+  "insert overwrite table ads.user_summary select id from ods.users"
+```
+
+Run with explicit dialect:
+
+```bash
+java -jar linesql-cli/target/linesql-cli-0.1.0-alpha.3.jar \
   --dialect HIVE \
   "select id from ods.users"
 ```
 
-Target output shape / 目标输出结构：
+## Build From Source
 
-```json
-[
-  {
-    "version": "0.1",
-    "dialect": "SPARK",
-    "dialectConfidence": 0.92,
-    "dialectDetectionReason": "Spark insert overwrite, lateral view, temporary view, or USING syntax",
-    "statementType": "INSERT",
-    "inputTables": [
-      {
-        "catalog": null,
-        "schema": "ods",
-        "name": "s"
-      }
-    ],
-    "outputTables": [
-      {
-        "catalog": null,
-        "schema": "ads",
-        "name": "t"
-      }
-    ],
-    "columnLineage": [],
-    "diagnostics": []
-  }
-]
+```bash
+git clone https://github.com/jarredhj0214/linesql.git
+cd linesql
+./scripts/mvn-jdk11 clean test
 ```
 
-## Design Docs / 设计文档
+The helper script uses the locally configured JDK 11 for compilation while producing Java 8 compatible bytecode.
+
+## SQL Case Corpus
+
+SQL cases are first-class test assets. Every parser capability should be backed by SQL files and manifest expectations.
+
+Current case layout:
+
+```text
+linesql-dialect-*/src/test/resources/sql/<dialect>/manifest.json
+linesql-dialect-*/src/test/resources/sql/<dialect>/cases/*.sql
+```
+
+When adding a scenario, update both the manifest and [Supported Scenarios](docs/supported-scenarios.md).
+
+## Known Boundaries
+
+- LineSQL does not execute SQL.
+- LineSQL does not expand `select *` without schema metadata.
+- Column lineage can be partial for complex expressions, nested subqueries, procedural SQL, and dynamic SQL.
+- Dialect detection is conservative and anchor-based; explicit dialect is recommended when the engine is known.
+- The alpha API may change before a stable release.
+
+## Design Docs
 
 - [Architecture Vision](docs/design/architecture.md)
 - [Supported Scenarios](docs/supported-scenarios.md)
@@ -181,11 +291,12 @@ Target output shape / 目标输出结构：
 - [License Policy](docs/legal/license-policy.md)
 - [Third-party Notices](THIRD_PARTY_NOTICES.md)
 
-## Roadmap / 路线图
+## Roadmap
 
-- **Stage 1**: production-ready lineage parser foundation for Hive, Spark, StarRocks, Flink, MySQL, Oracle, and SQL Server.
-  **阶段 1**：搭建面向生产可用的多方言血缘解析基础。
-- **Stage 2**: richer column lineage, UDTF, temporary views, CTE column propagation, and compatibility matrix.
-  **阶段 2**：增强字段级血缘、UDTF、临时视图、CTE 字段传播和兼容性矩阵。
-- **Stage 3**: anonymized production SQL corpus, CLI improvements, syntax diagnostics, and editor-facing keyword support.
-  **阶段 3**：建设脱敏生产 SQL 语料、完善 CLI、语法诊断和面向编辑器的关键字支持。
+- **Stage 1**: production-oriented lineage parser foundation for Spark, Hive, StarRocks, Flink, MySQL, Oracle, and SQL Server.
+- **Stage 2**: deeper column lineage, clause-level column usages across dialects, UDTF, temp views, and CTE propagation.
+- **Stage 3**: anonymized production SQL corpus, compatibility matrix, CLI improvements, syntax diagnostics, and editor-facing metadata.
+
+## License
+
+LineSQL is released under the Apache License 2.0. Third-party grammar and dependency provenance is tracked in [Third-party Notices](THIRD_PARTY_NOTICES.md) and [License Policy](docs/legal/license-policy.md).

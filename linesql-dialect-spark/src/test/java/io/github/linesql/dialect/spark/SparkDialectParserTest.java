@@ -3,6 +3,7 @@ package io.github.linesql.dialect.spark;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
@@ -222,6 +223,9 @@ public class SparkDialectParserTest {
             if (sqlCase.has("columnLineage")) {
                 assertColumnLineage(caseId, sqlCase.get("columnLineage"), result);
             }
+            if (sqlCase.has("columnUsages")) {
+                assertColumnUsages(caseId, sqlCase.get("columnUsages"), result);
+            }
             if (sqlCase.has("expectedDiagnostics")) {
                 assertDiagnostics(caseId, sqlCase.get("expectedDiagnostics"), result);
             }
@@ -336,6 +340,19 @@ public class SparkDialectParserTest {
                     .collect(Collectors.toList());
             assertEquals(caseId, expectedSources, actualSources);
         }
+    }
+
+    private static void assertColumnUsages(String caseId, JsonNode expectedNode, LineageResult result) {
+        List<String> expected = new ArrayList<>();
+        expectedNode.forEach(node -> expected.add(node.get("type").asText() + ":" + node.get("column").asText()));
+        List<String> actual = result.getColumnUsages().stream()
+                .map(SparkDialectParserTest::columnUsageName)
+                .collect(Collectors.toList());
+        assertEquals(caseId, expected, actual);
+    }
+
+    private static String columnUsageName(ColumnUsage usage) {
+        return usage.getType().name() + ":" + columnName(usage.getColumn());
     }
 
     private static String columnName(io.github.linesql.core.model.ColumnRef column) {

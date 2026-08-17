@@ -2,6 +2,8 @@ package io.github.linesql.dialect.spark;
 
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
+import io.github.linesql.core.model.ColumnUsage;
+import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.Diagnostic;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
@@ -897,6 +899,37 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitWhereClause(SqlBaseParser.WhereClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.booleanExpression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAggregationClause(SqlBaseParser.AggregationClauseContext ctx) {
+        for (SqlBaseParser.NamedExpressionContext groupingExpression : ctx.groupingExpressions) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(groupingExpression.expression()));
+        }
+        for (SqlBaseParser.GroupByClauseContext groupByClause : ctx.groupingExpressionsWithGroupingAnalytics) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(groupByClause));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitHavingClause(SqlBaseParser.HavingClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.HAVING, sourceColumns(ctx.booleanExpression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
+        for (SqlBaseParser.SortItemContext sortItem : ctx.order) {
+            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitOperatorPipeRightSide(SqlBaseParser.OperatorPipeRightSideContext ctx) {
         if (ctx.extendList != null) {
             for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.extendList.namedExpression()) {
@@ -1287,6 +1320,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         copy.setInputTables(new ArrayList<>(source.getInputTables()));
         copy.setOutputTables(new ArrayList<>(source.getOutputTables()));
         copy.setColumnLineage(new ArrayList<>(source.getColumnLineage()));
+        copy.setColumnUsages(new ArrayList<>(source.getColumnUsages()));
         copy.setDiagnostics(new ArrayList<>(source.getDiagnostics()));
         return copy;
     }
@@ -1426,6 +1460,31 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return columnRefs(projection.sourceColumns, new LinkedHashSet<String>());
     }
 
+    private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
+        List<ColumnRef> refs = partialColumnRefs(sourceColumns);
+        Map<String, ColumnUsage> usages = new LinkedHashMap<>();
+        for (ColumnUsage usage : result.getColumnUsages()) {
+            usages.put(columnUsageKey(usage), usage);
+        }
+        for (ColumnRef ref : refs) {
+            usages.put(type.name() + ":" + columnKey(ref), new ColumnUsage(type, ref));
+        }
+        result.setColumnUsages(new ArrayList<>(usages.values()));
+    }
+
+    private List<ColumnRef> partialColumnRefs(List<SourceColumn> sourceColumns) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (SourceColumn sourceColumn : sourceColumns) {
+            List<SourceColumn> singleton = new ArrayList<>();
+            singleton.add(sourceColumn);
+            List<ColumnRef> resolved = columnRefs(singleton, new LinkedHashSet<String>());
+            if (resolved != null) {
+                refs.addAll(resolved);
+            }
+        }
+        return refs;
+    }
+
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns, Set<String> resolvingGeneratedColumns) {
         TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
                 ? inputTables.iterator().next()
@@ -1459,6 +1518,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             refs.add(new ColumnRef(table, sourceColumn.name));
         }
         return refs;
+    }
+
+    private static String columnUsageKey(ColumnUsage usage) {
+        return usage.getType().name() + ":" + columnKey(usage.getColumn());
     }
 
     private SourceColumn scopedSourceColumn(SourceColumn sourceColumn) {

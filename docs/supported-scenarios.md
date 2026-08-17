@@ -564,7 +564,7 @@ linesql-dialect-spark/src/test/resources/sql/spark/manifest.json
 linesql-dialect-spark/src/test/resources/sql/spark/cases/*.sql
 ```
 
-The manifest records executable expectations for statement type, input tables, output tables, column lineage, and expected diagnostics.
+The manifest records executable expectations for statement type, input tables, output tables, column lineage, clause-level column usages, and expected diagnostics.
 
 ### Table Lineage
 
@@ -575,6 +575,7 @@ Implemented Spark table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | TABLE query primary source table | `table ods.users` | `table_query` |
 | SELECT with scheduler placeholders | `select ... from ods.s where dt = ${bizdate} and region = {{ region }}` | `select_with_placeholders` |
+| SELECT with clause-level field usages | `select ... from ods.s where ... group by ... having ... order by ...` | `clause_column_usage` |
 | Backquoted Chinese identifiers | `` select `用户ID` as `用户标识` from `ods层`.`用户表` `` | `quoted_chinese_identifiers` |
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | INSERT OVERWRITE with static partition and target columns | `insert overwrite table ads.t partition (...) (c1) select ...` | `insert_overwrite_partition_column_list` |
@@ -733,6 +734,16 @@ Implemented Spark column-level lineage scenarios:
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single-level aliased subquery direct column propagation | `select c1 from (select id as c1 from ods.s) q` | `subquery_column_projection` |
+
+### Clause Column Usage
+
+LineSQL distinguishes projection lineage from columns used by filtering, grouping, HAVING, and ordering clauses. These fields are returned as `columnUsages` with usage types such as `WHERE`, `GROUP_BY`, `HAVING`, and `ORDER_BY`.
+
+Implemented Spark clause-level column usage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
 
 ### Diagnostics
 
