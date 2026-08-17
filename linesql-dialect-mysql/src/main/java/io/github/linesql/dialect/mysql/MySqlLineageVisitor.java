@@ -268,7 +268,24 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropTableStatement(MySqlParser.DropTableStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        for (MySqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
+            outputTables.add(tableRef(identifier));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropViewStmt(MySqlParser.DropViewStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropViewStatement(MySqlParser.DropViewStatementContext ctx) {
+        for (MySqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
+            outputTables.add(tableRef(identifier));
+        }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }

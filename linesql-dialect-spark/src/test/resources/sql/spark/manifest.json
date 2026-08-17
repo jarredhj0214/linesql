@@ -1590,6 +1590,63 @@
         }
       ],
       "description": "INSERT target column mapping over single-level CTE propagation"
+    },
+    {
+      "id": "grouping_sets_bitwise_xor",
+      "file": "cases/grouping_sets_bitwise_xor.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.user_events"],
+      "outputTables": [],
+      "description": "Spark GROUPING SETS with GROUPING__ID bitwise XOR expression"
+    },
+    {
+      "id": "bang_logical_not",
+      "file": "cases/bang_logical_not.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.vehicle_metrics"],
+      "outputTables": [],
+      "description": "Spark bang logical NOT adjacent to parenthesized predicate"
+    },
+    {
+      "id": "stack_function_aliases",
+      "file": "cases/stack_function_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.request_logs"],
+      "outputTables": [],
+      "description": "Spark stack function with multi-column aliases"
+    },
+    {
+      "id": "posexplode_function_aliases",
+      "file": "cases/posexplode_function_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.seed_rows"],
+      "outputTables": [],
+      "description": "Spark posexplode function with multi-column aliases through CTE"
+    },
+    {
+      "id": "null_safe_equal_operator",
+      "file": "cases/null_safe_equal_operator.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.vehicle_metric_daily", "ods.vehicle_metric_l6_daily"],
+      "outputTables": [],
+      "description": "Spark null-safe equality operator in predicate"
+    },
+    {
+      "id": "compatibility_cast_ilike_qualify",
+      "file": "cases/compatibility_cast_ilike_qualify.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.user_events"],
+      "outputTables": [],
+      "description": "Spark parser compatibility for PostgreSQL cast, ILIKE, and QUALIFY syntax"
+    },
+    {
+      "id": "backslash_escaped_string_values",
+      "file": "cases/backslash_escaped_string_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["ods.event_feedback"],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "description": "Spark INSERT VALUES with backslash-escaped quotes inside string literals"
     }
   ]
 }

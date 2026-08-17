@@ -234,6 +234,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitShowStmt(StarRocksParser.ShowStmtContext ctx) {
         result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitShowStatement(StarRocksParser.ShowStatementContext ctx) {
+        if (ctx.multipartIdentifier() != null) {
+            inputTables.add(tableRef(ctx.multipartIdentifier()));
+            result.setInputTables(new ArrayList<>(inputTables));
+        }
         return null;
     }
 

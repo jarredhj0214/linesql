@@ -248,9 +248,11 @@ Implemented StarRocks table-level lineage scenarios:
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 | CREATE TABLE table model DDL | `create table t (...) duplicate/aggregate/unique/primary key (...) distributed by ...` | `create_table_duplicate_key`, `create_table_aggregate_key`, `create_table_unique_key`, `create_table_primary_key_random` |
+| CREATE TABLE range partition DDL | `create table t (...) duplicate key (...) partition by range (...) distributed by ...` | `create_table_duplicate_key` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
 | ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
+| SHOW PARTITIONS metadata read | `show partitions from ads.t` | `show_partitions` |
 
 Implemented StarRocks column-level lineage scenarios:
 
@@ -488,6 +490,7 @@ Implemented MySQL table-level lineage scenarios:
 | REPLACE INTO VALUES target lineage | `replace into mart.t(c1) values (...)` | `replace_values` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `create_table_as_select` |
 | CREATE TABLE options before AS SELECT | `create table mart.t (...) engine=InnoDB default charset=utf8mb4 as select ...` | `create_table_options_as_select` |
+| CREATE TABLE schema DDL with constraints | `create table mart.t (id bigint auto_increment, primary key (id), unique key uk_c (c), index idx_c (c))` | `create_table_constraints` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like app.s` | `create_table_like` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from app.s join app.o` | `create_view` |
 | CREATE OR REPLACE VIEW AS SELECT | `create or replace view mart.v as select ... from app.s` | `create_or_replace_view` |
@@ -497,9 +500,12 @@ Implemented MySQL table-level lineage scenarios:
 | DELETE alias FROM JOIN table lineage | `delete t from mart.t t join app.s s ...` | `delete_join` |
 | Backquoted non-ASCII identifiers | `` select `用户ID` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
+| DROP TABLE multiple affected tables | `drop table if exists mart.t1, mart.t2` | `drop_multiple_tables` |
+| DROP VIEW affected view | `drop view if exists mart.v` | `drop_view` |
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |
 | ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
+| ALTER TABLE index maintenance | `alter table mart.t add index idx_c (c)` | `alter_table_add_index` |
 | SHOW CREATE TABLE metadata read | `show create table mart.t` | `show_create_table` |
 
 Implemented MySQL column-level lineage scenarios:
@@ -656,6 +662,12 @@ Implemented Spark table-level lineage scenarios:
 | CREATE FLOW AS INSERT lineage | `create flow f as insert into t select ... from s` | `create_flow_insert` |
 | CREATE FLOW AUTO CDC degraded lineage | `create flow f as auto cdc into t from s keys (...)` | `create_flow_auto_cdc` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
+| GROUPING SETS with bitwise expressions | `select lpad(bin(GROUPING__ID ^ 3), 2, 0) ... group by ... grouping sets (...)` | `grouping_sets_bitwise_xor` |
+| Bang logical NOT predicates | `where dt = '${yyyy-MM-dd}' and!(a is null and b is null)` | `bang_logical_not` |
+| UDTF-style function column aliases | `select stack(...) as (candidate, id)`, `select posexplode(...) as (seq, x)` | `stack_function_aliases`, `posexplode_function_aliases` |
+| Null-safe equality predicates | `where not (a.c1 <=> b.c1)` | `null_safe_equal_operator` |
+| Compatibility expression syntax | `select id::varchar ... where name ilike ... qualify row_number() ...` | `compatibility_cast_ilike_qualify` |
+| Backslash-escaped string literals in VALUES | `insert overwrite table t partition (...) values ('用户反馈有\\'异响\\'')` | `backslash_escaped_string_values` |
 
 Invalid SQL returns a diagnostic instead of throwing for the whole parse result. See `parse_error`.
 

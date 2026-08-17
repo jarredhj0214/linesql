@@ -305,6 +305,17 @@
       "description": "MySQL CREATE TABLE with ENGINE and charset options before AS SELECT"
     },
     {
+      "id": "create_table_constraints",
+      "file": "cases/create_table_constraints.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_profile"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with column constraints, primary key, unique key, and secondary index"
+    },
+    {
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
@@ -464,6 +475,29 @@
       "description": "MySQL DROP TABLE affected table lineage"
     },
     {
+      "id": "drop_multiple_tables",
+      "file": "cases/drop_multiple_tables.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users_old",
+        "mart.orders_old"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DROP TABLE with multiple affected tables"
+    },
+    {
+      "id": "drop_view",
+      "file": "cases/drop_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.v_user_orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DROP VIEW affected view lineage"
+    },
+    {
       "id": "truncate_table",
       "file": "cases/truncate_table.sql",
       "statementType": "TRUNCATE_TABLE",
@@ -497,6 +531,17 @@
       ],
       "columnLineage": [],
       "description": "MySQL ALTER TABLE ADD COLUMN affected table lineage"
+    },
+    {
+      "id": "alter_table_add_index",
+      "file": "cases/alter_table_add_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_profile"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD INDEX affected table lineage"
     },
     {
       "id": "show_create_table",

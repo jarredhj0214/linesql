@@ -215,6 +215,7 @@ expressionList
 
 insertStatement
     : INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
+      partitionClause?
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
     ;
@@ -251,6 +252,7 @@ createTableStatement
       (LPAREN tableElementList RPAREN)?
       keyDesc?
       commentClause?
+      partitionDesc?
       distributionDesc?
       propertiesClause?
       (AS query)?
@@ -285,7 +287,8 @@ alterTableAction
     ;
 
 showStatement
-    : SHOW .+?
+    : SHOW PARTITIONS FROM multipartIdentifier
+    | SHOW .+?
     ;
 
 describeStatement
@@ -338,6 +341,19 @@ propertiesClause
     : PROPERTIES LPAREN propertyList RPAREN
     ;
 
+partitionDesc
+    : PARTITION BY RANGE LPAREN identifierList RPAREN
+      LPAREN partitionDefinition (COMMA partitionDefinition)* RPAREN
+    ;
+
+partitionDefinition
+    : PARTITION identifier VALUES LESS THAN LPAREN expressionList RPAREN
+    ;
+
+partitionClause
+    : PARTITION LPAREN identifierList RPAREN
+    ;
+
 propertyList
     : property (COMMA property)*
     ;
@@ -380,11 +396,11 @@ strictIdentifier
 nonReservedKeyword
     : ADD | AGGREGATE | ASC | BUCKETS | CAST | COLUMN | COMMENT | DEFAULT
     | DESCRIBE | DESC | DISTRIBUTED | DUPLICATE | END | EXISTS | EXTERNAL | FALSE
-    | FORMAT | HASH | IF | INTERVAL | KEY | LATERAL | LIKE | LIMIT | MATERIALIZED
+    | FORMAT | HASH | IF | INTERVAL | KEY | LATERAL | LESS | LIKE | LIMIT | MATERIALIZED
     | MAX | MIN | NULL
-    | OFFSET | OVER | OVERWRITE | PARTITION | PRIMARY | PROPERTIES
-    | RANDOM | RENAME | REPLACE | ROW | SHOW | STORED | SUM | TABLE
-    | TEMPORARY | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
+    | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONS | PRIMARY | PROPERTIES
+    | RANDOM | RANGE | RENAME | REPLACE | ROW | SHOW | STORED | SUM | TABLE
+    | TEMPORARY | THAN | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
     ;
 
 number

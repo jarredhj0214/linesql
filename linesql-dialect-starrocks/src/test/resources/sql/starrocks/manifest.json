@@ -100,7 +100,7 @@
           ]
         }
       ],
-      "description": "StarRocks INSERT OVERWRITE SELECT table and column lineage"
+      "description": "StarRocks INSERT OVERWRITE partition SELECT table and column lineage"
     },
     {
       "id": "create_table_as_select",
@@ -529,7 +529,7 @@
         "ods.users"
       ],
       "columnLineage": [],
-      "description": "StarRocks CREATE TABLE DUPLICATE KEY table model affected table lineage"
+      "description": "StarRocks CREATE TABLE DUPLICATE KEY with RANGE partition affected table lineage"
     },
     {
       "id": "create_table_aggregate_key",
@@ -706,6 +706,17 @@
         }
       ],
       "description": "StarRocks window function projection column lineage"
+    },
+    {
+      "id": "show_partitions",
+      "file": "cases/show_partitions.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW PARTITIONS metadata statement"
     }
   ]
 }

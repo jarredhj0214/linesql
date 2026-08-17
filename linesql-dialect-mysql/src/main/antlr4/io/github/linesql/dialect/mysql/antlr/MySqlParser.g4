@@ -15,6 +15,7 @@ statement
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropTableStatement                                             #dropTableStmt
+    | dropViewStatement                                              #dropViewStmt
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
     | showStatement                                                  #showStmt
@@ -273,7 +274,11 @@ createViewStatement
     ;
 
 dropTableStatement
-    : DROP TABLE (IF EXISTS)? multipartIdentifier
+    : DROP TABLE (IF EXISTS)? multipartIdentifierList
+    ;
+
+dropViewStatement
+    : DROP VIEW (IF EXISTS)? multipartIdentifierList
     ;
 
 truncateTableStatement
@@ -315,6 +320,7 @@ tableElementList
 
 tableElement
     : identifier dataType columnConstraint*
+    | tableConstraint
     ;
 
 columnConstraint
@@ -322,6 +328,15 @@ columnConstraint
     | NULL
     | COMMENT string
     | DEFAULT expression
+    | AUTO_INCREMENT
+    | PRIMARY KEY
+    | UNIQUE KEY?
+    ;
+
+tableConstraint
+    : (CONSTRAINT identifier)? PRIMARY KEY LPAREN identifierList RPAREN
+    | UNIQUE (KEY | INDEX)? identifier? LPAREN identifierList RPAREN
+    | (KEY | INDEX) identifier? LPAREN identifierList RPAREN
     ;
 
 commentClause
@@ -364,6 +379,10 @@ identifierList
     : identifier (COMMA identifier)*
     ;
 
+multipartIdentifierList
+    : multipartIdentifier (COMMA multipartIdentifier)*
+    ;
+
 identifier
     : IDENTIFIER
     | BACKQUOTED_IDENTIFIER
@@ -378,10 +397,10 @@ strictIdentifier
 
 nonReservedKeyword
     : ADD | ASC | AUTO_INCREMENT | CAST | CHARSET | CHARACTER | COLLATE
-    | COLUMN | COMMENT | DEFAULT | DESCRIBE | DESC | DUPLICATE | END
-    | ENGINE | EXISTS | EXTERNAL | FALSE | IF | IGNORE | INTERVAL | KEY | LATERAL | LIKE | LIMIT | NULL
+    | COLUMN | COMMENT | CONSTRAINT | DEFAULT | DESCRIBE | DESC | DUPLICATE | END
+    | ENGINE | EXISTS | EXTERNAL | FALSE | IF | IGNORE | INDEX | INTERVAL | KEY | LATERAL | LIKE | LIMIT | NULL
     | OFFSET | OVER | PARTITION | REPLACE | RENAME
-    | SET | SHOW | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | VALUES | VIEW
+    | PRIMARY | SET | SHOW | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
     ;
 
 number

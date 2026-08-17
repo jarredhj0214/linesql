@@ -48,9 +48,13 @@ UNION: U N I O N;
 ALL: A L L;
 DISTINCT: D I S T I N C T;
 PARTITION: P A R T I T I O N;
+PARTITIONS: P A R T I T I O N S;
 STORED: S T O R E D;
 ROW: R O W;
 FORMAT: F O R M A T;
+RANGE: R A N G E;
+LESS: L E S S;
+THAN: T H A N;
 
 // Additional keywords for full parser
 AND: A N D;
