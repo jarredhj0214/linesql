@@ -51,6 +51,83 @@
       "description": "Flink JOIN table lineage and alias-qualified column lineage"
     },
     {
+      "id": "clause_column_usage",
+      "file": "cases/clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "dwd_orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods_users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd_orders.amount"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "HAVING",
+          "column": "dwd_orders.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods_users.id"
+        }
+      ],
+      "description": "Flink clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
+    },
+    {
+      "id": "set_operation_clause_column_usage",
+      "file": "cases/set_operation_clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_admins"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id",
+            "dwd_admins.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods_users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd_admins.enabled"
+        }
+      ],
+      "description": "Flink clause column usages are merged across UNION branches"
+    },
+    {
       "id": "insert_into",
       "file": "cases/insert_into.sql",
       "statementType": "INSERT",

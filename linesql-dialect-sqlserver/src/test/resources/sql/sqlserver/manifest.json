@@ -51,6 +51,83 @@
       "description": "SQL Server JOIN table lineage and alias-qualified column lineage"
     },
     {
+      "id": "clause_column_usage",
+      "file": "cases/clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "dwd.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.amount"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "HAVING",
+          "column": "dwd.orders.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "SQL Server clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
+    },
+    {
+      "id": "set_operation_clause_column_usage",
+      "file": "cases/set_operation_clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.admins"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id",
+            "dwd.admins.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.admins.enabled"
+        }
+      ],
+      "description": "SQL Server clause column usages are merged across UNION branches"
+    },
+    {
       "id": "insert_into",
       "file": "cases/insert_into.sql",
       "statementType": "INSERT",

@@ -2,6 +2,8 @@ package io.github.linesql.dialect.oracle;
 
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
+import io.github.linesql.core.model.ColumnUsage;
+import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
@@ -302,6 +304,8 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         for (TableRef table : rightResult.getInputTables()) {
             addInputTable(table, false);
         }
+        mergeColumnUsages(leftResult);
+        mergeColumnUsages(rightResult);
         result.setColumnLineage(LineageModelUtils.mergeSetColumnLineage(leftResult, rightResult));
         return null;
     }
@@ -339,6 +343,34 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                     projections.add(projection);
                 }
             }
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitWhereClause(OracleParser.WhereClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitGroupByClause(OracleParser.GroupByClauseContext ctx) {
+        for (OracleParser.ExpressionContext expression : ctx.expression()) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitHavingClause(OracleParser.HavingClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.HAVING, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitQueryOrganization(OracleParser.QueryOrganizationContext ctx) {
+        for (OracleParser.SortItemContext sortItem : ctx.sortItem()) {
+            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
         }
         return visitChildren(ctx);
     }
@@ -431,6 +463,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         for (TableRef table : relationResult.getInputTables()) {
             addInputTable(table, false);
         }
+        mergeColumnUsages(relationResult);
     }
 
     private LineageResult lineageForQueryTerm(OracleParser.QueryTermContext queryTerm) {
@@ -443,6 +476,32 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         queryVisitor.visit(queryTerm);
         queryVisitor.refreshColumnLineage();
         return queryResult;
+    }
+
+    private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
+        List<ColumnRef> refs = columnRefs(sourceColumns);
+        if (refs == null) {
+            return;
+        }
+        Map<String, ColumnUsage> usages = new LinkedHashMap<>();
+        for (ColumnUsage usage : result.getColumnUsages()) {
+            usages.put(columnUsageKey(usage), usage);
+        }
+        for (ColumnRef ref : refs) {
+            usages.put(type.name() + ":" + columnKey(ref), new ColumnUsage(type, ref));
+        }
+        result.setColumnUsages(new ArrayList<>(usages.values()));
+    }
+
+    private void mergeColumnUsages(LineageResult source) {
+        Map<String, ColumnUsage> usages = new LinkedHashMap<>();
+        for (ColumnUsage usage : result.getColumnUsages()) {
+            usages.put(columnUsageKey(usage), usage);
+        }
+        for (ColumnUsage usage : source.getColumnUsages()) {
+            usages.put(columnUsageKey(usage), usage);
+        }
+        result.setColumnUsages(new ArrayList<>(usages.values()));
     }
 
     private void refreshColumnLineage() {
@@ -479,6 +538,26 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     private List<ColumnRef> columnRefs(Projection projection) {
         return columnRefs(projection.sourceColumns);
+    }
+
+    private static String columnUsageKey(ColumnUsage usage) {
+        return usage.getType().name() + ":" + columnKey(usage.getColumn());
+    }
+
+    private static String columnKey(ColumnRef column) {
+        List<String> parts = new ArrayList<>();
+        TableRef table = column.getTable();
+        if (table != null) {
+            if (table.getCatalog() != null) {
+                parts.add(table.getCatalog());
+            }
+            if (table.getSchema() != null) {
+                parts.add(table.getSchema());
+            }
+            parts.add(table.getName());
+        }
+        parts.add(column.getName());
+        return String.join(".", parts).toLowerCase(Locale.ROOT);
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {

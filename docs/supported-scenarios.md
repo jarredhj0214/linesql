@@ -116,6 +116,13 @@ Implemented SQL Server column-level lineage scenarios:
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 
+Implemented SQL Server clause-level column usage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| UNION branch WHERE source columns | `select id from dbo.s1 where ... union all select id from dbo.s2 where ...` | `set_operation_clause_column_usage` |
+
 Current SQL Server diagnostics:
 
 | Code | Meaning |
@@ -198,6 +205,13 @@ Implemented Oracle column-level lineage scenarios:
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
+
+Implemented Oracle clause-level column usage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 
 Current Oracle diagnostics:
 
@@ -372,6 +386,13 @@ Implemented Flink column-level lineage scenarios:
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads_t set c = c2 where ...` | `update_set` |
 
+Implemented Flink clause-level column usage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| UNION branch WHERE source columns | `select id from s1 where ... union all select id from s2 where ...` | `set_operation_clause_column_usage` |
+
 Current Flink diagnostics:
 
 | Code | Meaning |
@@ -451,6 +472,13 @@ Implemented Hive column-level lineage scenarios:
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
+
+Implemented Hive clause-level column usage scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from dwd.s2 where ...` | `set_operation_clause_column_usage` |
 
 Current Hive diagnostics:
 
