@@ -744,6 +744,10 @@ Implemented Spark clause-level column usage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| Subquery WHERE and GROUP BY source columns | `select q.id from (select id from ods.s where ... group by ...) q where ... group by ...` | `subquery_clause_column_usage` |
+| CTE WHERE and GROUP BY source columns | `with q as (select id from ods.s where ...) select id from q where ... group by ...` | `cte_clause_column_usage` |
+| UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
+| Same-name GROUP BY columns in joined subqueries | `select ... from (select id ... group by id) t1 join (select id ... group by id) t2 ...` | `joined_subquery_same_name_group_usage` |
 
 ### Diagnostics
 

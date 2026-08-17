@@ -52,10 +52,106 @@
         },
         {
           "type": "ORDER_BY",
+          "column": "dwd.orders.order_id"
+        },
+        {
+          "type": "ORDER_BY",
           "column": "ods.users.id"
         }
       ],
       "description": "Clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
+    },
+    {
+      "id": "subquery_clause_column_usage",
+      "file": "cases/subquery_clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.dt"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.dt"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Clause column usages are propagated from nested subqueries"
+    },
+    {
+      "id": "cte_clause_column_usage",
+      "file": "cases/cte_clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.dt"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "Clause column usages are propagated from CTE definitions and references"
+    },
+    {
+      "id": "set_operation_clause_column_usage",
+      "file": "cases/set_operation_clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "dwd.users"],
+      "outputTables": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.dt"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.users.ds"
+        }
+      ],
+      "description": "Clause column usages are merged across UNION branches"
+    },
+    {
+      "id": "joined_subquery_same_name_group_usage",
+      "file": "cases/joined_subquery_same_name_group_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "dwd.orders"],
+      "outputTables": [],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.status"
+        }
+      ],
+      "description": "Same-name GROUP BY columns in joined subqueries stay scoped to the local single-table subquery"
     },
     {
       "id": "table_query",

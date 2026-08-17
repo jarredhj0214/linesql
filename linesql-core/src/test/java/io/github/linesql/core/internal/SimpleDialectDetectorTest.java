@@ -90,6 +90,17 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void ignoresDialectAnchorsInsideComments() {
+        List<SqlDialect> candidates = detector.detect(
+                "select id from ods.users\n"
+                        + "-- delete from t join s on t.id = s.id\n"
+                        + "where status != 'delete from comment text'");
+
+        assertEquals(SqlDialect.SPARK, candidates.get(0));
+        assertFalse(candidates.contains(SqlDialect.MYSQL));
+    }
+
+    @Test
     public void returnsStructuredDetectionMetadata() {
         List<DialectCandidate> candidates = detector.detectCandidates(
                 "create table ods_users(id bigint) with ('connector' = 'kafka')");

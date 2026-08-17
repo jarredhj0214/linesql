@@ -21,7 +21,7 @@ public class SimpleDialectDetector implements DialectDetector {
 
     @Override
     public List<DialectCandidate> detectCandidates(String sql) {
-        String normalized = sql.toLowerCase(Locale.ROOT);
+        String normalized = stripComments(sql).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
 
         if (normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
@@ -84,5 +84,65 @@ public class SimpleDialectDetector implements DialectDetector {
             }
         }
         return false;
+    }
+
+    private static String stripComments(String sql) {
+        StringBuilder stripped = new StringBuilder(sql.length());
+        boolean singleQuoted = false;
+        boolean doubleQuoted = false;
+        boolean backQuoted = false;
+        for (int i = 0; i < sql.length(); i++) {
+            char current = sql.charAt(i);
+            char next = i + 1 < sql.length() ? sql.charAt(i + 1) : '\0';
+
+            if (!doubleQuoted && !backQuoted && current == '\'' && !isEscaped(sql, i)) {
+                singleQuoted = !singleQuoted;
+                stripped.append(current);
+                continue;
+            }
+            if (!singleQuoted && !backQuoted && current == '"' && !isEscaped(sql, i)) {
+                doubleQuoted = !doubleQuoted;
+                stripped.append(current);
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && current == '`') {
+                backQuoted = !backQuoted;
+                stripped.append(current);
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && !backQuoted && current == '-' && next == '-') {
+                stripped.append(' ');
+                i += 2;
+                while (i < sql.length() && sql.charAt(i) != '\n' && sql.charAt(i) != '\r') {
+                    i++;
+                }
+                if (i < sql.length()) {
+                    stripped.append(sql.charAt(i));
+                }
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && !backQuoted && current == '/' && next == '*') {
+                stripped.append(' ');
+                i += 2;
+                while (i + 1 < sql.length() && !(sql.charAt(i) == '*' && sql.charAt(i + 1) == '/')) {
+                    i++;
+                }
+                if (i + 1 < sql.length()) {
+                    i++;
+                }
+                stripped.append(' ');
+                continue;
+            }
+            stripped.append(current);
+        }
+        return stripped.toString();
+    }
+
+    private static boolean isEscaped(String sql, int index) {
+        int slashCount = 0;
+        for (int i = index - 1; i >= 0 && sql.charAt(i) == '\\'; i--) {
+            slashCount++;
+        }
+        return slashCount % 2 == 1;
     }
 }
