@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.linesql</groupId>
+        <groupId>io.github.jarredhj0214</groupId>
         <artifactId>linesql</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0-alpha.1</version>
     </parent>
 
     <artifactId>linesql-dialect-starrocks</artifactId>
@@ -15,7 +15,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.github.linesql</groupId>
+            <groupId>io.github.jarredhj0214</groupId>
             <artifactId>linesql-core</artifactId>
             <version>${project.version}</version>
         </dependency>

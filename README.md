@@ -83,6 +83,32 @@ LineSQL 仍处于早期实现阶段。第一阶段聚焦现代数据平台中常
 
 ## Usage / 使用方式
 
+Maven:
+
+```xml
+<dependency>
+    <groupId>io.github.jarredhj0214</groupId>
+    <artifactId>linesql-core</artifactId>
+    <version>0.1.0-alpha.1</version>
+</dependency>
+
+<dependency>
+    <groupId>io.github.jarredhj0214</groupId>
+    <artifactId>linesql-dialect-spark</artifactId>
+    <version>0.1.0-alpha.1</version>
+</dependency>
+
+<dependency>
+    <groupId>io.github.jarredhj0214</groupId>
+    <artifactId>linesql-dialect-mysql</artifactId>
+    <version>0.1.0-alpha.1</version>
+</dependency>
+```
+
+Add the dialect modules you need. LineSQL discovers available dialect parsers from the classpath.
+
+按需引入方言模块。LineSQL 会从 classpath 中发现可用的方言解析器。
+
 Build:
 
 ```bash
@@ -107,11 +133,11 @@ CLI:
 ```bash
 ./scripts/mvn-jdk11 -q -pl linesql-cli -am package
 "/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" \
-  -jar linesql-cli/target/linesql-cli-0.1.0-SNAPSHOT.jar \
+  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.1.jar \
   "insert overwrite table ads.user_summary select id from ods.users"
 
 "/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" \
-  -jar linesql-cli/target/linesql-cli-0.1.0-SNAPSHOT.jar \
+  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.1.jar \
   --dialect HIVE \
   "select id from ods.users"
 ```
