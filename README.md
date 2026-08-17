@@ -89,19 +89,19 @@ Maven:
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-core</artifactId>
-    <version>0.1.0-alpha.1</version>
+    <version>0.1.0-alpha.2</version>
 </dependency>
 
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-dialect-spark</artifactId>
-    <version>0.1.0-alpha.1</version>
+    <version>0.1.0-alpha.2</version>
 </dependency>
 
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-dialect-mysql</artifactId>
-    <version>0.1.0-alpha.1</version>
+    <version>0.1.0-alpha.2</version>
 </dependency>
 ```
 
@@ -121,7 +121,7 @@ API:
 LineageResult result = LineSql.parse(sql);
 LineageResult mysqlResult = LineSql.parse(sql, SqlDialect.MYSQL);
 LineageResult optionResult = LineSql.parse(sql, ParseOptions.builder()
-    .dialectHints(List.of(SqlDialect.SPARK))
+    .dialectHints(Arrays.asList(SqlDialect.SPARK))
     .build());
 
 List<LineageResult> results = LineSql.parseScript(script);
@@ -133,11 +133,11 @@ CLI:
 ```bash
 ./scripts/mvn-jdk11 -q -pl linesql-cli -am package
 "/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" \
-  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.1.jar \
+  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.2.jar \
   "insert overwrite table ads.user_summary select id from ods.users"
 
 "/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" \
-  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.1.jar \
+  -jar linesql-cli/target/linesql-cli-0.1.0-alpha.2.jar \
   --dialect HIVE \
   "select id from ods.users"
 ```

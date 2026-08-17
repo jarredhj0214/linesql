@@ -45,7 +45,7 @@ Options API:
 
 ```java
 LineageResult result = LineSql.parse(sql, ParseOptions.builder()
-    .dialectHints(List.of(SqlDialect.SPARK, SqlDialect.HIVE))
+    .dialectHints(Arrays.asList(SqlDialect.SPARK, SqlDialect.HIVE))
     .build());
 ```
 

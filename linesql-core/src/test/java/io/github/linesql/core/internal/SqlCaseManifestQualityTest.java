@@ -67,7 +67,7 @@ public class SqlCaseManifestQualityTest {
 
     @Test
     public void supportedScenarioDocsReferenceEveryCaseId() throws IOException {
-        String docs = Files.readString(repoRoot().resolve("docs/supported-scenarios.md"), StandardCharsets.UTF_8);
+        String docs = readUtf8(repoRoot().resolve("docs/supported-scenarios.md"));
         List<String> missing = new ArrayList<>();
         for (DialectManifest manifest : manifests()) {
             for (JsonNode sqlCase : manifest.root.get("cases")) {
@@ -78,6 +78,10 @@ public class SqlCaseManifestQualityTest {
             }
         }
         assertTrue("Case ids missing from docs/supported-scenarios.md: " + missing, missing.isEmpty());
+    }
+
+    private static String readUtf8(Path path) throws IOException {
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
     }
 
     @Test

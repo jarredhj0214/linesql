@@ -10,6 +10,7 @@ import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -82,9 +83,19 @@ public class MySqlDialectParserTest {
             if (input == null) {
                 throw new AssertionError("Missing test resource: " + path);
             }
-            byte[] bytes = input.readAllBytes();
+            byte[] bytes = readAllBytes(input);
             return new String(bytes, StandardCharsets.UTF_8);
         }
+    }
+
+    private static byte[] readAllBytes(InputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
     }
 
     private static boolean resourceExists(String path) {

@@ -6,7 +6,7 @@
 
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql</artifactId>
-    <version>0.1.0-alpha.1</version>
+    <version>0.1.0-alpha.2</version>
     <packaging>pom</packaging>
 
     <name>LineSQL</name>
@@ -48,11 +48,11 @@
     </modules>
 
     <properties>
-        <maven.compiler.release>11</maven.compiler.release>
+        <maven.compiler.release>8</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.17.2</jackson.version>
         <junit.version>4.13.2</junit.version>
-        <antlr.version>4.13.2</antlr.version>
+        <antlr.version>4.9.3</antlr.version>
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.7.0</maven-javadoc-plugin.version>
         <maven-gpg-plugin.version>3.2.4</maven-gpg-plugin.version>
