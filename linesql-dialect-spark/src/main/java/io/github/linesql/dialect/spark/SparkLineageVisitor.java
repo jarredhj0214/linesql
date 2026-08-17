@@ -937,6 +937,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitJoinCriteria(SqlBaseParser.JoinCriteriaContext ctx) {
         if (ctx.booleanExpression() != null) {
             addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.booleanExpression()));
+        } else {
+            addUsingColumnUsages(ctx.identifierList());
         }
         return visitChildren(ctx);
     }
@@ -1214,7 +1216,6 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
-        relationVisitor.derivedReferences.addAll(derivedReferences);
         relationVisitor.setContext(context);
         relationVisitor.visit(query);
         relationVisitor.refreshColumnLineage();
@@ -1511,6 +1512,19 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = partialColumnRefs(sourceColumns);
         LineageModelUtils.addColumnUsages(result, type, refs);
+    }
+
+    private void addUsingColumnUsages(SqlBaseParser.IdentifierListContext ctx) {
+        if (ctx == null || inputTables.size() != 2) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String columnName : identifierNames(ctx)) {
+            for (TableRef table : inputTables) {
+                refs.add(new ColumnRef(table, columnName));
+            }
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, refs);
     }
 
     private List<ColumnRef> partialColumnRefs(List<SourceColumn> sourceColumns) {

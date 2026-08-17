@@ -106,6 +106,94 @@
       "description": "Flink clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
     },
     {
+      "id": "joined_subquery_scope",
+      "file": "cases/joined_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "dwd_orders.id"
+          ]
+        },
+        {
+          "target": "status",
+          "sources": [
+            "dwd_orders.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd_orders.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd_orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.id"
+        }
+      ],
+      "description": "Flink same-name columns in joined subqueries stay scoped to their local single-table subquery"
+    },
+    {
+      "id": "join_using_column_usage",
+      "file": "cases/join_using_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd_orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.id"
+        }
+      ],
+      "description": "Flink JOIN USING predicate column usages"
+    },
+    {
       "id": "set_operation_clause_column_usage",
       "file": "cases/set_operation_clause_column_usage.sql",
       "statementType": "SELECT",

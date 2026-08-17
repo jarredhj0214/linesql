@@ -106,6 +106,94 @@
       "description": "MySQL clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
     },
     {
+      "id": "joined_subquery_scope",
+      "file": "cases/joined_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        },
+        {
+          "target": "status",
+          "sources": [
+            "app.orders.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.id"
+        }
+      ],
+      "description": "MySQL same-name columns in joined subqueries stay scoped to their local single-table subquery"
+    },
+    {
+      "id": "join_using_column_usage",
+      "file": "cases/join_using_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.id"
+        }
+      ],
+      "description": "MySQL JOIN USING predicate column usages"
+    },
+    {
       "id": "set_operation_clause_column_usage",
       "file": "cases/set_operation_clause_column_usage.sql",
       "statementType": "SELECT",

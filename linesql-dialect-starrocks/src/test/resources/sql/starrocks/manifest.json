@@ -106,6 +106,94 @@
       "description": "StarRocks clause-level column usages for WHERE, GROUP BY, HAVING, and ORDER BY"
     },
     {
+      "id": "joined_subquery_scope",
+      "file": "cases/joined_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "dwd.orders.id"
+          ]
+        },
+        {
+          "target": "status",
+          "sources": [
+            "dwd.orders.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "StarRocks same-name columns in joined subqueries stay scoped to their local single-table subquery"
+    },
+    {
+      "id": "join_using_column_usage",
+      "file": "cases/join_using_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "StarRocks JOIN USING predicate column usages"
+    },
+    {
       "id": "set_operation_clause_column_usage",
       "file": "cases/set_operation_clause_column_usage.sql",
       "statementType": "SELECT",

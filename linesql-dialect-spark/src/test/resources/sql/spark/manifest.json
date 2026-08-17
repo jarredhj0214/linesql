@@ -145,6 +145,20 @@
       "statementType": "SELECT",
       "inputTables": ["ods.users", "dwd.orders"],
       "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "id",
+          "sources": ["dwd.orders.id"]
+        },
+        {
+          "target": "status",
+          "sources": ["dwd.orders.status"]
+        }
+      ],
       "columnUsages": [
         {
           "type": "GROUP_BY",
@@ -161,9 +175,13 @@
         {
           "type": "JOIN_ON",
           "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
         }
       ],
-      "description": "Same-name GROUP BY columns in joined subqueries stay scoped to the local single-table subquery"
+      "description": "Same-name columns in joined subqueries stay scoped to their local single-table subquery"
     },
     {
       "id": "join_on_column_usage",
@@ -196,6 +214,34 @@
         }
       ],
       "description": "JOIN ON predicate column usages"
+    },
+    {
+      "id": "join_using_column_usage",
+      "file": "cases/join_using_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "dwd.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "amount",
+          "sources": ["dwd.orders.amount"]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "JOIN USING predicate column usages"
     },
     {
       "id": "table_query",

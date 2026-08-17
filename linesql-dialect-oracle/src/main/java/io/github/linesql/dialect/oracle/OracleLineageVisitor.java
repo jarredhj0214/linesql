@@ -358,6 +358,8 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     public Void visitJoinCriteria(OracleParser.JoinCriteriaContext ctx) {
         if (ctx.expression() != null) {
             addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
+        } else {
+            addUsingColumnUsages(ctx.identifierList());
         }
         return visitChildren(ctx);
     }
@@ -457,7 +459,6 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
-        relationVisitor.derivedReferences.addAll(derivedReferences);
         relationVisitor.visit(query);
         relationVisitor.refreshColumnLineage();
 
@@ -492,6 +493,19 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
         }
+    }
+
+    private void addUsingColumnUsages(OracleParser.IdentifierListContext ctx) {
+        if (ctx == null || inputTables.size() != 2) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String columnName : identifierNames(ctx)) {
+            for (TableRef table : inputTables) {
+                refs.add(new ColumnRef(table, columnName));
+            }
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, refs);
     }
 
     private void refreshColumnLineage() {
@@ -817,6 +831,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             }
         }
         return aliases;
+    }
+
+    private static List<String> identifierNames(OracleParser.IdentifierListContext ctx) {
+        List<String> names = new ArrayList<>();
+        for (OracleParser.IdentifierContext id : ctx.identifier()) {
+            names.add(cleanIdentifier(id));
+        }
+        return names;
     }
 
     private static String cleanIdentifier(OracleParser.IdentifierContext ctx) {
