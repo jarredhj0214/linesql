@@ -220,7 +220,7 @@ expressionList
 insertStatement
     : INSERT IGNORE? INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
-      (query | VALUES valuesClause (COMMA valuesClause)*)
+      (query | VALUES valuesClause (COMMA valuesClause)* | SET assignmentList)
       onDuplicateKeyUpdate?
     ;
 

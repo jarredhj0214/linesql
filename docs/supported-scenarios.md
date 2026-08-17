@@ -482,6 +482,7 @@ Implemented MySQL table-level lineage scenarios:
 | INSERT INTO SELECT target and source | `insert into mart.t(c1) select a from app.s` | `insert_select` |
 | INSERT IGNORE SELECT target and source | `insert ignore into mart.t(c1) select a from app.s` | `insert_ignore_select` |
 | INSERT INTO VALUES target lineage | `insert into mart.t(c1) values (...)` | `insert_values` |
+| INSERT SET target lineage | `insert into mart.t set c1 = ...` | `insert_set` |
 | INSERT SELECT with duplicate-key update | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
 | REPLACE INTO SELECT target and source | `replace into mart.t(c1) select a from app.s` | `replace_select` |
 | REPLACE INTO VALUES target lineage | `replace into mart.t(c1) values (...)` | `replace_values` |

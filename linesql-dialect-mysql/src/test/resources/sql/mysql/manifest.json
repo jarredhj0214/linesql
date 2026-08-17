@@ -181,6 +181,16 @@
       "description": "MySQL INSERT INTO VALUES target table lineage"
     },
     {
+      "id": "insert_set",
+      "file": "cases/insert_set.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "description": "MySQL INSERT SET target table lineage"
+    },
+    {
       "id": "insert_select_on_duplicate",
       "file": "cases/insert_select_on_duplicate.sql",
       "statementType": "INSERT",
