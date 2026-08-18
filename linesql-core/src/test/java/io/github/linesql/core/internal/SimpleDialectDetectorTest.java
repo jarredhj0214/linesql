@@ -55,6 +55,19 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void detectsPostgreSqlAnchors() {
+        assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1) on conflict (id) do nothing");
+        assertFirst(SqlDialect.POSTGRESQL, "update public.users set name = 'a' returning id");
+        assertFirst(SqlDialect.POSTGRESQL, "select id::text from public.users where name ilike 'a%'");
+    }
+
+    @Test
+    public void detectsOceanBaseAnchors() {
+        assertFirst(SqlDialect.OCEANBASE, "select id from oceanbase.__all_virtual_table");
+        assertFirst(SqlDialect.OCEANBASE, "select id from app._ob_table");
+    }
+
+    @Test
     public void detectsSparkAnchorsAndFallback() {
         assertFirst(SqlDialect.SPARK, "insert overwrite table ads.t select id from ods.s");
         assertFirst(SqlDialect.SPARK, "select id from ods.users lateral view explode(tags) x as tag");
@@ -69,6 +82,7 @@ public class SimpleDialectDetectorTest {
 
         assertEquals(SqlDialect.SPARK, candidates.get(0));
         assertFalse(candidates.contains(SqlDialect.ORACLE));
+        assertFalse(candidates.contains(SqlDialect.SQLSERVER));
     }
 
     @Test
@@ -87,6 +101,15 @@ public class SimpleDialectDetectorTest {
 
         assertEquals(SqlDialect.MYSQL, candidates.get(0));
         assertFalse(candidates.contains(SqlDialect.STARROCKS));
+    }
+
+    @Test
+    public void prefersSparkForQualifyCompatibilitySyntax() {
+        List<SqlDialect> candidates = detector.detect(
+                "select id::varchar from ods.user_events where event_name ilike '%login%' qualify row_number() over(order by event_time) = 1");
+
+        assertEquals(SqlDialect.SPARK, candidates.get(0));
+        assertTrue(candidates.contains(SqlDialect.POSTGRESQL));
     }
 
     @Test

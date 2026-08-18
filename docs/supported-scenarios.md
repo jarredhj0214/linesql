@@ -82,6 +82,8 @@ Implemented SQL Server table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | DELETE FROM JOIN target and source tables | `delete t from ads.t t join ods.s s ...` | `delete_from_join` |
+| MERGE target and source tables | `merge into ads.t using ods.s on ... when matched then update ...` | `merge_into` |
+| MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q on ...` | `merge_using_subquery` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table if exists dbo.t` | `drop_table` |
@@ -97,32 +99,70 @@ Implemented SQL Server column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | INSERT OVERWRITE target column mapping | `insert overwrite table ads.t(c1, c2) select a, b from ods.s` | `insert_overwrite` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
+| INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
+| INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CTAS over aliased/expression/aggregate projections | `create table ads.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| CREATE VIEW over aliased/expression/aggregate projections | `create view ads.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
+| INSERT target column list over aliased/expression projections | `insert into t(c1,c2,c3) select a as x, upper(b), count(c) ...` | `insert_column_list_expression_projection` |
 | CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Bracketed identifier column mapping | `select [用户ID] as [用户标识] from [业务库].[用户表]` | `bracket_identifiers` |
 | SELECT TOP projection mapping | `select top (10) u.id as user_id from dbo.users u` | `top_parenthesized` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
+| Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as varchar), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as varchar)) from t` | `nested_function_projection` |
+| Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
-| Window function expression dependencies | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
+| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
+| Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_scope` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
+| UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s` | `update_expression_assignment` |
+| UPDATE FROM derived query assignment dependencies | `update ads.t set c1 = q.c2 from (select c2 from ods.s) q where ...` | `update_from_derived_assignment` |
+| MERGE update assignments and insert values | `merge into ads.t using ods.s on ... when matched then update set c = s.c when not matched by target then insert (...) values (...)` | `merge_into` |
+| MERGE source subquery field propagation | `merge into ads.t using (select a as c from ods.s) q on ...` | `merge_using_subquery` |
 
 Implemented SQL Server clause-level column usage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| Basic predicate operators in WHERE | `where c between ... and ... and name like ... and deleted_at is null` | `predicate_operator_column_usage` |
+| IN expression-list predicate usage | `where status in (...) and region in (home_region, ...)` | `in_list_predicate_column_usage` |
+| Negated predicate operators in WHERE | `where c not between ... and name not like ... and status not in (...)` | `negated_predicate_column_usage` |
+| Logical NOT over grouped predicates | `where not (status = ... or name like ...) and score > ...` | `logical_not_group_column_usage` |
+| Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
+| JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
+| JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
+| JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
+| JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
+| JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
+| DELETE FROM JOIN predicate columns | `delete t from ads.t t join ods.s s on t.id = s.id` | `delete_from_join` |
+| DELETE FROM derived JOIN predicate columns | `delete t from ads.t t join (select id from ods.s) q on t.id = q.id` | `delete_from_join_derived` |
+| MERGE ON source columns | `merge into ads.t using ods.s on t.id = s.id ...` | `merge_into` |
+| MERGE ON over source subquery columns | `merge into ads.t using (select id from ods.s) q on t.id = q.id` | `merge_using_subquery` |
 | UNION branch WHERE source columns | `select id from dbo.s1 where ... union all select id from dbo.s2 where ...` | `set_operation_clause_column_usage` |
+| EXISTS subquery predicate column usage | `where exists (select 1 from dbo.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
+| UPDATE/DELETE WHERE subquery predicate columns | `update/delete dbo.t where id in (select user_id from ods.s)` | `update_with_subquery`, `delete_with_subquery` |
 
 Current SQL Server diagnostics:
 
@@ -138,7 +178,7 @@ Known SQL Server gaps:
 | --- | --- |
 | Full SQL Server grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
-| Advanced T-SQL DML and procedural syntax | `MERGE`, `OUTPUT`, table variables, temp tables, and stored-procedure bodies are not yet covered. Basic `UPDATE FROM` and `DELETE FROM JOIN` lineage is covered. |
+| Advanced T-SQL DML and procedural syntax | Basic `MERGE`, `UPDATE FROM`, and `DELETE FROM JOIN` lineage is covered. `OUTPUT`, table variables, temp tables, and stored-procedure bodies are not yet covered. |
 | Complex CTEs and subqueries | Single CTE, chained CTE direct projection, CTE column aliases, and single derived subquery direct projection propagation are covered. Recursive CTEs and complex nested subqueries are not complete yet. |
 
 ## Oracle
@@ -172,6 +212,8 @@ Implemented Oracle table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
+| MERGE target and source tables | `merge into ads.t using ods.s on (...) when matched then update ...` | `merge_into` |
+| MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q on (...)` | `merge_using_subquery` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table mart.t` | `drop_table` |
@@ -189,32 +231,69 @@ Implemented Oracle column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
+| INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
+| INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CTAS over aliased/expression/aggregate projections | `create table ads.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| CREATE VIEW over aliased/expression/aggregate projections | `create view ads.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
+| INSERT target column list over aliased/expression projections | `insert into t(c1,c2,c3) select a as x, upper(b), count(c) ...` | `insert_column_list_expression_projection` |
 | CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Double-quoted identifier column mapping | `select "用户ID" as "用户标识" from "业务库"."用户表"` | `quoted_identifiers` |
 | Hierarchical query projection mapping | `select id as org_id from app.org start with ... connect by ...` | `hierarchical_query` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
+| Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as varchar), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as varchar)) from t` | `nested_function_projection` |
+| Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
+| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
+| Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_scope` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
+| UPDATE SET expression dependencies | `update ads.t set c1 = upper(c2), c3 = c4 + c5 where ...` | `update_expression_assignment` |
+| MERGE update assignments and insert values | `merge into ads.t using ods.s on (...) when matched then update set c = s.c when not matched then insert (...) values (...)` | `merge_into` |
+| MERGE source subquery field propagation | `merge into ads.t using (select a as c from ods.s) q on (...)` | `merge_using_subquery` |
 
 Implemented Oracle clause-level column usage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| Basic predicate operators in WHERE | `where c between ... and ... and name like ... and deleted_at is null` | `predicate_operator_column_usage` |
+| IN expression-list predicate usage | `where status in (...) and region in (home_region, ...)` | `in_list_predicate_column_usage` |
+| Negated predicate operators in WHERE | `where c not between ... and name not like ... and status not in (...)` | `negated_predicate_column_usage` |
+| Logical NOT over grouped predicates | `where not (status = ... or name like ...) and score > ...` | `logical_not_group_column_usage` |
 | JOIN ON source columns | `select u.id, o.amount from users u join orders o on ...` | `join_on_column_usage` |
+| Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
+| JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
+| JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
+| JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
+| JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
+| JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | UPDATE WHERE source columns | `update ads.t set c = s.c from ods.s s where ...` | `dml_where_column_usage` |
+| EXISTS subquery predicate column usage | `where exists (select 1 from ods.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
+| UPDATE WHERE subquery predicate columns | `update ads.t set c = (...) where id in (select user_id from ods.s)` | `update_with_subquery` |
+| DELETE WHERE subquery predicate columns | `delete from ads.t where id in (select user_id from ods.s)` | `delete_with_subquery` |
+| MERGE ON source columns | `merge into ads.t using ods.s on (t.id = s.id) ...` | `merge_into` |
+| MERGE ON over source subquery columns | `merge into ads.t using (select id from ods.s) q on (t.id = q.id)` | `merge_using_subquery` |
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 
 Current Oracle diagnostics:
@@ -231,7 +310,7 @@ Known Oracle gaps:
 | --- | --- |
 | Full Oracle grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
-| Oracle-specific query syntax | `MODEL`, `PIVOT`, `MERGE`, packages, and PL/SQL blocks are not yet covered. `START WITH` and `CONNECT BY` are recognized as lineage clause boundaries. |
+| Oracle-specific query syntax | `MODEL`, `PIVOT`, packages, and PL/SQL blocks are not yet covered. Basic `MERGE INTO` and hierarchical `START WITH` / `CONNECT BY` lineage are covered. |
 | Complex CTEs and subqueries | Single CTE, chained CTE direct projection, CTE column aliases, and single derived subquery direct projection propagation are covered. Recursive CTEs and complex nested subqueries are not complete yet. |
 
 ## StarRocks
@@ -261,7 +340,9 @@ Implemented StarRocks table-level lineage scenarios:
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
+| UPDATE FROM derived query source tables | `update ads.t set c = q.c from (select ... from ods.s) q where ...` | `update_from_derived_assignment` |
 | DELETE USING target and source tables | `delete from ads.t using ods.s s where ...` | `delete_using` |
+| DELETE USING derived query source tables | `delete from ads.t using (select ... from ods.s) q where ...` | `delete_using_derived` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
@@ -280,30 +361,64 @@ Implemented StarRocks column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
+| INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
+| INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CTAS over aliased/expression/aggregate projections | `create table ads.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| CREATE VIEW over aliased/expression/aggregate projections | `create view ads.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE MATERIALIZED VIEW output column targets | `create materialized view ads.mv as select u.id from ods.users u` | `create_materialized_view` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
+| INSERT target column list over aliased/expression projections | `insert into t(c1,c2,c3) select a as x, upper(b), count(c) ...` | `insert_column_list_expression_projection` |
 | CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
+| Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as varchar), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as varchar)) from t` | `nested_function_projection` |
+| Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
+| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_scope` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
+| UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s` | `update_expression_assignment` |
+| UPDATE FROM derived query assignment dependencies | `update ads.t set c1 = q.c2 from (select c2 from ods.s) q where ...` | `update_from_derived_assignment` |
 
 Implemented StarRocks clause-level column usage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| Basic predicate operators in WHERE | `where c between ... and ... and name like ... and deleted_at is null` | `predicate_operator_column_usage` |
+| IN expression-list predicate usage | `where status in (...) and region in (home_region, ...)` | `in_list_predicate_column_usage` |
+| Negated predicate operators in WHERE | `where c not between ... and name not like ... and status not in (...)` | `negated_predicate_column_usage` |
+| Logical NOT over grouped predicates | `where not (status = ... or name like ...) and score > ...` | `logical_not_group_column_usage` |
+| Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
+| JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
+| JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
+| JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
+| JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
+| JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
+| DELETE USING WHERE source columns | `delete from ads.t using ods.s s where t.id = s.id` | `delete_using` |
+| DELETE USING derived WHERE columns | `delete from ads.t using (select id from ods.s) q where t.id = q.id` | `delete_using_derived` |
+| EXISTS subquery predicate column usage | `where exists (select 1 from ods.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
+| UPDATE/DELETE WHERE subquery predicate columns | `update/delete ads.t where id in (select user_id from ods.s)` | `update_with_subquery`, `delete_with_subquery` |
 
 Current StarRocks diagnostics:
 
@@ -349,6 +464,9 @@ Implemented Flink table-level lineage scenarios:
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods_s) q` | `subquery_column_projection` |
 | Scalar subquery source propagation | `select (select max(v) from ods_s) as c from src_t` | `scalar_subquery` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | IN/EXISTS subquery source propagation | `where id in (select id from ods_s)` / `where exists (...)` | `in_subquery`, `exists_subquery` |
 | LATERAL subquery source propagation | `from src_t, lateral (select ... from ods_s)` | `lateral_subquery` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
@@ -373,31 +491,61 @@ Implemented Flink column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads_t select a as c1 from ods_s` | `insert_into` |
 | INSERT target column list mapping | `insert into ads_t(c1, c2) select a, b from ods_s` | `insert_column_list` |
+| INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
+| INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
+| INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
+| CTAS output column targets | `create table ads_t as select id as c1 from ods_s` | `create_table_as_select` |
+| CTAS over aliased/expression/aggregate projections | `create table ads_t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CREATE VIEW output column targets | `create view v as select u.id from ods_users u` | `create_view` |
+| CREATE VIEW over aliased/expression/aggregate projections | `create view v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE VIEW column list target names | `create view v(c1, c2) as select a, b from ods_s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads_t with q as (...) select q.c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads_t(c1) select c1 from (select a as c1 from ods_s) q` | `insert_from_subquery` |
 | CREATE VIEW output columns over CTE | `create view v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
+| Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as string), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as string)) from t` | `nested_function_projection` |
+| Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
+| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
 | Temporal join projection dependencies | `select o.amount * r.rate from orders o join rates for system_time as of ... r` | `temporal_join` |
 | TUMBLE window projection dependencies | `select window_start, user_id, count(order_id) from table(tumble(...))` | `tumble_window` |
-| Window frame aggregate dependencies | `sum(amount) over (partition by user_id order by ts rows between ...)` | `window_frame` |
+| Window frame aggregate dependencies and window clause usages | `sum(amount) over (partition by user_id order by ts rows between ...)` | `window_frame` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods_s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods_s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods_s) q` | `subquery_column_projection` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_scope` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | UPDATE assignment mapping | `update ads_t set c = c2 where ...` | `update_set` |
+| UPDATE SET expression dependencies | `update ads_t set c1 = upper(c2), c3 = c4 + c5 where ...` | `update_expression_assignment` |
 
 Implemented Flink clause-level column usage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| Basic predicate operators in WHERE | `where c between ... and ... and name like ... and deleted_at is null` | `predicate_operator_column_usage` |
+| IN expression-list predicate usage | `where status in (...) and region in (home_region, ...)` | `in_list_predicate_column_usage` |
+| Negated predicate operators in WHERE | `where c not between ... and name not like ... and status not in (...)` | `negated_predicate_column_usage` |
+| Logical NOT over grouped predicates | `where not (status = ... or name like ...) and score > ...` | `logical_not_group_column_usage` |
+| Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
+| JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
+| JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
+| JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
+| JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
+| JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | UNION branch WHERE source columns | `select id from s1 where ... union all select id from s2 where ...` | `set_operation_clause_column_usage` |
+| UPDATE/DELETE WHERE subquery predicate columns | `update/delete ads_t where id in (select user_id from ods_s)` | `update_with_subquery`, `delete_with_subquery` |
 
 Current Flink diagnostics:
 
@@ -463,29 +611,61 @@ Implemented Hive column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert overwrite table ads.t select a as c1 from ods.s` | `insert_overwrite` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
+| INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
+| INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
+| CTAS over aliased/expression/aggregate projections | `create table ads.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
+| CREATE VIEW over aliased/expression/aggregate projections | `create view ads.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
+| INSERT target column list over aliased/expression projections | `insert into t(c1,c2,c3) select a as x, upper(b), count(c) ...` | `insert_column_list_expression_projection` |
 | CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
+| Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as string), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as string)) from t` | `nested_function_projection` |
+| Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
+| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
+| Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_scope` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = c2 where ...` | `update_set` |
+| UPDATE SET expression dependencies | `update ads.t set c1 = upper(c2), c3 = c4 + c5 where ...` | `update_expression_assignment` |
 
 Implemented Hive clause-level column usage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
+| Basic predicate operators in WHERE | `where c between ... and ... and name like ... and deleted_at is null` | `predicate_operator_column_usage` |
+| IN expression-list predicate usage | `where status in (...) and region in (home_region, ...)` | `in_list_predicate_column_usage` |
+| Negated predicate operators in WHERE | `where c not between ... and name not like ... and status not in (...)` | `negated_predicate_column_usage` |
+| Logical NOT over grouped predicates | `where not (status = ... or name like ...) and score > ...` | `logical_not_group_column_usage` |
+| Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
+| JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
+| JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
+| JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
+| JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
+| JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from dwd.s2 where ...` | `set_operation_clause_column_usage` |
+| EXISTS subquery predicate column usage | `where exists (select 1 from ods.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
+| UPDATE/DELETE WHERE subquery predicate columns | `update/delete ads.t where id in (select user_id from ods.s)` | `update_with_subquery`, `delete_with_subquery` |
 
 Current Hive diagnostics:
 
@@ -539,8 +719,10 @@ Implemented MySQL table-level lineage scenarios:
 | CREATE OR REPLACE VIEW AS SELECT | `create or replace view mart.v as select ... from app.s` | `create_or_replace_view` |
 | CREATE TEMPORARY TABLE AS SELECT | `create temporary table if not exists mart.t as select ...` | `create_temporary_table_as_select` |
 | UPDATE JOIN table lineage | `update mart.t join app.s on ... set ...` | `update_join` |
+| UPDATE JOIN over derived query | `update mart.t join (select ... from app.s) q on ... set ...` | `update_join_derived_assignment` |
 | DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...` | `delete_using` |
 | DELETE alias FROM JOIN table lineage | `delete t from mart.t t join app.s s ...` | `delete_join` |
+| DELETE alias FROM derived JOIN table lineage | `delete t from mart.t t join (select ... from app.s) q ...` | `delete_join_derived` |
 | Backquoted non-ASCII identifiers | `` select `用户ID` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | DROP TABLE multiple affected tables | `drop table if exists mart.t1, mart.t2` | `drop_multiple_tables` |
@@ -560,21 +742,38 @@ Implemented MySQL column-level lineage scenarios:
 | Single-level aliased subquery direct propagation | `select q.c from (select a as c from app.s) q` | `subquery_column_projection` |
 | Single CTE direct propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | INSERT target column list mapping | `insert into mart.t(c1, c2) select a, b from app.s` | `insert_select` |
+| INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
+| INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
+| INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | INSERT IGNORE target column list mapping | `insert ignore into mart.t(c1, c2) select a, b from app.s` | `insert_ignore_select` |
-| INSERT duplicate-key SELECT mapping | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
+| INSERT duplicate-key SELECT and update mapping | `insert into mart.t(c1) select a from app.s on duplicate key update c1 = values(c1)` | `insert_select_on_duplicate` |
 | REPLACE SELECT target column list mapping | `replace into mart.t(c1, c2) select a, b from app.s` | `replace_select` |
 | CTAS output column targets | `create table mart.t as select id as c1 from app.s` | `create_table_as_select` |
+| CTAS over aliased/expression/aggregate projections | `create table mart.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CTAS with table options output column targets | `create table mart.t (...) engine=InnoDB as select id as c1 from app.s` | `create_table_options_as_select` |
 | CREATE VIEW output column targets | `create view mart.v as select u.id from app.users u` | `create_view` |
+| CREATE VIEW over aliased/expression/aggregate projections | `create view mart.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE OR REPLACE VIEW output column targets | `create or replace view mart.v as select id as c1 from app.s` | `create_or_replace_view` |
 | CREATE TEMPORARY TABLE output column targets | `create temporary table mart.t as select id as c1 from app.s` | `create_temporary_table_as_select` |
 | UPDATE SET direct assignment mapping | `update mart.t t join app.s s ... set t.c = s.c` | `update_join` |
 | UPDATE SET constant assignment target | `update mart.t set status = 'active'` | `update_join` |
+| UPDATE SET expression dependencies | `update mart.t join app.s on ... set c1 = upper(s.c2), c3 = s.c4 + t.c5` | `update_expression_assignment` |
+| UPDATE JOIN derived query assignment dependencies | `update mart.t join (select c2 from app.s) q on ... set c1 = q.c2` | `update_join_derived_assignment` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
+| Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as char), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as char)) from t` | `nested_function_projection` |
+| Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
-| Window function expression dependencies | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
+| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
+| Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_lineage` |
 | Backquoted non-ASCII column identifiers | `` select `用户ID` as `用户标识` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 
 Implemented MySQL clause-level column usage scenarios:
@@ -583,7 +782,18 @@ Implemented MySQL clause-level column usage scenarios:
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
 | UPDATE JOIN and WHERE source columns | `update users u join orders o on ... set ... where ...` | `dml_predicate_column_usage` |
+| Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
+| JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
+| JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
+| JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
+| JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
+| JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | UNION branch WHERE source columns | `select id from app.s1 where ... union all select id from app.s2 where ...` | `set_operation_clause_column_usage` |
+| DELETE derived JOIN predicate columns | `delete t from mart.t t join (select id from app.s) q on t.id = q.id` | `delete_join_derived` |
+| EXISTS subquery predicate column usage | `where exists (select 1 from app.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
+| DELETE WHERE subquery predicate columns | `delete from ads.t where user_id in (select id from ods.s)` | `delete_with_subquery` |
 
 Current MySQL diagnostics:
 
@@ -601,7 +811,7 @@ Known MySQL gaps:
 | `select *` expansion | Not expanded without schema metadata. |
 | Ambiguous plain SQL dialect detection | Explicit MySQL features are auto-detected; dialect-neutral `SELECT` remains default-detected by the current detector. |
 | Complex expressions and subqueries | Direct projections, common expressions, joins, UNION, CTAS/view/insert mappings, single-level subquery propagation, and single CTE propagation are covered; nested query propagation is still limited. |
-| DML column lineage | `UPDATE SET` direct assignments are covered; `DELETE USING` currently emits table-level lineage. |
+| DML column lineage | `UPDATE SET`, `UPDATE JOIN`, duplicate-key update assignments, and `DELETE USING` predicate usages are covered; richer MySQL DML forms are still expanding. |
 
 ## Spark
 
@@ -736,6 +946,12 @@ Implemented Spark column-level lineage scenarios:
 | Function expression source columns | `select lower(name) as name_lower from ods.orders` | `column_expression_projection` |
 | Arithmetic expression source columns | `select price * quantity as amount from ods.orders` | `column_expression_projection` |
 | Constant projection with no sources | `select 1 as flag from ods.orders` | `column_expression_projection` |
+| Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
+| Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as string)) from t` | `nested_function_projection` |
+| Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
+| ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | Partial extraction diagnostics | `select id, lower(name) from ods.users` | `column_partial_projection` |
 | Qualified JOIN projection | `select u.id, o.amount from users u join orders o ...` | `column_join_projection` |
 | GROUP BY aggregate expression sources | `select user_id, count(order_id), sum(amount) from ods.orders group by user_id` | `aggregate_column_projection` |
@@ -760,26 +976,37 @@ Implemented Spark column-level lineage scenarios:
 | Pipe JOIN direct projection | `from ods.users u |> join ods.orders o on ... |> select u.id, o.amount` | `pipe_join_column_projection` |
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
+| INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
+| INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | INSERT BY NAME projection target mapping | `insert into ads.t by name select a as c1 from ods.s` | `insert_by_name` |
 | INSERT REPLACE WHERE BY NAME mapping | `insert into ads.t target by name replace where ... select a as c1 from ods.s` | `insert_replace_where` |
 | INSERT REPLACE USING BY NAME mapping | `insert into ads.t target by name replace using (...) select a as c1 from ods.s` | `insert_replace_using` |
 | INSERT target column list over CTE propagation | `insert into ads.t(c1) with q as (...) select c1 from q` | `insert_from_cte` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
+| INSERT target column list over aliased/expression projections | `insert into t(c1,c2,c3) select a as x, upper(b), count(c) ...` | `insert_column_list_expression_projection` |
 | INSERT over script-local temporary view propagation | `create temporary view v as select a as c1 from ods.s; insert into ads.t(c1) select c1 from v` | `script_temp_view_lineage` |
 | INSERT over script-local cache table propagation | `cache table c as select a from ods.s; insert into ads.t(c1) select a from c` | `script_cache_table_lineage` |
+| UPDATE SET expression dependencies | `update ads.t set c1 = upper(c2), c3 = c4 + c5 where ...` | `update_expression_assignment` |
+| MERGE assignment and insert-value dependencies | `merge into t using s on ... when matched then update set c = s.c when not matched then insert (...) values (...)` | `merge_assignment_column_lineage` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
+| INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
+| EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | EXCEPT column inputs by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | INTERSECT column inputs by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
 | Pipe set operator column inputs by position | `from s1 |> select a as c1 |> union/intersect/except select b from s2` | `pipe_union_column_projection`, `pipe_intersect_table_lineage`, `pipe_except_table_lineage` |
 | EXPLAIN wrapped SELECT columns | `explain select id from ods.s` | `explain_select` |
 | CREATE VIEW output column targets | `create view mart.v as select id from ods.s` | `create_view` |
+| CREATE VIEW over aliased/expression/aggregate projections | `create view mart.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE VIEW column list target names | `create view mart.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | ALTER VIEW output column targets | `alter view mart.v as select id as c1 from ods.s` | `alter_view_as_select` |
 | CTAS output column targets | `create table mart.t as select id as c1 from ods.s` | `ctas_column_projection` |
+| CTAS over aliased/expression/aggregate projections | `create table mart.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CTAS provider and partition clause output targets | `create table mart.t using parquet partitioned by (...) as select id from ods.s` | `ctas_using_partitioned` |
 | CREATE OR REPLACE TABLE output column targets | `create or replace table mart.t as select id as c1 from ods.s` | `replace_table_as_select` |
 | CREATE MATERIALIZED VIEW output column targets | `create materialized view mart.v as select id as c1 from ods.s` | `create_materialized_view_as_select` |
 | CREATE STREAMING TABLE output column targets | `create streaming table mart.t as select id as c1 from stream(ods.s)` | `create_streaming_table_as_select` |
+| MERGE update assignments and insert values | `merge into ads.t using ods.s on ... when matched then update set c = s.c when not matched then insert (...) values (...)` | `merge_into` |
 | Single-level CTE direct column propagation | `with base as (select id as c1 from ods.s) select c1 from base` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
@@ -790,7 +1017,7 @@ Implemented Spark column-level lineage scenarios:
 
 LineSQL distinguishes projection lineage from columns used by filtering, joining, grouping, HAVING, ordering, and MERGE predicates. These fields are returned as `columnUsages` with usage types such as `WHERE`, `JOIN_ON`, `GROUP_BY`, `HAVING`, `ORDER_BY`, `MERGE_ON`, and `MERGE_WHEN`.
 
-`JOIN USING (...)` is covered as a `JOIN_ON` column usage for two-table joins. See `join_using_column_usage` in each active dialect's SQL case manifest.
+`JOIN USING (...)` is covered as a `JOIN_ON` column usage. Active dialect visitors keep chained `USING` predicates scoped to the current joined relation, so unrelated comma-separated relations are not reported as join predicate inputs.
 
 Implemented Spark clause-level column usage scenarios:
 
@@ -802,6 +1029,14 @@ Implemented Spark clause-level column usage scenarios:
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 | Same-name GROUP BY and JOIN ON columns in joined subqueries | `select ... from (select id ... group by id) t1 join (select id ... group by id) t2 on t1.id = t2.id` | `joined_subquery_same_name_group_usage` |
 | JOIN ON source columns | `select u.id, o.amount from users u join orders o on ...` | `join_on_column_usage` |
+| Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
+| JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
+| JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
+| JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
+| JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
+| JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | MERGE ON and WHEN source columns | `merge into t using s on ... when matched and ... then ...` | `merge_predicate_column_usage` |
 
 ### Diagnostics

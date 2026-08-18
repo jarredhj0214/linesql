@@ -32,6 +32,17 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*")) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.92, "MySQL-specific write, DML, or LIMIT syntax"));
         }
+        if (normalized.contains("oceanbase")
+                || normalized.contains("ob_read_consistency")
+                || normalized.contains("_ob_")) {
+            candidates.add(candidate(SqlDialect.OCEANBASE, 0.94, "OceanBase-specific hint, option, or identifier anchor"));
+        }
+        if (normalized.contains(" on conflict ")
+                || normalized.matches("(?s).*\\breturning\\b.*")
+                || normalized.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
+                || normalized.matches("(?s).*\\bilike\\b.*")) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
+        }
         if (normalized.matches("(?s).*\\brow\\s+format\\b.*")
                 || normalized.matches("(?s).*\\bstored\\s+as\\b.*")
                 || normalized.matches("(?s).*\\bserdeproperties\\b.*")
@@ -63,8 +74,9 @@ public class SimpleDialectDetector implements DialectDetector {
         if (normalized.contains("insert overwrite")
                 || normalized.contains("lateral view")
                 || normalized.contains("create temporary view")
+                || normalized.matches("(?s).*\\bqualify\\b.*")
                 || normalized.contains(" using ")) {
-            candidates.add(candidate(SqlDialect.SPARK, 0.88, "Spark insert overwrite, lateral view, temporary view, or USING syntax"));
+            candidates.add(candidate(SqlDialect.SPARK, 0.93, "Spark insert overwrite, lateral view, temporary view, QUALIFY, or USING syntax"));
         }
         if (!contains(candidates, SqlDialect.SPARK)) {
             candidates.add(candidate(SqlDialect.SPARK, 0.50, "Dialect-neutral SQL; Spark is the current generic fallback"));

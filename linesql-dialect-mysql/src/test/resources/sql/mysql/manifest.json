@@ -159,6 +159,40 @@
       "description": "MySQL same-name columns in joined subqueries stay scoped to their local single-table subquery"
     },
     {
+      "id": "self_join_column_usage",
+      "file": "cases/self_join_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.employees.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.employees.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.employees.id"
+        }
+      ],
+      "description": "MySQL self-join aliases preserve output and JOIN ON predicate column usages"
+    },
+    {
       "id": "join_using_column_usage",
       "file": "cases/join_using_column_usage.sql",
       "statementType": "SELECT",
@@ -192,6 +226,216 @@
         }
       ],
       "description": "MySQL JOIN USING predicate column usages"
+    },
+    {
+      "id": "join_using_multi_table_scope",
+      "file": "cases/join_using_multi_table_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders",
+        "app.payments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "app.payments.channel"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.payments.id"
+        }
+      ],
+      "description": "MySQL chained JOIN USING keeps predicate usages across the current joined relation"
+    },
+    {
+      "id": "join_using_comma_scope",
+      "file": "cases/join_using_comma_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.audit_log",
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.id"
+        }
+      ],
+      "description": "MySQL JOIN USING predicate usages stay scoped to the current comma-separated relation"
+    },
+    {
+      "id": "join_using_derived_scope",
+      "file": "cases/join_using_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.id"
+        }
+      ],
+      "description": "MySQL JOIN USING over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_using_subquery_scope",
+      "file": "cases/join_using_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.id"
+        }
+      ],
+      "description": "MySQL JOIN USING over derived subqueries resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_derived_scope",
+      "file": "cases/join_on_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        }
+      ],
+      "description": "MySQL JOIN ON over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_subquery_scope",
+      "file": "cases/join_on_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        }
+      ],
+      "description": "MySQL JOIN ON over derived subqueries resolves predicate usages to the underlying source columns"
     },
     {
       "id": "set_operation_clause_column_usage",
@@ -331,6 +575,46 @@
       "description": "MySQL UNION ALL column sources merged by output position"
     },
     {
+      "id": "intersect_column_projection",
+      "file": "cases/intersect_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id",
+            "app.admins.id"
+          ]
+        }
+      ],
+      "description": "MySQL INTERSECT column sources merged by output position"
+    },
+    {
+      "id": "except_column_projection",
+      "file": "cases/except_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id",
+            "app.admins.id"
+          ]
+        }
+      ],
+      "description": "MySQL EXCEPT column sources merged by output position"
+    },
+    {
       "id": "insert_select",
       "file": "cases/insert_select.sql",
       "statementType": "INSERT",
@@ -424,9 +708,15 @@
           "sources": [
             "app.users_delta.name"
           ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "app.users_delta.name"
+          ]
         }
       ],
-      "description": "MySQL INSERT SELECT with ON DUPLICATE KEY UPDATE keeps SELECT lineage"
+      "description": "MySQL INSERT SELECT with ON DUPLICATE KEY UPDATE maps INSERT and duplicate-update field lineage"
     },
     {
       "id": "replace_select",
@@ -491,6 +781,57 @@
       "description": "MySQL CREATE TABLE AS SELECT table and column lineage"
     },
     {
+      "id": "ctas_expression_projection",
+      "file": "cases/ctas_expression_projection.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [
+        "mart.user_summary_expr"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary_expr.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary_expr.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        },
+        {
+          "target": "mart.user_summary_expr.order_count",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.name"
+        }
+      ],
+      "description": "MYSQL CTAS maps aliased, expression, and aggregate SELECT projections to created-table columns"
+    },
+    {
       "id": "create_table_options_as_select",
       "file": "cases/create_table_options_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
@@ -553,6 +894,57 @@
         }
       ],
       "description": "MySQL CREATE VIEW AS SELECT table and column lineage"
+    },
+    {
+      "id": "create_view_expression_projection",
+      "file": "cases/create_view_expression_projection.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [
+        "mart.v_user_summary_expr"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.v_user_summary_expr.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.v_user_summary_expr.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        },
+        {
+          "target": "mart.v_user_summary_expr.order_count",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.name"
+        }
+      ],
+      "description": "MYSQL CREATE VIEW maps aliased, expression, and aggregate SELECT projections to view columns"
     },
     {
       "id": "create_or_replace_view",
@@ -632,6 +1024,82 @@
       "description": "MySQL UPDATE JOIN table and SET column lineage"
     },
     {
+      "id": "update_expression_assignment",
+      "file": "cases/update_expression_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users",
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "app.users_delta.name"
+          ]
+        },
+        {
+          "target": "mart.users.score",
+          "sources": [
+            "app.users_delta.order_count",
+            "mart.users.bonus_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.users_delta.id"
+        }
+      ],
+      "description": "MYSQL UPDATE SET expression assignment column lineage"
+    },
+    {
+      "id": "update_join_derived_assignment",
+      "file": "cases/update_join_derived_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users",
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "app.users_delta.name"
+          ]
+        },
+        {
+          "target": "mart.users.score",
+          "sources": [
+            "app.users_delta.order_count",
+            "mart.users.bonus_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.users_delta.id"
+        }
+      ],
+      "description": "MySQL UPDATE JOIN derived query resolves assignment and JOIN predicate lineage to base tables"
+    },
+    {
       "id": "delete_using",
       "file": "cases/delete_using.sql",
       "statementType": "DELETE",
@@ -656,6 +1124,30 @@
         "mart.users"
       ],
       "description": "MySQL DELETE alias FROM JOIN table-level lineage"
+    },
+    {
+      "id": "delete_join_derived",
+      "file": "cases/delete_join_derived.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "mart.users",
+        "app.deleted_users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.deleted_users.id"
+        }
+      ],
+      "description": "MySQL DELETE alias FROM derived JOIN resolves input tables and JOIN predicate usages"
     },
     {
       "id": "backquoted_identifiers",
@@ -799,6 +1291,27 @@
       "description": "MySQL CASE expression column lineage from condition and value columns"
     },
     {
+      "id": "complex_case_expression",
+      "file": "cases/complex_case_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "normalized_score",
+          "sources": [
+            "app.users.status",
+            "app.users.score",
+            "app.users.pending_score",
+            "app.users.default_score"
+          ]
+        }
+      ],
+      "description": "MySQL multi-branch CASE expression column lineage from conditions, branch values, and ELSE value"
+    },
+    {
       "id": "common_expression_projection",
       "file": "cases/common_expression_projection.sql",
       "statementType": "SELECT",
@@ -829,6 +1342,231 @@
         }
       ],
       "description": "MySQL CAST, function, and arithmetic expression column lineage"
+    },
+    {
+      "id": "nested_function_projection",
+      "file": "cases/nested_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "display_key",
+          "sources": [
+            "app.users.name",
+            "app.users.nickname",
+            "app.users.id"
+          ]
+        }
+      ],
+      "description": "MySQL nested function expression column lineage"
+    },
+    {
+      "id": "scalar_subquery_projection",
+      "file": "cases/scalar_subquery_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "max_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "description": "Scalar subquery projection preserves inner expression source columns"
+    },
+    {
+      "id": "in_subquery_column_usage",
+      "file": "cases/in_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.active_sessions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.active_sessions.user_id"
+        }
+      ],
+      "description": "IN subquery predicate usages include outer predicate columns and inner projection source columns"
+    },
+    {
+      "id": "projection_alias_order_usage",
+      "file": "cases/projection_alias_order_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.name"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "ORDER BY projection aliases resolve back to the underlying source columns"
+    },
+    {
+      "id": "order_by_expression_column_usage",
+      "file": "cases/order_by_expression_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "app.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.updated_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL ORDER BY expression column usage"
+    },
+    {
+      "id": "distinct_aggregate_column_usage",
+      "file": "cases/distinct_aggregate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "app.orders.region"
+          ]
+        },
+        {
+          "target": "user_count",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "distinct_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.order_id"
+        }
+      ],
+      "description": "MySQL DISTINCT aggregate projection lineage and HAVING usage"
+    },
+    {
+      "id": "group_by_expression_column_usage",
+      "file": "cases/group_by_expression_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region_key",
+          "sources": [
+            "app.orders.region"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "app.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.order_id"
+        }
+      ],
+      "description": "MySQL GROUP BY expression column usage and aggregate lineage"
     },
     {
       "id": "aggregate_expression_projection",
@@ -968,6 +1706,123 @@
       "description": "MySQL INSERT target column list mapping"
     },
     {
+      "id": "insert_union_column_lineage",
+      "file": "cases/insert_union_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT target column list over UNION ALL sources"
+    },
+    {
+      "id": "insert_intersect_column_lineage",
+      "file": "cases/insert_intersect_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT target column list over INTERSECT sources"
+    },
+    {
+      "id": "insert_except_column_lineage",
+      "file": "cases/insert_except_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT target column list over EXCEPT sources"
+    },
+    {
+      "id": "insert_column_list_expression_projection",
+      "file": "cases/insert_column_list_expression_projection.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_count",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "INSERT target column list maps aliased, expression, and aggregate SELECT projections by position"
+    },
+    {
       "id": "insert_from_cte",
       "file": "cases/insert_from_cte.sql",
       "statementType": "INSERT",
@@ -1076,26 +1931,38 @@
       "file": "cases/update_with_subquery.sql",
       "statementType": "UPDATE",
       "inputTables": [
-        "ads.user_summary"
+        "ads.user_summary",
+        "ods.users"
       ],
       "outputTables": [
         "ads.user_summary"
       ],
       "columnLineage": [],
-      "description": "MySQL UPDATE target table with SET and WHERE subquery source tables"
+      "description": "MySQL UPDATE target table with SET and WHERE correlated subquery source table"
     },
     {
       "id": "delete_with_subquery",
       "file": "cases/delete_with_subquery.sql",
       "statementType": "DELETE",
       "inputTables": [
-        "ads.user_summary"
+        "ads.user_summary",
+        "ods.deleted_users"
       ],
       "outputTables": [
         "ads.user_summary"
       ],
       "columnLineage": [],
-      "description": "MySQL DELETE target table with WHERE subquery source table"
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.deleted_users.id"
+        }
+      ],
+      "description": "MySQL DELETE target table with WHERE subquery source table and predicate columns"
     },
     {
       "id": "insert_into",
@@ -1132,6 +1999,228 @@
       ],
       "outputTables": [],
       "description": "MySQL GROUP_CONCAT with SEPARATOR syntax in derived query"
+    },
+    {
+      "id": "logical_not_group_column_usage",
+      "file": "cases/logical_not_group_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.score"
+        }
+      ],
+      "description": "MySQL logical NOT over grouped predicates column usages"
+    },
+    {
+      "id": "negated_predicate_column_usage",
+      "file": "cases/negated_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.deleted_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.blocked_status"
+        }
+      ],
+      "description": "MySQL negated predicate operator column usages"
+    },
+    {
+      "id": "in_list_predicate_column_usage",
+      "file": "cases/in_list_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.home_region"
+        }
+      ],
+      "description": "MySQL IN expression-list predicate column usages"
+    },
+    {
+      "id": "predicate_operator_column_usage",
+      "file": "cases/predicate_operator_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.deleted_at"
+        }
+      ],
+      "description": "MySQL BETWEEN, LIKE, and IS NULL predicate column usages"
+    },
+    {
+      "id": "exists_subquery_column_usage",
+      "file": "cases/exists_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "MySQL EXISTS subquery table inputs and predicate column usages"
+    },
+    {
+      "id": "window_function_lineage",
+      "file": "cases/window_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "running_amount",
+          "sources": [
+            "app.orders.amount",
+            "app.orders.user_id",
+            "app.orders.order_time"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": [
+            "app.orders.region",
+            "app.orders.order_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.orders.order_time"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.region"
+        }
+      ],
+      "description": "MySQL window function lineage and window clause column usages"
     }
   ]
 }

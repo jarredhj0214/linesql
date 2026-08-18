@@ -37,6 +37,7 @@ Java compatibility:
 ## Support Matrix
 
 Detailed compatibility is case-backed and tracked in [Supported Scenarios](docs/supported-scenarios.md).
+Grammar-domain coverage and development priorities are tracked in [Grammar Coverage Matrix](docs/grammar-coverage-matrix.md).
 
 | Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Clause Column Usage |
 | --- | --- | --- | --- | --- | --- |
@@ -47,6 +48,8 @@ Detailed compatibility is case-backed and tracked in [Supported Scenarios](docs/
 | StarRocks | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
 | Oracle | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
 | SQL Server | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
+| PostgreSQL | Planned | Planned | Planned | Planned | Planned |
+| OceanBase | Planned | Planned | Planned | Planned | Planned |
 
 Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to Spark; callers can pass an explicit dialect when the execution engine is known.
 
@@ -54,6 +57,7 @@ Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to
 
 | Module | Description |
 | --- | --- |
+| `linesql-all` | Aggregate dependency for core plus all bundled dialect parsers |
 | `linesql-core` | Public model, facade API, parser SPI, statement splitter, dialect detector, diagnostics |
 | `linesql-dialect-spark` | Spark SQL parser and lineage visitor |
 | `linesql-dialect-mysql` | MySQL parser MVP |
@@ -62,11 +66,23 @@ Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to
 | `linesql-dialect-starrocks` | StarRocks parser MVP |
 | `linesql-dialect-oracle` | Oracle parser MVP |
 | `linesql-dialect-sqlserver` | SQL Server parser MVP |
+| `linesql-dialect-postgresql` | PostgreSQL planned parser module |
+| `linesql-dialect-oceanbase` | OceanBase compatibility-mode parser module |
 | `linesql-cli` | Command-line JSON output |
 
 ## Installation
 
-Use `linesql-core` plus the dialect modules you need. LineSQL discovers available dialect parsers from the classpath.
+Most applications can depend on `linesql-all`. It brings in the public API and all bundled dialect parsers, and `LineSql.parse(sql)` discovers them from the classpath.
+
+```xml
+<dependency>
+    <groupId>io.github.jarredhj0214</groupId>
+    <artifactId>linesql-all</artifactId>
+    <version>0.1.0-alpha.3</version>
+</dependency>
+```
+
+For smaller deployments, use `linesql-core` plus only the dialect modules you need.
 
 ```xml
 <dependency>
@@ -80,15 +96,7 @@ Use `linesql-core` plus the dialect modules you need. LineSQL discovers availabl
     <artifactId>linesql-dialect-spark</artifactId>
     <version>0.1.0-alpha.3</version>
 </dependency>
-
-<dependency>
-    <groupId>io.github.jarredhj0214</groupId>
-    <artifactId>linesql-dialect-mysql</artifactId>
-    <version>0.1.0-alpha.3</version>
-</dependency>
 ```
-
-For all currently supported dialects, add the corresponding `linesql-dialect-*` artifacts.
 
 ## Quick Start
 

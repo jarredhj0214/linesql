@@ -159,6 +159,40 @@
       "description": "Flink same-name columns in joined subqueries stay scoped to their local single-table subquery"
     },
     {
+      "id": "self_join_column_usage",
+      "file": "cases/self_join_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "employees.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "employees.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "employees.id"
+        }
+      ],
+      "description": "Flink self-join aliases preserve output and JOIN ON predicate column usages"
+    },
+    {
       "id": "join_using_column_usage",
       "file": "cases/join_using_column_usage.sql",
       "statementType": "SELECT",
@@ -192,6 +226,216 @@
         }
       ],
       "description": "Flink JOIN USING predicate column usages"
+    },
+    {
+      "id": "join_using_multi_table_scope",
+      "file": "cases/join_using_multi_table_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders",
+        "dwd_payments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "dwd_payments.channel"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_payments.id"
+        }
+      ],
+      "description": "Flink chained JOIN USING keeps predicate usages across the current joined relation"
+    },
+    {
+      "id": "join_using_comma_scope",
+      "file": "cases/join_using_comma_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_audit_log",
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.id"
+        }
+      ],
+      "description": "Flink JOIN USING predicate usages stay scoped to the current comma-separated relation"
+    },
+    {
+      "id": "join_using_derived_scope",
+      "file": "cases/join_using_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd_orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.id"
+        }
+      ],
+      "description": "Flink JOIN USING over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_using_subquery_scope",
+      "file": "cases/join_using_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd_orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.id"
+        }
+      ],
+      "description": "Flink JOIN USING over derived subqueries resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_derived_scope",
+      "file": "cases/join_on_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd_orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.user_id"
+        }
+      ],
+      "description": "Flink JOIN ON over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_subquery_scope",
+      "file": "cases/join_on_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users",
+        "dwd_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd_orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd_orders.user_id"
+        }
+      ],
+      "description": "Flink JOIN ON over derived subqueries resolves predicate usages to the underlying source columns"
     },
     {
       "id": "set_operation_clause_column_usage",
@@ -277,6 +521,57 @@
       "description": "Flink CREATE VIEW AS SELECT table and column lineage"
     },
     {
+      "id": "create_view_expression_projection",
+      "file": "cases/create_view_expression_projection.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods_users",
+        "ods_orders"
+      ],
+      "outputTables": [
+        "v_user_summary_expr"
+      ],
+      "columnLineage": [
+        {
+          "target": "v_user_summary_expr.user_id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "v_user_summary_expr.user_name",
+          "sources": [
+            "ods_users.name"
+          ]
+        },
+        {
+          "target": "v_user_summary_expr.order_count",
+          "sources": [
+            "ods_orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods_orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.name"
+        }
+      ],
+      "description": "FLINK CREATE VIEW maps aliased, expression, and aggregate SELECT projections to view columns"
+    },
+    {
       "id": "update_set",
       "file": "cases/update_set.sql",
       "statementType": "UPDATE",
@@ -295,6 +590,39 @@
         }
       ],
       "description": "Flink UPDATE target table lineage and deterministic assignment column lineage"
+    },
+    {
+      "id": "update_expression_assignment",
+      "file": "cases/update_expression_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads_user_summary"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.user_name",
+          "sources": [
+            "ads_user_summary.name"
+          ]
+        },
+        {
+          "target": "ads_user_summary.order_score",
+          "sources": [
+            "ads_user_summary.order_count",
+            "ads_user_summary.bonus_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads_user_summary.dt"
+        }
+      ],
+      "description": "FLINK UPDATE SET expression assignment column lineage"
     },
     {
       "id": "delete_where",
@@ -484,6 +812,123 @@
       "description": "Flink INSERT target column list mapping"
     },
     {
+      "id": "insert_union_column_lineage",
+      "file": "cases/insert_union_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users_a",
+        "ods_users_b"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.uid",
+          "sources": [
+            "ods_users_a.id",
+            "ods_users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Flink INSERT target column list over UNION ALL sources"
+    },
+    {
+      "id": "insert_intersect_column_lineage",
+      "file": "cases/insert_intersect_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users_a",
+        "ods_users_b"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.uid",
+          "sources": [
+            "ods_users_a.id",
+            "ods_users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Flink INSERT target column list over INTERSECT sources"
+    },
+    {
+      "id": "insert_except_column_lineage",
+      "file": "cases/insert_except_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users_a",
+        "ods_users_b"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.uid",
+          "sources": [
+            "ods_users_a.id",
+            "ods_users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Flink INSERT target column list over EXCEPT sources"
+    },
+    {
+      "id": "insert_column_list_expression_projection",
+      "file": "cases/insert_column_list_expression_projection.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users",
+        "ods_orders"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.user_id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "ads_user_summary.user_name",
+          "sources": [
+            "ods_users.name"
+          ]
+        },
+        {
+          "target": "ads_user_summary.order_count",
+          "sources": [
+            "ods_orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods_orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.name"
+        }
+      ],
+      "description": "INSERT target column list maps aliased, expression, and aggregate SELECT projections by position"
+    },
+    {
       "id": "create_view_column_list",
       "file": "cases/create_view_column_list.sql",
       "statementType": "CREATE_VIEW",
@@ -638,7 +1083,17 @@
         "ads_users"
       ],
       "columnLineage": [],
-      "description": "Flink UPDATE target table with SET and WHERE subquery source tables"
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads_users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods_active_users.user_id"
+        }
+      ],
+      "description": "Flink UPDATE target table with SET and WHERE subquery source tables and predicate columns"
     },
     {
       "id": "delete_with_subquery",
@@ -652,7 +1107,17 @@
         "ads_users"
       ],
       "columnLineage": [],
-      "description": "Flink DELETE target table with WHERE subquery source table"
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads_users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods_inactive_users.user_id"
+        }
+      ],
+      "description": "Flink DELETE target table with WHERE subquery source table and predicate columns"
     },
     {
       "id": "case_expression",
@@ -672,6 +1137,27 @@
         }
       ],
       "description": "Flink CASE expression column lineage from condition and value columns"
+    },
+    {
+      "id": "complex_case_expression",
+      "file": "cases/complex_case_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "normalized_score",
+          "sources": [
+            "ods_users.status",
+            "ods_users.score",
+            "ods_users.pending_score",
+            "ods_users.default_score"
+          ]
+        }
+      ],
+      "description": "Flink multi-branch CASE expression column lineage from conditions, branch values, and ELSE value"
     },
     {
       "id": "common_expression_projection",
@@ -704,6 +1190,231 @@
         }
       ],
       "description": "Flink CAST, function, and arithmetic expression column lineage"
+    },
+    {
+      "id": "nested_function_projection",
+      "file": "cases/nested_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "display_key",
+          "sources": [
+            "ods_users.name",
+            "ods_users.nickname",
+            "ods_users.id"
+          ]
+        }
+      ],
+      "description": "Flink nested function expression column lineage"
+    },
+    {
+      "id": "scalar_subquery_projection",
+      "file": "cases/scalar_subquery_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "max_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "description": "Scalar subquery projection preserves inner expression source columns"
+    },
+    {
+      "id": "in_subquery_column_usage",
+      "file": "cases/in_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.active_sessions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.active_sessions.user_id"
+        }
+      ],
+      "description": "IN subquery predicate usages include outer predicate columns and inner projection source columns"
+    },
+    {
+      "id": "projection_alias_order_usage",
+      "file": "cases/projection_alias_order_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.name"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "ORDER BY projection aliases resolve back to the underlying source columns"
+    },
+    {
+      "id": "order_by_expression_column_usage",
+      "file": "cases/order_by_expression_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.updated_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.created_at"
+        }
+      ],
+      "description": "Flink ORDER BY expression column usage"
+    },
+    {
+      "id": "distinct_aggregate_column_usage",
+      "file": "cases/distinct_aggregate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "ods.orders.region"
+          ]
+        },
+        {
+          "target": "user_count",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "distinct_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "ods.orders.order_id"
+        }
+      ],
+      "description": "Flink DISTINCT aggregate projection lineage and HAVING usage"
+    },
+    {
+      "id": "group_by_expression_column_usage",
+      "file": "cases/group_by_expression_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region_key",
+          "sources": [
+            "ods.orders.region"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "ods.orders.order_id"
+        }
+      ],
+      "description": "Flink GROUP BY expression column usage and aggregate lineage"
     },
     {
       "id": "aggregate_expression_projection",
@@ -762,6 +1473,57 @@
       "description": "Flink CREATE TABLE AS SELECT table and column lineage"
     },
     {
+      "id": "ctas_expression_projection",
+      "file": "cases/ctas_expression_projection.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "ods_users",
+        "ods_orders"
+      ],
+      "outputTables": [
+        "ads_user_summary_expr"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary_expr.user_id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "ads_user_summary_expr.user_name",
+          "sources": [
+            "ods_users.name"
+          ]
+        },
+        {
+          "target": "ads_user_summary_expr.order_count",
+          "sources": [
+            "ods_orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods_orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods_users.name"
+        }
+      ],
+      "description": "FLINK CTAS maps aliased, expression, and aggregate SELECT projections to created-table columns"
+    },
+    {
       "id": "truncate_table",
       "file": "cases/truncate_table.sql",
       "statementType": "TRUNCATE_TABLE",
@@ -806,6 +1568,16 @@
             "ods.orders.amount",
             "ods.orders.user_id"
           ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.orders.created_at"
         }
       ],
       "description": "Flink window function OVER clause column lineage from PARTITION BY and ORDER BY"
@@ -891,6 +1663,142 @@
       "description": "Flink INTERSECT set operation column sources merged by position"
     },
     {
+      "id": "logical_not_group_column_usage",
+      "file": "cases/logical_not_group_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.score"
+        }
+      ],
+      "description": "Flink logical NOT over grouped predicates column usages"
+    },
+    {
+      "id": "negated_predicate_column_usage",
+      "file": "cases/negated_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.deleted_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.blocked_status"
+        }
+      ],
+      "description": "Flink negated predicate operator column usages"
+    },
+    {
+      "id": "in_list_predicate_column_usage",
+      "file": "cases/in_list_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.home_region"
+        }
+      ],
+      "description": "Flink IN expression-list predicate column usages"
+    },
+    {
+      "id": "predicate_operator_column_usage",
+      "file": "cases/predicate_operator_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.deleted_at"
+        }
+      ],
+      "description": "Flink BETWEEN, LIKE, and IS NULL predicate column usages"
+    },
+    {
       "id": "exists_subquery",
       "file": "cases/exists_subquery.sql",
       "statementType": "SELECT",
@@ -913,7 +1821,17 @@
           ]
         }
       ],
-      "description": "Flink EXISTS subquery adds input table without affecting column lineage"
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "Flink EXISTS subquery adds input table and predicate column usages"
     },
     {
       "id": "in_subquery",
@@ -1012,9 +1930,31 @@
           "sources": [
             "ods.users.name"
           ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
-      "description": "Flink MERGE INTO target/source table lineage and matched update assignment lineage"
+      "description": "Flink MERGE INTO target/source table lineage with update assignments and insert values",
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users.id"
+        }
+      ]
     },
     {
       "id": "temporal_join",
@@ -1118,6 +2058,16 @@
             "ods.orders.user_id",
             "ods.orders.ts"
           ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.orders.ts"
         }
       ],
       "description": "Flink window frame aggregate expression column lineage"

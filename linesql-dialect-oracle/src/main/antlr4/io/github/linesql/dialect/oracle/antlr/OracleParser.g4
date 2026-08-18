@@ -11,6 +11,7 @@ statement
     | insertStatement                                                #insertStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
+    | mergeStatement                                                 #mergeStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropTableStatement                                             #dropTableStmt
@@ -238,6 +239,26 @@ updateStatement
 
 deleteStatement
     : DELETE FROM multipartIdentifier tableAlias whereClause?
+    ;
+
+mergeStatement
+    : MERGE INTO multipartIdentifier tableAlias
+      USING (multipartIdentifier tableAlias | LPAREN query RPAREN tableAlias)
+      ON expression
+      mergeClause+
+    ;
+
+mergeClause
+    : WHEN MATCHED THEN mergeMatchedAction
+    | WHEN NOT MATCHED THEN mergeNotMatchedAction
+    ;
+
+mergeMatchedAction
+    : UPDATE SET assignmentList whereClause?
+    ;
+
+mergeNotMatchedAction
+    : INSERT (LPAREN identifierList RPAREN)? VALUES LPAREN expressionList RPAREN whereClause?
     ;
 
 assignmentList

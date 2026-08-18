@@ -6,6 +6,8 @@ public enum ColumnUsageType {
     GROUP_BY,
     HAVING,
     ORDER_BY,
+    WINDOW_PARTITION_BY,
+    WINDOW_ORDER_BY,
     MERGE_ON,
     MERGE_WHEN
 }

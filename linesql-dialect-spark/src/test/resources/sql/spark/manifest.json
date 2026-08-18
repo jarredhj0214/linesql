@@ -5,7 +5,9 @@
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "description": "Basic SELECT input table lineage"
     },
@@ -13,7 +15,9 @@
       "id": "select_with_placeholders",
       "file": "cases/select_with_placeholders.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "description": "SELECT table lineage with unquoted scheduler placeholders"
     },
@@ -21,16 +25,23 @@
       "id": "clause_column_usage",
       "file": "cases/clause_column_usage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "dwd.orders"],
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "order_count",
-          "sources": ["dwd.orders.order_id"]
+          "sources": [
+            "dwd.orders.order_id"
+          ]
         }
       ],
       "columnUsages": [
@@ -73,7 +84,9 @@
       "id": "subquery_clause_column_usage",
       "file": "cases/subquery_clause_column_usage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnUsages": [
         {
@@ -103,7 +116,9 @@
       "id": "cte_clause_column_usage",
       "file": "cases/cte_clause_column_usage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnUsages": [
         {
@@ -125,7 +140,10 @@
       "id": "set_operation_clause_column_usage",
       "file": "cases/set_operation_clause_column_usage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "dwd.users"],
+      "inputTables": [
+        "ods.users",
+        "dwd.users"
+      ],
       "outputTables": [],
       "columnUsages": [
         {
@@ -143,20 +161,29 @@
       "id": "joined_subquery_same_name_group_usage",
       "file": "cases/joined_subquery_same_name_group_usage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "dwd.orders"],
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "id",
-          "sources": ["dwd.orders.id"]
+          "sources": [
+            "dwd.orders.id"
+          ]
         },
         {
           "target": "status",
-          "sources": ["dwd.orders.status"]
+          "sources": [
+            "dwd.orders.status"
+          ]
         }
       ],
       "columnUsages": [
@@ -184,19 +211,60 @@
       "description": "Same-name columns in joined subqueries stay scoped to their local single-table subquery"
     },
     {
-      "id": "join_on_column_usage",
-      "file": "cases/join_on_column_usage.sql",
+      "id": "self_join_column_usage",
+      "file": "cases/self_join_column_usage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "dwd.orders"],
+      "inputTables": [
+        "ods.employees"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.employees.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.employees.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.employees.id"
+        }
+      ],
+      "description": "Self-join aliases preserve output and JOIN ON predicate column usages"
+    },
+    {
+      "id": "join_on_column_usage",
+      "file": "cases/join_on_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["dwd.orders.amount"]
+          "sources": [
+            "dwd.orders.amount"
+          ]
         }
       ],
       "columnUsages": [
@@ -219,16 +287,23 @@
       "id": "join_using_column_usage",
       "file": "cases/join_using_column_usage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "dwd.orders"],
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["dwd.orders.amount"]
+          "sources": [
+            "dwd.orders.amount"
+          ]
         }
       ],
       "columnUsages": [
@@ -244,24 +319,242 @@
       "description": "JOIN USING predicate column usages"
     },
     {
+      "id": "join_using_multi_table_scope",
+      "file": "cases/join_using_multi_table_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders",
+        "dwd.payments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "dwd.payments.channel"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.payments.id"
+        }
+      ],
+      "description": "Chained JOIN USING keeps predicate usages across the current joined relation"
+    },
+    {
+      "id": "join_using_comma_scope",
+      "file": "cases/join_using_comma_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.audit_log",
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "JOIN USING predicate usages stay scoped to the current comma-separated relation"
+    },
+    {
+      "id": "join_using_derived_scope",
+      "file": "cases/join_using_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "JOIN USING over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_using_subquery_scope",
+      "file": "cases/join_using_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "JOIN USING over derived subqueries resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_derived_scope",
+      "file": "cases/join_on_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "JOIN ON over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_subquery_scope",
+      "file": "cases/join_on_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "JOIN ON over derived subqueries resolves predicate usages to the underlying source columns"
+    },
+    {
       "id": "table_query",
       "file": "cases/table_query.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "TABLE query primary source table lineage"
     },
     {
       "id": "quoted_chinese_identifiers",
       "file": "cases/quoted_chinese_identifiers.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods层.用户表"],
+      "inputTables": [
+        "ods层.用户表"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "用户标识",
-          "sources": ["ods层.用户表.用户ID"]
+          "sources": [
+            "ods层.用户表.用户ID"
+          ]
         }
       ],
       "description": "Backquoted Chinese table and column identifiers"
@@ -270,24 +563,36 @@
       "id": "insert_overwrite",
       "file": "cases/insert_overwrite.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "description": "INSERT OVERWRITE input/output table lineage"
     },
     {
       "id": "insert_overwrite_partition_column_list",
       "file": "cases/insert_overwrite_partition_column_list.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "INSERT OVERWRITE with static partition and target column list"
@@ -296,16 +601,24 @@
       "id": "insert_by_name",
       "file": "cases/insert_by_name.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "INSERT BY NAME uses projection aliases as target column lineage names"
@@ -314,16 +627,24 @@
       "id": "insert_replace_where",
       "file": "cases/insert_replace_where.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users_delta"],
-      "outputTables": ["ads.users"],
+      "inputTables": [
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
       "columnLineage": [
         {
           "target": "ads.users.user_id",
-          "sources": ["ods.users_delta.id"]
+          "sources": [
+            "ods.users_delta.id"
+          ]
         },
         {
           "target": "ads.users.user_name",
-          "sources": ["ods.users_delta.name"]
+          "sources": [
+            "ods.users_delta.name"
+          ]
         }
       ],
       "description": "INSERT REPLACE WHERE target table and BY NAME column lineage"
@@ -332,16 +653,24 @@
       "id": "insert_replace_using",
       "file": "cases/insert_replace_using.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users_delta"],
-      "outputTables": ["ads.users"],
+      "inputTables": [
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
       "columnLineage": [
         {
           "target": "ads.users.user_id",
-          "sources": ["ods.users_delta.id"]
+          "sources": [
+            "ods.users_delta.id"
+          ]
         },
         {
           "target": "ads.users.user_name",
-          "sources": ["ods.users_delta.name"]
+          "sources": [
+            "ods.users_delta.name"
+          ]
         }
       ],
       "description": "INSERT REPLACE USING target table and BY NAME column lineage"
@@ -350,16 +679,25 @@
       "id": "multi_insert",
       "file": "cases/multi_insert.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_ids", "ads.user_names"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_ids",
+        "ads.user_names"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "Spark FROM-first multi-insert table lineage with column lineage graceful degradation"
     },
     {
       "id": "insert_overwrite_directory",
       "file": "cases/insert_overwrite_directory.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "description": "INSERT OVERWRITE DIRECTORY export source table lineage without target table"
     },
@@ -368,8 +706,12 @@
       "file": "cases/load_data_into_table.sql",
       "statementType": "LOAD_DATA",
       "inputTables": [],
-      "outputTables": ["ods.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "ods.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "LOAD DATA target table lineage"
     },
     {
@@ -377,8 +719,12 @@
       "file": "cases/drop_table.sql",
       "statementType": "DROP_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users_old"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users_old"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "DROP TABLE affected table lineage"
     },
     {
@@ -386,17 +732,27 @@
       "file": "cases/truncate_table.sql",
       "statementType": "TRUNCATE_TABLE",
       "inputTables": [],
-      "outputTables": ["ads.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "ads.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "TRUNCATE TABLE affected table lineage"
     },
     {
       "id": "rename_table",
       "file": "cases/rename_table.sql",
       "statementType": "RENAME_TABLE",
-      "inputTables": ["mart.users_tmp"],
-      "outputTables": ["mart.users_archive"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "inputTables": [
+        "mart.users_tmp"
+      ],
+      "outputTables": [
+        "mart.users_archive"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "ALTER TABLE RENAME TO old and new table lineage"
     },
     {
@@ -404,8 +760,12 @@
       "file": "cases/alter_table_add_columns.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "ALTER TABLE ADD COLUMNS affected table lineage"
     },
     {
@@ -413,8 +773,12 @@
       "file": "cases/alter_table_set_properties.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "ALTER TABLE SET TBLPROPERTIES affected table lineage"
     },
     {
@@ -422,8 +786,12 @@
       "file": "cases/alter_table_drop_partition.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "ALTER TABLE DROP PARTITION affected table lineage"
     },
     {
@@ -431,62 +799,90 @@
       "file": "cases/recover_partitions.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "ALTER TABLE RECOVER PARTITIONS affected table lineage"
     },
     {
       "id": "analyze_table",
       "file": "cases/analyze_table.sql",
       "statementType": "READ_METADATA",
-      "inputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "ANALYZE TABLE metadata read table lineage"
     },
     {
       "id": "describe_table",
       "file": "cases/describe_table.sql",
       "statementType": "READ_METADATA",
-      "inputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "DESCRIBE TABLE metadata read table lineage"
     },
     {
       "id": "show_create_table",
       "file": "cases/show_create_table.sql",
       "statementType": "READ_METADATA",
-      "inputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "SHOW CREATE TABLE metadata read table lineage"
     },
     {
       "id": "show_columns",
       "file": "cases/show_columns.sql",
       "statementType": "READ_METADATA",
-      "inputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "SHOW COLUMNS metadata read table lineage"
     },
     {
       "id": "show_partitions",
       "file": "cases/show_partitions.sql",
       "statementType": "READ_METADATA",
-      "inputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "SHOW PARTITIONS metadata read table lineage"
     },
     {
       "id": "refresh_table",
       "file": "cases/refresh_table.sql",
       "statementType": "READ_METADATA",
-      "inputTables": ["mart.users"],
+      "inputTables": [
+        "mart.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "REFRESH TABLE metadata read table lineage"
     },
     {
@@ -494,8 +890,12 @@
       "file": "cases/repair_table.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "MSCK REPAIR TABLE affected table lineage"
     },
     {
@@ -503,8 +903,12 @@
       "file": "cases/create_index.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "CREATE INDEX ON TABLE affected table lineage"
     },
     {
@@ -512,8 +916,12 @@
       "file": "cases/drop_index.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "DROP INDEX ON TABLE affected table lineage"
     },
     {
@@ -521,8 +929,12 @@
       "file": "cases/comment_table.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "COMMENT ON TABLE affected table lineage"
     },
     {
@@ -530,20 +942,28 @@
       "file": "cases/comment_column.sql",
       "statementType": "ALTER_TABLE",
       "inputTables": [],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "COMMENT ON COLUMN affected table lineage"
     },
     {
       "id": "explain_select",
       "file": "cases/explain_select.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         }
       ],
       "description": "EXPLAIN preserves wrapped SELECT lineage"
@@ -552,23 +972,34 @@
       "id": "script_semicolon",
       "file": "cases/script_semicolon.sql",
       "statementType": "MULTI",
-      "inputTables": ["db.a"],
-      "outputTables": ["db.b"],
+      "inputTables": [
+        "db.a"
+      ],
+      "outputTables": [
+        "db.b"
+      ],
       "description": "Multi-statement splitter preserves semicolon inside string literal"
     },
     {
       "id": "script_temp_view_lineage",
       "file": "cases/script_temp_view_lineage.sql",
       "statementType": "MULTI",
-      "inputTables": ["ods.users"],
-      "outputTables": ["tmp_users", "ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "tmp_users",
+        "ads.user_summary"
+      ],
       "description": "Script-local temporary view table and column lineage propagation"
     },
     {
       "id": "script_bad_sql_recovery",
       "file": "cases/script_bad_sql_recovery.sql",
       "statementType": "MULTI",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "description": "Bad SQL statement returns diagnostics without blocking later script statements"
     },
@@ -576,31 +1007,49 @@
       "id": "script_drop_temp_view",
       "file": "cases/script_drop_temp_view.sql",
       "statementType": "MULTI",
-      "inputTables": ["ods.users", "tmp_users"],
-      "outputTables": ["tmp_users"],
+      "inputTables": [
+        "ods.users",
+        "tmp_users"
+      ],
+      "outputTables": [
+        "tmp_users"
+      ],
       "description": "DROP VIEW removes script-local temporary view lineage propagation"
     },
     {
       "id": "script_cache_table_lineage",
       "file": "cases/script_cache_table_lineage.sql",
       "statementType": "MULTI",
-      "inputTables": ["ods.users"],
-      "outputTables": ["cached_users", "ads.cached_user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "cached_users",
+        "ads.cached_user_summary"
+      ],
       "description": "CACHE TABLE AS SELECT script-local table and column lineage propagation"
     },
     {
       "id": "script_uncache_table",
       "file": "cases/script_uncache_table.sql",
       "statementType": "MULTI",
-      "inputTables": ["ods.users", "cached_users"],
-      "outputTables": ["cached_users"],
+      "inputTables": [
+        "ods.users",
+        "cached_users"
+      ],
+      "outputTables": [
+        "cached_users"
+      ],
       "description": "UNCACHE TABLE removes script-local cache table lineage propagation"
     },
     {
       "id": "join_basic",
       "file": "cases/join_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.orders"],
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
       "outputTables": [],
       "description": "JOIN input table lineage"
     },
@@ -608,30 +1057,95 @@
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
-      "inputTables": ["ods.users"],
-      "outputTables": ["mart.v_users"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.v_users"
+      ],
       "columnLineage": [
         {
           "target": "mart.v_users.id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         }
       ],
       "description": "CREATE VIEW AS SELECT lineage"
     },
     {
+      "id": "create_view_expression_projection",
+      "file": "cases/create_view_expression_projection.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.v_user_summary_expr"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.v_user_summary_expr.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "mart.v_user_summary_expr.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "mart.v_user_summary_expr.order_count",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "SPARK CREATE VIEW maps aliased, expression, and aggregate SELECT projections to view columns"
+    },
+    {
       "id": "create_view_column_list",
       "file": "cases/create_view_column_list.sql",
       "statementType": "CREATE_VIEW",
-      "inputTables": ["ods.users"],
-      "outputTables": ["mart.v_users_with_columns"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.v_users_with_columns"
+      ],
       "columnLineage": [
         {
           "target": "mart.v_users_with_columns.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "mart.v_users_with_columns.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "CREATE VIEW column list drives output column lineage names"
@@ -641,24 +1155,36 @@
       "file": "cases/create_temp_view_using.sql",
       "statementType": "CREATE_VIEW",
       "inputTables": [],
-      "outputTables": ["tmp_csv_users"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "tmp_csv_users"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "CREATE TEMPORARY VIEW USING provider output relation"
     },
     {
       "id": "alter_view_as_select",
       "file": "cases/alter_view_as_select.sql",
       "statementType": "ALTER_VIEW",
-      "inputTables": ["ods.users_delta"],
-      "outputTables": ["mart.v_users"],
+      "inputTables": [
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "mart.v_users"
+      ],
       "columnLineage": [
         {
           "target": "mart.v_users.user_id",
-          "sources": ["ods.users_delta.id"]
+          "sources": [
+            "ods.users_delta.id"
+          ]
         },
         {
           "target": "mart.v_users.name",
-          "sources": ["ods.users_delta.name"]
+          "sources": [
+            "ods.users_delta.name"
+          ]
         }
       ],
       "description": "ALTER VIEW AS SELECT table and column lineage"
@@ -667,9 +1193,15 @@
       "id": "create_table_like",
       "file": "cases/create_table_like.sql",
       "statementType": "CREATE_TABLE_LIKE",
-      "inputTables": ["ods.users"],
-      "outputTables": ["mart.users_like"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.users_like"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "CREATE TABLE LIKE source and target table lineage"
     },
     {
@@ -678,31 +1210,75 @@
       "statementType": "ERROR",
       "inputTables": [],
       "outputTables": [],
-      "expectedDiagnostics": ["SPARK_PARSE_ERROR"],
+      "expectedDiagnostics": [
+        "SPARK_PARSE_ERROR"
+      ],
       "description": "Invalid SQL diagnostics"
     },
     {
       "id": "merge_into",
       "file": "cases/merge_into.sql",
       "statementType": "MERGE",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.users"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
       "description": "MERGE source and target table lineage"
     },
     {
       "id": "merge_using_subquery",
       "file": "cases/merge_using_subquery.sql",
       "statementType": "MERGE",
-      "inputTables": ["ods.users_delta"],
-      "outputTables": ["ads.users"],
-      "description": "MERGE source subquery table lineage"
+      "inputTables": [
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "description": "MERGE source subquery table lineage with matched UPDATE and not-matched INSERT column lineage",
+      "columnLineage": [
+        {
+          "target": "ads.users.name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        },
+        {
+          "target": "ads.users.id",
+          "sources": [
+            "ods.users_delta.id"
+          ]
+        },
+        {
+          "target": "ads.users.name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.users.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        }
+      ]
     },
     {
       "id": "merge_predicate_column_usage",
       "file": "cases/merge_predicate_column_usage.sql",
       "statementType": "MERGE",
-      "inputTables": ["ods.user_updates"],
-      "outputTables": ["ads.users"],
+      "inputTables": [
+        "ods.user_updates"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
       "columnUsages": [
         {
           "type": "MERGE_ON",
@@ -724,34 +1300,135 @@
       "description": "MERGE ON and WHEN predicate column usages"
     },
     {
+      "id": "merge_assignment_column_lineage",
+      "file": "cases/merge_assignment_column_lineage.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ods.user_updates"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.users.name",
+          "sources": [
+            "ods.user_updates.name"
+          ]
+        },
+        {
+          "target": "ads.users.score",
+          "sources": [
+            "ods.user_updates.score",
+            "ads.users.bonus_score"
+          ]
+        },
+        {
+          "target": "ads.users.id",
+          "sources": [
+            "ods.user_updates.id"
+          ]
+        },
+        {
+          "target": "ads.users.name",
+          "sources": [
+            "ods.user_updates.name"
+          ]
+        },
+        {
+          "target": "ads.users.score",
+          "sources": [
+            "ods.user_updates.score"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.users.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.user_updates.id"
+        }
+      ],
+      "description": "Spark MERGE matched UPDATE SET and not-matched INSERT VALUES column lineage"
+    },
+    {
+      "id": "update_expression_assignment",
+      "file": "cases/update_expression_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.users.name",
+          "sources": [
+            "ads.users.name"
+          ]
+        },
+        {
+          "target": "ads.users.score",
+          "sources": [
+            "ads.users.score",
+            "ads.users.bonus_score"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.users.dt"
+        }
+      ],
+      "description": "Spark UPDATE SET expression assignment column lineage"
+    },
+    {
       "id": "update_with_subquery",
       "file": "cases/update_with_subquery.sql",
       "statementType": "UPDATE",
-      "inputTables": ["ods.user_updates", "ods.active_users"],
-      "outputTables": ["ads.users"],
+      "inputTables": [
+        "ods.user_updates",
+        "ods.active_users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
       "description": "UPDATE target table with SET and WHERE subquery source tables"
     },
     {
       "id": "delete_with_subquery",
       "file": "cases/delete_with_subquery.sql",
       "statementType": "DELETE",
-      "inputTables": ["ods.deleted_users"],
-      "outputTables": ["ads.users"],
+      "inputTables": [
+        "ods.deleted_users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
       "description": "DELETE target table with WHERE subquery source table"
     },
     {
       "id": "cache_table_as_select",
       "file": "cases/cache_table_as_select.sql",
       "statementType": "CACHE_TABLE",
-      "inputTables": ["ods.users"],
-      "outputTables": ["cached_users"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "cached_users"
+      ],
       "description": "Spark CACHE TABLE AS SELECT parses and extracts query input table"
     },
     {
       "id": "cte_basic",
       "file": "cases/cte_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "description": "CTE source table lineage without treating the CTE alias as an input table"
     },
@@ -759,7 +1436,10 @@
       "id": "union_basic",
       "file": "cases/union_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.admins"],
+      "inputTables": [
+        "ods.users",
+        "ods.admins"
+      ],
       "outputTables": [],
       "description": "UNION query input table lineage"
     },
@@ -767,16 +1447,25 @@
       "id": "union_column_projection",
       "file": "cases/union_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.admins"],
+      "inputTables": [
+        "ods.users",
+        "ods.admins"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id", "ods.admins.id"]
+          "sources": [
+            "ods.users.id",
+            "ods.admins.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name", "ods.admins.name"]
+          "sources": [
+            "ods.users.name",
+            "ods.admins.name"
+          ]
         }
       ],
       "description": "UNION column lineage merged by output column position"
@@ -785,12 +1474,18 @@
       "id": "except_column_projection",
       "file": "cases/except_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.deleted_users"],
+      "inputTables": [
+        "ods.users",
+        "ods.deleted_users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id", "ods.deleted_users.id"]
+          "sources": [
+            "ods.users.id",
+            "ods.deleted_users.id"
+          ]
         }
       ],
       "description": "EXCEPT column lineage records both data and filtering inputs"
@@ -799,12 +1494,18 @@
       "id": "intersect_column_projection",
       "file": "cases/intersect_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.active_users"],
+      "inputTables": [
+        "ods.users",
+        "ods.active_users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id", "ods.active_users.id"]
+          "sources": [
+            "ods.users.id",
+            "ods.active_users.id"
+          ]
         }
       ],
       "description": "INTERSECT column lineage records both intersected inputs"
@@ -813,7 +1514,9 @@
       "id": "subquery_basic",
       "file": "cases/subquery_basic.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "description": "Nested subquery input table lineage"
     },
@@ -821,16 +1524,22 @@
       "id": "column_direct_projection",
       "file": "cases/column_direct_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Direct single-table column projection lineage"
@@ -839,16 +1548,23 @@
       "id": "column_expression_projection",
       "file": "cases/column_expression_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "name_lower",
-          "sources": ["ods.orders.name"]
+          "sources": [
+            "ods.orders.name"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["ods.orders.price", "ods.orders.quantity"]
+          "sources": [
+            "ods.orders.price",
+            "ods.orders.quantity"
+          ]
         },
         {
           "target": "flag",
@@ -858,34 +1574,194 @@
       "description": "Function, arithmetic, and constant projection lineage"
     },
     {
-      "id": "column_partial_projection",
-      "file": "cases/column_partial_projection.sql",
+      "id": "complex_case_expression",
+      "file": "cases/complex_case_expression.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "normalized_score",
+          "sources": [
+            "ods.users.status",
+            "ods.users.score",
+            "ods.users.pending_score",
+            "ods.users.default_score"
+          ]
+        }
+      ],
+      "description": "Spark multi-branch CASE expression column lineage from conditions, branch values, and ELSE value"
+    },
+    {
+      "id": "nested_function_projection",
+      "file": "cases/nested_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "display_key",
+          "sources": [
+            "ods.users.name",
+            "ods.users.nickname",
+            "ods.users.id"
+          ]
+        }
+      ],
+      "description": "Spark nested function expression column lineage"
+    },
+    {
+      "id": "scalar_subquery_projection",
+      "file": "cases/scalar_subquery_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "max_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
         }
       ],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_PARTIAL"],
+      "description": "Scalar subquery projection preserves inner expression source columns"
+    },
+    {
+      "id": "in_subquery_column_usage",
+      "file": "cases/in_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.active_sessions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.active_sessions.user_id"
+        }
+      ],
+      "description": "IN subquery predicate usages include outer predicate columns and inner projection source columns",
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_PARTIAL"
+      ]
+    },
+    {
+      "id": "projection_alias_order_usage",
+      "file": "cases/projection_alias_order_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.name"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "ORDER BY projection aliases resolve back to the underlying source columns"
+    },
+    {
+      "id": "column_partial_projection",
+      "file": "cases/column_partial_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_PARTIAL"
+      ],
       "description": "Partial column lineage warning when some projections are unsupported"
     },
     {
       "id": "column_join_projection",
       "file": "cases/column_join_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.orders"],
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "order_amount",
-          "sources": ["ods.orders.amount"]
+          "sources": [
+            "ods.orders.amount"
+          ]
         }
       ],
       "description": "Qualified JOIN projection column lineage"
@@ -894,20 +1770,28 @@
       "id": "aggregate_column_projection",
       "file": "cases/aggregate_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.orders.user_id"]
+          "sources": [
+            "ods.orders.user_id"
+          ]
         },
         {
           "target": "order_cnt",
-          "sources": ["ods.orders.order_id"]
+          "sources": [
+            "ods.orders.order_id"
+          ]
         },
         {
           "target": "total_amount",
-          "sources": ["ods.orders.amount"]
+          "sources": [
+            "ods.orders.amount"
+          ]
         }
       ],
       "description": "GROUP BY aggregate expression column lineage"
@@ -916,20 +1800,30 @@
       "id": "window_column_projection",
       "file": "cases/window_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.orders.user_id"]
+          "sources": [
+            "ods.orders.user_id"
+          ]
         },
         {
           "target": "rn",
-          "sources": ["ods.orders.user_id", "ods.orders.created_at"]
+          "sources": [
+            "ods.orders.user_id",
+            "ods.orders.created_at"
+          ]
         },
         {
           "target": "user_amount",
-          "sources": ["ods.orders.amount", "ods.orders.user_id"]
+          "sources": [
+            "ods.orders.amount",
+            "ods.orders.user_id"
+          ]
         }
       ],
       "description": "Window function argument, partition, and order column lineage"
@@ -938,16 +1832,22 @@
       "id": "nested_field_projection",
       "file": "cases/nested_field_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "city",
-          "sources": ["ods.users.profile.city"]
+          "sources": [
+            "ods.users.profile.city"
+          ]
         },
         {
           "target": "os",
-          "sources": ["ods.users.payload.device.os"]
+          "sources": [
+            "ods.users.payload.device.os"
+          ]
         }
       ],
       "description": "Single-table nested struct field column lineage"
@@ -956,16 +1856,23 @@
       "id": "qualified_nested_field_projection",
       "file": "cases/qualified_nested_field_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.orders"],
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "city",
-          "sources": ["ods.users.profile.city"]
+          "sources": [
+            "ods.users.profile.city"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["ods.orders.metrics.amount"]
+          "sources": [
+            "ods.orders.metrics.amount"
+          ]
         }
       ],
       "description": "Qualified nested struct field column lineage in JOIN queries"
@@ -974,16 +1881,22 @@
       "id": "lateral_view_explode",
       "file": "cases/lateral_view_explode.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.orders.id"]
+          "sources": [
+            "ods.orders.id"
+          ]
         },
         {
           "target": "item",
-          "sources": ["ods.orders.items"]
+          "sources": [
+            "ods.orders.items"
+          ]
         }
       ],
       "description": "Spark LATERAL VIEW explode generated column lineage"
@@ -992,16 +1905,22 @@
       "id": "unnest_column_lineage",
       "file": "cases/unnest_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.orders.id"]
+          "sources": [
+            "ods.orders.id"
+          ]
         },
         {
           "target": "item",
-          "sources": ["ods.orders.items"]
+          "sources": [
+            "ods.orders.items"
+          ]
         }
       ],
       "description": "UNNEST generated column lineage from input array expression"
@@ -1010,16 +1929,22 @@
       "id": "json_table_column_lineage",
       "file": "cases/json_table_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.events"],
+      "inputTables": [
+        "ods.events"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.events.id"]
+          "sources": [
+            "ods.events.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.events.payload"]
+          "sources": [
+            "ods.events.payload"
+          ]
         }
       ],
       "description": "JSON_TABLE generated column lineage from input JSON expression"
@@ -1028,16 +1953,22 @@
       "id": "unnest_qualified_column_lineage",
       "file": "cases/unnest_qualified_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.orders.id"]
+          "sources": [
+            "ods.orders.id"
+          ]
         },
         {
           "target": "item",
-          "sources": ["ods.orders.items"]
+          "sources": [
+            "ods.orders.items"
+          ]
         }
       ],
       "description": "Alias-qualified UNNEST generated column lineage"
@@ -1046,16 +1977,22 @@
       "id": "json_table_qualified_column_lineage",
       "file": "cases/json_table_qualified_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.events"],
+      "inputTables": [
+        "ods.events"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.events.id"]
+          "sources": [
+            "ods.events.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.events.payload"]
+          "sources": [
+            "ods.events.payload"
+          ]
         }
       ],
       "description": "Alias-qualified JSON_TABLE generated column lineage"
@@ -1064,18 +2001,26 @@
       "id": "table_valued_function_table_arg",
       "file": "cases/table_valued_function_table_arg.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "Table-valued function TABLE identifier argument source table lineage"
     },
     {
       "id": "table_valued_function_query_arg",
       "file": "cases/table_valued_function_query_arg.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "Table-valued function TABLE query argument source table lineage"
     },
     {
@@ -1096,29 +2041,41 @@
       "id": "pivot_table_lineage",
       "file": "cases/pivot_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "PIVOT query source table lineage with column lineage degradation"
     },
     {
       "id": "pivot_column_lineage",
       "file": "cases/pivot_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.orders.user_id"]
+          "sources": [
+            "ods.orders.user_id"
+          ]
         },
         {
           "target": "small_total",
-          "sources": ["ods.orders.amount"]
+          "sources": [
+            "ods.orders.amount"
+          ]
         },
         {
           "target": "large_total",
-          "sources": ["ods.orders.amount"]
+          "sources": [
+            "ods.orders.amount"
+          ]
         }
       ],
       "description": "PIVOT generated aggregate columns map to aggregate input columns"
@@ -1127,21 +2084,29 @@
       "id": "unpivot_table_lineage",
       "file": "cases/unpivot_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["mart.user_metrics"],
+      "inputTables": [
+        "mart.user_metrics"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "UNPIVOT query source table lineage with column lineage degradation"
     },
     {
       "id": "unpivot_column_lineage",
       "file": "cases/unpivot_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["mart.user_metrics"],
+      "inputTables": [
+        "mart.user_metrics"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["mart.user_metrics.user_id"]
+          "sources": [
+            "mart.user_metrics.user_id"
+          ]
         },
         {
           "target": "metric",
@@ -1149,7 +2114,10 @@
         },
         {
           "target": "value",
-          "sources": ["mart.user_metrics.clicks", "mart.user_metrics.views"]
+          "sources": [
+            "mart.user_metrics.clicks",
+            "mart.user_metrics.views"
+          ]
         }
       ],
       "description": "Single-value UNPIVOT generated name/value column lineage"
@@ -1158,12 +2126,16 @@
       "id": "unpivot_multi_value_column_lineage",
       "file": "cases/unpivot_multi_value_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["mart.quarterly_metrics"],
+      "inputTables": [
+        "mart.quarterly_metrics"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["mart.quarterly_metrics.user_id"]
+          "sources": [
+            "mart.quarterly_metrics.user_id"
+          ]
         },
         {
           "target": "half",
@@ -1171,11 +2143,17 @@
         },
         {
           "target": "sales",
-          "sources": ["mart.quarterly_metrics.q1_sales", "mart.quarterly_metrics.q2_sales"]
+          "sources": [
+            "mart.quarterly_metrics.q1_sales",
+            "mart.quarterly_metrics.q2_sales"
+          ]
         },
         {
           "target": "expenses",
-          "sources": ["mart.quarterly_metrics.q1_expenses", "mart.quarterly_metrics.q2_expenses"]
+          "sources": [
+            "mart.quarterly_metrics.q1_expenses",
+            "mart.quarterly_metrics.q2_expenses"
+          ]
         }
       ],
       "description": "Multi-value UNPIVOT generated value columns map to source column sets by position"
@@ -1184,21 +2162,29 @@
       "id": "transform_table_lineage",
       "file": "cases/transform_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "TRANSFORM query source table lineage with column lineage degradation"
     },
     {
       "id": "stream_table_lineage",
       "file": "cases/stream_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.events"],
+      "inputTables": [
+        "ods.events"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "event_id",
-          "sources": ["ods.events.id"]
+          "sources": [
+            "ods.events.id"
+          ]
         }
       ],
       "description": "STREAM table source and direct column lineage"
@@ -1207,12 +2193,16 @@
       "id": "changelog_column_projection",
       "file": "cases/changelog_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         }
       ],
       "description": "CHANGES relation source and qualified direct column lineage"
@@ -1221,16 +2211,22 @@
       "id": "pipe_select_column_projection",
       "file": "cases/pipe_select_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Pipe SELECT source and direct column lineage"
@@ -1239,12 +2235,16 @@
       "id": "pipe_where_select_lineage",
       "file": "cases/pipe_where_select_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         }
       ],
       "description": "Pipe WHERE followed by SELECT preserves source and column lineage"
@@ -1253,12 +2253,16 @@
       "id": "pipe_drop_column_projection",
       "file": "cases/pipe_drop_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         }
       ],
       "description": "Pipe DROP followed by SELECT preserves remaining direct column lineage"
@@ -1267,25 +2271,35 @@
       "id": "pipe_extend_table_lineage",
       "file": "cases/pipe_extend_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "Pipe EXTEND source table lineage with generated column lineage degradation"
     },
     {
       "id": "pipe_extend_column_lineage",
       "file": "cases/pipe_extend_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name_upper",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Pipe EXTEND generated column propagation into a following SELECT"
@@ -1294,16 +2308,22 @@
       "id": "pipe_aggregate_table_lineage",
       "file": "cases/pipe_aggregate_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.orders.user_id"]
+          "sources": [
+            "ods.orders.user_id"
+          ]
         },
         {
           "target": "order_cnt",
-          "sources": ["ods.orders.order_id"]
+          "sources": [
+            "ods.orders.order_id"
+          ]
         }
       ],
       "description": "Standalone Pipe AGGREGATE source table and generated column lineage"
@@ -1312,16 +2332,22 @@
       "id": "pipe_aggregate_column_lineage",
       "file": "cases/pipe_aggregate_column_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.orders"],
+      "inputTables": [
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.orders.user_id"]
+          "sources": [
+            "ods.orders.user_id"
+          ]
         },
         {
           "target": "order_cnt",
-          "sources": ["ods.orders.order_id"]
+          "sources": [
+            "ods.orders.order_id"
+          ]
         }
       ],
       "description": "Pipe AGGREGATE generated column propagation into a following SELECT"
@@ -1330,16 +2356,23 @@
       "id": "pipe_join_column_projection",
       "file": "cases/pipe_join_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.orders"],
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "amount",
-          "sources": ["ods.orders.amount"]
+          "sources": [
+            "ods.orders.amount"
+          ]
         }
       ],
       "description": "Pipe JOIN source and qualified direct column lineage"
@@ -1348,12 +2381,18 @@
       "id": "pipe_union_column_projection",
       "file": "cases/pipe_union_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.admins"],
+      "inputTables": [
+        "ods.users",
+        "ods.admins"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id", "ods.admins.id"]
+          "sources": [
+            "ods.users.id",
+            "ods.admins.id"
+          ]
         }
       ],
       "description": "Pipe UNION source table lineage and column lineage merged by position"
@@ -1362,12 +2401,18 @@
       "id": "pipe_intersect_table_lineage",
       "file": "cases/pipe_intersect_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.active_users"],
+      "inputTables": [
+        "ods.users",
+        "ods.active_users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id", "ods.active_users.id"]
+          "sources": [
+            "ods.users.id",
+            "ods.active_users.id"
+          ]
         }
       ],
       "description": "Pipe INTERSECT source table lineage and column inputs by position"
@@ -1376,12 +2421,18 @@
       "id": "pipe_except_table_lineage",
       "file": "cases/pipe_except_table_lineage.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users", "ods.deleted_users"],
+      "inputTables": [
+        "ods.users",
+        "ods.deleted_users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id", "ods.deleted_users.id"]
+          "sources": [
+            "ods.users.id",
+            "ods.deleted_users.id"
+          ]
         }
       ],
       "description": "Pipe EXCEPT source table lineage and column inputs by position"
@@ -1392,7 +2443,9 @@
       "statementType": "UNKNOWN",
       "inputTables": [],
       "outputTables": [],
-      "expectedDiagnostics": ["DYNAMIC_SQL_NOT_EXPANDED"],
+      "expectedDiagnostics": [
+        "DYNAMIC_SQL_NOT_EXPANDED"
+      ],
       "description": "EXECUTE IMMEDIATE dynamic SQL is parsed but not expanded for lineage"
     },
     {
@@ -1559,7 +2612,9 @@
       "id": "describe_query",
       "file": "cases/describe_query.sql",
       "statementType": "READ_METADATA",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "description": "DESCRIBE QUERY records source tables from the described query"
     },
@@ -1600,20 +2655,30 @@
       "file": "cases/create_metric_view_code_literal.sql",
       "statementType": "CREATE_VIEW",
       "inputTables": [],
-      "outputTables": ["mart.metric_users"],
-      "expectedDiagnostics": ["CODE_LITERAL_NOT_EXPANDED"],
+      "outputTables": [
+        "mart.metric_users"
+      ],
+      "expectedDiagnostics": [
+        "CODE_LITERAL_NOT_EXPANDED"
+      ],
       "description": "CREATE metric view with code literal returns output table and degraded diagnostics"
     },
     {
       "id": "create_flow_insert",
       "file": "cases/create_flow_insert.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["mart.users"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
       "columnLineage": [
         {
           "target": "mart.users.id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         }
       ],
       "description": "CREATE FLOW AS INSERT captures target and source table lineage"
@@ -1622,61 +2687,194 @@
       "id": "create_flow_auto_cdc",
       "file": "cases/create_flow_auto_cdc.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.user_changes"],
-      "outputTables": ["mart.users"],
-      "expectedDiagnostics": ["CDC_LINEAGE_DEGRADED", "COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "inputTables": [
+        "ods.user_changes"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "expectedDiagnostics": [
+        "CDC_LINEAGE_DEGRADED",
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "CREATE FLOW AUTO CDC captures target/source tables and degrades column lineage"
     },
     {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "INSERT target column list drives target column lineage names"
     },
     {
+      "id": "insert_column_list_expression_projection",
+      "file": "cases/insert_column_list_expression_projection.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_count",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "INSERT target column list maps aliased, expression, and aggregate SELECT projections by position"
+    },
+    {
       "id": "ctas_column_projection",
       "file": "cases/ctas_column_projection.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["mart.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "mart.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "mart.user_summary.name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "CTAS output table column lineage"
     },
     {
+      "id": "ctas_expression_projection",
+      "file": "cases/ctas_expression_projection.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "mart.user_summary.order_count",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "SPARK CTAS maps aliased, expression, and aggregate SELECT projections to created-table columns"
+    },
+    {
       "id": "ctas_using_partitioned",
       "file": "cases/ctas_using_partitioned.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.events"],
-      "outputTables": ["mart.user_events"],
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.user_events"
+      ],
       "columnLineage": [
         {
           "target": "mart.user_events.id",
-          "sources": ["ods.events.id"]
+          "sources": [
+            "ods.events.id"
+          ]
         },
         {
           "target": "mart.user_events.user_id",
-          "sources": ["ods.events.user_id"]
+          "sources": [
+            "ods.events.user_id"
+          ]
         }
       ],
       "description": "CTAS with USING provider and partition clause"
@@ -1685,16 +2883,24 @@
       "id": "replace_table_as_select",
       "file": "cases/replace_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.users_delta"],
-      "outputTables": ["mart.user_latest"],
+      "inputTables": [
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "mart.user_latest"
+      ],
       "columnLineage": [
         {
           "target": "mart.user_latest.user_id",
-          "sources": ["ods.users_delta.id"]
+          "sources": [
+            "ods.users_delta.id"
+          ]
         },
         {
           "target": "mart.user_latest.updated_at",
-          "sources": ["ods.users_delta.updated_at"]
+          "sources": [
+            "ods.users_delta.updated_at"
+          ]
         }
       ],
       "description": "CREATE OR REPLACE TABLE AS SELECT table and column lineage"
@@ -1703,16 +2909,24 @@
       "id": "create_materialized_view_as_select",
       "file": "cases/create_materialized_view_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["mart.mv_users"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.mv_users"
+      ],
       "columnLineage": [
         {
           "target": "mart.mv_users.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "mart.mv_users.name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "CREATE MATERIALIZED VIEW AS SELECT table and column lineage"
@@ -1721,16 +2935,24 @@
       "id": "create_streaming_table_as_select",
       "file": "cases/create_streaming_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
-      "inputTables": ["ods.events"],
-      "outputTables": ["mart.streaming_events"],
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.streaming_events"
+      ],
       "columnLineage": [
         {
           "target": "mart.streaming_events.event_id",
-          "sources": ["ods.events.id"]
+          "sources": [
+            "ods.events.id"
+          ]
         },
         {
           "target": "mart.streaming_events.event_time",
-          "sources": ["ods.events.event_time"]
+          "sources": [
+            "ods.events.event_time"
+          ]
         }
       ],
       "description": "CREATE STREAMING TABLE AS SELECT table and column lineage"
@@ -1739,16 +2961,22 @@
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Single-level CTE direct column propagation"
@@ -1757,16 +2985,22 @@
       "id": "chained_cte_column_projection",
       "file": "cases/chained_cte_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "uid",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Chained CTE direct column propagation"
@@ -1775,16 +3009,22 @@
       "id": "cte_column_aliases",
       "file": "cases/cte_column_aliases.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "CTE column alias list propagation"
@@ -1793,16 +3033,22 @@
       "id": "subquery_column_projection",
       "file": "cases/subquery_column_projection.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.users"],
+      "inputTables": [
+        "ods.users"
+      ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "Single-level aliased subquery direct column propagation"
@@ -1811,16 +3057,24 @@
       "id": "insert_from_subquery",
       "file": "cases/insert_from_subquery.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "INSERT target column mapping over single-level aliased subquery propagation"
@@ -1829,16 +3083,24 @@
       "id": "insert_from_cte",
       "file": "cases/insert_from_cte.sql",
       "statementType": "INSERT",
-      "inputTables": ["ods.users"],
-      "outputTables": ["ads.user_summary"],
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
       "columnLineage": [
         {
           "target": "ads.user_summary.user_id",
-          "sources": ["ods.users.id"]
+          "sources": [
+            "ods.users.id"
+          ]
         },
         {
           "target": "ads.user_summary.user_name",
-          "sources": ["ods.users.name"]
+          "sources": [
+            "ods.users.name"
+          ]
         }
       ],
       "description": "INSERT target column mapping over single-level CTE propagation"
@@ -1847,7 +3109,9 @@
       "id": "grouping_sets_bitwise_xor",
       "file": "cases/grouping_sets_bitwise_xor.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.user_events"],
+      "inputTables": [
+        "ods.user_events"
+      ],
       "outputTables": [],
       "description": "Spark GROUPING SETS with GROUPING__ID bitwise XOR expression"
     },
@@ -1855,7 +3119,9 @@
       "id": "bang_logical_not",
       "file": "cases/bang_logical_not.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.vehicle_metrics"],
+      "inputTables": [
+        "ods.vehicle_metrics"
+      ],
       "outputTables": [],
       "description": "Spark bang logical NOT adjacent to parenthesized predicate"
     },
@@ -1863,7 +3129,9 @@
       "id": "stack_function_aliases",
       "file": "cases/stack_function_aliases.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.request_logs"],
+      "inputTables": [
+        "ods.request_logs"
+      ],
       "outputTables": [],
       "description": "Spark stack function with multi-column aliases"
     },
@@ -1871,7 +3139,9 @@
       "id": "posexplode_function_aliases",
       "file": "cases/posexplode_function_aliases.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.seed_rows"],
+      "inputTables": [
+        "ods.seed_rows"
+      ],
       "outputTables": [],
       "description": "Spark posexplode function with multi-column aliases through CTE"
     },
@@ -1879,7 +3149,10 @@
       "id": "null_safe_equal_operator",
       "file": "cases/null_safe_equal_operator.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.vehicle_metric_daily", "ods.vehicle_metric_l6_daily"],
+      "inputTables": [
+        "ods.vehicle_metric_daily",
+        "ods.vehicle_metric_l6_daily"
+      ],
       "outputTables": [],
       "description": "Spark null-safe equality operator in predicate"
     },
@@ -1887,7 +3160,9 @@
       "id": "compatibility_cast_ilike_qualify",
       "file": "cases/compatibility_cast_ilike_qualify.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.user_events"],
+      "inputTables": [
+        "ods.user_events"
+      ],
       "outputTables": [],
       "description": "Spark parser compatibility for PostgreSQL cast, ILIKE, and QUALIFY syntax"
     },
@@ -1896,15 +3171,21 @@
       "file": "cases/backslash_escaped_string_values.sql",
       "statementType": "INSERT",
       "inputTables": [],
-      "outputTables": ["ods.event_feedback"],
-      "expectedDiagnostics": ["COLUMN_LINEAGE_NOT_IMPLEMENTED"],
+      "outputTables": [
+        "ods.event_feedback"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
       "description": "Spark INSERT VALUES with backslash-escaped quotes inside string literals"
     },
     {
       "id": "double_quoted_escaped_string",
       "file": "cases/double_quoted_escaped_string.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.object_access_log"],
+      "inputTables": [
+        "ods.object_access_log"
+      ],
       "outputTables": [],
       "description": "Spark double-quoted string literal containing escaped quotes"
     },
@@ -1912,7 +3193,9 @@
       "id": "nested_collect_set_expression",
       "file": "cases/nested_collect_set_expression.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.accounting_flow"],
+      "inputTables": [
+        "ods.accounting_flow"
+      ],
       "outputTables": [],
       "description": "Spark nested collect_set and concat_ws aggregate expression"
     },
@@ -1920,7 +3203,9 @@
       "id": "date_add_interval_compatibility",
       "file": "cases/date_add_interval_compatibility.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.user_events"],
+      "inputTables": [
+        "ods.user_events"
+      ],
       "outputTables": [],
       "description": "Spark compatibility syntax for date_add with interval arithmetic"
     }

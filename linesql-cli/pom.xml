@@ -55,6 +55,16 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.github.jarredhj0214</groupId>
+            <artifactId>linesql-dialect-postgresql</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.jarredhj0214</groupId>
+            <artifactId>linesql-dialect-oceanbase</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>

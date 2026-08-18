@@ -48,3 +48,22 @@ Print the current coverage summary:
 ```bash
 ./scripts/mvn-jdk11 -q -pl linesql-core -Dtest=SqlCaseManifestQualityTest#printsCoverageReport test
 ```
+
+## Grammar-Driven Parser Work
+
+Parser work should be planned by dialect grammar domains, then validated with SQL cases. Do not use one-off SQL examples as the only roadmap for implementation.
+
+Use [Grammar Coverage Matrix](grammar-coverage-matrix.md) to choose the next grammar domain and priority. For each capability:
+
+- update or confirm the dialect ANTLR grammar rule
+- implement the lineage visitor behavior for that grammar node
+- add representative SQL cases
+- update the manifest expected output
+- update [Supported Scenarios](supported-scenarios.md)
+- run the focused dialect tests and then `./scripts/mvn-jdk11 -B clean install`
+
+When deciding whether to create a new dialect, prefer this rule:
+
+- use the existing dialect when the difference is a connector option, minor version-gated feature, or parser feature flag
+- add a dialect profile when the grammar family is shared but compatibility mode changes behavior, such as OceanBase MySQL mode vs OceanBase Oracle mode
+- add a new dialect when statement forms, identifier rules, DML semantics, or lineage behavior differ materially, such as PostgreSQL

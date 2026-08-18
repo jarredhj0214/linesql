@@ -159,6 +159,40 @@
       "description": "Oracle same-name columns in joined subqueries stay scoped to their local single-table subquery"
     },
     {
+      "id": "self_join_column_usage",
+      "file": "cases/self_join_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.employees.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.employees.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.employees.id"
+        }
+      ],
+      "description": "Oracle self-join aliases preserve output and JOIN ON predicate column usages"
+    },
+    {
       "id": "join_using_column_usage",
       "file": "cases/join_using_column_usage.sql",
       "statementType": "SELECT",
@@ -192,6 +226,216 @@
         }
       ],
       "description": "Oracle JOIN USING predicate column usages"
+    },
+    {
+      "id": "join_using_multi_table_scope",
+      "file": "cases/join_using_multi_table_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders",
+        "dwd.payments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "dwd.payments.channel"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.payments.id"
+        }
+      ],
+      "description": "Oracle chained JOIN USING keeps predicate usages across the current joined relation"
+    },
+    {
+      "id": "join_using_comma_scope",
+      "file": "cases/join_using_comma_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.audit_log",
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "Oracle JOIN USING predicate usages stay scoped to the current comma-separated relation"
+    },
+    {
+      "id": "join_using_derived_scope",
+      "file": "cases/join_using_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "Oracle JOIN USING over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_using_subquery_scope",
+      "file": "cases/join_using_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "Oracle JOIN USING over derived subqueries resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_derived_scope",
+      "file": "cases/join_on_derived_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Oracle JOIN ON over CTE references resolves predicate usages to the underlying source columns"
+    },
+    {
+      "id": "join_on_subquery_scope",
+      "file": "cases/join_on_subquery_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Oracle JOIN ON over derived subqueries resolves predicate usages to the underlying source columns"
     },
     {
       "id": "set_operation_clause_column_usage",
@@ -276,6 +520,57 @@
       "description": "Oracle CREATE TABLE AS SELECT table and column lineage"
     },
     {
+      "id": "ctas_expression_projection",
+      "file": "cases/ctas_expression_projection.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary_expr"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary_expr.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary_expr.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary_expr.order_count",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "ORACLE CTAS maps aliased, expression, and aggregate SELECT projections to created-table columns"
+    },
+    {
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
@@ -301,6 +596,57 @@
         }
       ],
       "description": "Oracle CREATE VIEW AS SELECT table and column lineage"
+    },
+    {
+      "id": "create_view_expression_projection",
+      "file": "cases/create_view_expression_projection.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.v_user_summary_expr"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_user_summary_expr.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.v_user_summary_expr.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.v_user_summary_expr.order_count",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "ORACLE CREATE VIEW maps aliased, expression, and aggregate SELECT projections to view columns"
     },
     {
       "id": "quoted_identifiers",
@@ -372,6 +718,39 @@
         }
       ],
       "description": "Oracle UPDATE target table lineage and deterministic assignment column lineage"
+    },
+    {
+      "id": "update_expression_assignment",
+      "file": "cases/update_expression_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ads.user_summary.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_score",
+          "sources": [
+            "ads.user_summary.order_count",
+            "ads.user_summary.bonus_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.dt"
+        }
+      ],
+      "description": "ORACLE UPDATE SET expression assignment column lineage"
     },
     {
       "id": "delete_where",
@@ -561,6 +940,123 @@
       "description": "Oracle INSERT target column list mapping"
     },
     {
+      "id": "insert_union_column_lineage",
+      "file": "cases/insert_union_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Oracle INSERT target column list over UNION ALL sources"
+    },
+    {
+      "id": "insert_intersect_column_lineage",
+      "file": "cases/insert_intersect_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Oracle INSERT target column list over INTERSECT sources"
+    },
+    {
+      "id": "insert_except_column_lineage",
+      "file": "cases/insert_except_column_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Oracle INSERT target column list over EXCEPT sources"
+    },
+    {
+      "id": "insert_column_list_expression_projection",
+      "file": "cases/insert_column_list_expression_projection.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_count",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "INSERT target column list maps aliased, expression, and aggregate SELECT projections by position"
+    },
+    {
       "id": "create_view_column_list",
       "file": "cases/create_view_column_list.sql",
       "statementType": "CREATE_VIEW",
@@ -712,6 +1208,145 @@
       "description": "Oracle UNION ALL column sources merged by projection position"
     },
     {
+      "id": "intersect_column_projection",
+      "file": "cases/intersect_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Oracle INTERSECT column sources merged by projection position"
+    },
+    {
+      "id": "except_column_projection",
+      "file": "cases/except_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.users_b"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users_a.id",
+            "ods.users_b.user_id"
+          ]
+        }
+      ],
+      "description": "Oracle EXCEPT column sources merged by projection position"
+    },
+    {
+      "id": "merge_into",
+      "file": "cases/merge_into.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_score",
+          "sources": [
+            "ods.users.order_count",
+            "ads.user_summary.bonus_count"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_score",
+          "sources": [
+            "ods.users.order_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "Oracle MERGE target/source table lineage with update assignments, insert values, and ON predicate column usage"
+    },
+    {
+      "id": "merge_using_subquery",
+      "file": "cases/merge_using_subquery.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users_delta.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        }
+      ],
+      "description": "Oracle MERGE USING subquery resolves update and insert value lineage to the underlying source table"
+    },
+    {
       "id": "update_with_subquery",
       "file": "cases/update_with_subquery.sql",
       "statementType": "UPDATE",
@@ -724,7 +1359,17 @@
         "ads.users"
       ],
       "columnLineage": [],
-      "description": "Oracle UPDATE target table with SET and WHERE subquery source tables"
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.active_users.user_id"
+        }
+      ],
+      "description": "Oracle UPDATE target table with SET and WHERE subquery source tables and predicate columns"
     },
     {
       "id": "delete_with_subquery",
@@ -738,7 +1383,17 @@
         "ads.users"
       ],
       "columnLineage": [],
-      "description": "Oracle DELETE target table with WHERE subquery source table"
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.inactive_users.user_id"
+        }
+      ],
+      "description": "Oracle DELETE target table with WHERE subquery source table and predicate columns"
     },
     {
       "id": "case_expression",
@@ -758,6 +1413,27 @@
         }
       ],
       "description": "Oracle CASE expression column lineage from condition and value columns"
+    },
+    {
+      "id": "complex_case_expression",
+      "file": "cases/complex_case_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "normalized_score",
+          "sources": [
+            "ods.users.status",
+            "ods.users.score",
+            "ods.users.pending_score",
+            "ods.users.default_score"
+          ]
+        }
+      ],
+      "description": "Oracle multi-branch CASE expression column lineage from conditions, branch values, and ELSE value"
     },
     {
       "id": "common_expression_projection",
@@ -792,6 +1468,231 @@
       "description": "Oracle CAST, function, and arithmetic expression column lineage"
     },
     {
+      "id": "nested_function_projection",
+      "file": "cases/nested_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "display_key",
+          "sources": [
+            "ods.users.name",
+            "ods.users.nickname",
+            "ods.users.id"
+          ]
+        }
+      ],
+      "description": "Oracle nested function expression column lineage"
+    },
+    {
+      "id": "scalar_subquery_projection",
+      "file": "cases/scalar_subquery_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "max_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "description": "Scalar subquery projection preserves inner expression source columns"
+    },
+    {
+      "id": "in_subquery_column_usage",
+      "file": "cases/in_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.active_sessions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.active_sessions.user_id"
+        }
+      ],
+      "description": "IN subquery predicate usages include outer predicate columns and inner projection source columns"
+    },
+    {
+      "id": "projection_alias_order_usage",
+      "file": "cases/projection_alias_order_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.name"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "ORDER BY projection aliases resolve back to the underlying source columns"
+    },
+    {
+      "id": "order_by_expression_column_usage",
+      "file": "cases/order_by_expression_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.updated_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.created_at"
+        }
+      ],
+      "description": "Oracle ORDER BY expression column usage"
+    },
+    {
+      "id": "distinct_aggregate_column_usage",
+      "file": "cases/distinct_aggregate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "ods.orders.region"
+          ]
+        },
+        {
+          "target": "user_count",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "distinct_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "ods.orders.order_id"
+        }
+      ],
+      "description": "Oracle DISTINCT aggregate projection lineage and HAVING usage"
+    },
+    {
+      "id": "group_by_expression_column_usage",
+      "file": "cases/group_by_expression_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region_key",
+          "sources": [
+            "ods.orders.region"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "ods.orders.order_id"
+        }
+      ],
+      "description": "Oracle GROUP BY expression column usage and aggregate lineage"
+    },
+    {
       "id": "aggregate_expression_projection",
       "file": "cases/aggregate_expression_projection.sql",
       "statementType": "SELECT",
@@ -820,6 +1721,228 @@
         }
       ],
       "description": "Oracle GROUP BY aggregate expression column lineage"
+    },
+    {
+      "id": "logical_not_group_column_usage",
+      "file": "cases/logical_not_group_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.score"
+        }
+      ],
+      "description": "Oracle logical NOT over grouped predicates column usages"
+    },
+    {
+      "id": "negated_predicate_column_usage",
+      "file": "cases/negated_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.deleted_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.blocked_status"
+        }
+      ],
+      "description": "Oracle negated predicate operator column usages"
+    },
+    {
+      "id": "in_list_predicate_column_usage",
+      "file": "cases/in_list_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.home_region"
+        }
+      ],
+      "description": "Oracle IN expression-list predicate column usages"
+    },
+    {
+      "id": "predicate_operator_column_usage",
+      "file": "cases/predicate_operator_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.deleted_at"
+        }
+      ],
+      "description": "Oracle BETWEEN, LIKE, and IS NULL predicate column usages"
+    },
+    {
+      "id": "exists_subquery_column_usage",
+      "file": "cases/exists_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "Oracle EXISTS subquery table inputs and predicate column usages"
+    },
+    {
+      "id": "window_function_projection",
+      "file": "cases/window_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "customer_id",
+          "sources": [
+            "ods.orders.customer_id"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": [
+            "ods.orders.region",
+            "ods.orders.created_at"
+          ]
+        },
+        {
+          "target": "running_amount",
+          "sources": [
+            "ods.orders.amount",
+            "ods.orders.customer_id",
+            "ods.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.orders.region"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.orders.created_at"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.orders.customer_id"
+        }
+      ],
+      "description": "Oracle window function projection column lineage and window clause usages"
     }
   ]
 }

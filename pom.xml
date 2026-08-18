@@ -44,6 +44,9 @@
         <module>linesql-dialect-mysql</module>
         <module>linesql-dialect-oracle</module>
         <module>linesql-dialect-sqlserver</module>
+        <module>linesql-dialect-postgresql</module>
+        <module>linesql-dialect-oceanbase</module>
+        <module>linesql-all</module>
         <module>linesql-cli</module>
     </modules>
 

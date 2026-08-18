@@ -10,5 +10,7 @@ public enum SqlDialect {
     MYSQL,
     ORACLE,
     SQLSERVER,
+    POSTGRESQL,
+    OCEANBASE,
     UNKNOWN
 }

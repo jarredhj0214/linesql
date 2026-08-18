@@ -112,6 +112,6 @@ public final class Main {
         output.println("  linesql --dialect HIVE \"select id from db.table\"");
         output.println("  cat script.sql | linesql");
         output.println();
-        output.println("Dialects: SPARK, HIVE, FLINK, STARROCKS, MYSQL, ORACLE, SQLSERVER");
+        output.println("Dialects: SPARK, HIVE, FLINK, STARROCKS, MYSQL, ORACLE, SQLSERVER, POSTGRESQL, OCEANBASE");
     }
 }
