@@ -214,6 +214,8 @@ public class SqlCaseManifestQualityTest {
         modules.put("MYSQL", "mysql");
         modules.put("ORACLE", "oracle");
         modules.put("SQLSERVER", "sqlserver");
+        modules.put("POSTGRESQL", "postgresql");
+        modules.put("OCEANBASE", "oceanbase");
         return modules;
     }
 

@@ -42,14 +42,14 @@ Grammar-domain coverage and development priorities are tracked in [Grammar Cover
 | Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Clause Column Usage |
 | --- | --- | --- | --- | --- | --- |
 | Spark | Active parser | Yes | Broad stage-1 coverage | Broad stage-1 coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
-| MySQL | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
-| Hive | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
-| Flink | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
-| StarRocks | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
-| Oracle | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
-| SQL Server | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Planned |
-| PostgreSQL | Planned | Planned | Planned | Planned | Planned |
-| OceanBase | Planned | Planned | Planned | Planned | Planned |
+| MySQL | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| Hive | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| Flink | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| StarRocks | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| Oracle | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| SQL Server | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| PostgreSQL | Baseline MVP | Yes | SELECT, DML, CTAS, VIEW, `ON CONFLICT`, `RETURNING`, `MERGE` | Direct mappings and common expressions | Basic predicate and merge/clause usages |
+| OceanBase | Baseline MVP | Yes | MySQL and Oracle compatibility-mode baseline | Direct mappings through compatibility modes | Basic compatibility-mode usages |
 
 Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to Spark; callers can pass an explicit dialect when the execution engine is known.
 
@@ -66,7 +66,7 @@ Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to
 | `linesql-dialect-starrocks` | StarRocks parser MVP |
 | `linesql-dialect-oracle` | Oracle parser MVP |
 | `linesql-dialect-sqlserver` | SQL Server parser MVP |
-| `linesql-dialect-postgresql` | PostgreSQL planned parser module |
+| `linesql-dialect-postgresql` | PostgreSQL baseline parser module |
 | `linesql-dialect-oceanbase` | OceanBase compatibility-mode parser module |
 | `linesql-cli` | Command-line JSON output |
 

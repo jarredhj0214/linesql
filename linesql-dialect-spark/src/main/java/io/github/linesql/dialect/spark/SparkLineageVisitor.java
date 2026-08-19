@@ -40,6 +40,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private int pipeOutputProjectionStart = -1;
     private boolean suppressColumnLineage;
     private boolean suppressMissingColumnLineageDiagnostic;
+    private boolean suppressStarColumnLineage;
     private ParseContext context;
 
     SparkLineageVisitor(LineageResult result) {
@@ -978,7 +979,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitWhereClause(SqlBaseParser.WhereClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumnsExcludingSubqueries(ctx.booleanExpression()));
         addColumnUsages(ColumnUsageType.WHERE, queryProjectionSourceColumns(ctx.booleanExpression()));
-        return visitChildren(ctx);
+        collectSubqueryInputs(ctx.booleanExpression());
+        return null;
     }
 
     @Override
@@ -1112,6 +1114,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitPivotClause(SqlBaseParser.PivotClauseContext ctx) {
+        suppressStarColumnLineage = true;
         for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.aggregates.namedExpression()) {
             Projection projection = projection(namedExpression);
             if (projection == null) {
@@ -1132,6 +1135,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitUnpivotSingleValueColumnClause(SqlBaseParser.UnpivotSingleValueColumnClauseContext ctx) {
+        suppressStarColumnLineage = true;
         List<SourceColumn> sources = new ArrayList<>();
         for (SqlBaseParser.UnpivotColumnAndAliasContext column : ctx.unpivotColumns) {
             sources.add(new SourceColumn(null, cleanMultipartIdentifier(column.unpivotColumn().multipartIdentifier())));
@@ -1144,6 +1148,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitUnpivotMultiValueColumnClause(SqlBaseParser.UnpivotMultiValueColumnClauseContext ctx) {
+        suppressStarColumnLineage = true;
         for (int valueIndex = 0; valueIndex < ctx.unpivotValueColumns.size(); valueIndex++) {
             List<SourceColumn> sources = new ArrayList<>();
             for (SqlBaseParser.UnpivotColumnSetContext columnSet : ctx.unpivotColumnSets) {
@@ -1234,6 +1239,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         inputTables.add(table);
         tableAliases.put(table.getName().toLowerCase(java.util.Locale.ROOT), table);
+        tableAliases.put(relationKey(table), table);
         String alias = tableAlias(aliasContext);
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(java.util.Locale.ROOT), table);
@@ -1548,6 +1554,12 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;
         List<ColumnLineage> columnLineage = new ArrayList<>();
         for (Projection projection : projections) {
+            if (projection.star) {
+                if (!suppressStarColumnLineage) {
+                    addStarColumnLineage(columnLineage, targetTable, projection);
+                }
+                continue;
+            }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
                 continue;
@@ -1560,6 +1572,75 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             columnLineage.add(lineage);
         }
         result.setColumnLineage(columnLineage);
+    }
+
+    private void addStarColumnLineage(List<ColumnLineage> columnLineage,
+                                      TableRef targetTable,
+                                      Projection projection) {
+        List<ColumnLineage> expanded = starColumnLineage(targetTable, projection);
+        if (expanded.isEmpty()) {
+            return;
+        }
+        columnLineage.addAll(expanded);
+    }
+
+    private List<ColumnLineage> starColumnLineage(TableRef targetTable, Projection projection) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        List<StarSource> sources = starSources(projection.starQualifier);
+        for (StarSource source : sources) {
+            if (source.columns != null && !source.columns.isEmpty() && !source.columns.containsKey("*")) {
+                for (Map.Entry<String, List<ColumnRef>> entry : source.columns.entrySet()) {
+                    lineages.add(columnLineage(targetTable, entry.getKey(), entry.getValue(), projection.expression));
+                }
+                continue;
+            }
+            List<ColumnRef> wildcard = source.wildcardRefs();
+            if (!wildcard.isEmpty()) {
+                lineages.add(columnLineage(targetTable, "*", wildcard, projection.expression));
+            }
+        }
+        return lineages;
+    }
+
+    private List<StarSource> starSources(String qualifier) {
+        List<StarSource> sources = new ArrayList<>();
+        if (qualifier != null) {
+            TableRef table = tableAliases.get(qualifier.toLowerCase(java.util.Locale.ROOT));
+            if (table != null) {
+                sources.add(StarSource.table(table));
+                return sources;
+            }
+            String derivedName = derivedAliases.get(qualifier.toLowerCase(java.util.Locale.ROOT));
+            if (derivedName != null) {
+                Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
+                if (columns != null) {
+                    sources.add(StarSource.derived(columns));
+                }
+            }
+            return sources;
+        }
+        for (VisibleRelation relation : visibleRelations) {
+            if (relation.table != null) {
+                sources.add(StarSource.table(relation.table));
+                continue;
+            }
+            Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation.derivedName);
+            if (columns != null) {
+                sources.add(StarSource.derived(columns));
+            }
+        }
+        return sources;
+    }
+
+    private static ColumnLineage columnLineage(TableRef targetTable,
+                                               String targetColumn,
+                                               List<ColumnRef> sources,
+                                               String expression) {
+        ColumnLineage lineage = new ColumnLineage();
+        lineage.setTarget(new ColumnRef(targetTable, targetColumn));
+        lineage.setSources(sources);
+        lineage.setExpression(expression);
+        return lineage;
     }
 
     private void clearPipeOutputProjections() {
@@ -1897,8 +1978,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns, Set<String> resolvingGeneratedColumns) {
-        TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
-                ? inputTables.iterator().next()
+        TableRef defaultTable = visibleRelationCount <= 1
+                ? firstVisibleInputTable
                 : null;
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn rawSourceColumn : sourceColumns) {
@@ -1946,9 +2027,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (parts.size() < 2) {
             return sourceColumn;
         }
-        String possibleQualifier = parts.get(0).toLowerCase(java.util.Locale.ROOT);
-        if (tableAliases.containsKey(possibleQualifier) || derivedAliases.containsKey(possibleQualifier)) {
-            return new SourceColumn(parts.get(0), String.join(".", parts.subList(1, parts.size())));
+        for (int qualifierLength = parts.size() - 1; qualifierLength >= 1; qualifierLength--) {
+            String possibleQualifier = String.join(".", parts.subList(0, qualifierLength))
+                    .toLowerCase(java.util.Locale.ROOT);
+            if (tableAliases.containsKey(possibleQualifier) || derivedAliases.containsKey(possibleQualifier)) {
+                return new SourceColumn(
+                        String.join(".", parts.subList(0, qualifierLength)),
+                        String.join(".", parts.subList(qualifierLength, parts.size())));
+            }
         }
         return sourceColumn;
     }
@@ -1961,7 +2047,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             derivedName = derivedReferences.iterator().next();
         }
         if (derivedName == null) {
-            return null;
+            return uniqueVisibleDerivedColumnRefs(sourceColumn);
         }
         Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
         if (columns == null) {
@@ -1972,10 +2058,49 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             return refs;
         }
         List<ColumnRef> wildcard = columns.get("*");
-        if (wildcard != null && wildcard.size() == 1 && wildcard.get(0).getTable() != null) {
-            return singletonColumnRef(wildcard.get(0).getTable(), sourceColumn.name);
+        List<ColumnRef> wildcardRefs = retargetWildcardRefs(wildcard, sourceColumn.name);
+        if (!wildcardRefs.isEmpty()) {
+            return wildcardRefs;
         }
         return null;
+    }
+
+    private static List<ColumnRef> retargetWildcardRefs(List<ColumnRef> wildcard, String columnName) {
+        List<ColumnRef> refs = new ArrayList<>();
+        if (wildcard == null) {
+            return refs;
+        }
+        for (ColumnRef ref : wildcard) {
+            if (ref.getTable() != null) {
+                refs.add(new ColumnRef(ref.getTable(), columnName));
+            }
+        }
+        return refs;
+    }
+
+    private List<ColumnRef> uniqueVisibleDerivedColumnRefs(SourceColumn sourceColumn) {
+        if (sourceColumn.qualifier != null || sourceColumn.name.contains(".")) {
+            return null;
+        }
+        List<ColumnRef> matched = null;
+        for (VisibleRelation relation : visibleRelations) {
+            if (relation.derivedName == null) {
+                continue;
+            }
+            Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation.derivedName);
+            if (columns == null) {
+                continue;
+            }
+            List<ColumnRef> refs = columns.get(sourceColumn.name);
+            if (refs == null) {
+                continue;
+            }
+            if (matched != null) {
+                return null;
+            }
+            matched = refs;
+        }
+        return matched;
     }
 
     private boolean isCteReference(TableRef table) {
@@ -1986,9 +2111,13 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     private static Projection projection(SqlBaseParser.NamedExpressionContext ctx) {
         String expression = ctx.expression().getText();
+        Projection star = starProjection(ctx.expression(), expression);
+        if (star != null) {
+            return star;
+        }
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
-        String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
-                ? unqualifiedColumnName(sourceColumns.get(0).name)
+        String inferredColumn = sourceColumns.size() == 1
+                ? inferredSingleSourceTargetColumn(expression, sourceColumns.get(0))
                 : null;
         if (sourceColumns.isEmpty() && ctx.name == null) {
             return null;
@@ -1996,27 +2125,89 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (sourceColumns.size() > 1 && ctx.name == null) {
             return null;
         }
-        String targetColumn = ctx.name == null ? directColumn : cleanIdentifier(ctx.name.getText());
+        String targetColumn = ctx.name == null ? inferredColumn : cleanIdentifier(ctx.name.getText());
         if (targetColumn == null) {
             return null;
         }
         return new Projection(sourceColumns, targetColumn, expression);
     }
 
+    private static Projection starProjection(SqlBaseParser.ExpressionContext ctx, String expression) {
+        if (!isTopLevelStarExpression(expression)) {
+            return null;
+        }
+        SqlBaseParser.StarContext star = starContext(ctx);
+        if (star == null) {
+            return null;
+        }
+        String qualifier = star.qualifiedName() == null ? null : cleanIdentifier(star.qualifiedName().getText());
+        return Projection.star(qualifier, expression);
+    }
+
+    private static boolean isTopLevelStarExpression(String expression) {
+        return "*".equals(expression)
+                || expression.matches("(?s).+\\.\\*")
+                || expression.startsWith("*EXCEPT(")
+                || expression.matches("(?s).+\\.\\*EXCEPT\\(.+\\)");
+    }
+
+    private static SqlBaseParser.StarContext starContext(ParseTree tree) {
+        if (tree instanceof SqlBaseParser.StarContext) {
+            return (SqlBaseParser.StarContext) tree;
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            SqlBaseParser.StarContext star = starContext(tree.getChild(i));
+            if (star != null) {
+                return star;
+            }
+        }
+        return null;
+    }
+
     private static Projection projection(SqlBaseParser.ExpressionContext ctx) {
         String expression = ctx.getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx);
-        String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
-                ? unqualifiedColumnName(sourceColumns.get(0).name)
+        String targetColumn = sourceColumns.size() == 1
+                ? inferredSingleSourceTargetColumn(expression, sourceColumns.get(0))
                 : null;
-        if (directColumn == null) {
+        if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, directColumn, expression);
+        return new Projection(sourceColumns, targetColumn, expression);
+    }
+
+    private static String inferredSingleSourceTargetColumn(String expression, SourceColumn column) {
+        if (isDirectColumnExpression(expression, column)) {
+            return unqualifiedColumnName(column.name);
+        }
+        if (isAggregateLikeExpression(expression)) {
+            return null;
+        }
+        if (!isCastLikeExpression(expression)) {
+            return null;
+        }
+        String sourceName = unqualifiedColumnName(column.name);
+        if (sourceName == null || sourceName.isEmpty()) {
+            return null;
+        }
+        return sourceName;
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
-        return expression.equals(column.name) || expression.endsWith("." + column.name);
+        String cleanExpression = cleanIdentifier(expression);
+        String sourceName = cleanIdentifier(column.name);
+        return cleanExpression.equals(sourceName) || cleanExpression.endsWith("." + sourceName);
+    }
+
+    private static boolean isAggregateLikeExpression(String expression) {
+        String lower = expression.toLowerCase(java.util.Locale.ROOT);
+        return lower.matches("(?s).*\\b(avg|collect_list|collect_set|corr|count|first|first_value|last|last_value|max|mean|min|"
+                + "percentile|percentile_approx|std|stddev|stddev_pop|stddev_samp|sum|var_pop|var_samp|variance)\\s*\\(.*");
+    }
+
+    private static boolean isCastLikeExpression(String expression) {
+        String lower = expression.toLowerCase(java.util.Locale.ROOT);
+        return lower.startsWith("cast(") || lower.startsWith("try_cast(");
     }
 
     private static String unqualifiedColumnName(String raw) {
@@ -2119,11 +2310,27 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         final List<SourceColumn> sourceColumns;
         final String targetColumn;
         final String expression;
+        final boolean star;
+        final String starQualifier;
 
         Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
+            this(sourceColumns, targetColumn, expression, false, null);
+        }
+
+        private Projection(List<SourceColumn> sourceColumns,
+                           String targetColumn,
+                           String expression,
+                           boolean star,
+                           String starQualifier) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
+            this.star = star;
+            this.starQualifier = starQualifier;
+        }
+
+        static Projection star(String qualifier, String expression) {
+            return new Projection(new ArrayList<SourceColumn>(), "*", expression, true, qualifier);
         }
     }
 
@@ -2181,6 +2388,40 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
         static VisibleRelation derived(String derivedName) {
             return new VisibleRelation(null, derivedName);
+        }
+    }
+
+    private static class StarSource {
+        final TableRef table;
+        final Map<String, List<ColumnRef>> columns;
+
+        private StarSource(TableRef table, Map<String, List<ColumnRef>> columns) {
+            this.table = table;
+            this.columns = columns;
+        }
+
+        static StarSource table(TableRef table) {
+            return new StarSource(table, null);
+        }
+
+        static StarSource derived(Map<String, List<ColumnRef>> columns) {
+            return new StarSource(null, columns);
+        }
+
+        List<ColumnRef> wildcardRefs() {
+            List<ColumnRef> refs = new ArrayList<>();
+            if (table != null) {
+                refs.add(new ColumnRef(table, "*"));
+                return refs;
+            }
+            if (columns == null) {
+                return refs;
+            }
+            List<ColumnRef> wildcard = columns.get("*");
+            if (wildcard == null) {
+                return refs;
+            }
+            return wildcard;
         }
     }
 }

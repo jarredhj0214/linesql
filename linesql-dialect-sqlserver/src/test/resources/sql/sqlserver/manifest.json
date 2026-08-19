@@ -1996,6 +1996,109 @@
         }
       ],
       "description": "SQL Server window function projection column lineage and window clause usages"
+    },
+    {
+      "id": "with_insert_select",
+      "file": "cases/with_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [
+        "dbo.user_order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.user_order_summary.user_id",
+          "sources": [
+            "dbo.orders.user_id"
+          ]
+        },
+        {
+          "target": "dbo.user_order_summary.total_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.status"
+        }
+      ],
+      "description": "SQL Server WITH before INSERT SELECT keeps CTE source table and column lineage"
+    },
+    {
+      "id": "with_update_from",
+      "file": "cases/with_update_from.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "dbo.orders",
+        "dbo.users"
+      ],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.users.total_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server WITH before UPDATE FROM propagates CTE columns into assignment lineage"
+    },
+    {
+      "id": "with_delete_join",
+      "file": "cases/with_delete_join.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "dbo.orders",
+        "dbo.sessions"
+      ],
+      "outputTables": [
+        "dbo.sessions"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.sessions.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.sessions.expired"
+        }
+      ],
+      "description": "SQL Server WITH before DELETE JOIN resolves CTE relation inputs and predicates"
     }
   ]
 }

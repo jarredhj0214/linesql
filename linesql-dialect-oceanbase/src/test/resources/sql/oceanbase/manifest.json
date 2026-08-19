@@ -1,0 +1,93 @@
+{
+  "dialect": "OCEANBASE",
+  "cases": [
+    {
+      "id": "mysql_mode_select",
+      "file": "cases/mysql_mode_select.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["app.users.id"]},
+        {"target": "name", "sources": ["app.users.name"]}
+      ],
+      "description": "OceanBase MySQL compatibility mode SELECT lineage"
+    },
+    {
+      "id": "mysql_mode_insert_select",
+      "file": "cases/mysql_mode_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": ["app.users", "app.orders"],
+      "outputTables": ["mart.user_orders"],
+      "columnLineage": [
+        {"target": "mart.user_orders.user_id", "sources": ["app.users.id"]},
+        {"target": "mart.user_orders.amount", "sources": ["app.orders.amount"]}
+      ],
+      "description": "OceanBase MySQL mode INSERT SELECT lineage"
+    },
+    {
+      "id": "mysql_mode_create_table_as_select",
+      "file": "cases/mysql_mode_create_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["app.users"],
+      "outputTables": ["mart.active_users"],
+      "columnLineage": [
+        {"target": "mart.active_users.user_id", "sources": ["app.users.id"]},
+        {"target": "mart.active_users.email_norm", "sources": ["app.users.email"]}
+      ],
+      "description": "OceanBase MySQL mode CTAS lineage"
+    },
+    {
+      "id": "mysql_mode_update_join",
+      "file": "cases/mysql_mode_update_join.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "description": "OceanBase MySQL mode UPDATE JOIN assignment lineage"
+    },
+    {
+      "id": "mysql_mode_delete_using",
+      "file": "cases/mysql_mode_delete_using.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.users", "staging.deleted_users"],
+      "outputTables": ["mart.users"],
+      "description": "OceanBase MySQL mode DELETE USING table lineage"
+    },
+    {
+      "id": "oracle_mode_dual",
+      "file": "cases/oracle_mode_dual.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "OceanBase Oracle compatibility mode DUAL pseudo table query"
+    },
+    {
+      "id": "oracle_mode_merge",
+      "file": "cases/oracle_mode_merge.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "description": "OceanBase Oracle mode MERGE source, target, and assignment lineage"
+    },
+    {
+      "id": "oracle_mode_create_view",
+      "file": "cases/oracle_mode_create_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["app.users"],
+      "outputTables": ["mart.v_users"],
+      "columnLineage": [
+        {"target": "mart.v_users.user_id", "sources": ["app.users.id"]},
+        {"target": "mart.v_users.name", "sources": ["app.users.name"]}
+      ],
+      "description": "OceanBase Oracle mode CREATE VIEW lineage"
+    }
+  ]
+}

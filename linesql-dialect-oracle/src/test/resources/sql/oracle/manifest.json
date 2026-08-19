@@ -1943,6 +1943,96 @@
         }
       ],
       "description": "Oracle window function projection column lineage and window clause usages"
+    },
+    {
+      "id": "insert_all",
+      "file": "cases/insert_all.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.user_order_summary",
+        "mart.user_order_audit"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_order_summary.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.user_order_summary.total_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        },
+        {
+          "target": "mart.user_order_audit.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.user_order_audit.audit_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "Oracle INSERT ALL multi-table insert output tables and target column lineage"
+    },
+    {
+      "id": "insert_first",
+      "file": "cases/insert_first.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.high_value_orders",
+        "mart.normal_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.high_value_orders.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.high_value_orders.order_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        },
+        {
+          "target": "mart.normal_orders.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.normal_orders.order_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "Oracle INSERT FIRST multi-table insert output tables and target column lineage"
     }
   ]
 }

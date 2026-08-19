@@ -23,6 +23,8 @@ public class SimpleDialectDetector implements DialectDetector {
     public List<DialectCandidate> detectCandidates(String sql) {
         String normalized = stripComments(sql).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
+        boolean strongSparkSignal = hasStrongSparkSignal(normalized);
+        boolean sparkSignal = strongSparkSignal || hasGeneralSparkSignal(normalized);
 
         if (normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
@@ -33,9 +35,11 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.MYSQL, 0.92, "MySQL-specific write, DML, or LIMIT syntax"));
         }
         if (normalized.contains("oceanbase")
-                || normalized.contains("ob_read_consistency")
-                || normalized.contains("_ob_")) {
+                || normalized.contains("ob_read_consistency")) {
             candidates.add(candidate(SqlDialect.OCEANBASE, 0.94, "OceanBase-specific hint, option, or identifier anchor"));
+        }
+        if (normalized.contains("_ob_")) {
+            candidates.add(candidate(SqlDialect.OCEANBASE, 0.58, "Weak OceanBase-style identifier anchor"));
         }
         if (normalized.contains(" on conflict ")
                 || normalized.matches("(?s).*\\breturning\\b.*")
@@ -67,22 +71,40 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.90, "Oracle DUAL or hierarchical query syntax"));
         }
         if (normalized.matches("(?s).*\\bselect\\s+top\\s+\\d+\\b.*")
-                || normalized.matches("(?s).*\\[[\\p{L}_@#][^\\]]*\\].*")
+                || containsSqlServerBracketIdentifier(normalized)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.91, "SQL Server TOP, bracketed identifier, or table hint syntax"));
         }
-        if (normalized.contains("insert overwrite")
-                || normalized.contains("lateral view")
-                || normalized.contains("create temporary view")
-                || normalized.matches("(?s).*\\bqualify\\b.*")
-                || normalized.contains(" using ")) {
-            candidates.add(candidate(SqlDialect.SPARK, 0.93, "Spark insert overwrite, lateral view, temporary view, QUALIFY, or USING syntax"));
+        if (sparkSignal) {
+            candidates.add(candidate(
+                    SqlDialect.SPARK,
+                    strongSparkSignal ? 0.96 : 0.93,
+                    "Spark production SQL, function, variable, temporary view, QUALIFY, or USING syntax"));
         }
         if (!contains(candidates, SqlDialect.SPARK)) {
             candidates.add(candidate(SqlDialect.SPARK, 0.50, "Dialect-neutral SQL; Spark is the current generic fallback"));
         }
         candidates.sort(Comparator.comparingDouble(DialectCandidate::getConfidence).reversed());
         return candidates;
+    }
+
+    private static boolean hasStrongSparkSignal(String sql) {
+        return sql.contains("${")
+                || sql.contains("#day#")
+                || sql.contains("`")
+                || sql.matches("(?s).*\\bcast\\s*\\([^)]*\\bas\\s+string\\s*\\).*")
+                || sql.matches("(?s).*\\b(get_json_object|regexp_replace|regexp_extract|date_format|date_sub|from_unixtime|unix_timestamp|collect_list|collect_set|named_struct|posexplode|explode|if|ifnull|nvl)\\s*\\(.*")
+                || sql.matches("(?s).*\\brlike\\b.*")
+                || containsSparkSubscript(sql);
+    }
+
+    private static boolean hasGeneralSparkSignal(String sql) {
+        return sql.contains("insert overwrite")
+                || sql.contains("lateral view")
+                || sql.contains("create temporary view")
+                || sql.matches("(?s).*\\bqualify\\b.*")
+                || sql.matches("(?s).*\\b(distribute|cluster|sort)\\s+by\\b.*")
+                || sql.contains(" using ");
     }
 
     private static DialectCandidate candidate(SqlDialect dialect, double confidence, String reason) {
@@ -96,6 +118,52 @@ public class SimpleDialectDetector implements DialectDetector {
             }
         }
         return false;
+    }
+
+    private static boolean containsSqlServerBracketIdentifier(String sql) {
+        for (int i = 0; i < sql.length(); i++) {
+            if (sql.charAt(i) != '[') {
+                continue;
+            }
+            char previous = previousAdjacentNonWhitespace(sql, i);
+            if (Character.isLetterOrDigit(previous) || previous == '_' || previous == '.' || previous == ')' || previous == '`') {
+                continue;
+            }
+            int end = sql.indexOf(']', i + 1);
+            if (end < 0) {
+                return false;
+            }
+            String content = sql.substring(i + 1, end);
+            if (!content.isEmpty() && isIdentifierStart(content.charAt(0))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsSparkSubscript(String sql) {
+        for (int i = 0; i < sql.length(); i++) {
+            if (sql.charAt(i) != '[') {
+                continue;
+            }
+            char previous = previousAdjacentNonWhitespace(sql, i);
+            if (Character.isLetterOrDigit(previous) || previous == '_' || previous == ')' || previous == '`') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static char previousAdjacentNonWhitespace(String sql, int index) {
+        if (index <= 0) {
+            return '\0';
+        }
+        char previous = sql.charAt(index - 1);
+        return Character.isWhitespace(previous) ? '\0' : previous;
+    }
+
+    private static boolean isIdentifierStart(char value) {
+        return Character.isLetter(value) || value == '_' || value == '@' || value == '#';
     }
 
     private static String stripComments(String sql) {

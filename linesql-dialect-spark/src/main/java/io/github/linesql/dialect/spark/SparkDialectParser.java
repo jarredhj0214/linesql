@@ -38,6 +38,7 @@ public class SparkDialectParser implements DialectParser {
 
         SqlBaseParser.SingleStatementContext statement = parser.singleStatement();
         if (errorListener.hasErrors() || parser.getNumberOfSyntaxErrors() > 0) {
+            SparkPartialLineageExtractor.extract(normalizedSql, result);
             result.getDiagnostics().add(Diagnostic.error("SPARK_PARSE_ERROR", errorListener.message()));
             return result;
         }

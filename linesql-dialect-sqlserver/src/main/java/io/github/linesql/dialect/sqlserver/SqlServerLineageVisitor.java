@@ -55,6 +55,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitInsertStatement(SqlServerParser.InsertStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
         if (ctx.columnList != null) {
@@ -82,6 +85,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitUpdateStatement(SqlServerParser.UpdateStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         currentDmlTarget = target;
         outputTables.add(target);
@@ -130,6 +136,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitDeleteSimple(SqlServerParser.DeleteSimpleContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         currentDmlTarget = target;
         inputTables.add(target);
@@ -150,6 +159,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitDeleteFromJoin(SqlServerParser.DeleteFromJoinContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         // The first multipartIdentifier after DELETE might be an alias
         String deleteTarget = identifierParts(ctx.multipartIdentifier()).get(0).toLowerCase(Locale.ROOT);
         // Visit the relation list to populate tableAliases

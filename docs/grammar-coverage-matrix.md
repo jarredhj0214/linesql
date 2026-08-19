@@ -81,8 +81,8 @@ These domains are the shared planning vocabulary across dialects.
 | StarRocks | `linesql-dialect-starrocks/src/main/antlr4/io/github/linesql/dialect/starrocks/antlr/StarRocksParser.g4` | Lightweight lineage grammar with StarRocks table model syntax. |
 | Oracle | `linesql-dialect-oracle/src/main/antlr4/io/github/linesql/dialect/oracle/antlr/OracleParser.g4` | Lightweight lineage grammar with Oracle query and DML syntax anchors. |
 | SQL Server | `linesql-dialect-sqlserver/src/main/antlr4/io/github/linesql/dialect/sqlserver/antlr/SqlServerParser.g4` | Lightweight lineage grammar with SQL Server query and DML syntax anchors. |
-| PostgreSQL | Planned | Should become an independent dialect grammar. |
-| OceanBase | Planned | Should be modeled by compatibility mode: OceanBase MySQL mode and OceanBase Oracle mode. |
+| PostgreSQL | `linesql-dialect-postgresql/src/main/antlr4/io/github/linesql/dialect/postgresql/antlr/PostgreSqlParser.g4` | Dedicated lightweight lineage grammar for common PostgreSQL query and DML syntax. |
+| OceanBase | `linesql-dialect-oceanbase/src/main/java/io/github/linesql/dialect/oceanbase/OceanBaseDialectParser.java` | Compatibility-mode parser that delegates to MySQL or Oracle lineage domains. |
 
 ## Dialect Variant Policy
 
@@ -94,7 +94,7 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Flink CDC pipeline YAML | Out of SQL parser scope for now. | It is a declarative integration format, not SQL grammar. It can become a separate parser family later if required. |
 | Spark versions | Keep one `SPARK` dialect with a documented version baseline and future version profiles. | Most lineage-critical grammar domains are stable enough to share visitor logic; version differences should be handled as feature gates before splitting modules. |
 | OceanBase | Track as OceanBase with two compatibility modes: MySQL mode and Oracle mode. | The grammar surface follows different compatibility families, so reuse should come from MySQL/Oracle lineage domains with OceanBase-specific extensions. |
-| PostgreSQL | Add as an independent planned dialect. | PostgreSQL has distinct DML forms, `RETURNING`, CTE semantics, conflict handling, and modern `MERGE` behavior that should not be hidden under generic SQL. |
+| PostgreSQL | Keep PostgreSQL as an independent dialect. | PostgreSQL has distinct DML forms, `RETURNING`, CTE semantics, conflict handling, and modern `MERGE` behavior that should not be hidden under generic SQL. |
 
 ## Dialect Matrix
 
@@ -263,34 +263,35 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
 | --- | --- | --- | --- | --- | --- |
-| Statement dispatch | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Query core | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| CTE | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Relation and aliases | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Join | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
+| Statement dispatch | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
+| Query core | PARTIAL | COVERED | COVERED | COVERED | P0 |
+| CTE | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
+| Relation and aliases | PARTIAL | COVERED | COVERED | COVERED | P0 |
+| Join | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Set operation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
-| Expression | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Predicate subquery | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Aggregation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
+| Expression | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
+| Predicate subquery | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
+| Aggregation | PARTIAL | COVERED | COVERED | COVERED | P1 |
 | Window | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
-| Insert | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Update | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Delete | PLANNED | PLANNED | N/A | PLANNED | P0 |
+| Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
+| Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
+| Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
 | Merge | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
-| CTAS | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
-| Create view | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
+| CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | DDL affected table | PLANNED | PLANNED | N/A | N/A | P1 |
-| PostgreSQL extensions | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
+| PostgreSQL extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
 
 Initial PostgreSQL extension focus:
 
-- `INSERT ... ON CONFLICT ... DO UPDATE`
-- `RETURNING` on `INSERT`, `UPDATE`, and `DELETE`
+- `INSERT ... ON CONFLICT ... DO UPDATE` baseline table/column lineage is covered by the PostgreSQL grammar.
+- `RETURNING` on `INSERT`, `UPDATE`, and `DELETE` is accepted by the PostgreSQL grammar for write lineage; returned-row lineage is not modeled yet.
 - data-modifying CTEs
-- `UPDATE ... FROM`
+- `UPDATE ... FROM` baseline assignment lineage is covered.
 - `DELETE ... USING`
-- `CREATE TABLE ... AS`
-- PostgreSQL `MERGE`
+- `CREATE TABLE ... AS` baseline table/column lineage is covered.
+- PostgreSQL cast operator `::`, `ILIKE`, and double-quoted identifiers are covered for baseline SELECT lineage.
+- PostgreSQL `MERGE` baseline target/source table lineage, update assignment lineage, insert value lineage, and merge predicate usages are covered.
 
 ### OceanBase
 
@@ -298,30 +299,30 @@ OceanBase should be tracked by compatibility mode rather than as a single flat g
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
 | --- | --- | --- | --- | --- | --- |
-| Statement dispatch | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Query core | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
+| Statement dispatch | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
+| Query core | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | CTE | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
-| Relation and aliases | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Join | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
+| Relation and aliases | PARTIAL | COVERED | COVERED | COVERED | P0 |
+| Join | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Set operation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
-| Expression | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
+| Expression | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Predicate subquery | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
 | Aggregation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
 | Window | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
-| Insert | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Update | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| Delete | PLANNED | PLANNED | N/A | PLANNED | P0 |
-| Merge | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
-| CTAS | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
-| Create view | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
+| Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
+| Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
+| Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
+| Merge | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
+| CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | DDL affected table | PLANNED | PLANNED | N/A | N/A | P1 |
-| OceanBase MySQL mode extensions | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
-| OceanBase Oracle mode extensions | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
+| OceanBase MySQL mode extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
+| OceanBase Oracle mode extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 
 Initial OceanBase focus:
 
-- reuse MySQL grammar domains for OceanBase MySQL mode
-- reuse Oracle grammar domains for OceanBase Oracle mode
+- reuse MySQL grammar domains for OceanBase MySQL mode; baseline SELECT, INSERT, CTAS, UPDATE JOIN, and DELETE USING are covered
+- reuse Oracle grammar domains for OceanBase Oracle mode; baseline DUAL, CREATE VIEW, and MERGE are covered
 - add OceanBase-specific DDL, hints, partition syntax, and compatibility-mode detection anchors
 - keep public output dialect explicit enough for downstream systems to distinguish MySQL-compatible OceanBase from native MySQL
 

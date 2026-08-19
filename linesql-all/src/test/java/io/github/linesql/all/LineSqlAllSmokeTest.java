@@ -20,7 +20,7 @@ public class LineSqlAllSmokeTest {
         assertParses(SqlDialect.MYSQL, "select id from app.users");
         assertParses(SqlDialect.ORACLE, "select id from app.users");
         assertParses(SqlDialect.SQLSERVER, "select id from dbo.users");
-        assertParsesPlanned(SqlDialect.POSTGRESQL, "select id from public.users");
+        assertParses(SqlDialect.POSTGRESQL, "select id from public.users");
         assertParsesOceanBase("select id from app.users");
     }
 
@@ -39,14 +39,6 @@ public class LineSqlAllSmokeTest {
         assertEquals(dialect, result.getDialect());
         assertEquals(StatementType.SELECT, result.getStatementType());
         assertTrue(result.getDiagnostics().toString(), result.getDiagnostics().isEmpty());
-    }
-
-    private static void assertParsesPlanned(SqlDialect dialect, String sql) {
-        LineageResult result = LineSql.parse(sql, dialect);
-
-        assertEquals(dialect, result.getDialect());
-        assertEquals(StatementType.UNKNOWN, result.getStatementType());
-        assertTrue(result.getDiagnostics().toString(), !result.getDiagnostics().isEmpty());
     }
 
     private static void assertParsesOceanBase(String sql) {

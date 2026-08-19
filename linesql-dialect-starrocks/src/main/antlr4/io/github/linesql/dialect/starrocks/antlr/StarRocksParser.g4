@@ -214,7 +214,7 @@ expressionList
 // ============ DML Statements ============
 
 insertStatement
-    : INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
+    : ctes? INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
       partitionClause?
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
@@ -225,14 +225,14 @@ valuesClause
     ;
 
 updateStatement
-    : UPDATE multipartIdentifier tableAlias
+    : ctes? UPDATE multipartIdentifier tableAlias
       SET assignmentList
       (FROM relationList)?
       whereClause?
     ;
 
 deleteStatement
-    : DELETE FROM multipartIdentifier tableAlias
+    : ctes? DELETE FROM multipartIdentifier tableAlias
       (USING relationList)?
       whereClause?
     ;

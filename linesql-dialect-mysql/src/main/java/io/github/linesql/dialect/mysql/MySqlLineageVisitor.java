@@ -55,6 +55,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitInsertStatement(MySqlParser.InsertStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
         if (ctx.columnList != null) {
@@ -118,6 +121,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitUpdateStatement(MySqlParser.UpdateStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         visitRelationForUpdate(ctx.relation());
         currentDmlTarget = firstOutputTable();
         if (ctx.whereClause() != null) {
@@ -150,6 +156,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitDeleteFrom(MySqlParser.DeleteFromContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         currentDmlTarget = target;
         inputTables.add(target);
@@ -173,6 +182,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitDeleteAlias(MySqlParser.DeleteAliasContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         String deleteAlias = identifierParts(ctx.multipartIdentifier()).get(0).toLowerCase(Locale.ROOT);
         visitRelationListForInputs(ctx.relationList());
         TableRef target = tableAliases.get(deleteAlias);

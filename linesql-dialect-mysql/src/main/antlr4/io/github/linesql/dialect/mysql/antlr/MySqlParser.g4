@@ -223,7 +223,7 @@ functionSeparator
 // ============ DML Statements ============
 
 insertStatement
-    : INSERT IGNORE? INTO? TABLE? multipartIdentifier
+    : ctes? INSERT IGNORE? INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)* | SET assignmentList)
       onDuplicateKeyUpdate?
@@ -244,12 +244,12 @@ valuesClause
     ;
 
 updateStatement
-    : UPDATE relation SET assignmentList whereClause?
+    : ctes? UPDATE relation SET assignmentList whereClause?
     ;
 
 deleteStatement
-    : DELETE FROM multipartIdentifier tableAlias (USING relationList)? whereClause?   #deleteFrom
-    | DELETE multipartIdentifier FROM relationList whereClause?                        #deleteAlias
+    : ctes? DELETE FROM multipartIdentifier tableAlias (USING relationList)? whereClause?   #deleteFrom
+    | ctes? DELETE multipartIdentifier FROM relationList whereClause?                        #deleteAlias
     ;
 
 assignmentList

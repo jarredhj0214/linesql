@@ -795,6 +795,19 @@
       "description": "ALTER TABLE DROP PARTITION affected table lineage"
     },
     {
+      "id": "alter_table_drop_partition_predicate",
+      "file": "cases/alter_table_drop_partition_predicate.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ssai_ods.video_album_map_test"
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      ],
+      "description": "ALTER TABLE DROP PARTITION predicate affected table lineage"
+    },
+    {
       "id": "recover_partitions",
       "file": "cases/recover_partitions.sql",
       "statementType": "ALTER_TABLE",
@@ -1672,10 +1685,7 @@
           "column": "app.active_sessions.user_id"
         }
       ],
-      "description": "IN subquery predicate usages include outer predicate columns and inner projection source columns",
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_PARTIAL"
-      ]
+      "description": "IN subquery predicate usages include outer predicate columns and inner projection source columns"
     },
     {
       "id": "projection_alias_order_usage",
@@ -2005,10 +2015,15 @@
         "ods.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "ods.users.*"
+          ]
+        }
       ],
-      "description": "Table-valued function TABLE identifier argument source table lineage"
+      "description": "Table-valued function TABLE identifier argument source table and wildcard column lineage"
     },
     {
       "id": "table_valued_function_query_arg",

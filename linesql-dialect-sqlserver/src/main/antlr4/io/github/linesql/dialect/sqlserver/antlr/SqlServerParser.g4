@@ -224,7 +224,7 @@ expressionList
 // ============ DML Statements ============
 
 insertStatement
-    : INSERT INTO? TABLE? multipartIdentifier
+    : ctes? INSERT INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
     ;
@@ -234,12 +234,12 @@ valuesClause
     ;
 
 updateStatement
-    : UPDATE multipartIdentifier tableAlias SET assignmentList fromClause? whereClause?
+    : ctes? UPDATE multipartIdentifier tableAlias SET assignmentList fromClause? whereClause?
     ;
 
 deleteStatement
-    : DELETE FROM multipartIdentifier tableAlias whereClause?                   #deleteSimple
-    | DELETE multipartIdentifier FROM relationList whereClause?                 #deleteFromJoin
+    : ctes? DELETE FROM multipartIdentifier tableAlias whereClause?             #deleteSimple
+    | ctes? DELETE multipartIdentifier FROM relationList whereClause?           #deleteFromJoin
     ;
 
 mergeStatement

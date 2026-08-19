@@ -614,7 +614,7 @@ partitionSpec
     ;
 
 partitionVal
-    : identifier (EQ constant)?
+    : identifier (comparisonOperator constant)?
     | identifier EQ DEFAULT
     ;
 

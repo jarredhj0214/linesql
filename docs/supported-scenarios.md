@@ -48,8 +48,84 @@ Implemented CLI scenarios:
 | --- | --- | --- |
 | Explicit dialect option | `linesql --dialect MYSQL "select id from ods.users"` | `MainTest.acceptsExplicitDialectOption` |
 | Equals-style dialect option | `linesql --dialect=SQLSERVER "select top 10 id from dbo.users"` | `MainTest.acceptsDialectEqualsOption` |
+| Common dialect aliases | `linesql --dialect postgres "select id from public.users"` | `MainTest.acceptsCommonDialectAliases` |
 | STDIN with explicit dialect | `cat query.sql \| linesql --dialect ORACLE` | `MainTest.readsSqlFromStdinWhenNoSqlArgsProvided` |
-| Unsupported dialect rejection | `linesql --dialect postgres "select 1"` | `MainTest.rejectsUnknownDialect` |
+| Unsupported dialect rejection | `linesql --dialect db2 "select 1"` | `MainTest.rejectsUnknownDialect` |
+
+## PostgreSQL
+
+PostgreSQL is a baseline MVP dialect path. The current implementation uses a dedicated lightweight ANTLR grammar for common PostgreSQL lineage SQL.
+
+Current PostgreSQL SQL case assets:
+
+```text
+linesql-dialect-postgresql/src/test/resources/sql/postgresql/manifest.json
+linesql-dialect-postgresql/src/test/resources/sql/postgresql/cases/*.sql
+```
+
+Implemented PostgreSQL scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| Basic SELECT source and columns | `select id as user_id, name from public.users` | `select_basic` |
+| JOIN source tables and projections | `select u.id, o.amount from users u join orders o ...` | `join_projection` |
+| INSERT SELECT with RETURNING | `insert into mart.t select ... returning ...` | `insert_select_returning` |
+| INSERT SELECT with ON CONFLICT | `insert into mart.t select ... on conflict (...) do update ...` | `insert_on_conflict` |
+| WITH before INSERT SELECT | `with q as (...) insert into mart.t select ... from q` | `with_insert_select` |
+| CREATE TABLE AS SELECT | `create table mart.t as select ... from public.s` | `create_table_as_select` |
+| CREATE VIEW AS SELECT | `create view mart.v as select ... from public.s` | `create_view` |
+| CTE column propagation | `with q as (...) select q.c1 from q` | `cte_column_projection` |
+| UPDATE FROM with RETURNING | `update mart.t set ... from staging.s where ... returning ...` | `update_from_returning` |
+| DELETE with subquery and RETURNING | `delete from mart.t where id in (...) returning ...` | `delete_using_returning` |
+| WITH before UPDATE FROM | `with q as (...) update mart.t set c = q.c from q where ...` | `with_update_from` |
+| WITH before DELETE USING | `with q as (...) delete from mart.t using q where ...` | `with_delete_using` |
+| MERGE target and source tables | `merge into mart.t using staging.s on ... when matched then update ...` | `merge_into` |
+| MERGE source subquery tables | `merge into mart.t using (select ... from staging.s) q on ...` | `merge_using_subquery` |
+| WITH before MERGE | `with q as (...) merge into mart.t using q on ...` | `with_merge` |
+| JOIN, WHERE, GROUP BY, HAVING, ORDER BY usages | `select ... from u join o ... where ... group by ...` | `clause_column_usage` |
+| PostgreSQL cast operator and ILIKE usage | `select id::text ... where email ilike ...` | `postgres_cast_ilike` |
+| Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
+
+Known PostgreSQL gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Full PostgreSQL grammar | A dedicated lightweight ANTLR grammar exists for baseline cases; broad PostgreSQL syntax is still being expanded. |
+| RETURNING row lineage | Write lineage is preserved, but returned-row lineage is not modeled as a separate output stream yet. |
+| Full ON CONFLICT action lineage | Source-to-target insert lineage is preserved; conflict update action lineage is not fully expanded yet. |
+| PostgreSQL-specific DDL, arrays, and JSON operators | Planned for grammar-driven follow-up work. Basic `MERGE` table and column lineage is covered. |
+
+## OceanBase
+
+OceanBase is a baseline MVP dialect path. The current implementation models OceanBase as a compatibility-mode dialect and delegates common SQL lineage to either MySQL-mode or Oracle-mode parsing while keeping the public dialect as `OCEANBASE`.
+
+Current OceanBase SQL case assets:
+
+```text
+linesql-dialect-oceanbase/src/test/resources/sql/oceanbase/manifest.json
+linesql-dialect-oceanbase/src/test/resources/sql/oceanbase/cases/*.sql
+```
+
+Implemented OceanBase scenarios:
+
+| Scenario | Example shape | Case id |
+| --- | --- | --- |
+| MySQL mode SELECT source and columns | `select id as user_id, name from app.users` | `mysql_mode_select` |
+| MySQL mode INSERT SELECT | `insert into mart.t select ... from app.s join app.o ...` | `mysql_mode_insert_select` |
+| MySQL mode CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `mysql_mode_create_table_as_select` |
+| MySQL mode UPDATE JOIN | `update mart.t join staging.s ... set ...` | `mysql_mode_update_join` |
+| MySQL mode DELETE USING | `delete from mart.t using mart.t join staging.s ...` | `mysql_mode_delete_using` |
+| Oracle mode DUAL pseudo table query | `select sysdate from dual` | `oracle_mode_dual` |
+| Oracle mode MERGE | `merge into mart.t using staging.s on (...) when matched ...` | `oracle_mode_merge` |
+| Oracle mode CREATE VIEW | `create view mart.v as select ... from app.s` | `oracle_mode_create_view` |
+
+Known OceanBase gaps:
+
+| Gap | Current behavior |
+| --- | --- |
+| Explicit compatibility-mode option | Mode is inferred from syntax anchors today; parser options for explicit mode are planned. |
+| OceanBase-specific DDL, hints, partitions, and tenant syntax | Planned after the MySQL/Oracle compatibility baselines are broader. |
+| Divergent MySQL-mode and Oracle-mode semantics | Common lineage is reused; OceanBase-specific semantics need dedicated cases. |
 
 ## SQL Server
 
@@ -74,6 +150,7 @@ Implemented SQL Server table-level lineage scenarios:
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
+| WITH before INSERT SELECT | `with q as (...) insert into ads.t select ... from q` | `with_insert_select` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
 | UNION source table propagation | `select a from dbo.s1 union all select b from dbo.s2` | `union_column_projection` |
 | Bracketed non-ASCII identifiers | `select [用户ID] from [业务库].[用户表]` | `bracket_identifiers` |
@@ -81,7 +158,9 @@ Implemented SQL Server table-level lineage scenarios:
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
+| WITH before UPDATE FROM | `with q as (...) update ads.t set c = q.c from q where ...` | `with_update_from` |
 | DELETE FROM JOIN target and source tables | `delete t from ads.t t join ods.s s ...` | `delete_from_join` |
+| WITH before DELETE FROM JOIN | `with q as (...) delete t from ads.t t join q ...` | `with_delete_join` |
 | MERGE target and source tables | `merge into ads.t using ods.s on ... when matched then update ...` | `merge_into` |
 | MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q on ...` | `merge_using_subquery` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
@@ -108,6 +187,7 @@ Implemented SQL Server column-level lineage scenarios:
 | CREATE VIEW over aliased/expression/aggregate projections | `create view ads.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
+| WITH before INSERT SELECT target mapping | `with q as (...) insert into ads.t(c1) select q.c1 from q` | `with_insert_select` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
 | INSERT target column list over aliased/expression projections | `insert into t(c1,c2,c3) select a as x, upper(b), count(c) ...` | `insert_column_list_expression_projection` |
 | CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
@@ -119,6 +199,8 @@ Implemented SQL Server column-level lineage scenarios:
 | Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as varchar)) from t` | `nested_function_projection` |
 | Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| WHERE subquery scope isolation | `select id from users where id in (select user_id from sessions)` | `SparkDialectParserTest.keepsOuterProjectionLineageWhenWhereContainsSubquery` |
+| Fully qualified column references | `select db.table.col from db.table` | `SparkDialectParserTest.resolvesFullyQualifiedColumnReferences` |
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
@@ -136,6 +218,7 @@ Implemented SQL Server column-level lineage scenarios:
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s` | `update_expression_assignment` |
 | UPDATE FROM derived query assignment dependencies | `update ads.t set c1 = q.c2 from (select c2 from ods.s) q where ...` | `update_from_derived_assignment` |
+| WITH before UPDATE FROM assignment dependencies | `with q as (...) update ads.t set c1 = q.c2 from q where ...` | `with_update_from` |
 | MERGE update assignments and insert values | `merge into ads.t using ods.s on ... when matched then update set c = s.c when not matched by target then insert (...) values (...)` | `merge_into` |
 | MERGE source subquery field propagation | `merge into ads.t using (select a as c from ods.s) q on ...` | `merge_using_subquery` |
 
@@ -158,6 +241,7 @@ Implemented SQL Server clause-level column usage scenarios:
 | JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | DELETE FROM JOIN predicate columns | `delete t from ads.t t join ods.s s on t.id = s.id` | `delete_from_join` |
 | DELETE FROM derived JOIN predicate columns | `delete t from ads.t t join (select id from ods.s) q on t.id = q.id` | `delete_from_join_derived` |
+| WITH before DELETE JOIN predicate columns | `with q as (...) delete t from ads.t t join q on t.id = q.id` | `with_delete_join` |
 | MERGE ON source columns | `merge into ads.t using ods.s on t.id = s.id ...` | `merge_into` |
 | MERGE ON over source subquery columns | `merge into ads.t using (select id from ods.s) q on t.id = q.id` | `merge_using_subquery` |
 | UNION branch WHERE source columns | `select id from dbo.s1 where ... union all select id from dbo.s2 where ...` | `set_operation_clause_column_usage` |
@@ -200,6 +284,8 @@ Implemented Oracle table-level lineage scenarios:
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
 | INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
+| INSERT ALL multi-table target lineage | `insert all into t1 (...) values (...) into t2 (...) values (...) select ...` | `insert_all` |
+| INSERT FIRST multi-table target lineage | `insert first into t1 (...) values (...) into t2 (...) values (...) select ...` | `insert_first` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
@@ -234,6 +320,8 @@ Implemented Oracle column-level lineage scenarios:
 | INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
 | INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
 | INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
+| INSERT ALL target column mapping | `insert all into t1(c1) values (a) into t2(c1) values (a) select a from s` | `insert_all` |
+| INSERT FIRST target column mapping | `insert first into t1(c1) values (a) into t2(c1) values (a) select a from s` | `insert_first` |
 | CTAS output column targets | `create table ads.t as select id as c1 from ods.s` | `create_table_as_select` |
 | CTAS over aliased/expression/aggregate projections | `create table ads.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u` | `create_view` |
@@ -341,8 +429,10 @@ Implemented StarRocks table-level lineage scenarios:
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE FROM target and source tables | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | UPDATE FROM derived query source tables | `update ads.t set c = q.c from (select ... from ods.s) q where ...` | `update_from_derived_assignment` |
+| WITH before UPDATE FROM | `with q as (...) update ads.t set c = q.c from q where ...` | `with_update_from` |
 | DELETE USING target and source tables | `delete from ads.t using ods.s s where ...` | `delete_using` |
 | DELETE USING derived query source tables | `delete from ads.t using (select ... from ods.s) q where ...` | `delete_using_derived` |
+| WITH before DELETE USING | `with q as (...) delete from ads.t using q where ...` | `with_delete_using` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
@@ -371,6 +461,7 @@ Implemented StarRocks column-level lineage scenarios:
 | CREATE MATERIALIZED VIEW output column targets | `create materialized view ads.mv as select u.id from ods.users u` | `create_materialized_view` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
+| WITH before INSERT SELECT target mapping | `with q as (...) insert into ads.t(c1) select q.c1 from q` | `with_insert_select` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
 | INSERT target column list over aliased/expression projections | `insert into t(c1,c2,c3) select a as x, upper(b), count(c) ...` | `insert_column_list_expression_projection` |
 | CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
@@ -396,6 +487,7 @@ Implemented StarRocks column-level lineage scenarios:
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s` | `update_expression_assignment` |
 | UPDATE FROM derived query assignment dependencies | `update ads.t set c1 = q.c2 from (select c2 from ods.s) q where ...` | `update_from_derived_assignment` |
+| WITH before UPDATE FROM assignment dependencies | `with q as (...) update ads.t set c1 = q.c2 from q where ...` | `with_update_from` |
 
 Implemented StarRocks clause-level column usage scenarios:
 
@@ -417,6 +509,7 @@ Implemented StarRocks clause-level column usage scenarios:
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 | DELETE USING WHERE source columns | `delete from ads.t using ods.s s where t.id = s.id` | `delete_using` |
 | DELETE USING derived WHERE columns | `delete from ads.t using (select id from ods.s) q where t.id = q.id` | `delete_using_derived` |
+| WITH before DELETE USING predicate columns | `with q as (...) delete from ads.t using q where t.id = q.id` | `with_delete_using` |
 | EXISTS subquery predicate column usage | `where exists (select 1 from ods.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
 | UPDATE/DELETE WHERE subquery predicate columns | `update/delete ads.t where id in (select user_id from ods.s)` | `update_with_subquery`, `delete_with_subquery` |
 
@@ -709,6 +802,7 @@ Implemented MySQL table-level lineage scenarios:
 | INSERT INTO VALUES target lineage | `insert into mart.t(c1) values (...)` | `insert_values` |
 | INSERT SET target lineage | `insert into mart.t set c1 = ...` | `insert_set` |
 | INSERT SELECT with duplicate-key update | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
+| WITH before INSERT SELECT | `with q as (...) insert into mart.t(c1) select q.c1 from q` | `with_insert_select` |
 | REPLACE INTO SELECT target and source | `replace into mart.t(c1) select a from app.s` | `replace_select` |
 | REPLACE INTO VALUES target lineage | `replace into mart.t(c1) values (...)` | `replace_values` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `create_table_as_select` |
@@ -720,9 +814,11 @@ Implemented MySQL table-level lineage scenarios:
 | CREATE TEMPORARY TABLE AS SELECT | `create temporary table if not exists mart.t as select ...` | `create_temporary_table_as_select` |
 | UPDATE JOIN table lineage | `update mart.t join app.s on ... set ...` | `update_join` |
 | UPDATE JOIN over derived query | `update mart.t join (select ... from app.s) q on ... set ...` | `update_join_derived_assignment` |
+| WITH before UPDATE JOIN | `with q as (...) update mart.t join q on ... set ...` | `with_update_join` |
 | DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...` | `delete_using` |
 | DELETE alias FROM JOIN table lineage | `delete t from mart.t t join app.s s ...` | `delete_join` |
 | DELETE alias FROM derived JOIN table lineage | `delete t from mart.t t join (select ... from app.s) q ...` | `delete_join_derived` |
+| WITH before DELETE alias FROM JOIN | `with q as (...) delete t from mart.t t join q ...` | `with_delete_join` |
 | Backquoted non-ASCII identifiers | `` select `用户ID` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | DROP TABLE multiple affected tables | `drop table if exists mart.t1, mart.t2` | `drop_multiple_tables` |
@@ -750,6 +846,7 @@ Implemented MySQL column-level lineage scenarios:
 | INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | INSERT IGNORE target column list mapping | `insert ignore into mart.t(c1, c2) select a, b from app.s` | `insert_ignore_select` |
 | INSERT duplicate-key SELECT and update mapping | `insert into mart.t(c1) select a from app.s on duplicate key update c1 = values(c1)` | `insert_select_on_duplicate` |
+| WITH before INSERT SELECT target mapping | `with q as (...) insert into mart.t(c1) select q.c1 from q` | `with_insert_select` |
 | REPLACE SELECT target column list mapping | `replace into mart.t(c1, c2) select a, b from app.s` | `replace_select` |
 | CTAS output column targets | `create table mart.t as select id as c1 from app.s` | `create_table_as_select` |
 | CTAS over aliased/expression/aggregate projections | `create table mart.t as select a as c1, upper(b), count(c) ...` | `ctas_expression_projection` |
@@ -762,6 +859,7 @@ Implemented MySQL column-level lineage scenarios:
 | UPDATE SET constant assignment target | `update mart.t set status = 'active'` | `update_join` |
 | UPDATE SET expression dependencies | `update mart.t join app.s on ... set c1 = upper(s.c2), c3 = s.c4 + t.c5` | `update_expression_assignment` |
 | UPDATE JOIN derived query assignment dependencies | `update mart.t join (select c2 from app.s) q on ... set c1 = q.c2` | `update_join_derived_assignment` |
+| WITH before UPDATE JOIN assignment dependencies | `with q as (...) update mart.t join q on ... set c1 = q.c2` | `with_update_join` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
 | Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as char), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
@@ -792,6 +890,7 @@ Implemented MySQL clause-level column usage scenarios:
 | JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | UNION branch WHERE source columns | `select id from app.s1 where ... union all select id from app.s2 where ...` | `set_operation_clause_column_usage` |
 | DELETE derived JOIN predicate columns | `delete t from mart.t t join (select id from app.s) q on t.id = q.id` | `delete_join_derived` |
+| WITH before DELETE JOIN predicate columns | `with q as (...) delete t from mart.t t join q on t.id = q.id` | `with_delete_join` |
 | EXISTS subquery predicate column usage | `where exists (select 1 from app.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
 | DELETE WHERE subquery predicate columns | `delete from ads.t where user_id in (select id from ods.s)` | `delete_with_subquery` |
 
@@ -850,6 +949,7 @@ Implemented Spark table-level lineage scenarios:
 | ALTER TABLE column maintenance | `alter table mart.t add columns (...)` | `alter_table_add_columns` |
 | ALTER TABLE property maintenance | `alter table mart.t set tblproperties (...)` | `alter_table_set_properties` |
 | ALTER TABLE partition maintenance | `alter table mart.t drop partition (...)` | `alter_table_drop_partition` |
+| ALTER TABLE partition predicate maintenance | `alter table mart.t drop partition (dt > '2026-01-01')` | `alter_table_drop_partition_predicate` |
 | ALTER TABLE recover partitions | `alter table mart.t recover partitions` | `recover_partitions` |
 | ANALYZE TABLE metadata reads | `analyze table mart.t compute statistics` | `analyze_table` |
 | DESCRIBE TABLE metadata reads | `describe table formatted mart.t` | `describe_table` |
@@ -901,7 +1001,7 @@ Implemented Spark table-level lineage scenarios:
 | JSON_TABLE source table lineage | `select name from ods.events e, json_table(e.payload, ... ) jt` | `json_table_column_lineage` |
 | Alias-qualified UNNEST generated column lineage | `select u.item from ods.orders o, unnest(o.items) u(item)` | `unnest_qualified_column_lineage` |
 | Alias-qualified JSON_TABLE generated column lineage | `select jt.name from ods.events e, json_table(e.payload, ... ) jt` | `json_table_qualified_column_lineage` |
-| Table-valued function TABLE identifier argument | `select * from custom_tvf(table ods.users)` | `table_valued_function_table_arg` |
+| Table-valued function TABLE identifier argument with wildcard lineage | `select * from custom_tvf(table ods.users)` | `table_valued_function_table_arg` |
 | Table-valued function TABLE query argument | `select * from custom_tvf(table(select ... from ods.users))` | `table_valued_function_query_arg` |
 | Spark range table-valued function generated column | `select id from range(10)` | `table_valued_function_range` |
 | Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
@@ -943,6 +1043,16 @@ Implemented Spark column-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Direct single-table projection | `select id as user_id, name from ods.users` | `column_direct_projection` |
+| Schema-free table wildcard projection | `select * from ods.users` | `SparkDialectParserTest.representsTableStarColumnLineageWithoutMetadata` |
+| Alias-qualified subquery wildcard expansion | `select u.* from (select id as user_id, name from ods.users) u` | `SparkDialectParserTest.expandsAliasedSubqueryStarColumnLineage` |
+| CTE wildcard expansion | `with u as (select id as user_id, name from ods.users) select * from u` | `SparkDialectParserTest.expandsCteStarColumnLineage` |
+| Unique unqualified column from joined derived relations | `select user_id from (select id as user_id from s1) u join (select amount from s2) o ...` | `SparkDialectParserTest.resolvesUnqualifiedProjectionFromUniqueDerivedRelationColumn` |
+| Ambiguous unqualified column remains unresolved | `select id from (select id from s1) u join (select id from s2) o ...` | `SparkDialectParserTest.keepsUnqualifiedProjectionAmbiguousAcrossDerivedRelations` |
+| UNION ALL wildcard sources are preserved | `select * from ods.users union all select * from dwd.users` | `SparkDialectParserTest.preservesWildcardSourcesAcrossUnionStar` |
+| Derived columns over UNION wildcard sources | `select *, end_time - collect_time as durs from (select * from x union all select * from w) s` | `SparkDialectParserTest.resolvesDerivedColumnsFromUnionStarWildcardSources` |
+| COUNT star aggregate is not treated as wildcard projection | `select dt, count(*) as cnt from ods.events group by dt` | `SparkDialectParserTest.doesNotTreatCountStarAsWildcardProjection` |
+| Aggregate expression containing COUNT star | `select cast(count(*) * (max(end_time) - min(collect_time)) / count(*) as int) as duration from ods.events` | `SparkDialectParserTest.extractsSourcesFromAggregateExpressionContainingCountStar` |
+| Unaliased CAST single-source target inference | `select cast(vin as string) from ods.events` | `SparkDialectParserTest.infersTargetColumnForUnaliasedSingleSourceExpression` |
 | Function expression source columns | `select lower(name) as name_lower from ods.orders` | `column_expression_projection` |
 | Arithmetic expression source columns | `select price * quantity as amount from ods.orders` | `column_expression_projection` |
 | Constant projection with no sources | `select 1 as flag from ods.orders` | `column_expression_projection` |

@@ -2221,6 +2221,109 @@
         }
       ],
       "description": "MySQL window function lineage and window clause column usages"
+    },
+    {
+      "id": "with_insert_select",
+      "file": "cases/with_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [
+        "app.user_order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "app.user_order_summary.user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "app.user_order_summary.total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        }
+      ],
+      "description": "MySQL WITH before INSERT SELECT keeps CTE source table and column lineage"
+    },
+    {
+      "id": "with_update_join",
+      "file": "cases/with_update_join.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "app.orders",
+        "app.users"
+      ],
+      "outputTables": [
+        "app.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "app.users.total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL WITH before UPDATE JOIN propagates CTE columns into assignment lineage"
+    },
+    {
+      "id": "with_delete_join",
+      "file": "cases/with_delete_join.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "app.orders",
+        "app.sessions"
+      ],
+      "outputTables": [
+        "app.sessions"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.sessions.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.sessions.expired"
+        }
+      ],
+      "description": "MySQL WITH before multi-table DELETE resolves CTE relation inputs and predicates"
     }
   ]
 }

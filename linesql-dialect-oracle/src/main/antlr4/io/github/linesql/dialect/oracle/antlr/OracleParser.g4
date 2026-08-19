@@ -227,6 +227,17 @@ insertStatement
     : INSERT INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
+    | INSERT (ALL | FIRST) multiTableInsertClause+ query
+    ;
+
+multiTableInsertClause
+    : INTO multipartIdentifier
+      (LPAREN targetColumnList RPAREN)?
+      VALUES LPAREN expressionList RPAREN
+    ;
+
+targetColumnList
+    : identifier (COMMA identifier)*
     ;
 
 valuesClause
@@ -383,7 +394,7 @@ strictIdentifier
 nonReservedKeyword
     : ADD | ASC | CAST | COLUMN | COMMENT | DEFAULT
     | DESCRIBE | DESC | DUAL | END | EXISTS | EXTERNAL | FALSE
-    | IF | INTERVAL | LIKE | LIMIT | NULL
+    | FIRST | IF | INTERVAL | LIKE | LIMIT | NULL
     | OFFSET | OVER | PARTITION | PRIOR | RENAME | REPLACE
     | SET | SHOW | START | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | VALUES | VIEW
     ;

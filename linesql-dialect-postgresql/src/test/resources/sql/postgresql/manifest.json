@@ -1,0 +1,258 @@
+{
+  "dialect": "POSTGRESQL",
+  "cases": [
+    {
+      "id": "select_basic",
+      "file": "cases/select_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["public.users.id"]},
+        {"target": "name", "sources": ["public.users.name"]}
+      ],
+      "description": "PostgreSQL basic SELECT table and column lineage"
+    },
+    {
+      "id": "join_projection",
+      "file": "cases/join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users", "sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["public.users.id"]},
+        {"target": "amount", "sources": ["sales.orders.amount"]}
+      ],
+      "description": "PostgreSQL JOIN source tables and projection lineage"
+    },
+    {
+      "id": "insert_select_returning",
+      "file": "cases/insert_select_returning.sql",
+      "statementType": "INSERT",
+      "inputTables": ["public.users", "sales.orders"],
+      "outputTables": ["mart.user_orders"],
+      "columnLineage": [
+        {"target": "mart.user_orders.user_id", "sources": ["public.users.id"]},
+        {"target": "mart.user_orders.amount", "sources": ["sales.orders.amount"]}
+      ],
+      "description": "PostgreSQL INSERT SELECT with RETURNING normalized for lineage"
+    },
+    {
+      "id": "insert_on_conflict",
+      "file": "cases/insert_on_conflict.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "description": "PostgreSQL INSERT SELECT with ON CONFLICT target and source lineage"
+    },
+    {
+      "id": "create_table_as_select",
+      "file": "cases/create_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": ["mart.active_users"],
+      "columnLineage": [
+        {"target": "mart.active_users.user_id", "sources": ["public.users.id"]},
+        {"target": "mart.active_users.email_norm", "sources": ["public.users.email"]}
+      ],
+      "description": "PostgreSQL CTAS table and column lineage"
+    },
+    {
+      "id": "create_view",
+      "file": "cases/create_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["public.users", "sales.orders"],
+      "outputTables": ["mart.v_user_orders"],
+      "columnLineage": [
+        {"target": "mart.v_user_orders.user_id", "sources": ["public.users.id"]},
+        {"target": "mart.v_user_orders.amount", "sources": ["sales.orders.amount"]}
+      ],
+      "description": "PostgreSQL CREATE VIEW source and output lineage"
+    },
+    {
+      "id": "cte_column_projection",
+      "file": "cases/cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["public.users.id"]},
+        {"target": "name", "sources": ["public.users.name"]}
+      ],
+      "description": "PostgreSQL CTE source and column propagation"
+    },
+    {
+      "id": "update_from_returning",
+      "file": "cases/update_from_returning.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "description": "PostgreSQL UPDATE FROM with RETURNING normalized for assignment lineage"
+    },
+    {
+      "id": "delete_using_returning",
+      "file": "cases/delete_using_returning.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.users", "staging.deleted_users"],
+      "outputTables": ["mart.users"],
+      "description": "PostgreSQL DELETE with subquery source and RETURNING normalized for table lineage"
+    },
+    {
+      "id": "clause_column_usage",
+      "file": "cases/clause_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users", "sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.users.id"]},
+        {"target": "order_count", "sources": ["sales.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.users.id"},
+        {"type": "JOIN_ON", "column": "sales.orders.user_id"},
+        {"type": "WHERE", "column": "public.users.status"},
+        {"type": "WHERE", "column": "sales.orders.amount"},
+        {"type": "GROUP_BY", "column": "public.users.id"},
+        {"type": "HAVING", "column": "sales.orders.id"},
+        {"type": "ORDER_BY", "column": "public.users.id"}
+      ],
+      "description": "PostgreSQL clause-level column usages for JOIN, WHERE, GROUP BY, HAVING, and ORDER BY"
+    },
+    {
+      "id": "postgres_cast_ilike",
+      "file": "cases/postgres_cast_ilike.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id_text", "sources": ["public.users.id"]},
+        {"target": "email_norm", "sources": ["public.users.email"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "public.users.email"}
+      ],
+      "description": "PostgreSQL cast operator and ILIKE predicate column usage"
+    },
+    {
+      "id": "quoted_identifiers",
+      "file": "cases/quoted_identifiers.sql",
+      "statementType": "SELECT",
+      "inputTables": ["业务库.用户表"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "用户标识", "sources": ["业务库.用户表.用户ID"]},
+        {"target": "姓名", "sources": ["业务库.用户表.姓名"]}
+      ],
+      "description": "PostgreSQL double-quoted non-ASCII identifiers"
+    },
+    {
+      "id": "merge_into",
+      "file": "cases/merge_into.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.updated_at", "sources": ["staging.users_delta.updated_at"]},
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.updated_at", "sources": ["staging.users_delta.updated_at"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.users.id"},
+        {"type": "MERGE_ON", "column": "staging.users_delta.id"},
+        {"type": "MERGE_WHEN", "column": "staging.users_delta.op"}
+      ],
+      "description": "PostgreSQL MERGE target/source tables, update assignments, insert values, and merge predicates"
+    },
+    {
+      "id": "merge_using_subquery",
+      "file": "cases/merge_using_subquery.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.users_delta.op"},
+        {"type": "MERGE_ON", "column": "mart.users.id"},
+        {"type": "MERGE_ON", "column": "staging.users_delta.id"}
+      ],
+      "description": "PostgreSQL MERGE using a source subquery propagates source columns into assignments and insert values"
+    },
+    {
+      "id": "with_insert_select",
+      "file": "cases/with_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": ["sales.orders"],
+      "outputTables": ["mart.user_order_summary"],
+      "columnLineage": [
+        {"target": "mart.user_order_summary.user_id", "sources": ["sales.orders.user_id"]},
+        {"target": "mart.user_order_summary.total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.status"}
+      ],
+      "description": "PostgreSQL WITH before INSERT SELECT keeps CTE source table and column lineage"
+    },
+    {
+      "id": "with_update_from",
+      "file": "cases/with_update_from.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["staging.users_delta", "mart.users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.users_delta.op"},
+        {"type": "WHERE", "column": "mart.users.id"},
+        {"type": "WHERE", "column": "staging.users_delta.id"}
+      ],
+      "description": "PostgreSQL WITH before UPDATE FROM propagates CTE columns into assignment lineage"
+    },
+    {
+      "id": "with_delete_using",
+      "file": "cases/with_delete_using.sql",
+      "statementType": "DELETE",
+      "inputTables": ["staging.deleted_users", "mart.users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.deleted_users.reason"},
+        {"type": "WHERE", "column": "mart.users.id"},
+        {"type": "WHERE", "column": "staging.deleted_users.id"}
+      ],
+      "description": "PostgreSQL WITH before DELETE USING resolves CTE relation inputs and predicates"
+    },
+    {
+      "id": "with_merge",
+      "file": "cases/with_merge.sql",
+      "statementType": "MERGE",
+      "inputTables": ["staging.users_delta", "mart.users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.updated_at", "sources": ["staging.users_delta.updated_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.users_delta.op"},
+        {"type": "MERGE_ON", "column": "mart.users.id"},
+        {"type": "MERGE_ON", "column": "staging.users_delta.id"}
+      ],
+      "description": "PostgreSQL WITH before MERGE resolves CTE source columns into update and insert lineage"
+    }
+  ]
+}

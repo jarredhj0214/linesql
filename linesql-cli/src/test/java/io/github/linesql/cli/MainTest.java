@@ -35,6 +35,19 @@ public class MainTest {
     }
 
     @Test
+    public void acceptsCommonDialectAliases() throws Exception {
+        RunResult postgres = run("--dialect", "postgres", "select id from public.users");
+        assertEquals(0, postgres.exitCode);
+        JsonNode postgresJson = mapper.readTree(postgres.stdout);
+        assertEquals("POSTGRESQL", postgresJson.get(0).get("dialect").asText());
+
+        RunResult sqlServer = run("--dialect=sql-server", "select top 10 id from dbo.users");
+        assertEquals(0, sqlServer.exitCode);
+        JsonNode sqlServerJson = mapper.readTree(sqlServer.stdout);
+        assertEquals("SQLSERVER", sqlServerJson.get(0).get("dialect").asText());
+    }
+
+    @Test
     public void readsSqlFromStdinWhenNoSqlArgsProvided() throws Exception {
         RunResult result = runWithInput("select id from dual", "--dialect", "ORACLE");
 
@@ -45,7 +58,7 @@ public class MainTest {
 
     @Test
     public void rejectsUnknownDialect() throws Exception {
-        RunResult result = run("--dialect", "postgres", "select 1");
+        RunResult result = run("--dialect", "db2", "select 1");
 
         assertEquals(2, result.exitCode);
         assertTrue(result.stderr.contains("Unsupported dialect"));

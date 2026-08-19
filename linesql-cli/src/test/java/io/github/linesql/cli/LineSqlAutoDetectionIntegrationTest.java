@@ -27,6 +27,10 @@ public class LineSqlAutoDetectionIntegrationTest {
                 "select id from dual");
         assertDialect(SqlDialect.SQLSERVER,
                 "select top (10) u.id as user_id from dbo.users u with (nolock)");
+        assertDialect(SqlDialect.POSTGRESQL,
+                "insert into mart.users(id) select id from staging.users_delta on conflict (id) do nothing");
+        assertDialect(SqlDialect.OCEANBASE,
+                "select id from app._ob_users");
     }
 
     @Test

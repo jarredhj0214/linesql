@@ -2032,6 +2032,101 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "StarRocks SHOW PARTITIONS metadata statement"
+    },
+    {
+      "id": "with_insert_select",
+      "file": "cases/with_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.user_order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_order_summary.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_order_summary.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.status"
+        }
+      ],
+      "description": "StarRocks WITH before INSERT SELECT keeps CTE source table and column lineage"
+    },
+    {
+      "id": "with_update_from",
+      "file": "cases/with_update_from.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "dwd.orders",
+        "ads.users"
+      ],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.users.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ads.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "StarRocks WITH before UPDATE FROM propagates CTE columns into assignment lineage"
+    },
+    {
+      "id": "with_delete_using",
+      "file": "cases/with_delete_using.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "dwd.orders",
+        "ads.sessions"
+      ],
+      "outputTables": [
+        "ads.sessions"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ads.sessions.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "StarRocks WITH before DELETE USING resolves CTE relation inputs and predicates"
     }
   ]
 }

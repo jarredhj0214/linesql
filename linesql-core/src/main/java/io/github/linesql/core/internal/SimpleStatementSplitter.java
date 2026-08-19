@@ -46,6 +46,11 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 blockComment = true;
                 continue;
             }
+            if (quote == 0 && c == '\\' && (next == 'n' || next == 'r' || next == 't')) {
+                current.append(next == 't' ? ' ' : '\n');
+                i++;
+                continue;
+            }
             if (c == '\'' || c == '"' || c == '`') {
                 if (quote == 0) {
                     quote = c;
@@ -77,8 +82,54 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
     private static void addIfNotBlank(List<String> statements, StringBuilder sql) {
         String value = sql.toString().trim();
-        if (!value.isEmpty()) {
+        if (!value.isEmpty() && !stripComments(value).trim().isEmpty()) {
             statements.add(value);
         }
+    }
+
+    private static String stripComments(String sql) {
+        StringBuilder stripped = new StringBuilder(sql.length());
+        char quote = 0;
+        boolean lineComment = false;
+        boolean blockComment = false;
+
+        for (int i = 0; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            char next = i + 1 < sql.length() ? sql.charAt(i + 1) : 0;
+
+            if (lineComment) {
+                if (c == '\n' || c == '\r') {
+                    stripped.append(c);
+                    lineComment = false;
+                }
+                continue;
+            }
+            if (blockComment) {
+                if (c == '*' && next == '/') {
+                    i++;
+                    blockComment = false;
+                }
+                continue;
+            }
+            if (quote == 0 && c == '-' && next == '-') {
+                i++;
+                lineComment = true;
+                continue;
+            }
+            if (quote == 0 && c == '/' && next == '*') {
+                i++;
+                blockComment = true;
+                continue;
+            }
+            if (c == '\'' || c == '"' || c == '`') {
+                if (quote == 0) {
+                    quote = c;
+                } else if (quote == c && !isEscaped(sql, i)) {
+                    quote = 0;
+                }
+            }
+            stripped.append(c);
+        }
+        return stripped.toString();
     }
 }

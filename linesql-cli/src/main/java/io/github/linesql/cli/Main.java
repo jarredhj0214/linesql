@@ -88,8 +88,15 @@ public final class Main {
         }
 
         private static SqlDialect parseDialect(String value) {
+            String normalized = value.trim().replace('-', '_').toUpperCase();
+            if ("POSTGRES".equals(normalized) || "PG".equals(normalized)) {
+                return SqlDialect.POSTGRESQL;
+            }
+            if ("SQL_SERVER".equals(normalized) || "MSSQL".equals(normalized)) {
+                return SqlDialect.SQLSERVER;
+            }
             try {
-                return SqlDialect.valueOf(value.trim().replace('-', '_').toUpperCase());
+                return SqlDialect.valueOf(normalized);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Unsupported dialect: " + value);
             }
@@ -113,5 +120,6 @@ public final class Main {
         output.println("  cat script.sql | linesql");
         output.println();
         output.println("Dialects: SPARK, HIVE, FLINK, STARROCKS, MYSQL, ORACLE, SQLSERVER, POSTGRESQL, OCEANBASE");
+        output.println("Aliases: postgres, pg, sql-server, mssql");
     }
 }

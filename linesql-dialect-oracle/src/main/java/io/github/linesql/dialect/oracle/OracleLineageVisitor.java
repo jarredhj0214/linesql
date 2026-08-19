@@ -55,6 +55,21 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitInsertStatement(OracleParser.InsertStatementContext ctx) {
+        if (!ctx.multiTableInsertClause().isEmpty()) {
+            visit(ctx.query());
+            refreshColumnLineage();
+            List<ColumnLineage> lineages = new ArrayList<>();
+            for (OracleParser.MultiTableInsertClauseContext clause : ctx.multiTableInsertClause()) {
+                TableRef target = tableRef(clause.multipartIdentifier());
+                outputTables.add(target);
+                lineages.addAll(readMultiTableInsertValues(clause, target));
+            }
+            suppressColumnLineage = true;
+            result.setColumnLineage(lineages);
+            result.setInputTables(new ArrayList<>(inputTables));
+            result.setOutputTables(new ArrayList<>(outputTables));
+            return null;
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
         if (ctx.columnList != null) {
@@ -861,6 +876,44 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         return lineages;
     }
 
+    private List<ColumnLineage> readMultiTableInsertValues(
+            OracleParser.MultiTableInsertClauseContext ctx,
+            TableRef target) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        if (ctx.expressionList() == null) {
+            return lineages;
+        }
+        List<OracleParser.ExpressionContext> expressions = ctx.expressionList().expression();
+        List<String> targetColumns = ctx.targetColumnList() == null
+                ? defaultTargetColumns(expressions.size())
+                : identifierNames(ctx.targetColumnList());
+        int count = Math.min(targetColumns.size(), expressions.size());
+        for (int i = 0; i < count; i++) {
+            OracleParser.ExpressionContext expression = expressions.get(i);
+            if (containsSubquery(expression)) {
+                continue;
+            }
+            List<ColumnRef> sources = resolveSources(sourceColumns(expression));
+            if (sources == null) {
+                sources = new ArrayList<>();
+            }
+            ColumnLineage lineage = new ColumnLineage();
+            lineage.setTarget(new ColumnRef(target, targetColumns.get(i)));
+            lineage.setSources(sources);
+            lineage.setExpression(expression.getText());
+            lineages.add(lineage);
+        }
+        return lineages;
+    }
+
+    private static List<String> defaultTargetColumns(int count) {
+        List<String> columns = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            columns.add("c" + (i + 1));
+        }
+        return columns;
+    }
+
     private List<ColumnRef> resolveSources(List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sc : sourceColumns) {
@@ -1159,6 +1212,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private static List<String> identifierNames(OracleParser.IdentifierListContext ctx) {
+        List<String> names = new ArrayList<>();
+        for (OracleParser.IdentifierContext id : ctx.identifier()) {
+            names.add(cleanIdentifier(id));
+        }
+        return names;
+    }
+
+    private static List<String> identifierNames(OracleParser.TargetColumnListContext ctx) {
         List<String> names = new ArrayList<>();
         for (OracleParser.IdentifierContext id : ctx.identifier()) {
             names.add(cleanIdentifier(id));
