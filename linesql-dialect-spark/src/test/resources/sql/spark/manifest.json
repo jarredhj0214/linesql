@@ -211,6 +211,101 @@
       "description": "Same-name columns in joined subqueries stay scoped to their local single-table subquery"
     },
     {
+      "id": "join_derived_unique_base_fallback",
+      "file": "cases/join_derived_unique_base_fallback.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Unqualified projections fall back to the unique visible base table when adjacent derived output columns are known not to expose the projected column"
+    },
+    {
+      "id": "unique_derived_wildcard_projection",
+      "file": "cases/unique_derived_wildcard_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events",
+        "dim.vehicles"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "score",
+          "sources": [
+            "ods.events.score"
+          ]
+        }
+      ],
+      "description": "Unqualified projections can use a unique derived wildcard source when adjacent derived columns are known"
+    },
+    {
+      "id": "explicit_derived_column_precedence_over_wildcard",
+      "file": "cases/explicit_derived_column_precedence_over_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.test_drive",
+        "dwd.appoint_relation",
+        "dim.channel"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "vehicle_category_code",
+          "sources": [
+            "dwd.test_drive.vehicle_category_code"
+          ]
+        },
+        {
+          "target": "level_1_channel_code",
+          "sources": [
+            "dim.channel.first_channel_tag_code"
+          ]
+        }
+      ],
+      "description": "Explicit derived output columns take precedence over adjacent schema-free wildcard sources"
+    },
+    {
+      "id": "backtick_qualified_direct_projection",
+      "file": "cases/backtick_qualified_direct_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "eps_ods.ods_coa_staff_df",
+        "eps_dim.dim_coa_departments_wide_df"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "department_id",
+          "sources": [
+            "eps_ods.ods_coa_staff_df.department_id"
+          ]
+        },
+        {
+          "target": "department_name",
+          "sources": [
+            "eps_dim.dim_coa_departments_wide_df.department_name"
+          ]
+        }
+      ],
+      "description": "Backtick-quoted qualified direct projections resolve to their base table columns"
+    },
+    {
       "id": "self_join_column_usage",
       "file": "cases/self_join_column_usage.sql",
       "statementType": "SELECT",
@@ -709,9 +804,6 @@
       "outputTables": [
         "ods.users"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "LOAD DATA target table lineage"
     },
     {
@@ -722,9 +814,6 @@
       "outputTables": [
         "mart.users_old"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "DROP TABLE affected table lineage"
     },
     {
@@ -734,9 +823,6 @@
       "inputTables": [],
       "outputTables": [
         "ads.users"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "TRUNCATE TABLE affected table lineage"
     },
@@ -750,9 +836,6 @@
       "outputTables": [
         "mart.users_archive"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "ALTER TABLE RENAME TO old and new table lineage"
     },
     {
@@ -762,9 +845,6 @@
       "inputTables": [],
       "outputTables": [
         "mart.users"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "ALTER TABLE ADD COLUMNS affected table lineage"
     },
@@ -776,9 +856,6 @@
       "outputTables": [
         "mart.users"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "ALTER TABLE SET TBLPROPERTIES affected table lineage"
     },
     {
@@ -788,9 +865,6 @@
       "inputTables": [],
       "outputTables": [
         "mart.users"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "ALTER TABLE DROP PARTITION affected table lineage"
     },
@@ -802,9 +876,6 @@
       "outputTables": [
         "ssai_ods.video_album_map_test"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "ALTER TABLE DROP PARTITION predicate affected table lineage"
     },
     {
@@ -814,9 +885,6 @@
       "inputTables": [],
       "outputTables": [
         "mart.users"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "ALTER TABLE RECOVER PARTITIONS affected table lineage"
     },
@@ -828,9 +896,6 @@
         "mart.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "ANALYZE TABLE metadata read table lineage"
     },
     {
@@ -841,9 +906,6 @@
         "mart.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "DESCRIBE TABLE metadata read table lineage"
     },
     {
@@ -854,9 +916,6 @@
         "mart.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "SHOW CREATE TABLE metadata read table lineage"
     },
     {
@@ -867,9 +926,6 @@
         "mart.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "SHOW COLUMNS metadata read table lineage"
     },
     {
@@ -880,9 +936,6 @@
         "mart.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "SHOW PARTITIONS metadata read table lineage"
     },
     {
@@ -893,9 +946,6 @@
         "mart.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "REFRESH TABLE metadata read table lineage"
     },
     {
@@ -905,9 +955,6 @@
       "inputTables": [],
       "outputTables": [
         "mart.users"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "MSCK REPAIR TABLE affected table lineage"
     },
@@ -919,9 +966,6 @@
       "outputTables": [
         "mart.users"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "CREATE INDEX ON TABLE affected table lineage"
     },
     {
@@ -931,9 +975,6 @@
       "inputTables": [],
       "outputTables": [
         "mart.users"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "DROP INDEX ON TABLE affected table lineage"
     },
@@ -945,9 +986,6 @@
       "outputTables": [
         "mart.users"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "COMMENT ON TABLE affected table lineage"
     },
     {
@@ -957,9 +995,6 @@
       "inputTables": [],
       "outputTables": [
         "mart.users"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "COMMENT ON COLUMN affected table lineage"
     },
@@ -1171,9 +1206,6 @@
       "outputTables": [
         "tmp_csv_users"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
-      ],
       "description": "CREATE TEMPORARY VIEW USING provider output relation"
     },
     {
@@ -1211,9 +1243,6 @@
       ],
       "outputTables": [
         "mart.users_like"
-      ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
       ],
       "description": "CREATE TABLE LIKE source and target table lineage"
     },
@@ -1653,6 +1682,40 @@
       "description": "Scalar subquery projection preserves inner expression source columns"
     },
     {
+      "id": "scalar_subquery_only_projection",
+      "file": "cases/scalar_subquery_only_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "max_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Scalar subquery projection lineage when the outer SELECT has no FROM clause"
+    },
+    {
+      "id": "scalar_subquery_predicate_isolation",
+      "file": "cases/scalar_subquery_predicate_isolation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "ratio",
+          "sources": []
+        }
+      ],
+      "description": "Scalar subquery predicate columns do not block outer expression lineage"
+    },
+    {
       "id": "in_subquery_column_usage",
       "file": "cases/in_subquery_column_usage.sql",
       "statementType": "SELECT",
@@ -1686,6 +1749,76 @@
         }
       ],
       "description": "IN subquery predicate usages include outer predicate columns and inner projection source columns"
+    },
+    {
+      "id": "having_subquery_scope_isolation",
+      "file": "cases/having_subquery_scope_isolation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events",
+        "dwd.events",
+        "dim.vehicles"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "vin",
+          "sources": [
+            "ods.events.vin",
+            "dwd.events.vin"
+          ]
+        },
+        {
+          "target": "min_dt",
+          "sources": [
+            "ods.events.dt",
+            "dwd.events.dt"
+          ]
+        }
+      ],
+      "description": "HAVING subqueries do not pollute outer derived table column resolution"
+    },
+    {
+      "id": "qualified_join_hint_unqualified_projection",
+      "file": "cases/qualified_join_hint_unqualified_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.logs",
+        "dim.kind"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "kind_cnt",
+          "sources": [
+            "ods.logs.kind_id"
+          ]
+        }
+      ],
+      "description": "Unqualified projection columns can use a unique qualified JOIN predicate hint"
+    },
+    {
+      "id": "partial_expression_projection_sources",
+      "file": "cases/partial_expression_projection_sources.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.logs",
+        "dim.feedback"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "matched",
+          "sources": [
+            "ods.logs.label",
+            "dim.feedback.feedback_tag"
+          ]
+        }
+      ],
+      "expectedDiagnostics": [
+        "COLUMN_LINEAGE_PARTIAL"
+      ],
+      "description": "Expression projections keep resolved source columns when some inputs are ambiguous"
     },
     {
       "id": "projection_alias_order_usage",
@@ -1807,6 +1940,44 @@
       "description": "GROUP BY aggregate expression column lineage"
     },
     {
+      "id": "unaliased_aggregate_projection",
+      "file": "cases/unaliased_aggregate_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "max(amount)",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Unaliased aggregate expression column lineage uses the expression as target"
+    },
+    {
+      "id": "unaliased_constant_projection",
+      "file": "cases/unaliased_constant_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "'aaa'",
+          "sources": []
+        },
+        {
+          "target": "1",
+          "sources": []
+        }
+      ],
+      "description": "Unaliased constant expression column lineage uses the expression as target with no sources"
+    },
+    {
       "id": "window_column_projection",
       "file": "cases/window_column_projection.sql",
       "statementType": "SELECT",
@@ -1888,6 +2059,30 @@
       "description": "Qualified nested struct field column lineage in JOIN queries"
     },
     {
+      "id": "derived_struct_root_field_projection",
+      "file": "cases/derived_struct_root_field_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "vin",
+          "sources": [
+            "ods.events.content"
+          ]
+        },
+        {
+          "target": "ts",
+          "sources": [
+            "ods.events.content"
+          ]
+        }
+      ],
+      "description": "Nested fields from a derived expression root resolve to the root expression sources"
+    },
+    {
       "id": "lateral_view_explode",
       "file": "cases/lateral_view_explode.sql",
       "statementType": "SELECT",
@@ -1910,6 +2105,50 @@
         }
       ],
       "description": "Spark LATERAL VIEW explode generated column lineage"
+    },
+    {
+      "id": "lateral_view_case_insensitive_generated_column",
+      "file": "cases/lateral_view_case_insensitive_generated_column.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "item",
+          "sources": [
+            "ods.orders.items"
+          ]
+        }
+      ],
+      "description": "Spark generated column lookup is case-insensitive"
+    },
+    {
+      "id": "multi_alias_function_output",
+      "file": "cases/multi_alias_function_output.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id",
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "ods.users.id",
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Function or UDTF-style multi-column alias output lineage"
     },
     {
       "id": "unnest_column_lineage",
@@ -2995,6 +3234,24 @@
         }
       ],
       "description": "Single-level CTE direct column propagation"
+    },
+    {
+      "id": "cte_case_insensitive_column_projection",
+      "file": "cases/cte_case_insensitive_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "description": "Spark derived column lookup is case-insensitive"
     },
     {
       "id": "chained_cte_column_projection",

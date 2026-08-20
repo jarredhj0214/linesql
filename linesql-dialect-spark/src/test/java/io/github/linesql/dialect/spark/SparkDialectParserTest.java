@@ -202,6 +202,41 @@ public class SparkDialectParserTest {
     }
 
     @Test
+    public void resolvesDerivedColumnsCaseInsensitively() {
+        LineageResult result = LineSql.parse(
+                "with u as (select id as User_ID from ods.users) select user_id from u");
+
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("user_id", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.users.id", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+    }
+
+    @Test
+    public void preservesKnownDerivedColumnsWhenStarAlsoCarriesUnknownTableColumns() {
+        LineageResult result = LineSql.parse(
+                "select user_id "
+                        + "from ("
+                        + "select *, upper(name) as upper_name "
+                        + "from (select id as user_id, name from ods.users) u "
+                        + "left join dim.regions r on u.user_id = r.user_id"
+                        + ") s");
+
+        assertTrue(result.getColumnLineage().size() >= 1);
+        assertEquals("user_id", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.users.id", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+    }
+
+    @Test
+    public void resolvesGeneratedColumnsCaseInsensitively() {
+        LineageResult result = LineSql.parse(
+                "select item from ods.orders lateral view explode(items) e as Item");
+
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("item", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.orders.items", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+    }
+
+    @Test
     public void resolvesUnqualifiedProjectionFromUniqueDerivedRelationColumn() {
         LineageResult result = LineSql.parse(
                 "select user_id, amount "
@@ -216,11 +251,89 @@ public class SparkDialectParserTest {
     }
 
     @Test
+    public void resolvesUnqualifiedProjectionFromUniqueBaseTableWhenDerivedColumnsAreKnown() {
+        LineageResult result = LineSql.parse(
+                "select id, name "
+                        + "from ods.users u "
+                        + "join (select order_id from dwd.orders) o on u.id = o.order_id");
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("id", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.users.id", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("name", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals("ods.users.name", columnName(result.getColumnLineage().get(1).getSources().get(0)));
+    }
+
+    @Test
+    public void keepsUnqualifiedProjectionUnresolvedWhenDerivedRelationMayExposeColumn() {
+        LineageResult result = LineSql.parse(
+                "select id "
+                        + "from ods.users u "
+                        + "join (select id from dwd.orders) o on u.id = o.id");
+
+        assertTrue(result.getColumnLineage().isEmpty());
+    }
+
+    @Test
     public void keepsUnqualifiedProjectionAmbiguousAcrossDerivedRelations() {
         LineageResult result = LineSql.parse(
                 "select id "
                         + "from (select id from ods.users) u "
                         + "join (select id from dwd.orders) o on u.id = o.id");
+
+        assertTrue(result.getColumnLineage().isEmpty());
+    }
+
+    @Test
+    public void resolvesUnqualifiedProjectionFromUniqueDerivedWildcardSource() {
+        LineageResult result = LineSql.parse(
+                "select score "
+                        + "from (select * from ods.events) e "
+                        + "left join (select vin as vin_r from dim.vehicles) v on e.vin = v.vin_r");
+
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("score", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.events.score", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+    }
+
+    @Test
+    public void prefersExplicitDerivedColumnsOverAdjacentWildcardSources() {
+        LineageResult result = LineSql.parse(
+                "select vehicle_category_code, level_1_channel_code "
+                        + "from (select vehicle_category_code, appoint_code from dwd.test_drive) t_test "
+                        + "left join (select * from dwd.appoint_relation) t_appoint "
+                        + "on t_test.appoint_code = t_appoint.appoint_code "
+                        + "left join (select channel_code, first_channel_tag_code as level_1_channel_code "
+                        + "from dim.channel) t2 on t_appoint.channel_code = t2.channel_code");
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("vehicle_category_code", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("dwd.test_drive.vehicle_category_code", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("level_1_channel_code", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals("dim.channel.first_channel_tag_code", columnName(result.getColumnLineage().get(1).getSources().get(0)));
+    }
+
+    @Test
+    public void resolvesBacktickQualifiedDirectProjection() {
+        LineageResult result = LineSql.parse(
+                "select t1.`department_id`, t2.`department_name` "
+                        + "from eps_ods.ods_coa_staff_df t1 "
+                        + "left join eps_dim.dim_coa_departments_wide_df t2 "
+                        + "on t1.department_id = t2.department_id");
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("department_id", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("eps_ods.ods_coa_staff_df.department_id", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("department_name", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals("eps_dim.dim_coa_departments_wide_df.department_name", columnName(result.getColumnLineage().get(1).getSources().get(0)));
+    }
+
+    @Test
+    public void keepsUnqualifiedProjectionAmbiguousAcrossDerivedWildcards() {
+        LineageResult result = LineSql.parse(
+                "select amount "
+                        + "from (select * from ods.users) u "
+                        + "join (select * from dwd.orders) o on u.id = o.user_id");
 
         assertTrue(result.getColumnLineage().isEmpty());
     }
@@ -277,6 +390,84 @@ public class SparkDialectParserTest {
     }
 
     @Test
+    public void extractsScalarSubqueryOnlyProjectionLineage() {
+        LineageResult result = LineSql.parse(
+                "with daily_amount as (select amount from ods.orders) "
+                        + "select (select max(amount) from daily_amount) as max_amount");
+
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("max_amount", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.orders.amount", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+    }
+
+    @Test
+    public void keepsOuterExpressionSourcesWhenScalarSubqueryHasPredicateColumns() {
+        LineageResult result = LineSql.parse(
+                "select round(cnt / (select count(*) from ods.events where ev_soc > 0), 2) as ratio "
+                        + "from (select count(*) as cnt from ods.events) s");
+
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("ratio", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertTrue(result.getColumnLineage().get(0).getSources().isEmpty());
+    }
+
+    @Test
+    public void keepsOuterLineageWhenHavingContainsSubquery() {
+        LineageResult result = LineSql.parse(
+                "select vin, min(dt) as min_dt from ("
+                        + "select vin, dt from ods.events union all select vin, dt from dwd.events"
+                        + ") s group by vin having vin in (select vin from dim.vehicles)");
+
+        assertEquals(3, result.getInputTables().size());
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("vin", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.events.vin", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("dwd.events.vin", columnName(result.getColumnLineage().get(0).getSources().get(1)));
+        assertEquals("min_dt", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals("ods.events.dt", columnName(result.getColumnLineage().get(1).getSources().get(0)));
+        assertEquals("dwd.events.dt", columnName(result.getColumnLineage().get(1).getSources().get(1)));
+    }
+
+    @Test
+    public void resolvesUnqualifiedProjectionFromUniqueQualifiedJoinHint() {
+        LineageResult result = LineSql.parse(
+                "select count(case when kind_id = 6 then 1 end) as kind_cnt "
+                        + "from ods.logs l join dim.kind d on l.kind_id = d.id");
+
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("kind_cnt", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.logs.kind_id", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+    }
+
+    @Test
+    public void keepsPartialProjectionSourcesWhenSomeExpressionColumnsAreUnresolved() {
+        LineageResult result = LineSql.parse(
+                "select case when l.label = d.feedback_tag or updater_email = 'ops' then 1 else 0 end as matched "
+                        + "from ods.logs l join dim.feedback d on l.order_code = d.order_code");
+
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("matched", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.logs.label", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("dim.feedback.feedback_tag", columnName(result.getColumnLineage().get(0).getSources().get(1)));
+        assertTrue(result.getDiagnostics().stream()
+                .anyMatch(diagnostic -> "COLUMN_LINEAGE_PARTIAL".equals(diagnostic.getCode())));
+    }
+
+    @Test
+    public void resolvesNestedFieldFromDerivedExpressionRoot() {
+        LineageResult result = LineSql.parse(
+                "select values.vin, values.timestamp as ts from ("
+                        + "select from_json(content, 'vin STRING, timestamp BIGINT') as values "
+                        + "from ods.events) s");
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("vin", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.events.content", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("ts", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals("ods.events.content", columnName(result.getColumnLineage().get(1).getSources().get(0)));
+    }
+
+    @Test
     public void infersTargetColumnForUnaliasedSingleSourceExpression() {
         LineageResult result = LineSql.parse(
                 "select cast(vin as string) from ods.events");
@@ -295,6 +486,20 @@ public class SparkDialectParserTest {
     }
 
     @Test
+    public void extractsMultiAliasFunctionOutputLineage() {
+        LineageResult result = LineSql.parse(
+                "select parse_user(id, name) as (user_id, user_name) from ods.users");
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("user_id", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.users.id", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("ods.users.name", columnName(result.getColumnLineage().get(0).getSources().get(1)));
+        assertEquals("user_name", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals("ods.users.id", columnName(result.getColumnLineage().get(1).getSources().get(0)));
+        assertEquals("ods.users.name", columnName(result.getColumnLineage().get(1).getSources().get(1)));
+    }
+
+    @Test
     public void keepsUnaliasedMultiSourceExpressionUnresolvedWithoutTargetName() {
         LineageResult result = LineSql.parse(
                 "select end_time - start_time from ods.events");
@@ -303,11 +508,25 @@ public class SparkDialectParserTest {
     }
 
     @Test
-    public void keepsUnaliasedAggregateExpressionUnresolvedWithoutTargetName() {
+    public void mapsUnaliasedAggregateExpressionToExpressionTarget() {
         LineageResult result = LineSql.parse(
                 "select max(amount) from ods.orders");
 
-        assertTrue(result.getColumnLineage().isEmpty());
+        assertEquals(1, result.getColumnLineage().size());
+        assertEquals("max(amount)", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals("ods.orders.amount", columnName(result.getColumnLineage().get(0).getSources().get(0)));
+    }
+
+    @Test
+    public void mapsUnaliasedConstantExpressionToExpressionTarget() {
+        LineageResult result = LineSql.parse(
+                "select 'aaa', 1 from ods.users");
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("'aaa'", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertTrue(result.getColumnLineage().get(0).getSources().isEmpty());
+        assertEquals("1", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertTrue(result.getColumnLineage().get(1).getSources().isEmpty());
     }
 
     @Test
@@ -359,6 +578,17 @@ public class SparkDialectParserTest {
         assertNonLineageStatement("refresh_resource", StatementType.READ_METADATA);
         assertNonLineageStatement("clear_cache", StatementType.UNCACHE_TABLE);
         assertNonLineageStatement("add_jar_resource", StatementType.UNKNOWN);
+    }
+
+    @Test
+    public void parsesTableMaintenanceStatementsWithoutColumnLineageDiagnostics() {
+        assertTableOnlyStatementWithoutDiagnostics("refresh table mart.users", StatementType.READ_METADATA);
+        assertTableOnlyStatementWithoutDiagnostics("alter table mart.users set tblproperties('k'='v')",
+                StatementType.ALTER_TABLE);
+        assertTableOnlyStatementWithoutDiagnostics("truncate table mart.users", StatementType.TRUNCATE_TABLE);
+        assertTableOnlyStatementWithoutDiagnostics("drop table mart.users", StatementType.DROP_TABLE);
+        assertTableOnlyStatementWithoutDiagnostics("alter table mart.users rename to mart.users_archive",
+                StatementType.RENAME_TABLE);
     }
 
     @Test
@@ -468,6 +698,14 @@ public class SparkDialectParserTest {
         assertTrue(caseId, result.getOutputTables().isEmpty());
         assertTrue(caseId, result.getColumnLineage().isEmpty());
         assertTrue(caseId, result.getDiagnostics().isEmpty());
+    }
+
+    private static void assertTableOnlyStatementWithoutDiagnostics(String sql, StatementType statementType) {
+        LineageResult result = LineSql.parse(sql);
+        assertEquals(sql, statementType, result.getStatementType());
+        assertTrue(sql, !result.getInputTables().isEmpty() || !result.getOutputTables().isEmpty());
+        assertTrue(sql, result.getColumnLineage().isEmpty());
+        assertTrue(sql, result.getDiagnostics().isEmpty());
     }
 
     private static JsonNode singletonTextArray(String value) {

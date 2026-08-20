@@ -30,7 +30,7 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.POSTGRESQL,
                 "insert into mart.users(id) select id from staging.users_delta on conflict (id) do nothing");
         assertDialect(SqlDialect.OCEANBASE,
-                "select id from app._ob_users");
+                "select id from oceanbase.__all_virtual_table");
     }
 
     @Test

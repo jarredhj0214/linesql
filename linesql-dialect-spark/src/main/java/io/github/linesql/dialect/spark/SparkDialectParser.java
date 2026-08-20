@@ -50,7 +50,7 @@ public class SparkDialectParser implements DialectParser {
         if (visitor.shouldWarnMissingColumnLineage() && result.getColumnLineage().isEmpty()) {
             result.getDiagnostics().add(Diagnostic.warning(
                     "COLUMN_LINEAGE_NOT_IMPLEMENTED",
-                    "Spark column lineage is not implemented in this stage."));
+                    "Spark column lineage was not produced for this projection-capable statement shape."));
         }
         return result;
     }

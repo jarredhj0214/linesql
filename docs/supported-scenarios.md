@@ -600,7 +600,10 @@ Implemented Flink column-level lineage scenarios:
 | CAST, function, and arithmetic expression dependencies | `select cast(id as string), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
 | Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as string)) from t` | `nested_function_projection` |
 | Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| Scalar subquery-only projection dependencies | `with q as (...) select (select max(amount) from q) as max_amount` | `scalar_subquery_only_projection` |
+| Scalar subquery predicate isolation | `select round(cnt / (select count(*) from t where c > 0), 2) from q` | `scalar_subquery_predicate_isolation` |
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| HAVING subquery scope isolation | `group by vin having vin in (select vin from dim.vehicles)` | `having_subquery_scope_isolation` |
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
@@ -1056,6 +1059,7 @@ Implemented Spark column-level lineage scenarios:
 | Function expression source columns | `select lower(name) as name_lower from ods.orders` | `column_expression_projection` |
 | Arithmetic expression source columns | `select price * quantity as amount from ods.orders` | `column_expression_projection` |
 | Constant projection with no sources | `select 1 as flag from ods.orders` | `column_expression_projection` |
+| Unaliased constant expression targets | `select 'aaa', 1 from ods.users` | `unaliased_constant_projection` |
 | Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as string)) from t` | `nested_function_projection` |
 | Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
@@ -1063,11 +1067,15 @@ Implemented Spark column-level lineage scenarios:
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | Partial extraction diagnostics | `select id, lower(name) from ods.users` | `column_partial_projection` |
+| Partial expression projection sources | `select case when l.label = d.feedback_tag or updater_email = 'ops' then 1 end ...` | `partial_expression_projection_sources` |
 | Qualified JOIN projection | `select u.id, o.amount from users u join orders o ...` | `column_join_projection` |
+| Unique qualified JOIN hint for unqualified projections | `select count(case when kind_id = 6 then 1 end) from logs l join kind d on l.kind_id = d.id` | `qualified_join_hint_unqualified_projection` |
 | GROUP BY aggregate expression sources | `select user_id, count(order_id), sum(amount) from ods.orders group by user_id` | `aggregate_column_projection` |
+| Unaliased aggregate expression targets | `select max(amount) from ods.orders` | `unaliased_aggregate_projection` |
 | Window function argument and spec sources | `select row_number() over (partition by user_id order by created_at) from ods.orders` | `window_column_projection` |
 | Single-table nested struct field sources | `select profile.city as city from ods.users` | `nested_field_projection` |
 | Qualified nested struct field sources | `select u.profile.city from ods.users u join ods.orders o ...` | `qualified_nested_field_projection` |
+| Derived struct-root field sources | `select values.vin from (select from_json(content, ...) as values from ods.events) s` | `derived_struct_root_field_projection` |
 | STREAM table direct projection | `select s.id as event_id from stream(ods.events) s` | `stream_table_lineage` |
 | CHANGES relation direct projection | `select c.id as user_id from ods.users changes from version 1 c` | `changelog_column_projection` |
 | UNNEST generated column propagation | `select item from ods.orders o, unnest(o.items) u(item)` | `unnest_column_lineage` |
@@ -1085,6 +1093,7 @@ Implemented Spark column-level lineage scenarios:
 | Pipe AGGREGATE generated projection | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id |> select order_cnt` | `pipe_aggregate_column_lineage` |
 | Pipe JOIN direct projection | `from ods.users u |> join ods.orders o on ... |> select u.id, o.amount` | `pipe_join_column_projection` |
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
+| Case-insensitive generated column lookup | `select item from t lateral view explode(items) e as Item` | `lateral_view_case_insensitive_generated_column` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
 | INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
 | INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
@@ -1121,7 +1130,14 @@ Implemented Spark column-level lineage scenarios:
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
 | Single-level aliased subquery direct column propagation | `select c1 from (select id as c1 from ods.s) q` | `subquery_column_projection` |
+| Case-insensitive derived column lookup | `with u as (select id as User_ID from ods.users) select user_id from u` | `cte_case_insensitive_column_projection` |
+| Unique base table fallback beside derived relations | `select id from ods.users u join (select order_id from dwd.orders) o ...` | `join_derived_unique_base_fallback` |
+| Unique derived wildcard fallback beside known derived columns | `select score from (select * from ods.events) e join (select vin as vin_r from dim.vehicles) v ...` | `unique_derived_wildcard_projection` |
+| Explicit derived columns take precedence over adjacent wildcard sources | `select vehicle_category_code from (select vehicle_category_code from dwd.test_drive) t join (select * from dwd.appoint_relation) a ...` | `explicit_derived_column_precedence_over_wildcard` |
+| Backtick-qualified direct projections | `select t1.\`department_id\` from eps_ods.ods_coa_staff_df t1` | `backtick_qualified_direct_projection` |
+| Known derived columns are preserved beside wildcard inputs | `select c1 from (select *, expr as c2 from (... join table_star ...)) q` | `SparkDialectParserTest.preservesKnownDerivedColumnsWhenStarAlsoCarriesUnknownTableColumns` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_same_name_group_usage` |
+| Function or UDTF-style multi-column alias output | `select parse_user(id, name) as (user_id, user_name) from ods.s` | `multi_alias_function_output` |
 
 ### Clause Column Usage
 
@@ -1159,7 +1175,7 @@ Current Spark diagnostics:
 | `DYNAMIC_SQL_NOT_EXPANDED` | Dynamic SQL was parsed but intentionally not expanded for lineage extraction. |
 | `CODE_LITERAL_NOT_EXPANDED` | Code literal SQL was parsed as a statement shape but not expanded for lineage extraction. |
 | `CDC_LINEAGE_DEGRADED` | AUTO CDC target/source tables were extracted, but CDC-specific column semantics were not expanded. |
-| `COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for the statement. Table lineage may still be available. |
+| `COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a projection-capable statement shape. Table lineage may still be available. Table-only DDL and metadata statements do not emit this diagnostic. |
 | `COLUMN_LINEAGE_PARTIAL` | Some column lineage was produced, but at least one projection could not be resolved safely. |
 
 ### Production SQL Tolerance
@@ -1184,12 +1200,12 @@ The following Spark lineage features are intentionally not complete yet:
 
 | Gap | Current behavior |
 | --- | --- |
-| `select *` expansion | Not expanded without schema metadata. |
+| `select *` expansion | Schema-free table stars are represented as wildcard lineage. Known derived columns are preserved and expanded when they are available beside wildcard inputs. |
 | Complex CTE column propagation | Chained direct CTE projection and CTE column aliases are supported; recursive CTEs and complex CTE joins are not complete yet. |
 | Complex subquery column propagation | Single-level aliased direct subquery projection is supported; nested subquery chains and complex subquery joins are not complete yet. |
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |
-| Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions and Spark `range` output are supported, including alias-qualified generated column references; broader UDTF output semantics are not complete yet. |
+| Complex UDTF and lateral view column propagation | Simple generated columns from UDTF input expressions, function-style multi-column aliases, and Spark `range` output are supported, including alias-qualified generated column references; broader function-specific output semantics are not complete yet. |
 | Pipe set operator with schema-free TABLE right side | Pipe UNION/INTERSECT/EXCEPT column lineage is supported when the right side has explicit projections; schema-free `TABLE t` right sides are not expanded without metadata. |
 | PIVOT and complex UNPIVOT column lineage | PIVOT aggregate output columns, single-value UNPIVOT, and positional multi-value UNPIVOT columns are supported; richer PIVOT grouping/value naming and UNPIVOT alias/null semantics are not complete yet. |
 | TRANSFORM column lineage | Table-level lineage is supported; script output semantics are not propagated yet. |
@@ -1198,4 +1214,4 @@ The following Spark lineage features are intentionally not complete yet:
 | Code literal expansion | Metric view code literals are parsed and diagnosed, but embedded code text is not recursively parsed. |
 | CDC column semantics | AUTO CDC source/target tables are extracted; CDC-specific field propagation is not complete yet. |
 | Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
-| Complex nested fields and structs | Basic nested field paths are preserved; schema-aware struct expansion is not implemented yet. |
+| Complex nested fields and structs | Basic nested field paths are preserved, and fields read from derived expression roots are traced to the root expression sources. Schema-aware struct expansion is not implemented yet. |

@@ -64,7 +64,6 @@ public class SimpleDialectDetectorTest {
     @Test
     public void detectsOceanBaseAnchors() {
         assertFirst(SqlDialect.OCEANBASE, "select id from oceanbase.__all_virtual_table");
-        assertFirst(SqlDialect.OCEANBASE, "select id from app._ob_table");
     }
 
     @Test
@@ -122,6 +121,15 @@ public class SimpleDialectDetectorTest {
     public void treatsObStyleIdentifierAsWeakOceanBaseSignal() {
         List<SqlDialect> candidates = detector.detect(
                 "select ob_level, vin from eps_ods.ods_vehicle_ob_signal where dt = '${yyyy-MM-dd}'");
+
+        assertEquals(SqlDialect.SPARK, candidates.get(0));
+        assertTrue(candidates.contains(SqlDialect.OCEANBASE));
+    }
+
+    @Test
+    public void doesNotInferOceanBaseOnlyFromObSubstringInSparkSchemaName() {
+        List<SqlDialect> candidates = detector.detect(
+                "select id from cop_apass_ob_prod.cop_consistent_dts_size where is_del = 0");
 
         assertEquals(SqlDialect.SPARK, candidates.get(0));
         assertTrue(candidates.contains(SqlDialect.OCEANBASE));

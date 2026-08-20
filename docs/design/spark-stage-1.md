@@ -98,16 +98,24 @@ Every newly supported Spark scenario must update both:
 - Qualified projection: `select t.a`
 - Function expression: `select lower(name) as name_lower`
 - Constants: `select 1 as flag`
+- Unaliased constants use the expression text as the output target and no sources
 - Simple arithmetic: `select price * quantity as amount`
 - Aggregate expressions: `count(order_id)`, `sum(amount)`
+- Unaliased aggregate expressions use the expression text as the output target
+- Aliased scalar subquery projections, including outer SELECT statements without a FROM clause
+- Scalar subquery predicates are isolated from outer projection source resolution
+- HAVING subqueries are isolated from outer derived table column resolution
 - Window expressions: function arguments plus partition/order columns
 - Qualified JOIN projection: `select u.id, o.amount from users u join orders o`
+- Unique qualified JOIN predicate hints can resolve otherwise unqualified projection columns
+- Partially resolved expression projections keep the source columns that can be mapped safely
 - STREAM table direct projection: `select s.id from stream(events) s`
 - CHANGES relation direct projection
 - Spark `range` table-valued function generated `id` column
 - UNNEST generated column propagation
 - JSON_TABLE generated column propagation
 - Alias-qualified UNNEST and JSON_TABLE generated column propagation
+- Function or UDTF-style multi-column aliases: `select f(a, b) as (c1, c2)`
 - PIVOT generated aggregate column propagation for aliased pivot values
 - Single-value UNPIVOT generated name/value propagation
 - Multi-value UNPIVOT generated value propagation by column-set position
@@ -118,6 +126,7 @@ Every newly supported Spark scenario must update both:
 - Pipe AGGREGATE generated column projection into a following SELECT
 - Pipe JOIN direct projection
 - Nested field paths: `profile.city`, `u.profile.city`
+- Derived expression root field propagation: `from_json(content, ...) as values` followed by `values.vin`
 - LATERAL VIEW generated column propagation: `lateral view explode(items) e as item`
 - INSERT target column list mapping: `insert into t(c1, c2) select a, b from s`
 - INSERT BY NAME projection target mapping
@@ -134,6 +143,12 @@ Every newly supported Spark scenario must update both:
 - Chained CTE direct column propagation
 - CTE column alias list propagation
 - Single-level aliased subquery direct column propagation
+- Case-insensitive derived and generated column lookup
+- Unqualified projections can fall back to the unique visible base table when adjacent derived relations have known output columns that do not expose the projected column
+- Unqualified projections can fall back to a unique derived wildcard source when adjacent derived relations have known output columns that do not expose the projected column
+- Explicit derived output columns take precedence over adjacent schema-free wildcard sources, so resolvable columns are not lost in mixed explicit/wildcard joins
+- Backtick-qualified direct projections such as ``t1.`department_id``` are normalized before direct-column target inference
+- Known derived columns are preserved when `select *` also carries schema-free wildcard inputs
 - Script-local temporary view propagation
 
 Unresolved cases should produce diagnostics instead of failing the entire result.
@@ -156,6 +171,6 @@ Lineage extraction is implemented independently in LineSQL visitors. Parse cover
 ## Non-goals
 
 - Complete `select *` expansion without schema metadata.
-- Full UDTF and lateral view column propagation.
+- Full function-specific UDTF and lateral view output semantics.
 - Multi-insert per-target column lineage.
 - Query optimization or execution planning.

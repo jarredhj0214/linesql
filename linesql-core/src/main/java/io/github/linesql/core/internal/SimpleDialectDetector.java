@@ -39,7 +39,7 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.OCEANBASE, 0.94, "OceanBase-specific hint, option, or identifier anchor"));
         }
         if (normalized.contains("_ob_")) {
-            candidates.add(candidate(SqlDialect.OCEANBASE, 0.58, "Weak OceanBase-style identifier anchor"));
+            candidates.add(candidate(SqlDialect.OCEANBASE, 0.45, "Weak OceanBase-style identifier anchor"));
         }
         if (normalized.contains(" on conflict ")
                 || normalized.matches("(?s).*\\breturning\\b.*")

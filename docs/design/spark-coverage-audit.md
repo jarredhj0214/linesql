@@ -28,7 +28,7 @@ Status legend:
 | STREAM and change relations | Covered | `STREAM(table)` and `CHANGES` source lineage plus direct projection column lineage. |
 | Pipe query | Partial | SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, and set pipe operators are covered for source lineage; direct/generative projection is covered for SELECT/WHERE/DROP/EXTEND/AGGREGATE/JOIN and explicit-projection set operators. |
 | UNNEST / JSON_TABLE | Partial | Generated columns can map to input expressions when the relation has explicit output column names, including alias-qualified generated column references. |
-| Table-valued functions | Partial | `TABLE identifier` and `TABLE(query)` arguments are extracted as source table lineage; Spark `range` generated output is covered. Other function output columns are degraded. |
+| Table-valued functions | Partial | `TABLE identifier` and `TABLE(query)` arguments are extracted as source table lineage; Spark `range` generated output and function-style multi-column aliases are covered. Function-specific output semantics are still degraded. |
 
 ## Statement Families
 
@@ -62,7 +62,7 @@ Status legend:
 | CTE | Covered | Single-level, chained direct projection, alias list propagation. | Complex CTE joins and nested chains. |
 | Subquery | Covered | Single-level aliased direct projection propagation. | Nested subquery chains and complex joins. |
 | Set operations | Covered | UNION, EXCEPT, and INTERSECT column inputs merged by position. | Consider a semantic mode that separates projection sources from filtering inputs. |
-| LATERAL VIEW | Partial | Simple generated columns from UDTF input expressions. | More UDTF output semantics. |
+| LATERAL VIEW / UDTF aliases | Partial | Simple generated columns from UDTF input expressions and `expr AS (c1, c2)` multi-column aliases. | More function-specific UDTF output semantics. |
 | PIVOT / UNPIVOT | Partial | PIVOT aggregate output columns are covered for pivot value aliases and aggregate aliases; UNPIVOT generated columns are covered for single-value and positional multi-value forms. | Richer PIVOT grouping/value naming and UNPIVOT alias/null semantics. |
 | TRANSFORM | Partial | Source table lineage only. | Keep degraded unless script schema semantics are modeled. |
 | STREAM table | Covered | Source lineage and direct projection mapping. | Stream table-valued function cases. |
@@ -90,7 +90,7 @@ These grammar branches should be triaged before claiming broad Spark completion:
 | Resource/cache control | `REFRESH 'path'`, `ADD/LIST resource`, and `CLEAR CACHE` have explicit non-table behavior. |
 | CREATE METRIC VIEW / code literal view | Output view is recorded and `CODE_LITERAL_NOT_EXPANDED` is emitted. |
 | CREATE FLOW / AUTO CDC | INSERT flow lineage is covered; AUTO CDC source/target lineage is covered with `CDC_LINEAGE_DEGRADED`. |
-| Table-valued functions | TABLE arguments and Spark `range` output are covered; other output columns still require function-specific rules. |
+| Table-valued functions | TABLE arguments, Spark `range` output, and function-style multi-column aliases are covered; richer output columns still require function-specific rules. |
 | `TABLE t` query primary | Covered as source table lineage with column lineage degraded without schema. |
 | EXCEPT / INTERSECT | Covered; current column lineage records both inputs by position. |
 | Operator pipe statements | Partial coverage for SELECT, WHERE, DROP, EXTEND, AGGREGATE, JOIN, UNION, INTERSECT, and EXCEPT. |
