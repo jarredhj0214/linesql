@@ -31,7 +31,7 @@ It is a JVM-native, ANTLR4-based SQL lineage parser focused on real-world data p
 Current dialect modules include Spark, Hive, Flink, StarRocks, MySQL, Oracle, SQL Server, PostgreSQL, and OceanBase.
 
 Maven:
-io.github.jarredhj0214:linesql-all:0.1.0-alpha.3
+io.github.jarredhj0214:linesql-all:0.1.0-alpha.4
 
 GitHub:
 https://github.com/jarredhj0214/linesql
@@ -57,7 +57,7 @@ It is published to Maven Central:
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-all</artifactId>
-    <version>0.1.0-alpha.3</version>
+    <version>0.1.0-alpha.4</version>
 </dependency>
 
 The most useful contributions right now are anonymized production SQL cases with expected table and column lineage.

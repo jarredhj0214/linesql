@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.jarredhj0214</groupId>
         <artifactId>linesql</artifactId>
-        <version>0.1.0-alpha.3</version>
+        <version>0.1.0-alpha.4</version>
     </parent>
 
     <artifactId>linesql-dialect-oracle</artifactId>
