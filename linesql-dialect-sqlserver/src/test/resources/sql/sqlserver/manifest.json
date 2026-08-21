@@ -598,6 +598,47 @@
       "description": "SQL Server CREATE VIEW AS SELECT table and column lineage"
     },
     {
+      "id": "create_or_alter_view",
+      "file": "cases/create_or_alter_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "dbo.users",
+        "dbo.orders"
+      ],
+      "outputTables": [
+        "dbo.v_active_user_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.v_active_user_orders.user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "dbo.v_active_user_orders.latest_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server CREATE OR ALTER VIEW preserves target view columns and query lineage"
+    },
+    {
       "id": "create_view_expression_projection",
       "file": "cases/create_view_expression_projection.sql",
       "statementType": "CREATE_VIEW",
@@ -2099,6 +2140,168 @@
         }
       ],
       "description": "SQL Server WITH before DELETE JOIN resolves CTE relation inputs and predicates"
+    },
+    {
+      "id": "select_into",
+      "file": "cases/select_into.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "dbo.users",
+        "dbo.orders"
+      ],
+      "outputTables": [
+        "dbo.active_user_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.active_user_orders.user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "dbo.active_user_orders.name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        },
+        {
+          "target": "dbo.active_user_orders.latest_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server SELECT INTO records the created table plus projection and predicate lineage"
+    },
+    {
+      "id": "create_filtered_index",
+      "file": "cases/create_filtered_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server CREATE INDEX records the affected table and filtered-index predicate columns"
+    },
+    {
+      "id": "drop_view",
+      "file": "cases/drop_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.v_old_users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP VIEW records the affected view"
+    },
+    {
+      "id": "drop_index",
+      "file": "cases/drop_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP INDEX ON table records the affected table"
+    },
+    {
+      "id": "alter_index_rebuild",
+      "file": "cases/alter_index_rebuild.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server ALTER INDEX ON table records the maintained table"
+    },
+    {
+      "id": "create_table_schema",
+      "file": "cases/create_table_schema.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE TABLE schema DDL records the created table"
+    },
+    {
+      "id": "use_database",
+      "file": "cases/use_database.sql",
+      "statementType": "USE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server USE database statement is classified as schema context control"
+    },
+    {
+      "id": "create_schema",
+      "file": "cases/create_schema.sql",
+      "statementType": "CREATE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CREATE SCHEMA is classified as schema lifecycle DDL"
+    },
+    {
+      "id": "drop_schema",
+      "file": "cases/drop_schema.sql",
+      "statementType": "DROP_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DROP SCHEMA is classified as schema lifecycle DDL"
+    },
+    {
+      "id": "create_or_alter_procedure",
+      "file": "cases/create_or_alter_procedure.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CREATE OR ALTER PROCEDURE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "drop_procedure",
+      "file": "cases/drop_procedure.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DROP PROCEDURE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "set_nocount",
+      "file": "cases/set_nocount.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server SET NOCOUNT is classified as session control"
     }
   ]
 }

@@ -1799,7 +1799,7 @@
     {
       "id": "create_table_stored_as",
       "file": "cases/create_table_stored_as.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "ods.users"

@@ -48,7 +48,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitAdminStmt(StarRocksParser.AdminStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -84,7 +84,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitExportTableStmt(StarRocksParser.ExportTableStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.SELECT);
         return visitChildren(ctx);
     }
 
@@ -103,20 +103,44 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateRoutineLoadStatement(StarRocksParser.CreateRoutineLoadStatementContext ctx) {
-        outputTables.add(tableRef(ctx.target));
+        TableRef target = tableRef(ctx.target);
+        currentDmlTarget = target;
+        outputTables.add(target);
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (StarRocksParser.RoutineLoadClauseContext clause : ctx.routineLoadClause()) {
+            if (clause.identifierList() != null) {
+                lineages.addAll(readLoadDataColumns(clause.identifierList(), target));
+            }
+            if (clause.whereClause() != null) {
+                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(clause.whereClause().expression()));
+            }
+        }
+        result.setColumnLineage(lineages);
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
     @Override
     public Void visitRoutineLoadControlStmt(StarRocksParser.RoutineLoadControlStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitCancelLoadStmt(StarRocksParser.CancelLoadStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateFunctionStmt(StarRocksParser.CreateFunctionStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitDropFunctionStmt(StarRocksParser.DropFunctionStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_ROUTINE);
         return null;
     }
 
@@ -128,9 +152,37 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitLoadDataElement(StarRocksParser.LoadDataElementContext ctx) {
-        outputTables.add(tableRef(ctx.target));
+        TableRef target = tableRef(ctx.target);
+        currentDmlTarget = target;
+        outputTables.add(target);
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (StarRocksParser.LoadDataOptionContext option : ctx.loadDataOption()) {
+            if (option.identifierList() != null) {
+                lineages.addAll(readLoadDataColumns(option.identifierList(), target));
+            }
+            if (option.whereClause() != null) {
+                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(option.whereClause().expression()));
+            }
+            if (option.assignmentList() != null) {
+                collectSubqueryInputs(option.assignmentList());
+                lineages.addAll(readAssignments(option.assignmentList(), target));
+            }
+        }
+        result.setColumnLineage(lineages);
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private List<ColumnLineage> readLoadDataColumns(StarRocksParser.IdentifierListContext ctx, TableRef target) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (String columnName : identifierNames(ctx)) {
+            lineages.add(LineageModelUtils.columnLineage(
+                    target,
+                    columnName,
+                    new ArrayList<ColumnRef>(),
+                    null));
+        }
+        return lineages;
     }
 
     @Override
@@ -220,7 +272,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateDatabaseStmt(StarRocksParser.CreateDatabaseStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CREATE_SCHEMA);
         return null;
     }
 
@@ -242,7 +294,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -293,7 +345,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropDatabaseStmt(StarRocksParser.DropDatabaseStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.DROP_SCHEMA);
         return null;
     }
 
@@ -418,6 +470,18 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitUseStmt(StarRocksParser.UseStmtContext ctx) {
+        result.setStatementType(StatementType.USE_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitSetStmt(StarRocksParser.SetStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitDescribeStatement(StarRocksParser.DescribeStatementContext ctx) {
         inputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setInputTables(new ArrayList<>(inputTables));
@@ -428,6 +492,22 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     public Void visitCommentStmt(StarRocksParser.CommentStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCommentStatement(StarRocksParser.CommentStatementContext ctx) {
+        StarRocksParser.MultipartIdentifierContext id = ctx.multipartIdentifier();
+        if (id == null) {
+            return null;
+        }
+        List<String> parts = identifierParts(id);
+        if (ctx.COLUMN() != null && parts.size() > 1) {
+            outputTables.add(LineageModelUtils.tableRefFromParts(parts.subList(0, parts.size() - 1)));
+        } else if (ctx.TABLE() != null) {
+            outputTables.add(tableRef(id));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
     }
 
     // ============ Query traversal ============

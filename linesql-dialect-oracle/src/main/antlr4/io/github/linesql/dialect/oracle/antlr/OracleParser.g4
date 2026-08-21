@@ -12,11 +12,17 @@ statement
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
     | mergeStatement                                                 #mergeStmt
+    | createIndexStatement                                           #createIndexStmt
+    | createRoutineStatement                                         #createRoutineStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
+    | dropRoutineStatement                                           #dropRoutineStmt
     | dropTableStatement                                             #dropTableStmt
+    | dropViewStatement                                              #dropViewStmt
     | truncateTableStatement                                         #truncateTableStmt
+    | alterSessionStatement                                          #alterSessionStmt
     | alterTableStatement                                            #alterTableStmt
+    | analyzeTableStatement                                          #analyzeTableStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
@@ -138,7 +144,16 @@ havingClause
 queryOrganization
     : (ORDER BY sortItem (COMMA sortItem)*)?
       (LIMIT expression)?
-      (OFFSET expression)?
+      offsetClause?
+      fetchClause?
+    ;
+
+offsetClause
+    : OFFSET expression ROWS?
+    ;
+
+fetchClause
+    : FETCH (FIRST | NEXT) expression ROWS? ONLY
     ;
 
 sortItem
@@ -282,6 +297,23 @@ assignment
 
 // ============ DDL Statements ============
 
+createIndexStatement
+    : CREATE (UNIQUE | BITMAP)? INDEX multipartIdentifier
+      ON multipartIdentifier LPAREN indexElementList RPAREN
+    ;
+
+createRoutineStatement
+    : CREATE (OR REPLACE)? (PROCEDURE | FUNCTION) multipartIdentifier .+?
+    ;
+
+indexElementList
+    : indexElement (COMMA indexElement)*
+    ;
+
+indexElement
+    : expression (ASC | DESC)?
+    ;
+
 createTableStatement
     : CREATE TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
@@ -294,14 +326,29 @@ createViewStatement
     : CREATE (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       AS query
+    | CREATE MATERIALIZED VIEW multipartIdentifier
+      (LPAREN viewColumnList=identifierList RPAREN)?
+      AS query
     ;
 
 dropTableStatement
     : DROP TABLE (IF EXISTS)? multipartIdentifier
     ;
 
+dropViewStatement
+    : DROP MATERIALIZED? VIEW multipartIdentifier
+    ;
+
+dropRoutineStatement
+    : DROP (PROCEDURE | FUNCTION) multipartIdentifier
+    ;
+
 truncateTableStatement
     : TRUNCATE TABLE? multipartIdentifier
+    ;
+
+alterSessionStatement
+    : ALTER SESSION SET identifier EQ? expression
     ;
 
 alterTableStatement
@@ -331,6 +378,16 @@ commentStatement
       IS string
     ;
 
+analyzeTableStatement
+    : ANALYZE TABLE multipartIdentifier analyzeTableAction
+    ;
+
+analyzeTableAction
+    : COMPUTE STATISTICS
+    | ESTIMATE STATISTICS
+    | VALIDATE (identifier | STRUCTURE)?
+    ;
+
 // ============ DDL Helpers ============
 
 tableElementList
@@ -346,6 +403,8 @@ columnConstraint
     | NULL
     | COMMENT string
     | DEFAULT expression
+    | PRIMARY KEY
+    | UNIQUE
     ;
 
 commentClause
@@ -392,11 +451,12 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ASC | CAST | COLUMN | COMMENT | DEFAULT
+    : ADD | ANALYZE | ASC | BITMAP | CAST | COLUMN | COMMENT | COMPUTE | DEFAULT
     | DESCRIBE | DESC | DUAL | END | EXISTS | EXTERNAL | FALSE
-    | FIRST | IF | INTERVAL | LIKE | LIMIT | NULL
-    | OFFSET | OVER | PARTITION | PRIOR | RENAME | REPLACE
-    | SET | SHOW | START | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | VALUES | VIEW
+    | FETCH | FIRST | FUNCTION | IF | INDEX | INTERVAL | LIKE | LIMIT | MATERIALIZED | NEXT | NULL
+    | KEY | OFFSET | ONLY | OVER | PARTITION | PRIMARY | PRIOR | PROCEDURE | RENAME | REPLACE | ROW | ROWS
+    | SESSION | SET | SHOW | START | STATISTICS | STRUCTURE | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | VALUES | VIEW
+    | ESTIMATE | UNIQUE | VALIDATE
     ;
 
 number

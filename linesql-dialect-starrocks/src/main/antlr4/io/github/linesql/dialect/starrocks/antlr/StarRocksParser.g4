@@ -15,6 +15,8 @@ statement
     | createRoutineLoadStatement                                     #createRoutineLoadStmt
     | routineLoadControlStatement                                    #routineLoadControlStmt
     | cancelLoadStatement                                            #cancelLoadStmt
+    | createFunctionStatement                                        #createFunctionStmt
+    | dropFunctionStatement                                          #dropFunctionStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
     | createIndexStatement                                           #createIndexStmt
@@ -31,6 +33,8 @@ statement
     | analyzeTableStatement                                          #analyzeTableStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
+    | useStatement                                                   #useStmt
+    | setStatement                                                   #setStmt
     | commentStatement                                               #commentStmt
     ;
 
@@ -281,6 +285,14 @@ cancelLoadStatement
     : CANCEL LOAD (FROM identifier)? WHERE expression
     ;
 
+createFunctionStatement
+    : CREATE GLOBAL? FUNCTION multipartIdentifier LPAREN dataTypeList? RPAREN RETURNS dataType propertiesClause?
+    ;
+
+dropFunctionStatement
+    : DROP GLOBAL? FUNCTION (IF EXISTS)? multipartIdentifier (LPAREN dataTypeList? RPAREN)?
+    ;
+
 adminStatement
     : ADMIN SET FRONTEND CONFIG LPAREN propertyList RPAREN
     | ADMIN SET REPLICA STATUS propertiesClause
@@ -432,6 +444,14 @@ describeStatement
     : (DESCRIBE | DESC) TABLE? multipartIdentifier identifier?
     ;
 
+useStatement
+    : USE identifier
+    ;
+
+setStatement
+    : SET (GLOBAL | identifier)? identifier EQ expression
+    ;
+
 commentStatement
     : COMMENT ON (TABLE multipartIdentifier | COLUMN multipartIdentifier)
       IS string
@@ -507,6 +527,10 @@ dataType
     | identifier LT dataType (COMMA dataType)* GT
     ;
 
+dataTypeList
+    : dataType (COMMA dataType)*
+    ;
+
 // ============ Common ============
 
 multipartIdentifier
@@ -536,10 +560,10 @@ strictIdentifier
 nonReservedKeyword
     : ADD | ADMIN | AGGREGATE | ANALYZE | ASC | BUCKETS | CANCEL | CAST | COLUMN | COLUMNS | COMMENT | CONFIG | DEFAULT
     | BROKER | DATA | DATABASE | DESCRIBE | DESC | DISTRIBUTED | DUPLICATE | END | ENGINE | EXISTS | EXPORT | EXTERNAL | FALSE
-    | ASYNC | BITMAP_UNION | CUBE | FOR | FORMAT | FRONTEND | GROUPING | HASH | HLL_UNION | IF | INDEX | INFILE | INTERVAL | KEY | LABEL | LATERAL | LESS | LIKE | LIMIT | LOAD | MATERIALIZED
+    | ASYNC | BITMAP_UNION | CUBE | FOR | FORMAT | FRONTEND | FUNCTION | GLOBAL | GROUPING | HASH | HLL_UNION | IF | INDEX | INFILE | INTERVAL | KEY | LABEL | LATERAL | LESS | LIKE | LIMIT | LOAD | MATERIALIZED
     | MAX | MIN | MODE | NULL | OLAP
     | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONS | PAUSE | PRIMARY | PROPERTIES | QUALIFY
-    | RANDOM | RANGE | REFRESH | RENAME | REPLACE | REPLACE_IF_NOT_NULL | REPLICA | RESUME | ROLLUP | ROUTINE | ROW | SETS | SHOW | STATUS | STOP | STORED | SUM | SWAP | SYNC | TABLE
+    | RANDOM | RANGE | REFRESH | RENAME | REPLACE | REPLACE_IF_NOT_NULL | REPLICA | RESUME | RETURNS | ROLLUP | ROUTINE | ROW | SETS | SHOW | STATUS | STOP | STORED | SUM | SWAP | SYNC | TABLE
     | TEMPORARY | TERMINATED | THAN | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
     ;
 

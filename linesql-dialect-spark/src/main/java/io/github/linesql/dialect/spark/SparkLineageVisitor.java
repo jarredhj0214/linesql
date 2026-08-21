@@ -118,7 +118,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         addOutput(ctx.createTableHeader().identifierReference());
         return visitChildren(ctx);
@@ -137,7 +137,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         addOutput(ctx.replaceTableHeader().identifierReference());
         return visitChildren(ctx);
@@ -148,7 +148,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         addOutput(ctx.createPipelineDatasetHeader().identifierReference());
         return visitChildren(ctx);
@@ -526,13 +526,15 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitUse(SqlBaseParser.UseContext ctx) {
-        markNonLineageStatement();
+        result.setStatementType(StatementType.USE_SCHEMA);
+        suppressMissingColumnLineageDiagnostic = true;
         return null;
     }
 
     @Override
     public Void visitUseNamespace(SqlBaseParser.UseNamespaceContext ctx) {
-        markNonLineageStatement();
+        result.setStatementType(StatementType.USE_SCHEMA);
+        suppressMissingColumnLineageDiagnostic = true;
         return null;
     }
 
@@ -586,7 +588,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateNamespace(SqlBaseParser.CreateNamespaceContext ctx) {
-        markNonLineageStatement();
+        result.setStatementType(StatementType.CREATE_SCHEMA);
+        suppressMissingColumnLineageDiagnostic = true;
         return null;
     }
 
@@ -616,7 +619,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropNamespace(SqlBaseParser.DropNamespaceContext ctx) {
-        markNonLineageStatement();
+        result.setStatementType(StatementType.DROP_SCHEMA);
+        suppressMissingColumnLineageDiagnostic = true;
         return null;
     }
 
@@ -646,19 +650,22 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateFunction(SqlBaseParser.CreateFunctionContext ctx) {
-        markNonLineageStatement();
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        suppressMissingColumnLineageDiagnostic = true;
         return null;
     }
 
     @Override
     public Void visitCreateUserDefinedFunction(SqlBaseParser.CreateUserDefinedFunctionContext ctx) {
-        markNonLineageStatement();
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        suppressMissingColumnLineageDiagnostic = true;
         return null;
     }
 
     @Override
     public Void visitDropFunction(SqlBaseParser.DropFunctionContext ctx) {
-        markNonLineageStatement();
+        result.setStatementType(StatementType.DROP_ROUTINE);
+        suppressMissingColumnLineageDiagnostic = true;
         return null;
     }
 
@@ -1248,7 +1255,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private void markNonLineageStatement() {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         suppressMissingColumnLineageDiagnostic = true;
     }
 

@@ -23,10 +23,15 @@ statement
     | dropIndexStatement                                             #dropIndexStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
+    | dropRoutineStatement                                           #dropRoutineStmt
+    | dropTriggerStatement                                           #dropTriggerStmt
+    | dropEventStatement                                             #dropEventStmt
     | truncateTableStatement                                         #truncateTableStmt
     | renameTableStatement                                           #renameTableStmt
     | alterTableStatement                                            #alterTableStmt
     | alterViewStatement                                             #alterViewStmt
+    | alterRoutineStatement                                          #alterRoutineStmt
+    | alterEventStatement                                            #alterEventStmt
     | analyzeTableStatement                                          #analyzeTableStmt
     | tableMaintenanceStatement                                      #tableMaintenanceStmt
     | explainStatement                                               #explainStmt
@@ -503,6 +508,18 @@ dropViewStatement
     : DROP VIEW (IF EXISTS)? multipartIdentifierList
     ;
 
+dropRoutineStatement
+    : DROP (PROCEDURE | FUNCTION) (IF EXISTS)? multipartIdentifier
+    ;
+
+dropTriggerStatement
+    : DROP TRIGGER (IF EXISTS)? multipartIdentifier
+    ;
+
+dropEventStatement
+    : DROP EVENT (IF EXISTS)? multipartIdentifier
+    ;
+
 truncateTableStatement
     : TRUNCATE TABLE? multipartIdentifier
     ;
@@ -533,6 +550,14 @@ alterViewStatement
       (LPAREN viewColumnList=identifierList RPAREN)?
       AS query
       viewCheckOption?
+    ;
+
+alterRoutineStatement
+    : ALTER (PROCEDURE | FUNCTION) multipartIdentifier .+?
+    ;
+
+alterEventStatement
+    : ALTER EVENT multipartIdentifier .+?
     ;
 
 alterTableAction
@@ -622,7 +647,7 @@ setValue
     ;
 
 transactionStatement
-    : START TRANSACTION transactionCharacteristic*
+    : START TRANSACTION transactionCharacteristicList?
     | BEGIN WORK?
     | COMMIT WORK? completionOption*
     | ROLLBACK WORK? completionOption*
@@ -630,6 +655,10 @@ transactionStatement
 
 doStatement
     : DO expressionList
+    ;
+
+transactionCharacteristicList
+    : transactionCharacteristic (COMMA transactionCharacteristic)*
     ;
 
 transactionCharacteristic
@@ -671,7 +700,15 @@ createTriggerStatement
 createEventStatement
     : CREATE EVENT multipartIdentifier
       ON SCHEDULE (AT expression | EVERY expression identifier)
-      DO .+?
+      DO eventBodyStatement
+    ;
+
+eventBodyStatement
+    : insertStatement
+    | replaceStatement
+    | updateStatement
+    | deleteStatement
+    | .+?
     ;
 
 accountStatement

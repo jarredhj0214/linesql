@@ -253,6 +253,239 @@
         {"type": "MERGE_ON", "column": "staging.users_delta.id"}
       ],
       "description": "PostgreSQL WITH before MERGE resolves CTE source columns into update and insert lineage"
+    },
+    {
+      "id": "comment_table",
+      "file": "cases/comment_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL COMMENT ON TABLE affected table lineage"
+    },
+    {
+      "id": "comment_column",
+      "file": "cases/comment_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL COMMENT ON COLUMN affected table lineage"
+    },
+    {
+      "id": "drop_table",
+      "file": "cases/drop_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.old_users"],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP TABLE affected table lineage"
+    },
+    {
+      "id": "drop_view",
+      "file": "cases/drop_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": ["mart.v_old_users"],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP VIEW affected view lineage"
+    },
+    {
+      "id": "drop_materialized_view",
+      "file": "cases/drop_materialized_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": ["mart.mv_old_users"],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP MATERIALIZED VIEW affected view lineage"
+    },
+    {
+      "id": "truncate_table",
+      "file": "cases/truncate_table.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "alter_table_add_column",
+      "file": "cases/alter_table_add_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE ADD COLUMN affected table lineage"
+    },
+    {
+      "id": "copy_from_csv",
+      "file": "cases/copy_from_csv.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.id", "sources": []},
+        {"target": "mart.users.name", "sources": []},
+        {"target": "mart.users.created_at", "sources": []}
+      ],
+      "description": "PostgreSQL COPY FROM file records target table and target column list"
+    },
+    {
+      "id": "copy_query_to_stdout",
+      "file": "cases/copy_query_to_stdout.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.users", "mart.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["mart.users.id"]},
+        {"target": "amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.users.id"},
+        {"type": "JOIN_ON", "column": "mart.orders.user_id"},
+        {"type": "WHERE", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL COPY query TO keeps exported query table, projection, and predicate lineage"
+    },
+    {
+      "id": "copy_table_to_file",
+      "file": "cases/copy_table_to_file.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.users.id"]},
+        {"target": "name", "sources": ["mart.users.name"]}
+      ],
+      "description": "PostgreSQL COPY table TO file records exported table and column lineage"
+    },
+    {
+      "id": "create_materialized_view",
+      "file": "cases/create_materialized_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["mart.users", "mart.orders"],
+      "outputTables": ["mart.mv_user_orders"],
+      "columnLineage": [
+        {"target": "mart.mv_user_orders.user_id", "sources": ["mart.users.id"]},
+        {"target": "mart.mv_user_orders.amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.users.id"},
+        {"type": "JOIN_ON", "column": "mart.orders.user_id"},
+        {"type": "WHERE", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL CREATE MATERIALIZED VIEW AS SELECT records view target and query lineage"
+    },
+    {
+      "id": "create_table_like_including",
+      "file": "cases/create_table_like_including.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": ["mart.users"],
+      "outputTables": ["mart.users_archive"],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE TABLE with LIKE INCLUDING records source and target tables"
+    },
+    {
+      "id": "create_index_partial",
+      "file": "cases/create_index_partial.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL CREATE INDEX records the affected table and partial-index predicate columns"
+    },
+    {
+      "id": "refresh_materialized_view",
+      "file": "cases/refresh_materialized_view.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": [],
+      "outputTables": ["mart.mv_user_orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL REFRESH MATERIALIZED VIEW records the affected materialized view"
+    },
+    {
+      "id": "analyze_table",
+      "file": "cases/analyze_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ANALYZE records the inspected table without inventing write lineage"
+    },
+    {
+      "id": "vacuum_table",
+      "file": "cases/vacuum_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL VACUUM records the maintained table as an affected table"
+    },
+    {
+      "id": "reindex_table",
+      "file": "cases/reindex_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL REINDEX TABLE records the rebuilt table as an affected table"
+    },
+    {
+      "id": "create_table_schema",
+      "file": "cases/create_table_schema.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE TABLE schema DDL records the created table"
+    },
+    {
+      "id": "create_schema",
+      "file": "cases/create_schema.sql",
+      "statementType": "CREATE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE SCHEMA is classified as schema lifecycle DDL"
+    },
+    {
+      "id": "drop_schema",
+      "file": "cases/drop_schema.sql",
+      "statementType": "DROP_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP SCHEMA is classified as schema lifecycle DDL"
+    },
+    {
+      "id": "set_search_path",
+      "file": "cases/set_search_path.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SET search_path is classified as session control"
+    },
+    {
+      "id": "create_function",
+      "file": "cases/create_function.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE FUNCTION is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "drop_function",
+      "file": "cases/drop_function.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP FUNCTION is classified as routine lifecycle DDL without table lineage"
     }
   ]
 }

@@ -162,15 +162,15 @@ Case coverage and benchmark methodology are tracked in [Benchmark and Coverage](
 
 | Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Clause Column Usage |
 | --- | --- | --- | --- | --- | --- |
-| Spark | Active parser | Yes | Broad stage-1 coverage | Broad stage-1 coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
-| MySQL | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| Hive | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| Flink | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| StarRocks | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| Oracle | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| SQL Server | Active MVP | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| PostgreSQL | Baseline MVP | Yes | SELECT, DML, CTAS, VIEW, `ON CONFLICT`, `RETURNING`, `MERGE` | Direct mappings and common expressions | Basic predicate and merge/clause usages |
-| OceanBase | Baseline MVP | Yes | MySQL and Oracle compatibility-mode baseline | Direct mappings through compatibility modes | Basic compatibility-mode usages |
+| Spark | Active parser | Yes | Broad production SQL coverage | Broad production SQL coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
+| MySQL | Active parser | Yes | Broad SELECT, DML, DDL, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
+| Hive | Active parser | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| Flink | Active parser | Yes | Common SELECT, DML, DDL, and connector DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
+| Oracle | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
+| SQL Server | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
+| PostgreSQL | Baseline parser | Yes | SELECT, DML, CTAS, VIEW, `ON CONFLICT`, `RETURNING`, `MERGE`, schema/routine DDL | Direct mappings and common expressions | Basic predicate and merge/clause usages |
+| OceanBase | Compatibility baseline | Yes | MySQL and Oracle compatibility-mode baseline | Direct mappings through compatibility modes | Basic compatibility-mode usages |
 
 Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to Spark; callers can pass an explicit dialect when the execution engine is known.
 
@@ -179,8 +179,8 @@ Current regression corpus:
 | Metric | Current value |
 | --- | ---: |
 | Dialects | 9 |
-| SQL cases | 834 |
-| Column-lineage cases | 542 |
+| SQL cases | 896 |
+| Column-lineage cases | 555 |
 | Diagnostic cases | 14 |
 
 The corpus is intentionally transparent: SQL case files and manifest expectations live under each dialect module, so contributors can inspect exactly what a release claims to support.
@@ -192,12 +192,12 @@ The corpus is intentionally transparent: SQL case files and manifest expectation
 | `linesql-all` | Aggregate dependency for core plus all bundled dialect parsers |
 | `linesql-core` | Public model, facade API, parser SPI, statement splitter, dialect detector, diagnostics |
 | `linesql-dialect-spark` | Spark SQL parser and lineage visitor |
-| `linesql-dialect-mysql` | MySQL parser MVP |
-| `linesql-dialect-hive` | Hive parser MVP |
-| `linesql-dialect-flink` | Flink parser MVP |
-| `linesql-dialect-starrocks` | StarRocks parser MVP |
-| `linesql-dialect-oracle` | Oracle parser MVP |
-| `linesql-dialect-sqlserver` | SQL Server parser MVP |
+| `linesql-dialect-mysql` | MySQL parser module |
+| `linesql-dialect-hive` | Hive parser module |
+| `linesql-dialect-flink` | Flink parser module |
+| `linesql-dialect-starrocks` | StarRocks parser module |
+| `linesql-dialect-oracle` | Oracle parser module |
+| `linesql-dialect-sqlserver` | SQL Server parser module |
 | `linesql-dialect-postgresql` | PostgreSQL baseline parser module |
 | `linesql-dialect-oceanbase` | OceanBase compatibility-mode parser module |
 | `linesql-cli` | Command-line JSON output |
@@ -298,7 +298,7 @@ LineageResult result = LineSql.parse(
 | `dialect` | Selected SQL dialect |
 | `dialectConfidence` | Auto-detection confidence |
 | `dialectDetectionReason` | Why the dialect was selected |
-| `statementType` | Statement category such as `SELECT`, `INSERT`, `CREATE_VIEW` |
+| `statementType` | Statement category such as `SELECT`, `INSERT`, `CREATE_TABLE`, `CREATE_SCHEMA`, `CREATE_ROUTINE`, `CONTROL` |
 | `inputTables` | Source tables |
 | `outputTables` | Target or affected tables |
 | `columnLineage` | Projection lineage edges from source columns to target columns |

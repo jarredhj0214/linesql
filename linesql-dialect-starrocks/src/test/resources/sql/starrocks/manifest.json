@@ -1379,6 +1379,28 @@
       "description": "StarRocks DROP INDEX affected table lineage"
     },
     {
+      "id": "comment_on_table",
+      "file": "cases/comment_on_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks COMMENT ON TABLE affected table lineage"
+    },
+    {
+      "id": "comment_on_column",
+      "file": "cases/comment_on_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks COMMENT ON COLUMN affected table lineage"
+    },
+    {
       "id": "insert_values",
       "file": "cases/insert_values.sql",
       "statementType": "INSERT",
@@ -1465,7 +1487,7 @@
     {
       "id": "create_table_duplicate_key",
       "file": "cases/create_table_duplicate_key.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "ods.users"
@@ -1476,7 +1498,7 @@
     {
       "id": "create_table_aggregate_key",
       "file": "cases/create_table_aggregate_key.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "ads.user_metrics"
@@ -1487,7 +1509,7 @@
     {
       "id": "create_table_unique_key",
       "file": "cases/create_table_unique_key.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "ads.unique_users"
@@ -1498,7 +1520,7 @@
     {
       "id": "create_table_primary_key_random",
       "file": "cases/create_table_primary_key_random.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "ads.primary_users"
@@ -2448,7 +2470,7 @@
     {
       "id": "create_database",
       "file": "cases/create_database.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
@@ -2457,11 +2479,47 @@
     {
       "id": "drop_database",
       "file": "cases/drop_database.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "DROP_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
       "description": "StarRocks DROP DATABASE schema control statement"
+    },
+    {
+      "id": "use_database",
+      "file": "cases/use_database.sql",
+      "statementType": "USE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks USE database statement is classified as schema context control"
+    },
+    {
+      "id": "set_session_variable",
+      "file": "cases/set_session_variable.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SET session variable is classified as a control statement"
+    },
+    {
+      "id": "create_function",
+      "file": "cases/create_function.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks CREATE FUNCTION is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "drop_function",
+      "file": "cases/drop_function.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks DROP FUNCTION is classified as routine lifecycle DDL without table lineage"
     },
     {
       "id": "create_routine_load_kafka",
@@ -2471,8 +2529,27 @@
       "outputTables": [
         "ods.user_events"
       ],
-      "columnLineage": [],
-      "description": "StarRocks CREATE ROUTINE LOAD Kafka target table lineage"
+      "columnLineage": [
+        {
+          "target": "ods.user_events.event_id",
+          "sources": []
+        },
+        {
+          "target": "ods.user_events.user_id",
+          "sources": []
+        },
+        {
+          "target": "ods.user_events.event_time",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.user_events.event_id"
+        }
+      ],
+      "description": "StarRocks CREATE ROUTINE LOAD Kafka target table, loaded columns, and WHERE usage lineage"
     },
     {
       "id": "load_label_data_infile",
@@ -2482,8 +2559,31 @@
       "outputTables": [
         "ods.user_events"
       ],
-      "columnLineage": [],
-      "description": "StarRocks LOAD LABEL DATA INFILE target table lineage"
+      "columnLineage": [
+        {
+          "target": "ods.user_events.user_id",
+          "sources": []
+        },
+        {
+          "target": "ods.user_events.event_type",
+          "sources": []
+        },
+        {
+          "target": "ods.user_events.event_time",
+          "sources": []
+        },
+        {
+          "target": "ods.user_events.load_time",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.user_events.user_id"
+        }
+      ],
+      "description": "StarRocks LOAD LABEL DATA INFILE target table, target columns, SET assignment, and WHERE usage lineage"
     },
     {
       "id": "insert_with_label_select",
@@ -2594,7 +2694,7 @@
     {
       "id": "create_table_engine_olap",
       "file": "cases/create_table_engine_olap.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.user_profile"
@@ -2605,7 +2705,7 @@
     {
       "id": "create_table_aggregate_types",
       "file": "cases/create_table_aggregate_types.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.user_metrics"
@@ -2649,7 +2749,7 @@
     {
       "id": "pause_routine_load",
       "file": "cases/pause_routine_load.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
@@ -2658,7 +2758,7 @@
     {
       "id": "resume_routine_load",
       "file": "cases/resume_routine_load.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
@@ -2667,7 +2767,7 @@
     {
       "id": "stop_routine_load",
       "file": "cases/stop_routine_load.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
@@ -2676,7 +2776,7 @@
     {
       "id": "cancel_load",
       "file": "cases/cancel_load.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
@@ -2712,7 +2812,7 @@
     {
       "id": "export_table",
       "file": "cases/export_table.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "SELECT",
       "inputTables": [
         "mart.orders"
       ],
@@ -2723,7 +2823,7 @@
     {
       "id": "export_table_partition",
       "file": "cases/export_table_partition.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "SELECT",
       "inputTables": [
         "mart.orders"
       ],
@@ -2734,7 +2834,7 @@
     {
       "id": "admin_set_frontend_config",
       "file": "cases/admin_set_frontend_config.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
@@ -2743,7 +2843,7 @@
     {
       "id": "admin_set_replica_status",
       "file": "cases/admin_set_replica_status.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],

@@ -206,6 +206,28 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateIndexStmt(OracleParser.CreateIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateIndexStatement(OracleParser.CreateIndexStatementContext ctx) {
+        List<OracleParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            outputTables.add(tableRef(identifiers.get(1)));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCreateRoutineStmt(OracleParser.CreateRoutineStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStmt(OracleParser.CreateTableStmtContext ctx) {
         return visitChildren(ctx);
     }
@@ -228,7 +250,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -272,6 +294,25 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDropViewStmt(OracleParser.DropViewStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropViewStatement(OracleParser.DropViewStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropRoutineStmt(OracleParser.DropRoutineStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_ROUTINE);
+        return null;
+    }
+
+    @Override
     public Void visitTruncateTableStmt(OracleParser.TruncateTableStmtContext ctx) {
         result.setStatementType(StatementType.TRUNCATE_TABLE);
         return visitChildren(ctx);
@@ -281,6 +322,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     public Void visitTruncateTableStatement(OracleParser.TruncateTableStatementContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterSessionStmt(OracleParser.AlterSessionStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -359,6 +406,19 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             outputTables.add(tableRef(id));
         }
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAnalyzeTableStmt(OracleParser.AnalyzeTableStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAnalyzeTableStatement(OracleParser.AnalyzeTableStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 

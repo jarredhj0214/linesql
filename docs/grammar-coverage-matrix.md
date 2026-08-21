@@ -65,9 +65,12 @@ These domains are the shared planning vocabulary across dialects.
 | Update | `UPDATE`, assignments, optional source relations | Track affected table, assignment lineage, and predicate usages. |
 | Delete | `DELETE`, optional source relations | Track affected table and predicate usages. |
 | Merge | `MERGE`, source, matched/not-matched actions | Track target/source tables, merge predicates, update assignments, and insert values. |
+| Create table | `CREATE TABLE` without query | Track the created table without pretending column lineage exists. |
 | CTAS | `CREATE TABLE AS SELECT` | Track target table and output column lineage. |
 | Create view | `CREATE VIEW AS SELECT` | Track target view and output column lineage. |
-| DDL affected table | `ALTER`, `DROP`, `TRUNCATE`, `RENAME`, comments | Track affected tables without pretending query lineage exists. |
+| Schema and routine DDL | `CREATE/DROP SCHEMA`, `USE`, `CREATE/DROP FUNCTION`, triggers/events | Classify known non-table statements without inventing table or column lineage. |
+| Control statements | Session, transaction, resource, admin, account, and dynamic execution wrappers | Preserve that a statement was recognized while avoiding unsupported lineage guesses. |
+| DDL affected table | `ALTER`, `DROP`, `TRUNCATE`, `RENAME`, comments, table maintenance | Track affected tables without pretending query lineage exists. |
 | Dialect extensions | Engine-specific syntax | Preserve dialect-specific anchors and lineage where relevant. |
 
 ## Current Dialect Grammar Sources
@@ -116,8 +119,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 | Delete | PARTIAL | COVERED | N/A | PARTIAL | P1 |
 | Merge | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | COVERED | COVERED | COVERED | PARTIAL | P0 |
 | Create view | COVERED | COVERED | COVERED | PARTIAL | P0 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P2 |
 | Spark extensions | PARTIAL | PARTIAL | PARTIAL | PARTIAL | P1 |
 
@@ -139,8 +145,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
 | Delete | PARTIAL | COVERED | N/A | PARTIAL | P0 |
 | Merge | N/A | N/A | N/A | N/A | N/A |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P2 |
 | MySQL extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
 
@@ -162,8 +171,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
 | Merge | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | StarRocks extensions | PARTIAL | COVERED | N/A | N/A | P1 |
 
@@ -185,8 +197,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P1 |
 | Merge | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Schema and routine DDL | PLANNED | PLANNED | N/A | N/A | P1 |
+| Control statements | PLANNED | PLANNED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | Hive extensions | PARTIAL | COVERED | N/A | N/A | P1 |
 
@@ -208,8 +223,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P1 |
 | Merge | PARTIAL | COVERED | PARTIAL | PARTIAL | P2 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Schema and routine DDL | PLANNED | PLANNED | N/A | N/A | P1 |
+| Control statements | PLANNED | PLANNED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | Flink extensions | PARTIAL | COVERED | N/A | N/A | P1 |
 
@@ -231,8 +249,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P1 |
 | Merge | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | Oracle extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 
@@ -254,8 +275,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
 | Merge | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | SQL Server extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 
@@ -268,7 +292,7 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | CTE | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Relation and aliases | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Join | PARTIAL | COVERED | COVERED | COVERED | P0 |
-| Set operation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
+| Set operation | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Expression | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Predicate subquery | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Aggregation | PARTIAL | COVERED | COVERED | COVERED | P1 |
@@ -276,10 +300,13 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
-| Merge | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
+| Merge | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
-| DDL affected table | PLANNED | PLANNED | N/A | N/A | P1 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
+| DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | PostgreSQL extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
 
 Initial PostgreSQL extension focus:
@@ -313,9 +340,12 @@ OceanBase should be tracked by compatibility mode rather than as a single flat g
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
 | Merge | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
+| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
-| DDL affected table | PLANNED | PLANNED | N/A | N/A | P1 |
+| Schema and routine DDL | PLANNED | PLANNED | N/A | N/A | P1 |
+| Control statements | PLANNED | PLANNED | N/A | N/A | P1 |
+| DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | OceanBase MySQL mode extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
 | OceanBase Oracle mode extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 

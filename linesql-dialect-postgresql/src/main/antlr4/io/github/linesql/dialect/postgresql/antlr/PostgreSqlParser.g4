@@ -12,15 +12,26 @@ statement
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
     | mergeStatement                                                 #mergeStmt
+    | createIndexStatement                                           #createIndexStmt
+    | createSchemaStatement                                          #createSchemaStmt
+    | createFunctionStatement                                        #createFunctionStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
+    | dropSchemaStatement                                            #dropSchemaStmt
+    | dropFunctionStatement                                          #dropFunctionStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
+    | refreshMaterializedViewStatement                               #refreshMaterializedViewStmt
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
+    | copyStatement                                                  #copyStmt
+    | vacuumStatement                                                #vacuumStmt
+    | analyzeStatement                                               #analyzeStmt
+    | reindexStatement                                               #reindexStmt
+    | setStatement                                                   #setStmt
     ;
 
 // ============ Query ============
@@ -291,6 +302,40 @@ assignment
 
 // ============ DDL Statements ============
 
+createIndexStatement
+    : CREATE UNIQUE? INDEX CONCURRENTLY? (IF NOT EXISTS)? multipartIdentifier
+      ON multipartIdentifier (USING identifier)?
+      LPAREN indexElementList RPAREN
+      (WHERE expression)?
+    ;
+
+createSchemaStatement
+    : CREATE SCHEMA (IF NOT EXISTS)? identifier
+    ;
+
+createFunctionStatement
+    : CREATE (OR REPLACE)? (FUNCTION | PROCEDURE) multipartIdentifier LPAREN functionArgumentList? RPAREN
+      (RETURNS dataType)?
+      LANGUAGE identifier
+      AS string
+    ;
+
+functionArgumentList
+    : functionArgument (COMMA functionArgument)*
+    ;
+
+functionArgument
+    : identifier? dataType
+    ;
+
+indexElementList
+    : indexElement (COMMA indexElement)*
+    ;
+
+indexElement
+    : expression (ASC | DESC)?
+    ;
+
 createTableStatement
     : CREATE TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
@@ -304,6 +349,9 @@ createViewStatement
     : CREATE (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       AS query
+    | CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
+      (LPAREN viewColumnList=identifierList RPAREN)?
+      AS query
     ;
 
 dropTableStatement
@@ -311,7 +359,19 @@ dropTableStatement
     ;
 
 dropViewStatement
-    : DROP VIEW (IF EXISTS)? multipartIdentifierList
+    : DROP MATERIALIZED? VIEW (IF EXISTS)? multipartIdentifierList
+    ;
+
+dropSchemaStatement
+    : DROP SCHEMA (IF EXISTS)? identifier
+    ;
+
+dropFunctionStatement
+    : DROP (FUNCTION | PROCEDURE) (IF EXISTS)? multipartIdentifier (LPAREN dataTypeList? RPAREN)?
+    ;
+
+refreshMaterializedViewStatement
+    : REFRESH MATERIALIZED VIEW CONCURRENTLY? multipartIdentifier
     ;
 
 truncateTableStatement
@@ -345,6 +405,72 @@ commentStatement
       IS string
     ;
 
+copyStatement
+    : COPY multipartIdentifier (LPAREN columnList=identifierList RPAREN)?
+      FROM copySource copyOptions?                                  #copyFromTable
+    | COPY multipartIdentifier (LPAREN columnList=identifierList RPAREN)?
+      TO copyTarget copyOptions?                                    #copyToTable
+    | COPY LPAREN query RPAREN TO copyTarget copyOptions?           #copyToQuery
+    ;
+
+copySource
+    : string
+    | STDIN
+    | PROGRAM string
+    ;
+
+copyTarget
+    : string
+    | STDOUT
+    | PROGRAM string
+    ;
+
+copyOptions
+    : WITH? LPAREN copyOption (COMMA copyOption)* RPAREN
+    | WITH? copyOption (COMMA copyOption)*
+    ;
+
+copyOption
+    : identifier (EQ? copyOptionValue)?
+    ;
+
+copyOptionValue
+    : identifier
+    | string
+    | number
+    | TRUE
+    | FALSE
+    ;
+
+vacuumStatement
+    : VACUUM vacuumOptionList? multipartIdentifier? (LPAREN identifierList RPAREN)?
+    ;
+
+vacuumOptionList
+    : LPAREN vacuumOption (COMMA vacuumOption)* RPAREN
+    | vacuumOption+
+    ;
+
+vacuumOption
+    : FULL
+    | FREEZE
+    | VERBOSE
+    | ANALYZE
+    | identifier
+    ;
+
+analyzeStatement
+    : ANALYZE VERBOSE? multipartIdentifier? (LPAREN identifierList RPAREN)?
+    ;
+
+reindexStatement
+    : REINDEX (TABLE | INDEX) CONCURRENTLY? multipartIdentifier
+    ;
+
+setStatement
+    : SET (SEARCH_PATH | identifier) (TO | EQ) expressionList
+    ;
+
 // ============ DDL Helpers ============
 
 tableElementList
@@ -352,8 +478,13 @@ tableElementList
     ;
 
 tableElement
-    : identifier dataType columnConstraint*
+    : LIKE multipartIdentifier likeOption*
+    | identifier dataType columnConstraint*
     | tableConstraint
+    ;
+
+likeOption
+    : (INCLUDING | EXCLUDING) (identifier | ALL)
     ;
 
 columnConstraint
@@ -398,6 +529,10 @@ dataType
     | identifier LT dataType (COMMA dataType)* GT
     ;
 
+dataTypeList
+    : dataType (COMMA dataType)*
+    ;
+
 // ============ Common ============
 
 multipartIdentifier
@@ -431,11 +566,11 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ASC | AUTO_INCREMENT | CAST | CHARSET | CHARACTER | COLLATE
-    | COLUMN | COMMENT | CONSTRAINT | DEFAULT | DESCRIBE | DESC | END
-    | ENGINE | EXISTS | EXTERNAL | FALSE | IF | ILIKE | INDEX | INTERVAL | KEY | LATERAL | LIKE | LIMIT | MATCHED | NULL
+    : ADD | ASC | AUTO_INCREMENT | CAST | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
+    | ANALYZE | COLUMN | COMMENT | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
+    | ENGINE | EXCLUDING | EXISTS | EXTERNAL | FALSE | FORMAT | FUNCTION | HEADER | IF | ILIKE | INCLUDING | INDEX | INTERVAL | KEY | LANGUAGE | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL
     | OFFSET | OVER | PARTITION | REPLACE | RENAME | SEPARATOR
-    | PRIMARY | SET | SHOW | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
+    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SET | SHOW | STDIN | STDOUT | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNIQUE | VACUUM | VALUES | VERBOSE | VIEW
     ;
 
 number

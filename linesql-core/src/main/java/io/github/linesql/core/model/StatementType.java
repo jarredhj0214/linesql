@@ -3,9 +3,21 @@ package io.github.linesql.core.model;
 public enum StatementType {
     SELECT,
     INSERT,
+    CREATE_TABLE,
     CREATE_TABLE_AS_SELECT,
     CREATE_TABLE_LIKE,
     CREATE_VIEW,
+    CREATE_SCHEMA,
+    DROP_SCHEMA,
+    USE_SCHEMA,
+    CREATE_ROUTINE,
+    DROP_ROUTINE,
+    ALTER_ROUTINE,
+    CREATE_TRIGGER,
+    DROP_TRIGGER,
+    CREATE_EVENT,
+    DROP_EVENT,
+    ALTER_EVENT,
     ALTER_VIEW,
     DROP_VIEW,
     CACHE_TABLE,
@@ -19,5 +31,6 @@ public enum StatementType {
     DELETE,
     LOAD_DATA,
     READ_METADATA,
+    CONTROL,
     UNKNOWN
 }

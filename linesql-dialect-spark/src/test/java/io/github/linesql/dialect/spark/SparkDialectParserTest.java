@@ -554,30 +554,30 @@ public class SparkDialectParserTest {
 
     @Test
     public void parsesNonLineageStatementsWithoutDiagnostics() {
-        assertNonLineageStatement("use_database", StatementType.UNKNOWN);
-        assertNonLineageStatement("set_catalog", StatementType.UNKNOWN);
-        assertNonLineageStatement("reset_configuration", StatementType.UNKNOWN);
-        assertNonLineageStatement("create_namespace", StatementType.UNKNOWN);
-        assertNonLineageStatement("drop_namespace", StatementType.UNKNOWN);
+        assertNonLineageStatement("use_database", StatementType.USE_SCHEMA);
+        assertNonLineageStatement("set_catalog", StatementType.CONTROL);
+        assertNonLineageStatement("reset_configuration", StatementType.CONTROL);
+        assertNonLineageStatement("create_namespace", StatementType.CREATE_SCHEMA);
+        assertNonLineageStatement("drop_namespace", StatementType.DROP_SCHEMA);
         assertNonLineageStatement("show_namespaces", StatementType.READ_METADATA);
         assertNonLineageStatement("show_catalogs", StatementType.READ_METADATA);
         assertNonLineageStatement("analyze_tables", StatementType.READ_METADATA);
-        assertNonLineageStatement("create_function", StatementType.UNKNOWN);
-        assertNonLineageStatement("create_udf_return_query", StatementType.UNKNOWN);
-        assertNonLineageStatement("drop_function", StatementType.UNKNOWN);
-        assertNonLineageStatement("call_procedure", StatementType.UNKNOWN);
+        assertNonLineageStatement("create_function", StatementType.CREATE_ROUTINE);
+        assertNonLineageStatement("create_udf_return_query", StatementType.CREATE_ROUTINE);
+        assertNonLineageStatement("drop_function", StatementType.DROP_ROUTINE);
+        assertNonLineageStatement("call_procedure", StatementType.CONTROL);
         assertNonLineageStatement("show_functions", StatementType.READ_METADATA);
         assertNonLineageStatement("describe_function", StatementType.READ_METADATA);
-        assertNonLineageStatement("create_variable", StatementType.UNKNOWN);
-        assertNonLineageStatement("declare_cursor", StatementType.UNKNOWN);
+        assertNonLineageStatement("create_variable", StatementType.CONTROL);
+        assertNonLineageStatement("declare_cursor", StatementType.CONTROL);
         assertNonLineageStatement("show_tables", StatementType.READ_METADATA);
         assertNonLineageStatement("show_views", StatementType.READ_METADATA);
         assertNonLineageStatement("show_collations", StatementType.READ_METADATA);
         assertNonLineageStatement("describe_namespace", StatementType.READ_METADATA);
-        assertNonLineageStatement("comment_namespace", StatementType.UNKNOWN);
+        assertNonLineageStatement("comment_namespace", StatementType.CONTROL);
         assertNonLineageStatement("refresh_resource", StatementType.READ_METADATA);
         assertNonLineageStatement("clear_cache", StatementType.UNCACHE_TABLE);
-        assertNonLineageStatement("add_jar_resource", StatementType.UNKNOWN);
+        assertNonLineageStatement("add_jar_resource", StatementType.CONTROL);
     }
 
     @Test

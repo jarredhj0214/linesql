@@ -1905,7 +1905,7 @@
     {
       "id": "create_table_connector",
       "file": "cases/create_table_connector.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "ods_users"

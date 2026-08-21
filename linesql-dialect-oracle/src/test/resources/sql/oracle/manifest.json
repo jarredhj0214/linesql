@@ -598,6 +598,114 @@
       "description": "Oracle CREATE VIEW AS SELECT table and column lineage"
     },
     {
+      "id": "create_materialized_view",
+      "file": "cases/create_materialized_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "mart.users",
+        "mart.orders"
+      ],
+      "outputTables": [
+        "mart.mv_user_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.mv_user_orders.user_id",
+          "sources": [
+            "mart.users.id"
+          ]
+        },
+        {
+          "target": "mart.mv_user_orders.amount",
+          "sources": [
+            "mart.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "mart.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.users.status"
+        }
+      ],
+      "description": "Oracle CREATE MATERIALIZED VIEW AS SELECT records view target and query lineage"
+    },
+    {
+      "id": "create_bitmap_index",
+      "file": "cases/create_bitmap_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE BITMAP INDEX records the affected table"
+    },
+    {
+      "id": "drop_view",
+      "file": "cases/drop_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.v_old_users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle DROP VIEW records the affected view"
+    },
+    {
+      "id": "drop_materialized_view",
+      "file": "cases/drop_materialized_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.mv_old_users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle DROP MATERIALIZED VIEW records the affected materialized view"
+    },
+    {
+      "id": "fetch_first_pagination",
+      "file": "cases/fetch_first_pagination.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "mart.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "mart.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "mart.users.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.users.created_at"
+        }
+      ],
+      "description": "Oracle OFFSET/FETCH pagination keeps projection and ordering column lineage"
+    },
+    {
       "id": "create_view_expression_projection",
       "file": "cases/create_view_expression_projection.sql",
       "statementType": "CREATE_VIEW",
@@ -2033,6 +2141,64 @@
         }
       ],
       "description": "Oracle INSERT FIRST multi-table insert output tables and target column lineage"
+    },
+    {
+      "id": "analyze_table",
+      "file": "cases/analyze_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ANALYZE TABLE records the inspected table without write lineage"
+    },
+    {
+      "id": "create_table_schema",
+      "file": "cases/create_table_schema.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE TABLE schema DDL records the created table"
+    },
+    {
+      "id": "alter_session_current_schema",
+      "file": "cases/alter_session_current_schema.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ALTER SESSION current_schema is classified as session control"
+    },
+    {
+      "id": "create_procedure",
+      "file": "cases/create_procedure.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE PROCEDURE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "create_function",
+      "file": "cases/create_function.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE FUNCTION is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "drop_procedure",
+      "file": "cases/drop_procedure.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DROP PROCEDURE is classified as routine lifecycle DDL without table lineage"
     }
   ]
 }

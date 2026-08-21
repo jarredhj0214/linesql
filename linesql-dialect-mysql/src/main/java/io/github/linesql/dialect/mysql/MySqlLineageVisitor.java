@@ -157,6 +157,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         outputTables.add(target);
         List<ColumnLineage> lineages = new ArrayList<>();
         for (MySqlParser.LoadDataOptionContext option : ctx.loadDataOption()) {
+            if (option.identifierList() != null) {
+                lineages.addAll(readLoadDataColumns(option.identifierList(), target));
+            }
             if (option.assignmentList() != null) {
                 collectSubqueryInputs(option.assignmentList());
                 lineages.addAll(readAssignments(option.assignmentList(), target));
@@ -166,6 +169,18 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private List<ColumnLineage> readLoadDataColumns(MySqlParser.IdentifierListContext ctx, TableRef target) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (String columnName : identifierNames(ctx)) {
+            lineages.add(LineageModelUtils.columnLineage(
+                    target,
+                    columnName,
+                    new ArrayList<ColumnRef>(),
+                    null));
+        }
+        return lineages;
     }
 
     @Override
@@ -357,13 +372,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateDatabaseStmt(MySqlParser.CreateDatabaseStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CREATE_SCHEMA);
         return null;
     }
 
     @Override
     public Void visitDropDatabaseStmt(MySqlParser.DropDatabaseStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.DROP_SCHEMA);
         return null;
     }
 
@@ -389,7 +404,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                 registerTemporaryRelation(target);
             }
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -474,6 +489,24 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             outputTables.add(tableRef(identifier));
         }
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropRoutineStmt(MySqlParser.DropRoutineStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitDropTriggerStmt(MySqlParser.DropTriggerStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_TRIGGER);
+        return null;
+    }
+
+    @Override
+    public Void visitDropEventStmt(MySqlParser.DropEventStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_EVENT);
         return null;
     }
 
@@ -576,6 +609,18 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterRoutineStmt(MySqlParser.AlterRoutineStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterEventStmt(MySqlParser.AlterEventStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_EVENT);
+        return null;
+    }
+
+    @Override
     public Void visitAnalyzeTableStmt(MySqlParser.AnalyzeTableStmtContext ctx) {
         result.setStatementType(StatementType.READ_METADATA);
         return visitChildren(ctx);
@@ -617,7 +662,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitUseStmt(MySqlParser.UseStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.USE_SCHEMA);
         return visitChildren(ctx);
     }
 
@@ -643,79 +688,109 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitUnlockTablesStmt(MySqlParser.UnlockTablesStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitSetStmt(MySqlParser.SetStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
+        return visit(ctx.setStatement());
+    }
+
+    @Override
+    public Void visitSetStatement(MySqlParser.SetStatementContext ctx) {
+        for (MySqlParser.SetElementContext element : ctx.setElement()) {
+            collectSubqueryInputs(element);
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
     @Override
     public Void visitTransactionStmt(MySqlParser.TransactionStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitDoStmt(MySqlParser.DoStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitCallStmt(MySqlParser.CallStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitPrepareStmt(MySqlParser.PrepareStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitExecuteStmt(MySqlParser.ExecuteStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitDeallocatePrepareStmt(MySqlParser.DeallocatePrepareStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitCreateRoutineStmt(MySqlParser.CreateRoutineStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CREATE_ROUTINE);
         return null;
     }
 
     @Override
     public Void visitCreateTriggerStmt(MySqlParser.CreateTriggerStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CREATE_TRIGGER);
+        return visit(ctx.createTriggerStatement());
+    }
+
+    @Override
+    public Void visitCreateTriggerStatement(MySqlParser.CreateTriggerStatementContext ctx) {
+        List<MySqlParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            outputTables.add(tableRef(identifiers.get(1)));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
         return null;
     }
 
     @Override
     public Void visitCreateEventStmt(MySqlParser.CreateEventStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CREATE_EVENT);
+        return visit(ctx.createEventStatement());
+    }
+
+    @Override
+    public Void visitCreateEventStatement(MySqlParser.CreateEventStatementContext ctx) {
+        if (ctx.eventBodyStatement() != null) {
+            visit(ctx.eventBodyStatement());
+            result.setStatementType(StatementType.CREATE_EVENT);
+            result.setInputTables(new ArrayList<>(inputTables));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
         return null;
     }
 
     @Override
     public Void visitAccountStmt(MySqlParser.AccountStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
     @Override
     public Void visitAdminStmt(MySqlParser.AdminStmtContext ctx) {
-        result.setStatementType(StatementType.UNKNOWN);
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 

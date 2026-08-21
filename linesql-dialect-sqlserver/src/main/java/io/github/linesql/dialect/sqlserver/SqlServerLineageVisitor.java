@@ -275,6 +275,69 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateIndexStmt(SqlServerParser.CreateIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateIndexStatement(SqlServerParser.CreateIndexStatementContext ctx) {
+        List<SqlServerParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            TableRef table = tableRef(identifiers.get(1));
+            outputTables.add(table);
+            currentDmlTarget = table;
+            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+            if (ctx.whereClause() != null) {
+                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+            }
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropIndexStmt(SqlServerParser.DropIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropIndexStatement(SqlServerParser.DropIndexStatementContext ctx) {
+        List<SqlServerParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            outputTables.add(tableRef(identifiers.get(1)));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterIndexStmt(SqlServerParser.AlterIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterIndexStatement(SqlServerParser.AlterIndexStatementContext ctx) {
+        outputTables.add(tableRef(ctx.tableName));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCreateSchemaStmt(SqlServerParser.CreateSchemaStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateProcedureStmt(SqlServerParser.CreateProcedureStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStmt(SqlServerParser.CreateTableStmtContext ctx) {
         return visitChildren(ctx);
     }
@@ -297,7 +360,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -337,6 +400,31 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     public Void visitDropTableStatement(SqlServerParser.DropTableStatementContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropViewStmt(SqlServerParser.DropViewStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropViewStatement(SqlServerParser.DropViewStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropSchemaStmt(SqlServerParser.DropSchemaStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitDropProcedureStmt(SqlServerParser.DropProcedureStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_ROUTINE);
         return null;
     }
 
@@ -381,6 +469,18 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     public Void visitAlterTableOther(SqlServerParser.AlterTableOtherContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitUseStmt(SqlServerParser.UseStmtContext ctx) {
+        result.setStatementType(StatementType.USE_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitSetStmt(SqlServerParser.SetStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -503,6 +603,14 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
         }
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitSelectIntoClause(SqlServerParser.SelectIntoClauseContext ctx) {
+        result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
     }
 
     @Override

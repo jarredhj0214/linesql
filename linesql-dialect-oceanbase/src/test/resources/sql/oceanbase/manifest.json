@@ -57,6 +57,28 @@
       "description": "OceanBase MySQL mode DELETE USING table lineage"
     },
     {
+      "id": "mysql_mode_load_data",
+      "file": "cases/mysql_mode_load_data.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.id", "sources": []},
+        {"target": "mart.users.name", "sources": []},
+        {"target": "mart.users.created_at", "sources": []}
+      ],
+      "description": "OceanBase MySQL mode LOAD DATA target column lineage"
+    },
+    {
+      "id": "mysql_mode_create_table_schema",
+      "file": "cases/mysql_mode_create_table_schema.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode CREATE TABLE schema DDL records the created table"
+    },
+    {
       "id": "oracle_mode_dual",
       "file": "cases/oracle_mode_dual.sql",
       "statementType": "SELECT",

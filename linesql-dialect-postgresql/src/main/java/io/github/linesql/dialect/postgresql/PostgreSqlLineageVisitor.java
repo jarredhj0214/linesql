@@ -272,6 +272,40 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateIndexStmt(PostgreSqlParser.CreateIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateIndexStatement(PostgreSqlParser.CreateIndexStatementContext ctx) {
+        List<PostgreSqlParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            TableRef table = tableRef(identifiers.get(1));
+            outputTables.add(table);
+            currentDmlTarget = table;
+            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+            if (ctx.expression() != null) {
+                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+            }
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCreateSchemaStmt(PostgreSqlParser.CreateSchemaStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateFunctionStmt(PostgreSqlParser.CreateFunctionStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStmt(PostgreSqlParser.CreateTableStmtContext ctx) {
         return visitChildren(ctx);
     }
@@ -293,8 +327,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
+        } else if (ctx.tableElementList() != null && likeSource(ctx.tableElementList()) != null) {
+            result.setStatementType(StatementType.CREATE_TABLE_LIKE);
+            inputTables.add(tableRef(likeSource(ctx.tableElementList())));
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -350,6 +387,31 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         for (PostgreSqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
             outputTables.add(tableRef(identifier));
         }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropSchemaStmt(PostgreSqlParser.DropSchemaStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitDropFunctionStmt(PostgreSqlParser.DropFunctionStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitRefreshMaterializedViewStmt(PostgreSqlParser.RefreshMaterializedViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRefreshMaterializedViewStatement(PostgreSqlParser.RefreshMaterializedViewStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -442,6 +504,96 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             outputTables.add(tableRef(id));
         }
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCopyStmt(PostgreSqlParser.CopyStmtContext ctx) {
+        result.setStatementType(StatementType.LOAD_DATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCopyFromTable(PostgreSqlParser.CopyFromTableContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        if (ctx.columnList != null) {
+            result.setColumnLineage(readCopyColumns(ctx.columnList, target));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCopyToTable(PostgreSqlParser.CopyToTableContext ctx) {
+        result.setStatementType(StatementType.SELECT);
+        TableRef source = tableRef(ctx.multipartIdentifier());
+        inputTables.add(source);
+        tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
+        if (ctx.columnList != null) {
+            result.setColumnLineage(readCopyTableColumns(ctx.columnList, source));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCopyToQuery(PostgreSqlParser.CopyToQueryContext ctx) {
+        result.setStatementType(StatementType.SELECT);
+        visit(ctx.query());
+        refreshColumnLineage();
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitVacuumStmt(PostgreSqlParser.VacuumStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitVacuumStatement(PostgreSqlParser.VacuumStatementContext ctx) {
+        if (ctx.multipartIdentifier() != null) {
+            outputTables.add(tableRef(ctx.multipartIdentifier()));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAnalyzeStmt(PostgreSqlParser.AnalyzeStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAnalyzeStatement(PostgreSqlParser.AnalyzeStatementContext ctx) {
+        if (ctx.multipartIdentifier() != null) {
+            inputTables.add(tableRef(ctx.multipartIdentifier()));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitReindexStmt(PostgreSqlParser.ReindexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitReindexStatement(PostgreSqlParser.ReindexStatementContext ctx) {
+        if (ctx.TABLE() != null) {
+            outputTables.add(tableRef(ctx.multipartIdentifier()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitSetStmt(PostgreSqlParser.SetStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -1013,6 +1165,39 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             lineages.add(lineage);
         }
         return lineages;
+    }
+
+    private List<ColumnLineage> readCopyColumns(PostgreSqlParser.IdentifierListContext ctx, TableRef target) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (String columnName : identifierNames(ctx)) {
+            ColumnLineage lineage = new ColumnLineage();
+            lineage.setTarget(new ColumnRef(target, columnName));
+            lineage.setSources(new ArrayList<>());
+            lineages.add(lineage);
+        }
+        return lineages;
+    }
+
+    private List<ColumnLineage> readCopyTableColumns(PostgreSqlParser.IdentifierListContext ctx, TableRef source) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (String columnName : identifierNames(ctx)) {
+            List<ColumnRef> sources = new ArrayList<>();
+            sources.add(new ColumnRef(source, columnName));
+            ColumnLineage lineage = new ColumnLineage();
+            lineage.setTarget(new ColumnRef(null, columnName));
+            lineage.setSources(sources);
+            lineages.add(lineage);
+        }
+        return lineages;
+    }
+
+    private PostgreSqlParser.MultipartIdentifierContext likeSource(PostgreSqlParser.TableElementListContext ctx) {
+        for (PostgreSqlParser.TableElementContext element : ctx.tableElement()) {
+            if (element.LIKE() != null && element.multipartIdentifier() != null) {
+                return element.multipartIdentifier();
+            }
+        }
+        return null;
     }
 
     private List<ColumnRef> resolveSources(List<SourceColumn> sourceColumns) {

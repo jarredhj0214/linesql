@@ -12,11 +12,21 @@ statement
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
     | mergeStatement                                                 #mergeStmt
+    | createIndexStatement                                           #createIndexStmt
+    | alterIndexStatement                                            #alterIndexStmt
+    | dropIndexStatement                                             #dropIndexStmt
+    | createSchemaStatement                                          #createSchemaStmt
+    | createProcedureStatement                                       #createProcedureStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
+    | dropSchemaStatement                                            #dropSchemaStmt
+    | dropProcedureStatement                                         #dropProcedureStmt
     | dropTableStatement                                             #dropTableStmt
+    | dropViewStatement                                              #dropViewStmt
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
+    | useStatement                                                   #useStmt
+    | setStatement                                                   #setStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
@@ -54,11 +64,15 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause fromClause? whereClause? groupByClause? havingClause?
+    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause?
     ;
 
 selectClause
     : SELECT setQuantifier? topClause? selectItemList
+    ;
+
+selectIntoClause
+    : INTO multipartIdentifier
     ;
 
 topClause
@@ -272,6 +286,47 @@ assignment
 
 // ============ DDL Statements ============
 
+createIndexStatement
+    : CREATE UNIQUE? (CLUSTERED | NONCLUSTERED)? INDEX multipartIdentifier
+      ON multipartIdentifier LPAREN indexElementList RPAREN
+      (INCLUDE LPAREN identifierList RPAREN)?
+      whereClause?
+    ;
+
+dropIndexStatement
+    : DROP INDEX multipartIdentifier ON multipartIdentifier
+    ;
+
+alterIndexStatement
+    : ALTER INDEX (indexName=multipartIdentifier | ALL)
+      ON tableName=multipartIdentifier
+      alterIndexAction
+      alterIndexOption*
+    ;
+
+alterIndexAction
+    : REBUILD
+    | REORGANIZE
+    | DISABLE
+    ;
+
+alterIndexOption
+    : identifier
+    | LPAREN .+? RPAREN
+    | EQ
+    | number
+    | string
+    | COMMA
+    ;
+
+indexElementList
+    : indexElement (COMMA indexElement)*
+    ;
+
+indexElement
+    : expression (ASC | DESC)?
+    ;
+
 createTableStatement
     : CREATE TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
@@ -280,14 +335,34 @@ createTableStatement
     | CREATE TEMPORARY? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
     ;
 
+createSchemaStatement
+    : CREATE SCHEMA identifier
+    ;
+
+createProcedureStatement
+    : CREATE (OR ALTER)? PROCEDURE multipartIdentifier .+?
+    ;
+
 createViewStatement
-    : CREATE (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
+    : CREATE (OR (REPLACE | ALTER))? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       AS query
     ;
 
 dropTableStatement
     : DROP TABLE (IF EXISTS)? multipartIdentifier
+    ;
+
+dropViewStatement
+    : DROP VIEW (IF EXISTS)? multipartIdentifier
+    ;
+
+dropSchemaStatement
+    : DROP SCHEMA (IF EXISTS)? identifier
+    ;
+
+dropProcedureStatement
+    : DROP PROCEDURE (IF EXISTS)? multipartIdentifier
     ;
 
 truncateTableStatement
@@ -305,6 +380,14 @@ alterTableAction
     | SET LPAREN propertyList RPAREN
     | COMMENT EQ? string
     | .+?
+    ;
+
+useStatement
+    : USE identifier
+    ;
+
+setStatement
+    : SET identifier (ON | OFF | EQ expression)?
     ;
 
 showStatement
@@ -336,6 +419,8 @@ columnConstraint
     | NULL
     | COMMENT string
     | DEFAULT expression
+    | PRIMARY KEY
+    | UNIQUE
     ;
 
 commentClause
@@ -383,10 +468,11 @@ strictIdentifier
 
 nonReservedKeyword
     : ADD | ASC | CAST | COLUMN | COMMENT | DEFAULT
-    | DESCRIBE | DESC | END | EXISTS | EXTERNAL | FALSE
-    | INTERVAL | LIKE | LIMIT | NOLOCK | NULL
+    | CLUSTERED | DESCRIBE | DESC | DISABLE | END | EXISTS | EXTERNAL | FALSE
+    | INCLUDE | INDEX | INTERVAL | KEY | LIKE | LIMIT | NOLOCK | NONCLUSTERED | NULL | OFF
     | OFFSET | OUTPUT | OVER | PARTITION | REPLACE | RENAME
-    | SET | SHOW | TABLE | TEMPORARY | TO | TOP | TRUE | TRUNCATE | VALUES | VIEW
+    | PRIMARY | PROCEDURE | REBUILD | REORGANIZE | SCHEMA | SET | SHOW | TABLE | TEMPORARY | TO | TOP | TRUE | TRUNCATE | USE | VALUES | VIEW
+    | UNIQUE
     ;
 
 number

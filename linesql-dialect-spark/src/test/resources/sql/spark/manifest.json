@@ -2705,7 +2705,7 @@
     {
       "id": "use_database",
       "file": "cases/use_database.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "USE_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "description": "USE database statement is parsed as a non-lineage statement"
@@ -2713,7 +2713,7 @@
     {
       "id": "set_catalog",
       "file": "cases/set_catalog.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "SET CATALOG statement is parsed as a non-lineage statement"
@@ -2721,7 +2721,7 @@
     {
       "id": "reset_configuration",
       "file": "cases/reset_configuration.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "RESET configuration statement is parsed as a non-lineage statement"
@@ -2729,7 +2729,7 @@
     {
       "id": "create_namespace",
       "file": "cases/create_namespace.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "description": "CREATE NAMESPACE is parsed as a non-lineage statement"
@@ -2737,7 +2737,7 @@
     {
       "id": "drop_namespace",
       "file": "cases/drop_namespace.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "DROP_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "description": "DROP NAMESPACE is parsed as a non-lineage statement"
@@ -2769,7 +2769,7 @@
     {
       "id": "create_function",
       "file": "cases/create_function.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_ROUTINE",
       "inputTables": [],
       "outputTables": [],
       "description": "CREATE FUNCTION is parsed as a non-lineage statement"
@@ -2777,7 +2777,7 @@
     {
       "id": "create_udf_return_query",
       "file": "cases/create_udf_return_query.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_ROUTINE",
       "inputTables": [],
       "outputTables": [],
       "description": "CREATE FUNCTION RETURN query is parsed as a non-lineage definition"
@@ -2785,7 +2785,7 @@
     {
       "id": "drop_function",
       "file": "cases/drop_function.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "DROP_ROUTINE",
       "inputTables": [],
       "outputTables": [],
       "description": "DROP FUNCTION is parsed as a non-lineage statement"
@@ -2793,7 +2793,7 @@
     {
       "id": "call_procedure",
       "file": "cases/call_procedure.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "CALL procedure is parsed as a non-lineage statement"
@@ -2817,7 +2817,7 @@
     {
       "id": "create_variable",
       "file": "cases/create_variable.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "DECLARE VARIABLE is parsed as a non-lineage statement"
@@ -2825,7 +2825,7 @@
     {
       "id": "declare_cursor",
       "file": "cases/declare_cursor.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "DECLARE CURSOR is parsed as a non-lineage control statement"
@@ -2875,7 +2875,7 @@
     {
       "id": "comment_namespace",
       "file": "cases/comment_namespace.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "COMMENT ON NAMESPACE is parsed as a non-lineage statement"
@@ -2899,7 +2899,7 @@
     {
       "id": "add_jar_resource",
       "file": "cases/add_jar_resource.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "ADD JAR resource command is parsed as a non-lineage statement"

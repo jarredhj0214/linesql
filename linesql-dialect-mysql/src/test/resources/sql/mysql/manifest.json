@@ -1044,7 +1044,7 @@
     {
       "id": "create_table_constraints",
       "file": "cases/create_table_constraints.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.user_profile"
@@ -1055,7 +1055,7 @@
     {
       "id": "create_table_generated_columns",
       "file": "cases/create_table_generated_columns.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.user_profile_ext"
@@ -1066,7 +1066,7 @@
     {
       "id": "create_table_advanced_options",
       "file": "cases/create_table_advanced_options.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.archive_users"
@@ -1077,7 +1077,7 @@
     {
       "id": "create_table_enum_set_types",
       "file": "cases/create_table_enum_set_types.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.user_preferences"
@@ -1088,7 +1088,7 @@
     {
       "id": "create_table_check_invisible",
       "file": "cases/create_table_check_invisible.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.account_policy"
@@ -1099,7 +1099,7 @@
     {
       "id": "create_table_fulltext_spatial_index",
       "file": "cases/create_table_fulltext_spatial_index.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.search_assets"
@@ -2370,7 +2370,7 @@
     {
       "id": "create_database",
       "file": "cases/create_database.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL CREATE DATABASE is accepted as a table-free control DDL statement"
@@ -2378,7 +2378,7 @@
     {
       "id": "drop_schema",
       "file": "cases/drop_schema.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "DROP_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL DROP SCHEMA is accepted as a table-free control DDL statement"
@@ -2986,7 +2986,7 @@
     {
       "id": "use_database",
       "file": "cases/use_database.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "USE_SCHEMA",
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
@@ -3107,7 +3107,7 @@
     {
       "id": "create_temporary_table_schema",
       "file": "cases/create_temporary_table_schema.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.tmp_users"
@@ -3118,7 +3118,7 @@
     {
       "id": "create_table_hash_partition",
       "file": "cases/create_table_hash_partition.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.user_bucket"
@@ -3129,7 +3129,7 @@
     {
       "id": "create_table_range_partition",
       "file": "cases/create_table_range_partition.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TABLE",
       "inputTables": [],
       "outputTables": [
         "mart.order_by_month"
@@ -3729,8 +3729,17 @@
       "outputTables": [
         "mart.users"
       ],
-      "columnLineage": [],
-      "description": "MySQL LOAD DATA with FIELDS, LINES, IGNORE, and column list reports the loaded table"
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL LOAD DATA with FIELDS, LINES, IGNORE, and column list reports loaded target columns"
     },
     {
       "id": "load_data_set_assignments",
@@ -3741,6 +3750,14 @@
         "mart.users"
       ],
       "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
         {
           "target": "mart.users.created_at",
           "sources": []
@@ -4501,7 +4518,7 @@
     {
       "id": "unlock_tables",
       "file": "cases/unlock_tables.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL UNLOCK TABLES is accepted as a script-safe control statement"
@@ -4509,15 +4526,25 @@
     {
       "id": "set_session_statement",
       "file": "cases/set_session_statement.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL SET session and user-variable assignments are accepted as script-safe control statements"
     },
     {
+      "id": "set_subquery_variable",
+      "file": "cases/set_subquery_variable.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "description": "MySQL SET user variable with scalar subquery preserves subquery input table lineage"
+    },
+    {
       "id": "start_transaction",
       "file": "cases/start_transaction.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL START TRANSACTION is accepted as a script-safe control statement"
@@ -4525,7 +4552,7 @@
     {
       "id": "commit_statement",
       "file": "cases/commit_statement.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL COMMIT is accepted as a script-safe control statement"
@@ -4533,7 +4560,7 @@
     {
       "id": "rollback_statement",
       "file": "cases/rollback_statement.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL ROLLBACK is accepted as a script-safe control statement"
@@ -4541,7 +4568,7 @@
     {
       "id": "do_statement",
       "file": "cases/do_statement.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL DO expression statement is accepted as script-safe control SQL"
@@ -4549,7 +4576,7 @@
     {
       "id": "call_statement",
       "file": "cases/call_statement.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL CALL is accepted as dynamic routine execution without inferred table lineage"
@@ -4557,7 +4584,7 @@
     {
       "id": "prepare_statement",
       "file": "cases/prepare_statement.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL PREPARE is accepted as dynamic SQL without inferred table lineage"
@@ -4565,7 +4592,7 @@
     {
       "id": "execute_statement",
       "file": "cases/execute_statement.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL EXECUTE is accepted as dynamic SQL without inferred table lineage"
@@ -4573,7 +4600,7 @@
     {
       "id": "deallocate_prepare",
       "file": "cases/deallocate_prepare.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL DEALLOCATE PREPARE is accepted as a script-safe control statement"
@@ -4581,7 +4608,7 @@
     {
       "id": "create_procedure",
       "file": "cases/create_procedure.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_ROUTINE",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL CREATE PROCEDURE is accepted without inferring routine body lineage"
@@ -4589,23 +4616,107 @@
     {
       "id": "create_trigger",
       "file": "cases/create_trigger.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_TRIGGER",
       "inputTables": [],
-      "outputTables": [],
-      "description": "MySQL CREATE TRIGGER is accepted without inferring trigger body lineage"
+      "outputTables": [
+        "app.users"
+      ],
+      "description": "MySQL CREATE TRIGGER records the grammar-defined ON table as an affected table without inferring trigger body lineage"
     },
     {
       "id": "create_event",
       "file": "cases/create_event.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CREATE_EVENT",
+      "inputTables": [
+        "app.sessions"
+      ],
+      "outputTables": [
+        "app.sessions"
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.sessions.expires_at"
+        }
+      ],
+      "description": "MySQL CREATE EVENT keeps DML body table lineage when the DO statement is parseable"
+    },
+    {
+      "id": "create_event_insert_select",
+      "file": "cases/create_event_insert_select.sql",
+      "statementType": "CREATE_EVENT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.daily_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.daily_users.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.daily_users.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL CREATE EVENT preserves INSERT SELECT body table and column lineage"
+    },
+    {
+      "id": "drop_procedure",
+      "file": "cases/drop_procedure.sql",
+      "statementType": "DROP_ROUTINE",
       "inputTables": [],
       "outputTables": [],
-      "description": "MySQL CREATE EVENT is accepted without inferring event body lineage"
+      "description": "MySQL DROP PROCEDURE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "drop_trigger",
+      "file": "cases/drop_trigger.sql",
+      "statementType": "DROP_TRIGGER",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL DROP TRIGGER is classified as trigger lifecycle DDL without table lineage"
+    },
+    {
+      "id": "drop_event",
+      "file": "cases/drop_event.sql",
+      "statementType": "DROP_EVENT",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL DROP EVENT is classified as event lifecycle DDL without table lineage"
+    },
+    {
+      "id": "alter_procedure",
+      "file": "cases/alter_procedure.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL ALTER PROCEDURE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "alter_event",
+      "file": "cases/alter_event.sql",
+      "statementType": "ALTER_EVENT",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL ALTER EVENT is classified as event lifecycle DDL without inferring event body lineage"
     },
     {
       "id": "create_user",
       "file": "cases/create_user.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL CREATE USER is accepted as a script-safe account statement"
@@ -4613,7 +4724,7 @@
     {
       "id": "grant_privileges",
       "file": "cases/grant_privileges.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL GRANT is accepted as a script-safe privilege statement"
@@ -4621,7 +4732,7 @@
     {
       "id": "revoke_privileges",
       "file": "cases/revoke_privileges.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL REVOKE is accepted as a script-safe privilege statement"
@@ -4629,7 +4740,7 @@
     {
       "id": "flush_privileges",
       "file": "cases/flush_privileges.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL FLUSH PRIVILEGES is accepted as a script-safe admin statement"
@@ -4637,7 +4748,7 @@
     {
       "id": "kill_query",
       "file": "cases/kill_query.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL KILL QUERY is accepted as a script-safe admin statement"
@@ -4645,7 +4756,7 @@
     {
       "id": "reset_master",
       "file": "cases/reset_master.sql",
-      "statementType": "UNKNOWN",
+      "statementType": "CONTROL",
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL RESET is accepted as a script-safe admin statement"

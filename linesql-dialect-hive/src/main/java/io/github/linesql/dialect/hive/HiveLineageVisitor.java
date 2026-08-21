@@ -144,7 +144,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
-            result.setStatementType(StatementType.UNKNOWN);
+            result.setStatementType(StatementType.CREATE_TABLE);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));

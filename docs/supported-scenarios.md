@@ -54,7 +54,7 @@ Implemented CLI scenarios:
 
 ## PostgreSQL
 
-PostgreSQL is a baseline MVP dialect path. The current implementation uses a dedicated lightweight ANTLR grammar for common PostgreSQL lineage SQL.
+PostgreSQL is a baseline parser dialect path. The current implementation uses a dedicated lightweight ANTLR grammar for common PostgreSQL lineage SQL.
 
 Current PostgreSQL SQL case assets:
 
@@ -72,8 +72,28 @@ Implemented PostgreSQL scenarios:
 | INSERT SELECT with RETURNING | `insert into mart.t select ... returning ...` | `insert_select_returning` |
 | INSERT SELECT with ON CONFLICT | `insert into mart.t select ... on conflict (...) do update ...` | `insert_on_conflict` |
 | WITH before INSERT SELECT | `with q as (...) insert into mart.t select ... from q` | `with_insert_select` |
+| COPY FROM target table and column list | `copy mart.t(c1, c2) from '/tmp/file.csv' with (...)` | `copy_from_csv` |
+| COPY table TO keeps exported column lineage | `copy mart.t(c1, c2) to '/tmp/file.csv' with (...)` | `copy_table_to_file` |
+| COPY query TO keeps exported query lineage | `copy (select ... from mart.s) to stdout with csv header` | `copy_query_to_stdout` |
+| CREATE TABLE schema DDL | `create table mart.t (...)` | `create_table_schema` |
+| Schema and session control | `create schema ...`, `drop schema ...`, `set search_path to ...` | `create_schema`, `drop_schema`, `set_search_path` |
+| Function lifecycle DDL | `create or replace function ... returns ... language ... as ...`, `drop function ...` | `create_function`, `drop_function` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from public.s` | `create_table_as_select` |
+| CREATE TABLE LIKE INCLUDING source table | `create table mart.t (like mart.s including all)` | `create_table_like_including` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from public.s` | `create_view` |
+| CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.mv as select ... from mart.s` | `create_materialized_view` |
+| REFRESH MATERIALIZED VIEW affected view | `refresh materialized view concurrently mart.mv` | `refresh_materialized_view` |
+| COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |
+| COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
+| CREATE INDEX affected table and partial predicate columns | `create index concurrently idx on mart.t using btree(c) where flag = true` | `create_index_partial` |
+| ANALYZE table metadata read | `analyze verbose mart.t(c1, c2)` | `analyze_table` |
+| VACUUM affected table | `vacuum (full, analyze) mart.t` | `vacuum_table` |
+| REINDEX TABLE affected table | `reindex table concurrently mart.t` | `reindex_table` |
+| DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
+| DROP VIEW affected view | `drop view if exists mart.v` | `drop_view` |
+| DROP MATERIALIZED VIEW affected view | `drop materialized view if exists mart.mv` | `drop_materialized_view` |
+| TRUNCATE TABLE affected table | `truncate table mart.t` | `truncate_table` |
+| ALTER TABLE column maintenance | `alter table mart.t add column c timestamp` | `alter_table_add_column` |
 | CTE column propagation | `with q as (...) select q.c1 from q` | `cte_column_projection` |
 | UPDATE FROM with RETURNING | `update mart.t set ... from staging.s where ... returning ...` | `update_from_returning` |
 | DELETE with subquery and RETURNING | `delete from mart.t where id in (...) returning ...` | `delete_using_returning` |
@@ -97,7 +117,7 @@ Known PostgreSQL gaps:
 
 ## OceanBase
 
-OceanBase is a baseline MVP dialect path. The current implementation models OceanBase as a compatibility-mode dialect and delegates common SQL lineage to either MySQL-mode or Oracle-mode parsing while keeping the public dialect as `OCEANBASE`.
+OceanBase is a compatibility baseline dialect path. The current implementation models OceanBase as a compatibility-mode dialect and delegates common SQL lineage to either MySQL-mode or Oracle-mode parsing while keeping the public dialect as `OCEANBASE`.
 
 Current OceanBase SQL case assets:
 
@@ -113,8 +133,10 @@ Implemented OceanBase scenarios:
 | MySQL mode SELECT source and columns | `select id as user_id, name from app.users` | `mysql_mode_select` |
 | MySQL mode INSERT SELECT | `insert into mart.t select ... from app.s join app.o ...` | `mysql_mode_insert_select` |
 | MySQL mode CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `mysql_mode_create_table_as_select` |
+| MySQL mode CREATE TABLE schema DDL | `create table mart.t (...)` | `mysql_mode_create_table_schema` |
 | MySQL mode UPDATE JOIN | `update mart.t join staging.s ... set ...` | `mysql_mode_update_join` |
 | MySQL mode DELETE USING | `delete from mart.t using mart.t join staging.s ...` | `mysql_mode_delete_using` |
+| MySQL mode LOAD DATA | `load data local infile ... into table mart.t (...) set ...` | `mysql_mode_load_data` |
 | Oracle mode DUAL pseudo table query | `select sysdate from dual` | `oracle_mode_dual` |
 | Oracle mode MERGE | `merge into mart.t using staging.s on (...) when matched ...` | `oracle_mode_merge` |
 | Oracle mode CREATE VIEW | `create view mart.v as select ... from app.s` | `oracle_mode_create_view` |
@@ -129,7 +151,7 @@ Known OceanBase gaps:
 
 ## SQL Server
 
-SQL Server is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common SQL Server query and write shapes.
+SQL Server is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common SQL Server query and write shapes.
 
 Current SQL Server SQL case assets:
 
@@ -148,8 +170,10 @@ Implemented SQL Server table-level lineage scenarios:
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
 | INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
+| SELECT INTO created table lineage | `select ... into dbo.t from dbo.s` | `select_into` |
 | CREATE TABLE model AS SELECT | `create table ads.t duplicate key(...) distributed by hash(...) properties(...) as select ...` | `create_table_model_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| CREATE OR ALTER VIEW AS SELECT | `create or alter view dbo.v as select ... from dbo.s` | `create_or_alter_view` |
 | CREATE OR REPLACE VIEW AS SELECT | `create or replace view ads.v as select ... from ods.s` | `create_or_replace_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | WITH before INSERT SELECT | `with q as (...) insert into ads.t select ... from q` | `with_insert_select` |
@@ -170,9 +194,15 @@ Implemented SQL Server table-level lineage scenarios:
 | MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q on ...` | `merge_using_subquery` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
+| CREATE TABLE schema DDL | `create table dbo.t (...)` | `create_table_schema` |
+| Schema/session/routine lifecycle control | `use db`, `create schema ...`, `drop schema ...`, `create or alter procedure ...`, `drop procedure ...`, `set nocount on` | `use_database`, `create_schema`, `drop_schema`, `create_or_alter_procedure`, `drop_procedure`, `set_nocount` |
 | DROP TABLE affected table | `drop table if exists dbo.t` | `drop_table` |
+| DROP VIEW affected view | `drop view if exists dbo.v` | `drop_view` |
 | TRUNCATE TABLE affected table | `truncate table dbo.t` | `truncate_table` |
 | ALTER TABLE column maintenance | `alter table dbo.t add c int` | `alter_table_add_column` |
+| CREATE INDEX affected table and filtered predicate columns | `create nonclustered index ix on dbo.t(c) include(c2) where flag = 1` | `create_filtered_index` |
+| DROP INDEX affected table | `drop index ix on dbo.t` | `drop_index` |
+| ALTER INDEX affected table | `alter index ix on dbo.t rebuild` | `alter_index_rebuild` |
 
 Implemented SQL Server column-level lineage scenarios:
 
@@ -261,22 +291,22 @@ Current SQL Server diagnostics:
 
 | Code | Meaning |
 | --- | --- |
-| `SQLSERVER_PARSE_ERROR` | SQL Server SQL could not be tokenized or walked by the current MVP parser. |
-| `SQLSERVER_STATEMENT_NOT_SUPPORTED` | The statement was recognized as SQL Server but is not in the current MVP statement set. |
+| `SQLSERVER_PARSE_ERROR` | SQL Server SQL could not be tokenized or walked by the current parser. |
+| `SQLSERVER_STATEMENT_NOT_SUPPORTED` | The statement was recognized as SQL Server but is not in the current statement set. |
 | `SQLSERVER_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
 
 Known SQL Server gaps:
 
 | Gap | Current behavior |
 | --- | --- |
-| Full SQL Server grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| Full SQL Server grammar | The parser uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Advanced T-SQL DML and procedural syntax | Basic `MERGE`, `UPDATE FROM`, and `DELETE FROM JOIN` lineage is covered. `OUTPUT`, table variables, temp tables, and stored-procedure bodies are not yet covered. |
 | Complex CTEs and subqueries | Single CTE, chained CTE direct projection, CTE column aliases, and single derived subquery direct projection propagation are covered. Recursive CTEs and complex nested subqueries are not complete yet. |
 
 ## Oracle
 
-Oracle is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Oracle query and write shapes.
+Oracle is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Oracle query and write shapes.
 
 Current Oracle SQL case assets:
 
@@ -295,14 +325,20 @@ Implemented Oracle table-level lineage scenarios:
 | INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
 | INSERT ALL multi-table target lineage | `insert all into t1 (...) values (...) into t2 (...) values (...) select ...` | `insert_all` |
 | INSERT FIRST multi-table target lineage | `insert first into t1 (...) values (...) into t2 (...) values (...) select ...` | `insert_first` |
+| CREATE TABLE schema DDL | `create table mart.t (...)` | `create_table_schema` |
+| Session and routine lifecycle control | `alter session set current_schema = ...`, `create procedure ...`, `create function ...`, `drop procedure ...` | `alter_session_current_schema`, `create_procedure`, `create_function`, `drop_procedure` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
+| CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.mv as select ... from mart.s` | `create_materialized_view` |
+| CREATE BITMAP INDEX affected table | `create bitmap index idx on mart.t(c)` | `create_bitmap_index` |
+| ANALYZE TABLE metadata read | `analyze table mart.t compute statistics` | `analyze_table` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
 | UNION source table propagation | `select a from ods.s1 union all select b from ods.s2` | `union_column_projection` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | DUAL pseudo table | `select sysdate from dual` | `dual_pseudo_table` |
 | Hierarchical query clauses | `select ... from app.org start with ... connect by ...` | `hierarchical_query` |
+| OFFSET/FETCH pagination | `select ... from mart.t order by c offset 10 rows fetch next 20 rows only` | `fetch_first_pagination` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
 | UPDATE target table lineage | `update ads.t set c = c2 where ...` | `update_set` |
@@ -312,6 +348,8 @@ Implemented Oracle table-level lineage scenarios:
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table mart.t` | `drop_table` |
+| DROP VIEW affected view | `drop view mart.v` | `drop_view` |
+| DROP MATERIALIZED VIEW affected view | `drop materialized view mart.mv` | `drop_materialized_view` |
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to new_name` | `rename_table` |
 | ALTER TABLE column maintenance | `alter table mart.t add c number` | `alter_table_add_column` |
@@ -397,22 +435,22 @@ Current Oracle diagnostics:
 
 | Code | Meaning |
 | --- | --- |
-| `ORACLE_PARSE_ERROR` | Oracle SQL could not be tokenized or walked by the current MVP parser. |
-| `ORACLE_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Oracle but is not in the current MVP statement set. |
+| `ORACLE_PARSE_ERROR` | Oracle SQL could not be tokenized or walked by the current parser. |
+| `ORACLE_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Oracle but is not in the current statement set. |
 | `ORACLE_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
 
 Known Oracle gaps:
 
 | Gap | Current behavior |
 | --- | --- |
-| Full Oracle grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| Full Oracle grammar | The parser uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Oracle-specific query syntax | `MODEL`, `PIVOT`, packages, and PL/SQL blocks are not yet covered. Basic `MERGE INTO` and hierarchical `START WITH` / `CONNECT BY` lineage are covered. |
 | Complex CTEs and subqueries | Single CTE, chained CTE direct projection, CTE column aliases, and single derived subquery direct projection propagation are covered. Recursive CTEs and complex nested subqueries are not complete yet. |
 
 ## StarRocks
 
-StarRocks is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common StarRocks query and write shapes.
+StarRocks is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common StarRocks query and write shapes.
 
 Current StarRocks SQL case assets:
 
@@ -465,6 +503,8 @@ Implemented StarRocks table-level lineage scenarios:
 | ALTER TABLE swap affected tables | `alter table mart.t swap with table mart.t_shadow` | `alter_table_swap` |
 | CREATE INDEX affected table | `create index idx on ads.t(c)` | `create_index` |
 | DROP INDEX affected table | `drop index idx on ads.t` | `drop_index` |
+| COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_on_table` |
+| COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_on_column` |
 | SHOW CREATE TABLE metadata read | `show create table ads.t` | `show_create_table` |
 | SHOW CREATE VIEW metadata read | `show create view ads.v` | `show_create_view` |
 | SHOW CREATE MATERIALIZED VIEW metadata read | `show create materialized view mart.mv` | `show_create_materialized_view` |
@@ -475,8 +515,9 @@ Implemented StarRocks table-level lineage scenarios:
 | ANALYZE TABLE metadata read | `analyze table ads.t` | `analyze_table` |
 | DESCRIBE TABLE metadata read | `desc table ads.t` | `describe_table` |
 | Schema/database control DDL | `create database ...`, `drop database ...` | `create_database`, `drop_database` |
+| Schema/session/routine lifecycle control | `use db`, `set query_timeout = ...`, `create function ... returns ... properties (...)`, `drop function ...` | `use_database`, `set_session_variable`, `create_function`, `drop_function` |
 | Routine load target table | `create routine load job on ods.t ... from kafka (...)` | `create_routine_load_kafka` |
-| Broker load target table | `load label job (data infile (...) into table ods.t ...) with broker ...` | `load_label_data_infile` |
+| Broker load target table and loaded columns | `load label job (data infile (...) into table ods.t (...) where ... set (...)) with broker ...` | `load_label_data_infile` |
 | Load job control statements | `pause/resume/stop routine load for job`, `cancel load ...` | `pause_routine_load`, `resume_routine_load`, `stop_routine_load`, `cancel_load` |
 | Load job metadata reads | `show load ...`, `show routine load ...`, `show routine load task ...` | `show_load`, `show_routine_load`, `show_routine_load_task` |
 | Export source table lineage | `export table mart.t [partition(...)] to 'path' properties (...)` | `export_table`, `export_table_partition` |
@@ -557,22 +598,22 @@ Current StarRocks diagnostics:
 
 | Code | Meaning |
 | --- | --- |
-| `STARROCKS_PARSE_ERROR` | StarRocks SQL could not be tokenized or walked by the current MVP parser. |
-| `STARROCKS_STATEMENT_NOT_SUPPORTED` | The statement was recognized as StarRocks but is not in the current MVP statement set. |
+| `STARROCKS_PARSE_ERROR` | StarRocks SQL could not be tokenized or walked by the current parser. |
+| `STARROCKS_STATEMENT_NOT_SUPPORTED` | The statement was recognized as StarRocks but is not in the current statement set. |
 | `STARROCKS_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
 
 Known StarRocks gaps:
 
 | Gap | Current behavior |
 | --- | --- |
-| Full StarRocks grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| Full StarRocks grammar | The parser uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | StarRocks table model DDL | `DUPLICATE KEY`, `AGGREGATE KEY`, `UNIQUE KEY`, `PRIMARY KEY`, hash/random distribution, and properties are covered as affected target table lineage. |
 | Complex CTEs, subqueries, and routine-load syntax | Single CTE, chained CTE direct projection, CTE column aliases, single derived subquery direct projection propagation, and materialized-view SELECT lineage are covered. Recursive CTEs and routine-load syntax are not complete yet. |
 
 ## Flink
 
-Flink is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Flink query and write shapes.
+Flink is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Flink query and write shapes.
 
 Current Flink SQL case assets:
 
@@ -687,22 +728,22 @@ Current Flink diagnostics:
 
 | Code | Meaning |
 | --- | --- |
-| `FLINK_PARSE_ERROR` | Flink SQL could not be tokenized or walked by the current MVP parser. |
-| `FLINK_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Flink but is not in the current MVP statement set. |
+| `FLINK_PARSE_ERROR` | Flink SQL could not be tokenized or walked by the current parser. |
+| `FLINK_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Flink but is not in the current statement set. |
 | `FLINK_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
 
 Known Flink gaps:
 
 | Gap | Current behavior |
 | --- | --- |
-| Full Flink grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| Full Flink grammar | The parser uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Flink DDL connector options | Connector DDL is covered as affected target table lineage; connector properties are not exposed as a separate lineage model yet. |
 | Complex CTEs, subqueries, temporal joins, and window TVFs | Single CTE, chained CTE direct projection, CTE column aliases, single derived subquery direct projection propagation, temporal join table lineage, and basic TUMBLE source table lineage are covered. Recursive CTEs and full window TVF generated-column semantics are not complete yet. |
 
 ## Hive
 
-Hive is an active MVP dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Hive query and write shapes.
+Hive is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Hive query and write shapes.
 
 Current Hive SQL case assets:
 
@@ -807,21 +848,21 @@ Current Hive diagnostics:
 
 | Code | Meaning |
 | --- | --- |
-| `HIVE_PARSE_ERROR` | Hive SQL could not be tokenized or walked by the current MVP parser. |
-| `HIVE_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Hive but is not in the current MVP statement set. |
+| `HIVE_PARSE_ERROR` | Hive SQL could not be tokenized or walked by the current parser. |
+| `HIVE_STATEMENT_NOT_SUPPORTED` | The statement was recognized as Hive but is not in the current statement set. |
 | `HIVE_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
 
 Known Hive gaps:
 
 | Gap | Current behavior |
 | --- | --- |
-| Full Hive grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| Full Hive grammar | The parser uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Complex expressions, CTEs, subqueries, and lateral view | Single CTE, chained CTE direct projection, CTE column aliases, and single derived subquery direct projection propagation are covered. Complex expressions, recursive CTEs, nested subqueries, and lateral view are not complete yet. |
 
 ## MySQL
 
-MySQL is the second implemented dialect path. The current MVP uses an ANTLR4 lexer with a lightweight lineage walker for common MySQL statement shapes. It is intentionally narrower than Spark coverage while the multi-dialect SPI is being validated.
+MySQL is an active parser dialect path. It uses an ANTLR4 lexer with a lightweight lineage walker for common MySQL statement shapes, including SELECT, DML, DDL, lifecycle statements, metadata reads, control statements, and common expression lineage.
 
 Current MySQL SQL case assets:
 
@@ -940,6 +981,7 @@ Implemented MySQL table-level lineage scenarios:
 | ALTER TABLE partition exchange | `alter table app.users exchange partition p with table staging.users_p ...` | `alter_table_exchange_partition` |
 | CREATE INDEX affected table | `create index idx on mart.t(c)`, `create fulltext index idx on mart.t(c)`, `create index idx on mart.t(name(32) desc)` | `create_index`, `create_fulltext_index`, `create_index_prefix_order` |
 | DROP INDEX affected table | `drop index idx on mart.t` | `drop_index` |
+| CREATE TRIGGER affected table | `create trigger trg before insert on mart.t for each row ...` | `create_trigger` |
 | EXPLAIN wrapped SELECT lineage | `explain select ... from app.s where ...` | `explain_select` |
 | EXPLAIN FORMAT/ANALYZE wrapped SELECT lineage | `explain format=json select ...`, `explain analyze select ...` | `explain_format_json_select`, `explain_analyze_select` |
 | USE database session statement | `use mart` | `use_database` |
@@ -957,7 +999,9 @@ Implemented MySQL table-level lineage scenarios:
 | REPAIR TABLE maintenance read | `repair table mart.t` | `repair_table` |
 | DESCRIBE TABLE metadata read | `describe table mart.t` | `describe_table` |
 | LOCK TABLES metadata/control read | `lock tables app.users read, mart.user_summary write` | `lock_tables` |
-| MySQL control, account, admin, and dynamic SQL statements | `unlock tables`, `set session ...`, `start transaction`, `commit`, `rollback`, `do sleep(1)`, `call p()`, `prepare`, `execute`, `deallocate prepare`, `create procedure`, `create trigger`, `create event`, `create user`, `grant`, `revoke`, `flush`, `kill`, `reset` | `unlock_tables`, `set_session_statement`, `start_transaction`, `commit_statement`, `rollback_statement`, `do_statement`, `call_statement`, `prepare_statement`, `execute_statement`, `deallocate_prepare`, `create_procedure`, `create_trigger`, `create_event`, `create_user`, `grant_privileges`, `revoke_privileges`, `flush_privileges`, `kill_query`, `reset_master` |
+| SET user variable scalar subquery read | `set @v = (select max(id) from app.t where ...)` | `set_subquery_variable` |
+| CREATE EVENT parseable DML body lineage | `create event ... do delete/insert ...` | `create_event`, `create_event_insert_select` |
+| MySQL control, account, admin, routine, trigger, event, and dynamic SQL statements | `unlock tables`, `set session ...`, `start transaction`, `commit`, `rollback`, `do sleep(1)`, `call p()`, `prepare`, `execute`, `deallocate prepare`, `create procedure`, `drop procedure`, `alter procedure`, `create trigger`, `drop trigger`, `create event`, `alter event`, `drop event`, `create user`, `grant`, `revoke`, `flush`, `kill`, `reset` | `unlock_tables`, `set_session_statement`, `start_transaction`, `commit_statement`, `rollback_statement`, `do_statement`, `call_statement`, `prepare_statement`, `execute_statement`, `deallocate_prepare`, `create_procedure`, `drop_procedure`, `alter_procedure`, `create_trigger`, `drop_trigger`, `create_event`, `create_event_insert_select`, `alter_event`, `drop_event`, `create_user`, `grant_privileges`, `revoke_privileges`, `flush_privileges`, `kill_query`, `reset_master` |
 | MySQL schema/database control DDL | `create database ...`, `drop schema ...` | `create_database`, `drop_schema` |
 
 Implemented MySQL column-level lineage scenarios:
@@ -1082,15 +1126,15 @@ Current MySQL diagnostics:
 
 | Code | Meaning |
 | --- | --- |
-| `MYSQL_PARSE_ERROR` | MySQL SQL could not be tokenized or walked by the current MVP parser. |
-| `MYSQL_STATEMENT_NOT_SUPPORTED` | The statement was recognized as MySQL but is not in the current MVP statement set. |
+| `MYSQL_PARSE_ERROR` | MySQL SQL could not be tokenized or walked by the current parser. |
+| `MYSQL_STATEMENT_NOT_SUPPORTED` | The statement was recognized as MySQL but is not in the current statement set. |
 | `MYSQL_COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a statement shape where table lineage may still be available. |
 
 Known MySQL gaps:
 
 | Gap | Current behavior |
 | --- | --- |
-| Full MySQL grammar | The MVP uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
+| Full MySQL grammar | The parser uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
 | `select *` expansion | Not expanded without schema metadata. |
 | Ambiguous plain SQL dialect detection | Explicit MySQL features are auto-detected; dialect-neutral `SELECT` remains default-detected by the current detector. |
 | Complex expressions and subqueries | Direct projections, common expressions, joins, UNION, CTAS/view/insert mappings, single-level subquery propagation, and single CTE propagation are covered; nested query propagation is still limited. |
@@ -1152,12 +1196,12 @@ Implemented Spark table-level lineage scenarios:
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
 | Temporary view drop lifecycle | `create temporary view v as ...; drop view v; select ... from v` | `script_drop_temp_view` |
 | Dynamic SQL graceful degradation | `execute immediate 'select ... from ods.s'` | `execute_immediate_dynamic_sql` |
-| Non-lineage session statements | `use db`, `set catalog c`, `reset key` | `use_database`, `set_catalog`, `reset_configuration` |
-| Namespace DDL without table lineage | `create namespace mart`, `drop namespace mart` | `create_namespace`, `drop_namespace` |
+| Non-lineage session statements classified as control/schema | `use db`, `set catalog c`, `reset key` | `use_database`, `set_catalog`, `reset_configuration` |
+| Namespace DDL classified as schema statements | `create namespace mart`, `drop namespace mart` | `create_namespace`, `drop_namespace` |
 | Table-free metadata reads | `show namespaces`, `show catalogs`, `analyze tables` | `show_namespaces`, `show_catalogs`, `analyze_tables` |
 | Additional metadata reads | `show tables`, `show views`, `show collations`, `describe namespace`, `describe query` | `show_tables`, `show_views`, `show_collations`, `describe_namespace`, `describe_query` |
 | Resource and cache control statements | `refresh 'path'`, `clear cache`, `add jar ...` | `refresh_resource`, `clear_cache`, `add_jar_resource` |
-| Function and procedure statements | `create function`, `drop function`, `call proc`, `show/describe function` | `create_function`, `create_udf_return_query`, `drop_function`, `call_procedure`, `show_functions`, `describe_function` |
+| Function and procedure statements classified as routine/control | `create function`, `drop function`, `call proc`, `show/describe function` | `create_function`, `create_udf_return_query`, `drop_function`, `call_procedure`, `show_functions`, `describe_function` |
 | Variable and cursor control statements | `declare variable`, `declare cursor for select ...` | `create_variable`, `declare_cursor` |
 | JOIN source tables | `from ods.users join ods.orders` | `join_basic` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from ods.s` | `create_view` |
@@ -1369,9 +1413,9 @@ Implemented Spark tolerance scenarios:
 | Backquoted non-ASCII identifiers | Chinese table and column identifiers | `quoted_chinese_identifiers` |
 | Bad SQL isolation in scripts | one invalid statement does not block later statements | `script_bad_sql_recovery` |
 | Dynamic SQL degradation | `EXECUTE IMMEDIATE` returns diagnostics instead of guessing embedded SQL lineage | `execute_immediate_dynamic_sql` |
-| Non-lineage session statements | `USE`, `SET CATALOG`, and `RESET` parse without lineage diagnostics | `use_database`, `set_catalog`, `reset_configuration` |
-| Namespace and catalog statements | Namespace DDL and table-free metadata reads parse without table/column diagnostics | `create_namespace`, `drop_namespace`, `show_namespaces`, `show_catalogs`, `analyze_tables` |
-| Function/procedure/variable/cursor statements | Function DDL, CALL, variable, and cursor control statements parse without table/column diagnostics | `create_function`, `call_procedure`, `create_variable`, `declare_cursor` |
+| Non-lineage session statements | `USE`, `SET CATALOG`, and `RESET` parse as schema/control statements without lineage diagnostics | `use_database`, `set_catalog`, `reset_configuration` |
+| Namespace and catalog statements | Namespace DDL and table-free metadata reads parse as schema/metadata statements without table/column diagnostics | `create_namespace`, `drop_namespace`, `show_namespaces`, `show_catalogs`, `analyze_tables` |
+| Function/procedure/variable/cursor statements | Function DDL, CALL, variable, and cursor control statements parse as routine/control statements without table/column diagnostics | `create_function`, `call_procedure`, `create_variable`, `declare_cursor` |
 | Resource/cache/metadata statements | Resource commands, cache clearing, and table-free metadata reads parse without table/column diagnostics | `refresh_resource`, `clear_cache`, `add_jar_resource`, `show_tables`, `describe_namespace` |
 | Namespace comments | Namespace comment statements parse without table or column diagnostics | `comment_namespace` |
 
