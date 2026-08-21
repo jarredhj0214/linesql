@@ -16,7 +16,7 @@ LineSQL is not a SQL execution engine, optimizer, or query planner. It is built 
 
 If LineSQL helps your data platform work, please star the repository. Stars make it easier for more SQL cases, dialect contributors, and production feedback to find the project.
 
-## The Shape of the Problem
+## Lineage in One Glance
 
 ```sql
 CREATE TEMPORARY VIEW active_users AS
@@ -30,20 +30,43 @@ FROM active_users
 WHERE dt = '${bizdate}';
 ```
 
-LineSQL keeps useful lineage even when SQL is a script, contains temporary views, uses scheduler variables, or mixes dialect-specific syntax.
+LineSQL resolves the temporary view and keeps the final source-to-target lineage:
+
+**Table lineage**
+
+```text
+ods.users -> active_users -> ads.user_summary
+```
+
+**Column lineage**
+
+```text
+ods.users.id   -> active_users.id   -> ads.user_summary.user_id
+ods.users.name -> active_users.name -> ads.user_summary.user_name
+```
+
+**Clause column usage**
+
+```text
+ods.users.status  used by WHERE
+ods.users.dt      used by WHERE through active_users
+```
+
+It keeps useful lineage even when SQL is a script, contains temporary views, uses scheduler variables, or mixes dialect-specific syntax.
 
 ```mermaid
 flowchart LR
-    sql["Production SQL script"]
-    parser["LineSQL"]
-    tables["Table lineage<br/>ods.users -> ads.user_summary"]
-    columns["Column lineage<br/>ods.users.id -> ads.user_summary.user_id<br/>ods.users.name -> ads.user_summary.user_name"]
-    diagnostics["Warnings and errors<br/>without dropping partial results"]
+    source["ods.users"]
+    temp["active_users<br/>temporary view"]
+    target["ads.user_summary"]
+    c1["id -> user_id"]
+    c2["name -> user_name"]
+    filters["WHERE columns<br/>status, dt"]
 
-    sql --> parser
-    parser --> tables
-    parser --> columns
-    parser --> diagnostics
+    source --> temp --> target
+    source --> c1 --> target
+    source --> c2 --> target
+    source --> filters
 ```
 
 ## At a Glance
