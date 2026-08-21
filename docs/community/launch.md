@@ -30,6 +30,8 @@ It is a JVM-native, ANTLR4-based SQL lineage parser focused on real-world data p
 
 Current dialect modules include Spark, Hive, Flink, StarRocks, MySQL, Oracle, SQL Server, PostgreSQL, and OceanBase.
 
+The public regression corpus currently contains 800+ SQL cases, including 500+ column-lineage cases.
+
 Maven:
 io.github.jarredhj0214:linesql-all:0.1.0-alpha.4
 
@@ -51,6 +53,7 @@ The project is not a SQL executor or optimizer. It focuses on parsing production
 - multi-statement scripts
 - parser diagnostics and partial results
 - dialect modules for Spark, Hive, Flink, StarRocks, MySQL, Oracle, SQL Server, PostgreSQL, and OceanBase
+- a public case-backed regression corpus with 800+ SQL cases
 
 It is published to Maven Central:
 

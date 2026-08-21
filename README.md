@@ -1,5 +1,7 @@
 # LineSQL
 
+Turn messy production SQL into table and column lineage.
+
 [![Maven](https://github.com/jarredhj0214/linesql/actions/workflows/maven.yml/badge.svg)](https://github.com/jarredhj0214/linesql/actions/workflows/maven.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.jarredhj0214/linesql-all.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.jarredhj0214/linesql-all)
 [![License](https://img.shields.io/github/license/jarredhj0214/linesql.svg)](LICENSE)
@@ -13,6 +15,36 @@ It parses SQL from engines such as Spark, Hive, Flink, StarRocks, MySQL, Oracle,
 LineSQL is not a SQL execution engine, optimizer, or query planner. It is built for metadata platforms, data catalogs, governance systems, quality platforms, impact analysis, and lineage services that need practical SQL understanding inside JVM applications.
 
 If LineSQL helps your data platform work, please star the repository. Stars make it easier for more SQL cases, dialect contributors, and production feedback to find the project.
+
+## The Shape of the Problem
+
+```sql
+CREATE TEMPORARY VIEW active_users AS
+SELECT id, name, dt
+FROM ods.users
+WHERE status = 'ACTIVE';
+
+INSERT OVERWRITE TABLE ads.user_summary(user_id, user_name)
+SELECT id, name
+FROM active_users
+WHERE dt = '${bizdate}';
+```
+
+LineSQL keeps useful lineage even when SQL is a script, contains temporary views, uses scheduler variables, or mixes dialect-specific syntax.
+
+```mermaid
+flowchart LR
+    sql["Production SQL script"]
+    parser["LineSQL"]
+    tables["Table lineage<br/>ods.users -> ads.user_summary"]
+    columns["Column lineage<br/>ods.users.id -> ads.user_summary.user_id<br/>ods.users.name -> ads.user_summary.user_name"]
+    diagnostics["Warnings and errors<br/>without dropping partial results"]
+
+    sql --> parser
+    parser --> tables
+    parser --> columns
+    parser --> diagnostics
+```
 
 ## At a Glance
 
@@ -49,6 +81,19 @@ LineSQL is designed around these constraints:
 - **Script-friendly parsing**: bad statements should not block the rest of a script.
 - **JVM-native integration**: suitable for Java catalog, governance, metadata, quality, and impact-analysis services.
 
+## Use Cases
+
+LineSQL is built for systems that need SQL understanding without owning a full query planner:
+
+| Use case | What LineSQL provides |
+| --- | --- |
+| Data catalog ingestion | Source tables, target tables, affected tables, and parser diagnostics |
+| Column-level lineage | Projection, insert, CTAS, view, update, and merge dependencies where supported |
+| Impact analysis | Downstream table and column dependencies from SQL scripts |
+| Data governance | Clause-level usages for filters, grouping, ordering, and DML predicates |
+| SQL inventory | Statement type, dialect, parse warnings, and unsupported SQL visibility |
+| Migration assessment | Dialect detection and case-backed compatibility checks |
+
 ## What Makes It Different
 
 LineSQL optimizes for lineage extraction rather than query execution. The parser accepts production-oriented SQL shapes, keeps dialect-specific grammar modules, and exposes one result model so downstream services do not need to normalize every engine by themselves.
@@ -60,6 +105,15 @@ The core contract is simple:
 - return source tables, target tables, column lineage, clause column usages, warnings, and errors;
 - preserve partial results when a script contains unsupported or broken SQL;
 - keep every supported scenario backed by SQL case files and manifest assertions.
+
+## Positioning
+
+| Project type | Primary goal | Best fit | LineSQL difference |
+| --- | --- | --- | --- |
+| Query planner and optimizer | Validate, transform, and optimize relational plans | Engines, optimizers, federated query layers | LineSQL avoids planning and focuses on practical lineage output |
+| General SQL parser | Parse SQL syntax into generic AST structures | SQL editors, simple analyzers, generic tooling | LineSQL returns a lineage model directly instead of only AST nodes |
+| SQL transpiler | Convert SQL across dialects | Migration and dialect conversion | LineSQL focuses on source-to-target lineage, diagnostics, and production scripts |
+| LineSQL | Extract table and column lineage from platform SQL | Catalogs, governance, quality, metadata, impact analysis | JVM-native, multi-dialect, lineage-first, case-backed |
 
 ## Current Status
 
@@ -81,6 +135,7 @@ Java compatibility:
 
 Detailed compatibility is case-backed and tracked in [Supported Scenarios](docs/supported-scenarios.md).
 Grammar-domain coverage and development priorities are tracked in [Grammar Coverage Matrix](docs/grammar-coverage-matrix.md).
+Case coverage and benchmark methodology are tracked in [Benchmark and Coverage](docs/benchmark.md).
 
 | Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Clause Column Usage |
 | --- | --- | --- | --- | --- | --- |
@@ -95,6 +150,17 @@ Grammar-domain coverage and development priorities are tracked in [Grammar Cover
 | OceanBase | Baseline MVP | Yes | MySQL and Oracle compatibility-mode baseline | Direct mappings through compatibility modes | Basic compatibility-mode usages |
 
 Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to Spark; callers can pass an explicit dialect when the execution engine is known.
+
+Current regression corpus:
+
+| Metric | Current value |
+| --- | ---: |
+| Dialects | 9 |
+| SQL cases | 834 |
+| Column-lineage cases | 542 |
+| Diagnostic cases | 14 |
+
+The corpus is intentionally transparent: SQL case files and manifest expectations live under each dialect module, so contributors can inspect exactly what a release claims to support.
 
 ## Modules
 
@@ -348,6 +414,7 @@ See [Contributing](CONTRIBUTING.md) for the development workflow.
 ## Design Docs
 
 - [Architecture Vision](docs/design/architecture.md)
+- [Benchmark and Coverage](docs/benchmark.md)
 - [Supported Scenarios](docs/supported-scenarios.md)
 - [Spark Stage 1](docs/design/spark-stage-1.md)
 - [Development](docs/development.md)
