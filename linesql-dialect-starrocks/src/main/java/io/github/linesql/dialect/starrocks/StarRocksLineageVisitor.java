@@ -47,6 +47,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAdminStmt(StarRocksParser.AdminStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
     public Void visitInsertStmt(StarRocksParser.InsertStmtContext ctx) {
         result.setStatementType(StatementType.INSERT);
         return visitChildren(ctx);
@@ -72,6 +78,57 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             suppressColumnLineage = true;
         }
         result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitExportTableStmt(StarRocksParser.ExportTableStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitExportTableStatement(StarRocksParser.ExportTableStatementContext ctx) {
+        inputTables.add(tableRef(ctx.source));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCreateRoutineLoadStmt(StarRocksParser.CreateRoutineLoadStmtContext ctx) {
+        result.setStatementType(StatementType.LOAD_DATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateRoutineLoadStatement(StarRocksParser.CreateRoutineLoadStatementContext ctx) {
+        outputTables.add(tableRef(ctx.target));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRoutineLoadControlStmt(StarRocksParser.RoutineLoadControlStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitCancelLoadStmt(StarRocksParser.CancelLoadStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitLoadLabelStmt(StarRocksParser.LoadLabelStmtContext ctx) {
+        result.setStatementType(StatementType.LOAD_DATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLoadDataElement(StarRocksParser.LoadDataElementContext ctx) {
+        outputTables.add(tableRef(ctx.target));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -149,6 +206,25 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateIndexStmt(StarRocksParser.CreateIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateIndexStatement(StarRocksParser.CreateIndexStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCreateDatabaseStmt(StarRocksParser.CreateDatabaseStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStatement(StarRocksParser.CreateTableStatementContext ctx) {
         if (ctx.source != null) {
             result.setStatementType(StatementType.CREATE_TABLE_LIKE);
@@ -203,7 +279,39 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDropIndexStmt(StarRocksParser.DropIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropIndexStatement(StarRocksParser.DropIndexStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropDatabaseStmt(StarRocksParser.DropDatabaseStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
     public Void visitDropTableStatement(StarRocksParser.DropTableStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropViewStmt(StarRocksParser.DropViewStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropViewStatement(StarRocksParser.DropViewStatementContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -217,6 +325,19 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitTruncateTableStatement(StarRocksParser.TruncateTableStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRefreshMaterializedViewStmt(StarRocksParser.RefreshMaterializedViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRefreshMaterializedViewStatement(StarRocksParser.RefreshMaterializedViewStatementContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -240,6 +361,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterTableSwap(StarRocksParser.AlterTableSwapContext ctx) {
+        List<StarRocksParser.MultipartIdentifierContext> ids = ctx.multipartIdentifier();
+        outputTables.add(tableRef(ids.get(0)));
+        outputTables.add(tableRef(ids.get(1)));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableAddColumn(StarRocksParser.AlterTableAddColumnContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -250,6 +380,19 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     public Void visitAlterTableOther(StarRocksParser.AlterTableOtherContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAnalyzeTableStmt(StarRocksParser.AnalyzeTableStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAnalyzeTableStatement(StarRocksParser.AnalyzeTableStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
@@ -271,6 +414,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitDescribeStmt(StarRocksParser.DescribeStmtContext ctx) {
         result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDescribeStatement(StarRocksParser.DescribeStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
@@ -368,15 +518,19 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitGroupByClause(StarRocksParser.GroupByClauseContext ctx) {
-        for (StarRocksParser.ExpressionContext expression : ctx.expression()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
-        }
+        addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(ctx));
         return visitChildren(ctx);
     }
 
     @Override
     public Void visitHavingClause(StarRocksParser.HavingClauseContext ctx) {
         addColumnUsages(ColumnUsageType.HAVING, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitQualifyClause(StarRocksParser.QualifyClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
         return visitChildren(ctx);
     }
 
@@ -713,7 +867,20 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        return columns.get(sourceColumn.name);
+        return caseInsensitiveColumnRefs(columns, sourceColumn.name);
+    }
+
+    private static List<ColumnRef> caseInsensitiveColumnRefs(Map<String, List<ColumnRef>> columns, String columnName) {
+        List<ColumnRef> refs = columns.get(columnName);
+        if (refs != null) {
+            return refs;
+        }
+        for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(columnName)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     private boolean isCteReference(TableRef table) {
@@ -891,7 +1058,36 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
         String raw = column.qualifier != null ? column.qualifier + "." + column.name : column.name;
-        return expression.equals(raw) || expression.endsWith("." + column.name);
+        String normalizedExpression = normalizedIdentifierExpression(expression);
+        String normalizedRaw = normalizedIdentifierExpression(raw);
+        String normalizedName = normalizedIdentifierExpression(column.name);
+        return normalizedExpression.equals(normalizedRaw) || normalizedExpression.endsWith("." + normalizedName);
+    }
+
+    private static String normalizedIdentifierExpression(String expression) {
+        return String.join(".", splitIdentifier(expression));
+    }
+
+    private static List<String> splitIdentifier(String raw) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c == '`') {
+                quoted = !quoted;
+                current.append(c);
+            } else if (c == '.' && !quoted) {
+                parts.add(cleanIdentifier(current.toString()));
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) {
+            parts.add(cleanIdentifier(current.toString()));
+        }
+        return parts;
     }
 
     private static String unqualifiedName(String raw) {

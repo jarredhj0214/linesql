@@ -43,10 +43,19 @@ public class MySqlDialectParserTest {
         for (JsonNode sqlCase : manifest.get("cases")) {
             String caseId = sqlCase.get("id").asText();
             String sql = resource("/sql/mysql/" + sqlCase.get("file").asText());
+            String statementType = sqlCase.get("statementType").asText();
+
+            if ("MULTI".equals(statementType)) {
+                List<LineageResult> results = LineSql.parseScript(sql, SqlDialect.MYSQL);
+                assertTables(caseId, sqlCase.get("inputTables"), collectInputTables(results));
+                assertTables(caseId, sqlCase.get("outputTables"), collectOutputTables(results));
+                continue;
+            }
+
             LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
 
             assertEquals(caseId, SqlDialect.MYSQL, result.getDialect());
-            assertEquals(caseId, StatementType.valueOf(sqlCase.get("statementType").asText()), result.getStatementType());
+            assertEquals(caseId, StatementType.valueOf(statementType), result.getStatementType());
             assertTables(caseId, sqlCase.get("inputTables"), tableNames(result.getInputTables()));
             assertTables(caseId, sqlCase.get("outputTables"), tableNames(result.getOutputTables()));
             if (sqlCase.has("columnLineage")) {
@@ -71,6 +80,33 @@ public class MySqlDialectParserTest {
         LineageResult deleteJoin = LineSql.parse(sqlCase("delete_join"));
         assertEquals(SqlDialect.MYSQL, deleteJoin.getDialect());
         assertEquals(StatementType.DELETE, deleteJoin.getStatementType());
+    }
+
+    @Test
+    public void propagatesTemporaryTableAcrossScript() {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_temp_table_lineage"), SqlDialect.MYSQL);
+
+        assertEquals(2, results.size());
+        assertEquals(StatementType.CREATE_TABLE_AS_SELECT, results.get(0).getStatementType());
+        assertEquals(StatementType.INSERT, results.get(1).getStatementType());
+        assertEquals("app.users", tableNames(results.get(1).getInputTables()).get(0));
+        assertEquals("mart.user_summary", tableNames(results.get(1).getOutputTables()).get(0));
+        assertEquals(2, results.get(1).getColumnLineage().size());
+        assertEquals("mart.user_summary.user_id", columnName(results.get(1).getColumnLineage().get(0).getTarget()));
+        assertEquals("app.users.id", columnName(results.get(1).getColumnLineage().get(0).getSources().get(0)));
+        assertEquals("mart.user_summary.user_name", columnName(results.get(1).getColumnLineage().get(1).getTarget()));
+        assertEquals("app.users.name", columnName(results.get(1).getColumnLineage().get(1).getSources().get(0)));
+    }
+
+    @Test
+    public void dropsTemporaryTableFromScriptContext() {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_drop_temp_table"), SqlDialect.MYSQL);
+
+        assertEquals(3, results.size());
+        assertEquals(StatementType.CREATE_TABLE_AS_SELECT, results.get(0).getStatementType());
+        assertEquals(StatementType.DROP_TABLE, results.get(1).getStatementType());
+        assertEquals(StatementType.SELECT, results.get(2).getStatementType());
+        assertEquals("tmp_users", tableNames(results.get(2).getInputTables()).get(0));
     }
 
     private static String sqlCase(String caseId) {
@@ -148,6 +184,22 @@ public class MySqlDialectParserTest {
         return tables.stream()
                 .map(MySqlDialectParserTest::tableName)
                 .collect(Collectors.toList());
+    }
+
+    private static List<String> collectInputTables(List<LineageResult> results) {
+        List<io.github.linesql.core.model.TableRef> tables = new ArrayList<>();
+        for (LineageResult result : results) {
+            tables.addAll(result.getInputTables());
+        }
+        return tableNames(tables);
+    }
+
+    private static List<String> collectOutputTables(List<LineageResult> results) {
+        List<io.github.linesql.core.model.TableRef> tables = new ArrayList<>();
+        for (LineageResult result : results) {
+            tables.addAll(result.getOutputTables());
+        }
+        return tableNames(tables);
     }
 
     private static String tableName(io.github.linesql.core.model.TableRef table) {

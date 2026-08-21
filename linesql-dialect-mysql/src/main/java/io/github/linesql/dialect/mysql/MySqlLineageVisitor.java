@@ -4,6 +4,7 @@ import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
@@ -29,6 +30,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Map<String, MySqlParser.WindowSpecContext> namedWindows = new LinkedHashMap<>();
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
@@ -36,15 +38,39 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
+    private ParseContext context;
 
     MySqlLineageVisitor(LineageResult result) {
         this.result = result;
+    }
+
+    void setContext(ParseContext context) {
+        this.context = context;
     }
 
     @Override
     public Void visitStatementDefault(MySqlParser.StatementDefaultContext ctx) {
         result.setStatementType(StatementType.SELECT);
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitTableStmt(MySqlParser.TableStmtContext ctx) {
+        result.setStatementType(StatementType.SELECT);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitTableStatement(MySqlParser.TableStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return visit(ctx.queryOrganization());
+    }
+
+    @Override
+    public Void visitValuesStmt(MySqlParser.ValuesStmtContext ctx) {
+        result.setStatementType(StatementType.SELECT);
+        return null;
     }
 
     @Override
@@ -78,6 +104,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                 result.setColumnLineage(lineages);
                 projections.clear();
             }
+        } else if (ctx.assignmentList() != null) {
+            collectSubqueryInputs(ctx.assignmentList());
+            result.setColumnLineage(readAssignments(ctx.assignmentList(), target));
         } else {
             suppressColumnLineage = true;
         }
@@ -105,9 +134,35 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
+        } else if (ctx.assignmentList() != null) {
+            collectSubqueryInputs(ctx.assignmentList());
+            result.setColumnLineage(readAssignments(ctx.assignmentList(), target));
         } else {
             suppressColumnLineage = true;
         }
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitLoadDataStmt(MySqlParser.LoadDataStmtContext ctx) {
+        result.setStatementType(StatementType.LOAD_DATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLoadDataStatement(MySqlParser.LoadDataStatementContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (MySqlParser.LoadDataOptionContext option : ctx.loadDataOption()) {
+            if (option.assignmentList() != null) {
+                collectSubqueryInputs(option.assignmentList());
+                lineages.addAll(readAssignments(option.assignmentList(), target));
+            }
+        }
+        result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -124,18 +179,50 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        visitRelationForUpdate(ctx.relation());
+        visitRelationListForInputs(ctx.relationList());
+        TableRef defaultTarget = firstTableInRelationList(ctx.relationList());
+        if (defaultTarget != null) {
+            outputTables.add(defaultTarget);
+        }
+        addAssignmentTargetTables(ctx.assignmentList());
         currentDmlTarget = firstOutputTable();
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
             collectSubqueryInputs(ctx.whereClause());
         }
+        collectDmlOrganization(ctx.dmlOrganization());
         collectSubqueryInputs(ctx.assignmentList());
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), firstOutputTable());
         result.setColumnLineage(assignments);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private TableRef firstTableInRelationList(MySqlParser.RelationListContext ctx) {
+        if (ctx == null || ctx.relation().isEmpty()) {
+            return null;
+        }
+        MySqlParser.RelationPrimaryContext primary = ctx.relation(0).relationPrimary();
+        if (!(primary instanceof MySqlParser.TableNameContext)) {
+            return null;
+        }
+        TableRef table = tableRef(((MySqlParser.TableNameContext) primary).multipartIdentifier());
+        return isCteReference(table) ? null : table;
+    }
+
+    private void addAssignmentTargetTables(MySqlParser.AssignmentListContext ctx) {
+        for (MySqlParser.AssignmentContext assignment : ctx.assignment()) {
+            List<String> parts = identifierParts(assignment.multipartIdentifier());
+            if (parts.size() < 2) {
+                continue;
+            }
+            String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
+            TableRef resolved = tableAliases.get(qualifier);
+            if (resolved != null) {
+                outputTables.add(resolved);
+            }
+        }
     }
 
     private void visitRelationForUpdate(MySqlParser.RelationContext ctx) {
@@ -175,6 +262,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
             collectSubqueryInputs(ctx.whereClause());
         }
+        collectDmlOrganization(ctx.dmlOrganization());
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -185,17 +273,25 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        String deleteAlias = identifierParts(ctx.multipartIdentifier()).get(0).toLowerCase(Locale.ROOT);
         visitRelationListForInputs(ctx.relationList());
-        TableRef target = tableAliases.get(deleteAlias);
-        if (target != null) {
-            outputTables.add(target);
-            currentDmlTarget = target;
+        for (MySqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
+            List<String> parts = identifierParts(identifier);
+            String deleteAlias = parts.get(parts.size() - 1).toLowerCase(Locale.ROOT);
+            TableRef target = tableAliases.get(deleteAlias);
+            if (target != null) {
+                outputTables.add(target);
+                if (currentDmlTarget == null) {
+                    currentDmlTarget = target;
+                }
+            } else if (parts.size() > 1) {
+                outputTables.add(tableRef(identifier));
+            }
         }
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
             collectSubqueryInputs(ctx.whereClause());
         }
+        collectDmlOrganization(ctx.dmlOrganization());
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -247,6 +343,31 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateIndexStmt(MySqlParser.CreateIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateIndexStatement(MySqlParser.CreateIndexStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitCreateDatabaseStmt(MySqlParser.CreateDatabaseStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitDropDatabaseStmt(MySqlParser.DropDatabaseStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStatement(MySqlParser.CreateTableStatementContext ctx) {
         if (ctx.source != null) {
             result.setStatementType(StatementType.CREATE_TABLE_LIKE);
@@ -260,15 +381,32 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         outputTables.add(target);
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            addCreateTableTargetColumns(ctx.tableElementList());
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
+            if (ctx.TEMPORARY() != null) {
+                registerTemporaryRelation(target);
+            }
         } else {
             result.setStatementType(StatementType.UNKNOWN);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void addCreateTableTargetColumns(MySqlParser.TableElementListContext tableElementList) {
+        if (tableElementList == null) {
+            return;
+        }
+        for (MySqlParser.TableElementContext element : tableElementList.tableElement()) {
+            if (element.getChildCount() >= 2
+                    && element.getChild(0) instanceof MySqlParser.IdentifierContext
+                    && element.getChild(1) instanceof MySqlParser.DataTypeContext) {
+                insertTargetColumns.add(cleanIdentifier((MySqlParser.IdentifierContext) element.getChild(0)));
+            }
+        }
     }
 
     @Override
@@ -301,9 +439,24 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDropIndexStmt(MySqlParser.DropIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropIndexStatement(MySqlParser.DropIndexStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitDropTableStatement(MySqlParser.DropTableStatementContext ctx) {
         for (MySqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
-            outputTables.add(tableRef(identifier));
+            TableRef table = tableRef(identifier);
+            outputTables.add(table);
+            unregisterTemporaryRelation(table);
         }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -338,6 +491,23 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitRenameTableStmt(MySqlParser.RenameTableStmtContext ctx) {
+        result.setStatementType(StatementType.RENAME_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRenameTableStatement(MySqlParser.RenameTableStatementContext ctx) {
+        for (MySqlParser.RenameTablePairContext pair : ctx.renameTablePair()) {
+            inputTables.add(tableRef(pair.source));
+            outputTables.add(tableRef(pair.target));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableStmt(MySqlParser.AlterTableStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);
@@ -363,8 +533,189 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableOther(MySqlParser.AlterTableOtherContext ctx) {
+        if (ctx.alterTableActionList() != null) {
+            for (MySqlParser.AlterTableActionContext action : ctx.alterTableActionList().alterTableAction()) {
+                if (action.REFERENCES() != null && action.multipartIdentifier() != null) {
+                    inputTables.add(tableRef(action.multipartIdentifier()));
+                    result.setInputTables(new ArrayList<>(inputTables));
+                }
+                if (action.EXCHANGE() != null && action.multipartIdentifier() != null) {
+                    TableRef exchangeTable = tableRef(action.multipartIdentifier());
+                    inputTables.add(exchangeTable);
+                    outputTables.add(exchangeTable);
+                    result.setInputTables(new ArrayList<>(inputTables));
+                }
+            }
+        }
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterViewStmt(MySqlParser.AlterViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterViewStatement(MySqlParser.AlterViewStatementContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        if (ctx.viewColumnList != null) {
+            for (MySqlParser.IdentifierContext id : ctx.viewColumnList.identifier()) {
+                insertTargetColumns.add(cleanIdentifier(id));
+            }
+        }
+        visit(ctx.query());
+        refreshColumnLineage();
+        retargetColumnLineage(target);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAnalyzeTableStmt(MySqlParser.AnalyzeTableStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAnalyzeTableStatement(MySqlParser.AnalyzeTableStatementContext ctx) {
+        for (MySqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
+            inputTables.add(tableRef(identifier));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitTableMaintenanceStmt(MySqlParser.TableMaintenanceStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitTableMaintenanceStatement(MySqlParser.TableMaintenanceStatementContext ctx) {
+        for (MySqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
+            inputTables.add(tableRef(identifier));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitExplainStmt(MySqlParser.ExplainStmtContext ctx) {
+        return visit(ctx.explainStatement());
+    }
+
+    @Override
+    public Void visitExplainStatement(MySqlParser.ExplainStatementContext ctx) {
+        return visit(ctx.statement());
+    }
+
+    @Override
+    public Void visitUseStmt(MySqlParser.UseStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitUseStatement(MySqlParser.UseStatementContext ctx) {
+        return null;
+    }
+
+    @Override
+    public Void visitLockTablesStmt(MySqlParser.LockTablesStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLockTablesStatement(MySqlParser.LockTablesStatementContext ctx) {
+        for (MySqlParser.LockTableContext lockTable : ctx.lockTable()) {
+            inputTables.add(tableRef(lockTable.multipartIdentifier()));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitUnlockTablesStmt(MySqlParser.UnlockTablesStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitSetStmt(MySqlParser.SetStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitTransactionStmt(MySqlParser.TransactionStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitDoStmt(MySqlParser.DoStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitCallStmt(MySqlParser.CallStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitPrepareStmt(MySqlParser.PrepareStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitExecuteStmt(MySqlParser.ExecuteStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitDeallocatePrepareStmt(MySqlParser.DeallocatePrepareStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateRoutineStmt(MySqlParser.CreateRoutineStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateTriggerStmt(MySqlParser.CreateTriggerStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateEventStmt(MySqlParser.CreateEventStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitAccountStmt(MySqlParser.AccountStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
+        return null;
+    }
+
+    @Override
+    public Void visitAdminStmt(MySqlParser.AdminStmtContext ctx) {
+        result.setStatementType(StatementType.UNKNOWN);
         return null;
     }
 
@@ -390,6 +741,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     @Override
     public Void visitDescribeStmt(MySqlParser.DescribeStmtContext ctx) {
         result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDescribeStatement(MySqlParser.DescribeStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
@@ -446,8 +804,16 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     @Override
     public Void visitTableName(MySqlParser.TableNameContext ctx) {
         TableRef table = tableRef(ctx.multipartIdentifier());
+        if (isDualPseudoTable(table)) {
+            return null;
+        }
         if (isCteReference(table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
+            return null;
+        }
+        String temporaryRelationName = temporaryRelationName(table);
+        if (temporaryRelationName != null) {
+            addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
             return null;
         }
         addInputTable(table, ctx.tableAlias(), true);
@@ -503,8 +869,8 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitGroupByClause(MySqlParser.GroupByClauseContext ctx) {
-        for (MySqlParser.ExpressionContext expression : ctx.expression()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+        for (MySqlParser.GroupByItemContext groupByItem : ctx.groupByItem()) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(groupByItem.expression()));
         }
         return visitChildren(ctx);
     }
@@ -528,6 +894,15 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             pendingColumnUsages.add(new PendingColumnUsage(
                     ColumnUsageType.WINDOW_ORDER_BY,
                     sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitNamedWindow(MySqlParser.NamedWindowContext ctx) {
+        namedWindows.put(cleanIdentifier(ctx.identifier()).toLowerCase(Locale.ROOT), ctx.windowSpec());
+        for (Projection projection : projections) {
+            addNamedWindowSourceColumns(projection.expressionTree, projection.sourceColumns);
         }
         return visitChildren(ctx);
     }
@@ -607,6 +982,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private void registerDerivedRelation(String name, MySqlParser.QueryContext query, List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
         MySqlLineageVisitor relationVisitor = new MySqlLineageVisitor(relationResult);
+        relationVisitor.setContext(context);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
@@ -627,9 +1003,75 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         LineageModelUtils.mergeColumnUsages(result, relationResult);
     }
 
+    private void registerTemporaryRelation(TableRef table) {
+        if (context == null) {
+            return;
+        }
+        context.getTemporaryRelations().put(relationKey(table), copyResult(result));
+    }
+
+    private void unregisterTemporaryRelation(TableRef table) {
+        if (context == null) {
+            return;
+        }
+        context.getTemporaryRelations().remove(relationKey(table));
+    }
+
+    private String temporaryRelationName(TableRef table) {
+        if (context == null) {
+            return null;
+        }
+        String key = relationKey(table);
+        return context.getTemporaryRelations().containsKey(key) ? key : null;
+    }
+
+    private void addTemporaryRelationReference(String relationName, MySqlParser.TableAliasContext aliasCtx) {
+        LineageResult relation = context.getTemporaryRelations().get(relationName);
+        if (relation == null) {
+            return;
+        }
+        visibleRelationCount++;
+        visibleRelations.add(VisibleRelation.derived(relationName));
+        derivedReferences.add(relationName);
+        derivedAliases.put(relationName, relationName);
+        String alias = tableAlias(aliasCtx);
+        if (alias != null) {
+            derivedAliases.put(alias.toLowerCase(Locale.ROOT), relationName);
+        }
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (ColumnLineage lineage : relation.getColumnLineage()) {
+            columns.put(lineage.getTarget().getName(), lineage.getSources());
+        }
+        if (columns.isEmpty() && relation.getInputTables().size() == 1) {
+            List<ColumnRef> wildcard = new ArrayList<>();
+            wildcard.add(new ColumnRef(relation.getInputTables().get(0), "*"));
+            columns.put("*", wildcard);
+        }
+        derivedColumnLineage.put(relationName, columns);
+        for (TableRef table : relation.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, relation);
+        refreshColumnLineage();
+    }
+
+    private static LineageResult copyResult(LineageResult source) {
+        LineageResult copy = new LineageResult();
+        copy.setDialect(source.getDialect());
+        copy.setDialectConfidence(source.getDialectConfidence());
+        copy.setStatementType(source.getStatementType());
+        copy.setInputTables(new ArrayList<>(source.getInputTables()));
+        copy.setOutputTables(new ArrayList<>(source.getOutputTables()));
+        copy.setColumnLineage(new ArrayList<>(source.getColumnLineage()));
+        copy.setColumnUsages(new ArrayList<>(source.getColumnUsages()));
+        copy.setDiagnostics(new ArrayList<>(source.getDiagnostics()));
+        return copy;
+    }
+
     private LineageResult lineageForQueryTerm(MySqlParser.QueryTermContext queryTerm) {
         LineageResult queryResult = new LineageResult();
         MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(queryResult);
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -687,6 +1129,15 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
         } else {
             addUsingColumnUsages(ctx.identifierList(), relationStart);
+        }
+    }
+
+    private void collectDmlOrganization(MySqlParser.DmlOrganizationContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        for (MySqlParser.SortItemContext sortItem : ctx.sortItem()) {
+            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
         }
     }
 
@@ -852,13 +1303,32 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        return columns.get(sourceColumn.name);
+        return caseInsensitiveColumnRefs(columns, sourceColumn.name);
+    }
+
+    private static List<ColumnRef> caseInsensitiveColumnRefs(Map<String, List<ColumnRef>> columns, String columnName) {
+        List<ColumnRef> refs = columns.get(columnName);
+        if (refs != null) {
+            return refs;
+        }
+        for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(columnName)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     private boolean isCteReference(TableRef table) {
         return table.getCatalog() == null
                 && table.getSchema() == null
                 && cteNames.contains(table.getName().toLowerCase(Locale.ROOT));
+    }
+
+    private static boolean isDualPseudoTable(TableRef table) {
+        return table.getCatalog() == null
+                && table.getSchema() == null
+                && "dual".equalsIgnoreCase(table.getName());
     }
 
     private List<ColumnLineage> readAssignments(MySqlParser.AssignmentListContext ctx, TableRef defaultTarget) {
@@ -1036,6 +1506,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private LineageResult lineageForQuery(MySqlParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(queryResult);
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -1080,6 +1551,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private Projection projection(MySqlParser.SelectExpressionContext ctx) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
+        addNamedWindowSourceColumns(ctx.expression(), sourceColumns);
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
                 ? unqualifiedName(sourceColumns.get(0).name)
                 : null;
@@ -1093,12 +1565,65 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, targetColumn, expression);
+        return new Projection(sourceColumns, targetColumn, expression, ctx.expression());
+    }
+
+    private void addNamedWindowSourceColumns(ParseTree tree, List<SourceColumn> sourceColumns) {
+        Set<SourceColumn> columns = new LinkedHashSet<>(sourceColumns);
+        collectNamedWindowSourceColumns(tree, columns);
+        sourceColumns.clear();
+        sourceColumns.addAll(columns);
+    }
+
+    private void collectNamedWindowSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
+        if (tree instanceof MySqlParser.WindowRefContext) {
+            MySqlParser.WindowRefContext windowRef = (MySqlParser.WindowRefContext) tree;
+            if (windowRef.identifier() != null) {
+                MySqlParser.WindowSpecContext windowSpec =
+                        namedWindows.get(cleanIdentifier(windowRef.identifier()).toLowerCase(Locale.ROOT));
+                if (windowSpec != null) {
+                    columns.addAll(sourceColumns(windowSpec));
+                }
+            }
+            return;
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            collectNamedWindowSourceColumns(tree.getChild(i), columns);
+        }
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
         String raw = column.qualifier != null ? column.qualifier + "." + column.name : column.name;
-        return expression.equals(raw) || expression.endsWith("." + column.name);
+        String normalizedExpression = normalizedIdentifierExpression(expression);
+        String normalizedRaw = normalizedIdentifierExpression(raw);
+        String normalizedName = normalizedIdentifierExpression(column.name);
+        return normalizedExpression.equals(normalizedRaw) || normalizedExpression.endsWith("." + normalizedName);
+    }
+
+    private static String normalizedIdentifierExpression(String expression) {
+        return String.join(".", splitIdentifier(expression));
+    }
+
+    private static List<String> splitIdentifier(String raw) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c == '`') {
+                quoted = !quoted;
+                current.append(c);
+            } else if (c == '.' && !quoted) {
+                parts.add(cleanIdentifier(current.toString()));
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) {
+            parts.add(cleanIdentifier(current.toString()));
+        }
+        return parts;
     }
 
     private static String unqualifiedName(String raw) {
@@ -1134,6 +1659,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(MySqlParser.QueryContext query) {
         MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(new LineageResult());
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -1244,6 +1770,18 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         return LineageModelUtils.tableRefFromParts(parts);
     }
 
+    private static String relationKey(TableRef table) {
+        List<String> parts = new ArrayList<>();
+        if (table.getCatalog() != null) {
+            parts.add(table.getCatalog());
+        }
+        if (table.getSchema() != null) {
+            parts.add(table.getSchema());
+        }
+        parts.add(table.getName());
+        return String.join(".", parts).toLowerCase(Locale.ROOT);
+    }
+
     private static List<String> identifierParts(MySqlParser.MultipartIdentifierContext ctx) {
         List<String> parts = new ArrayList<>();
         for (MySqlParser.IdentifierContext id : ctx.identifier()) {
@@ -1293,11 +1831,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         final List<SourceColumn> sourceColumns;
         final String targetColumn;
         final String expression;
+        final ParseTree expressionTree;
 
-        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, ParseTree expressionTree) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
+            this.expressionTree = expressionTree;
         }
     }
 

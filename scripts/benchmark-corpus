@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+JHOME="${JAVA11_HOME:-}"
+
+if [[ -z "$JHOME" ]]; then
+  if [[ -x "/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home/bin/java" ]]; then
+    JHOME="/Applications/IntelliJ IDEA CE.app/Contents/jbr/Contents/Home"
+  elif command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    JHOME="$(/usr/libexec/java_home -v 11 2>/dev/null || true)"
+  fi
+fi
+
+if [[ -z "$JHOME" || ! -x "$JHOME/bin/java" ]]; then
+  echo "JDK 11 not found. Set JAVA11_HOME to a JDK 11 installation." >&2
+  exit 1
+fi
+
+cd "$ROOT_DIR"
+"$ROOT_DIR/scripts/mvn-jdk11" -q -pl linesql-all -am -DskipTests compile
+
+CP="$(find "$ROOT_DIR" -path '*/target/classes' -type d | paste -sd ':' -)"
+"$JHOME/bin/javac" -cp "$CP" -d "$ROOT_DIR/target/benchmark-classes" \
+  "$ROOT_DIR/tools/benchmark/LineSqlBenchmark.java"
+
+"$JHOME/bin/java" -cp "$ROOT_DIR/target/benchmark-classes:$CP" LineSqlBenchmark "$@"

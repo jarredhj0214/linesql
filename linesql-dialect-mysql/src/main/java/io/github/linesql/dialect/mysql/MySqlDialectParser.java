@@ -43,6 +43,7 @@ public class MySqlDialectParser implements DialectParser {
         }
 
         MySqlLineageVisitor visitor = new MySqlLineageVisitor(result);
+        visitor.setContext(context);
         visitor.visit(statement);
         visitor.finalizeResult();
         return result;

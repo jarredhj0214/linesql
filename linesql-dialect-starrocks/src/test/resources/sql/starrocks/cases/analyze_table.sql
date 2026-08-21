@@ -1,0 +1,1 @@
+analyze table ads.users

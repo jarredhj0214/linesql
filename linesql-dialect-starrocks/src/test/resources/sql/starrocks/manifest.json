@@ -671,6 +671,42 @@
       "description": "STARROCKS CTAS maps aliased, expression, and aggregate SELECT projections to created-table columns"
     },
     {
+      "id": "create_table_model_as_select",
+      "file": "cases/create_table_model_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.user_order_summary_model"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_order_summary_model.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_order_summary_model.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.status"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "StarRocks table-model CTAS with duplicate key, hash distribution, properties, and column lineage"
+    },
+    {
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
@@ -1286,6 +1322,19 @@
       "description": "StarRocks TRUNCATE TABLE affected table lineage"
     },
     {
+      "id": "rename_table",
+      "file": "cases/rename_table.sql",
+      "statementType": "RENAME_TABLE",
+      "inputTables": [
+        "ads.users_old"
+      ],
+      "outputTables": [
+        "ads.users_new"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks ALTER TABLE RENAME TO old and new table lineage"
+    },
+    {
       "id": "alter_table_add_column",
       "file": "cases/alter_table_add_column.sql",
       "statementType": "ALTER_TABLE",
@@ -1295,6 +1344,39 @@
       ],
       "columnLineage": [],
       "description": "StarRocks ALTER TABLE ADD COLUMN affected table lineage"
+    },
+    {
+      "id": "alter_table_drop_column",
+      "file": "cases/alter_table_drop_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks ALTER TABLE DROP COLUMN affected table lineage"
+    },
+    {
+      "id": "create_index",
+      "file": "cases/create_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE INDEX affected table lineage"
+    },
+    {
+      "id": "drop_index",
+      "file": "cases/drop_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks DROP INDEX affected table lineage"
     },
     {
       "id": "insert_values",
@@ -1512,6 +1594,31 @@
         }
       ],
       "description": "StarRocks multi-branch CASE expression column lineage from conditions, branch values, and ELSE value"
+    },
+    {
+      "id": "starrocks_function_expression_projection",
+      "file": "cases/starrocks_function_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "display_name",
+          "sources": [
+            "ods.user_events.nickname",
+            "ods.user_events.name"
+          ]
+        },
+        {
+          "target": "event_day",
+          "sources": [
+            "ods.user_events.event_time"
+          ]
+        }
+      ],
+      "description": "StarRocks IFNULL and DATE_TRUNC expression column lineage"
     },
     {
       "id": "common_expression_projection",
@@ -2127,6 +2234,682 @@
         }
       ],
       "description": "StarRocks WITH before DELETE USING resolves CTE relation inputs and predicates"
+    },
+    {
+      "id": "insert_overwrite_partition_column_list",
+      "file": "cases/insert_overwrite_partition_column_list.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.user_order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_order_summary.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_order_summary.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.dt"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "StarRocks INSERT OVERWRITE partition with target column mapping"
+    },
+    {
+      "id": "backtick_qualified_direct_projection",
+      "file": "cases/backtick_qualified_direct_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "dim.departments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "department_id",
+          "sources": [
+            "ods.users.department_id"
+          ]
+        },
+        {
+          "target": "department_name",
+          "sources": [
+            "dim.departments.department_name"
+          ]
+        }
+      ],
+      "description": "StarRocks backtick-qualified direct projections resolve to base table columns"
+    },
+    {
+      "id": "derived_case_insensitive_column_projection",
+      "file": "cases/derived_case_insensitive_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "description": "StarRocks derived column lookup is case-insensitive for unquoted output aliases"
+    },
+    {
+      "id": "create_or_replace_view",
+      "file": "cases/create_or_replace_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.v_active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_active_users.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.v_active_users.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "StarRocks CREATE OR REPLACE VIEW output column lineage"
+    },
+    {
+      "id": "drop_view",
+      "file": "cases/drop_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "ads.v_active_users"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks DROP VIEW affected view lineage"
+    },
+    {
+      "id": "show_create_table",
+      "file": "cases/show_create_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW CREATE TABLE metadata read table lineage"
+    },
+    {
+      "id": "show_columns_from_table",
+      "file": "cases/show_columns_from_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW COLUMNS FROM table metadata read table lineage"
+    },
+    {
+      "id": "analyze_table",
+      "file": "cases/analyze_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ANALYZE TABLE metadata read table lineage"
+    },
+    {
+      "id": "describe_table",
+      "file": "cases/describe_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks DESC TABLE metadata read table lineage"
+    },
+    {
+      "id": "drop_materialized_view",
+      "file": "cases/drop_materialized_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.mv_user_orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks DROP MATERIALIZED VIEW affected view lineage"
+    },
+    {
+      "id": "show_create_materialized_view",
+      "file": "cases/show_create_materialized_view.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.mv_user_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW CREATE MATERIALIZED VIEW metadata read lineage"
+    },
+    {
+      "id": "refresh_materialized_view",
+      "file": "cases/refresh_materialized_view.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.mv_user_orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks REFRESH MATERIALIZED VIEW affected view lineage"
+    },
+    {
+      "id": "show_create_view",
+      "file": "cases/show_create_view.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.user_view"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW CREATE VIEW metadata read lineage"
+    },
+    {
+      "id": "create_database",
+      "file": "cases/create_database.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks CREATE DATABASE schema control statement"
+    },
+    {
+      "id": "drop_database",
+      "file": "cases/drop_database.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks DROP DATABASE schema control statement"
+    },
+    {
+      "id": "create_routine_load_kafka",
+      "file": "cases/create_routine_load_kafka.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.user_events"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE ROUTINE LOAD Kafka target table lineage"
+    },
+    {
+      "id": "load_label_data_infile",
+      "file": "cases/load_label_data_infile.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.user_events"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks LOAD LABEL DATA INFILE target table lineage"
+    },
+    {
+      "id": "insert_with_label_select",
+      "file": "cases/insert_with_label_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.user_events_delta"
+      ],
+      "outputTables": [
+        "ads.user_events"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_events.event_id",
+          "sources": [
+            "ods.user_events_delta.event_id"
+          ]
+        },
+        {
+          "target": "ads.user_events.user_id",
+          "sources": [
+            "ods.user_events_delta.user_id"
+          ]
+        }
+      ],
+      "description": "StarRocks INSERT WITH LABEL target column mapping"
+    },
+    {
+      "id": "group_by_rollup",
+      "file": "cases/group_by_rollup.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "dt",
+          "sources": [
+            "dwd.orders.dt"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.dt"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        }
+      ],
+      "description": "StarRocks GROUP BY ROLLUP column usage lineage"
+    },
+    {
+      "id": "group_by_grouping_sets",
+      "file": "cases/group_by_grouping_sets.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "dt",
+          "sources": [
+            "dwd.orders.dt"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.dt"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        }
+      ],
+      "description": "StarRocks GROUPING SETS column usage lineage"
+    },
+    {
+      "id": "create_table_engine_olap",
+      "file": "cases/create_table_engine_olap.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_profile"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks CREATE TABLE ENGINE=OLAP table DDL"
+    },
+    {
+      "id": "create_table_aggregate_types",
+      "file": "cases/create_table_aggregate_types.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_metrics"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks aggregate table DDL with HLL/BITMAP/REPLACE_IF_NOT_NULL column aggregate types"
+    },
+    {
+      "id": "alter_table_add_partition",
+      "file": "cases/alter_table_add_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks ALTER TABLE ADD PARTITION affected table lineage"
+    },
+    {
+      "id": "alter_table_drop_partition",
+      "file": "cases/alter_table_drop_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks ALTER TABLE DROP PARTITION affected table lineage"
+    },
+    {
+      "id": "alter_table_set_properties",
+      "file": "cases/alter_table_set_properties.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks ALTER TABLE SET properties affected table lineage"
+    },
+    {
+      "id": "pause_routine_load",
+      "file": "cases/pause_routine_load.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks PAUSE ROUTINE LOAD control statement"
+    },
+    {
+      "id": "resume_routine_load",
+      "file": "cases/resume_routine_load.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks RESUME ROUTINE LOAD control statement"
+    },
+    {
+      "id": "stop_routine_load",
+      "file": "cases/stop_routine_load.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks STOP ROUTINE LOAD control statement"
+    },
+    {
+      "id": "cancel_load",
+      "file": "cases/cancel_load.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks CANCEL LOAD control statement"
+    },
+    {
+      "id": "show_load",
+      "file": "cases/show_load.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW LOAD metadata statement"
+    },
+    {
+      "id": "show_routine_load",
+      "file": "cases/show_routine_load.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW ROUTINE LOAD metadata statement"
+    },
+    {
+      "id": "show_routine_load_task",
+      "file": "cases/show_routine_load_task.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW ROUTINE LOAD TASK metadata statement"
+    },
+    {
+      "id": "export_table",
+      "file": "cases/export_table.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks EXPORT TABLE source table lineage"
+    },
+    {
+      "id": "export_table_partition",
+      "file": "cases/export_table_partition.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks EXPORT TABLE PARTITION source table lineage"
+    },
+    {
+      "id": "admin_set_frontend_config",
+      "file": "cases/admin_set_frontend_config.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ADMIN SET FRONTEND CONFIG control statement"
+    },
+    {
+      "id": "admin_set_replica_status",
+      "file": "cases/admin_set_replica_status.sql",
+      "statementType": "UNKNOWN",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ADMIN SET REPLICA STATUS control statement"
+    },
+    {
+      "id": "qualify_window_filter",
+      "file": "cases/qualify_window_filter.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "dwd.user_events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.user_events.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.user_events.event_time"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "dwd.user_events.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "dwd.user_events.event_time"
+        }
+      ],
+      "description": "StarRocks QUALIFY window filter column usage lineage"
+    },
+    {
+      "id": "starrocks_bitmap_hll_functions",
+      "file": "cases/starrocks_bitmap_hll_functions.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_bitmap",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "device_hll",
+          "sources": [
+            "dwd.user_events.device_id"
+          ]
+        }
+      ],
+      "description": "StarRocks bitmap and HLL function projection lineage"
+    },
+    {
+      "id": "show_tablet_from_table",
+      "file": "cases/show_tablet_from_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW TABLET FROM table metadata read lineage"
+    },
+    {
+      "id": "show_proc",
+      "file": "cases/show_proc.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW PROC metadata statement"
+    },
+    {
+      "id": "alter_table_swap",
+      "file": "cases/alter_table_swap.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders",
+        "mart.orders_shadow"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks ALTER TABLE SWAP WITH TABLE affected tables"
+    },
+    {
+      "id": "create_table_as_with_select",
+      "file": "cases/create_table_as_with_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.active_users.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "mart.active_users.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "StarRocks CTAS over CTE field lineage"
+    },
+    {
+      "id": "create_materialized_view_distributed_refresh",
+      "file": "cases/create_materialized_view_distributed_refresh.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [
+        "mart.mv_user_events"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.mv_user_events.user_id",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "mart.mv_user_events.event_count",
+          "sources": [
+            "dwd.user_events.event_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.user_events.user_id"
+        }
+      ],
+      "description": "StarRocks materialized view with distribution and refresh options"
     }
   ]
 }

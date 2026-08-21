@@ -30,7 +30,17 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\bfrom\\b.+\\bjoin\\b.*")
                 || normalized.matches("(?s)^\\s*replace\\s+into\\b.*")
+                || normalized.matches("(?s)^\\s*rename\\s+table\\b.*")
+                || normalized.matches("(?s)^\\s*lock\\s+tables\\b.*")
+                || normalized.matches("(?s)^\\s*unlock\\s+tables\\b.*")
+                || normalized.matches("(?s)^\\s*update\\s+(low_priority|ignore)\\b.*")
+                || normalized.matches("(?s)^\\s*delete\\s+.*\\b(low_priority|quick|ignore)\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+algorithm\\b.*\\bview\\b.*")
+                || normalized.matches("(?s).*\\binto\\s+(out|dump)file\\b.*")
                 || normalized.contains(" on duplicate key ")
+                || normalized.contains("->")
+                || normalized.matches("(?s).*\\bdiv\\b.*")
+                || normalized.matches("(?s).*\\bmod\\b.*")
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*")) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.92, "MySQL-specific write, DML, or LIMIT syntax"));
         }
@@ -62,6 +72,9 @@ public class SimpleDialectDetector implements DialectDetector {
         if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\baggregate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bdistributed\\s+by\\s+hash\\b.*")
+                || normalized.matches("(?s).*\\bcreate\\s+routine\\s+load\\b.*")
+                || normalized.matches("(?s).*\\bload\\s+label\\b.*")
+                || normalized.matches("(?s).*\\brefresh\\s+materialized\\s+view\\b.*")
                 || normalized.contains(" properties (\"replication_num\"")) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.93, "StarRocks key, distribution, or replication syntax"));
         }

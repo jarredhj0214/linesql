@@ -8,14 +8,27 @@ singleStatement
 
 statement
     : query                                                          #statementDefault
+    | adminStatement                                                 #adminStmt
     | insertStatement                                                #insertStmt
+    | exportTableStatement                                           #exportTableStmt
+    | loadLabelStatement                                             #loadLabelStmt
+    | createRoutineLoadStatement                                     #createRoutineLoadStmt
+    | routineLoadControlStatement                                    #routineLoadControlStmt
+    | cancelLoadStatement                                            #cancelLoadStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
+    | createIndexStatement                                           #createIndexStmt
+    | createDatabaseStatement                                        #createDatabaseStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
+    | dropIndexStatement                                             #dropIndexStmt
+    | dropDatabaseStatement                                          #dropDatabaseStmt
     | dropTableStatement                                             #dropTableStmt
+    | dropViewStatement                                              #dropViewStmt
     | truncateTableStatement                                         #truncateTableStmt
+    | refreshMaterializedViewStatement                               #refreshMaterializedViewStmt
     | alterTableStatement                                            #alterTableStmt
+    | analyzeTableStatement                                          #analyzeTableStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
@@ -53,7 +66,7 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause fromClause? whereClause? groupByClause? havingClause?
+    : selectClause fromClause? whereClause? groupByClause? havingClause? qualifyClause?
     ;
 
 selectClause
@@ -120,11 +133,26 @@ whereClause
     ;
 
 groupByClause
-    : GROUP BY expression (COMMA expression)*
+    : GROUP BY groupingElement (COMMA groupingElement)*
+    ;
+
+groupingElement
+    : expression
+    | ROLLUP LPAREN expressionList RPAREN
+    | CUBE LPAREN expressionList RPAREN
+    | GROUPING SETS LPAREN groupingSet (COMMA groupingSet)* RPAREN
+    ;
+
+groupingSet
+    : LPAREN expressionList? RPAREN
     ;
 
 havingClause
     : HAVING expression
+    ;
+
+qualifyClause
+    : QUALIFY expression
     ;
 
 queryOrganization
@@ -215,13 +243,66 @@ expressionList
 
 insertStatement
     : ctes? INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
+      insertLabelClause?
       partitionClause?
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
     ;
 
+insertLabelClause
+    : WITH LABEL identifier
+    ;
+
+exportTableStatement
+    : EXPORT TABLE source=multipartIdentifier partitionClause? TO string propertiesClause?
+    ;
+
 valuesClause
     : LPAREN expressionList RPAREN
+    ;
+
+createRoutineLoadStatement
+    : CREATE ROUTINE LOAD job=multipartIdentifier ON target=multipartIdentifier (routineLoadClause COMMA?)*
+    ;
+
+routineLoadClause
+    : COLUMNS TERMINATED BY string
+    | COLUMNS LPAREN identifierList RPAREN
+    | whereClause
+    | propertiesClause
+    | FROM identifier LPAREN propertyList RPAREN
+    ;
+
+routineLoadControlStatement
+    : (STOP | PAUSE | RESUME) ROUTINE LOAD FOR? job=multipartIdentifier
+    ;
+
+cancelLoadStatement
+    : CANCEL LOAD (FROM identifier)? WHERE expression
+    ;
+
+adminStatement
+    : ADMIN SET FRONTEND CONFIG LPAREN propertyList RPAREN
+    | ADMIN SET REPLICA STATUS propertiesClause
+    ;
+
+loadLabelStatement
+    : LOAD LABEL label=multipartIdentifier LPAREN loadDataElement (COMMA loadDataElement)* RPAREN
+      (WITH BROKER identifier? (LPAREN propertyList RPAREN)?)?
+      propertiesClause?
+    ;
+
+loadDataElement
+    : DATA INFILE LPAREN string (COMMA string)* RPAREN INTO TABLE target=multipartIdentifier loadDataOption*
+    ;
+
+loadDataOption
+    : COLUMNS TERMINATED BY string
+    | FORMAT AS string
+    | LPAREN identifierList RPAREN
+    | whereClause
+    | SET LPAREN assignmentList RPAREN
+    | PARTITION LPAREN identifierList RPAREN
     ;
 
 updateStatement
@@ -250,6 +331,7 @@ assignment
 createTableStatement
     : CREATE EXTERNAL? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
+      engineClause?
       keyDesc?
       commentClause?
       partitionDesc?
@@ -259,40 +341,95 @@ createTableStatement
     | CREATE TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
     ;
 
+engineClause
+    : ENGINE EQ? identifier
+    ;
+
 createViewStatement
     : CREATE MATERIALIZED? (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
+      materializedViewOption*
       AS query
+    ;
+
+materializedViewOption
+    : distributionDesc
+    | REFRESH (SYNC | ASYNC)?
+    | propertiesClause
+    ;
+
+createIndexStatement
+    : CREATE INDEX identifier ON multipartIdentifier LPAREN identifierList RPAREN
+    ;
+
+createDatabaseStatement
+    : CREATE DATABASE (IF NOT EXISTS)? identifier propertiesClause?
+    ;
+
+dropIndexStatement
+    : DROP INDEX identifier ON multipartIdentifier
+    ;
+
+dropDatabaseStatement
+    : DROP DATABASE (IF EXISTS)? identifier
     ;
 
 dropTableStatement
     : DROP TABLE (IF EXISTS)? multipartIdentifier
     ;
 
+dropViewStatement
+    : DROP MATERIALIZED? VIEW (IF EXISTS)? multipartIdentifier
+    ;
+
 truncateTableStatement
     : TRUNCATE TABLE multipartIdentifier
     ;
 
+refreshMaterializedViewStatement
+    : REFRESH MATERIALIZED VIEW multipartIdentifier refreshMaterializedViewOption*
+    ;
+
+refreshMaterializedViewOption
+    : PARTITION identifier
+    | WITH (SYNC | ASYNC) MODE
+    ;
+
 alterTableStatement
-    : ALTER TABLE multipartIdentifier RENAME multipartIdentifier     #alterTableRename
+    : ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier     #alterTableRename
+    | ALTER TABLE multipartIdentifier SWAP WITH TABLE multipartIdentifier        #alterTableSwap
     | ALTER TABLE multipartIdentifier ADD COLUMN? identifier dataType  #alterTableAddColumn
     | ALTER TABLE multipartIdentifier alterTableAction               #alterTableOther
     ;
 
 alterTableAction
     : DROP COLUMN identifier
+    | ADD PARTITION identifier VALUES LESS THAN LPAREN expressionList RPAREN
+    | DROP PARTITION identifier
     | SET LPAREN propertyList RPAREN
     | COMMENT EQ? string
     | .+?
     ;
 
+analyzeTableStatement
+    : ANALYZE TABLE multipartIdentifier
+    ;
+
 showStatement
-    : SHOW PARTITIONS FROM multipartIdentifier
+    : SHOW CREATE TABLE multipartIdentifier
+    | SHOW CREATE MATERIALIZED? VIEW multipartIdentifier
+    | SHOW PARTITIONS FROM multipartIdentifier
+    | SHOW showObject (FROM | IN) multipartIdentifier
     | SHOW .+?
     ;
 
+showObject
+    : identifier
+    | KEY
+    ;
+
 describeStatement
-    : (DESCRIBE | DESC) .+?
+    : (DESCRIBE | DESC) TABLE? multipartIdentifier identifier?
     ;
 
 commentStatement
@@ -315,6 +452,9 @@ aggregateType
     | MIN
     | MAX
     | REPLACE
+    | HLL_UNION
+    | BITMAP_UNION
+    | REPLACE_IF_NOT_NULL
     ;
 
 columnConstraint
@@ -394,13 +534,13 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | AGGREGATE | ASC | BUCKETS | CAST | COLUMN | COMMENT | DEFAULT
-    | DESCRIBE | DESC | DISTRIBUTED | DUPLICATE | END | EXISTS | EXTERNAL | FALSE
-    | FORMAT | HASH | IF | INTERVAL | KEY | LATERAL | LESS | LIKE | LIMIT | MATERIALIZED
-    | MAX | MIN | NULL
-    | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONS | PRIMARY | PROPERTIES
-    | RANDOM | RANGE | RENAME | REPLACE | ROW | SHOW | STORED | SUM | TABLE
-    | TEMPORARY | THAN | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
+    : ADD | ADMIN | AGGREGATE | ANALYZE | ASC | BUCKETS | CANCEL | CAST | COLUMN | COLUMNS | COMMENT | CONFIG | DEFAULT
+    | BROKER | DATA | DATABASE | DESCRIBE | DESC | DISTRIBUTED | DUPLICATE | END | ENGINE | EXISTS | EXPORT | EXTERNAL | FALSE
+    | ASYNC | BITMAP_UNION | CUBE | FOR | FORMAT | FRONTEND | GROUPING | HASH | HLL_UNION | IF | INDEX | INFILE | INTERVAL | KEY | LABEL | LATERAL | LESS | LIKE | LIMIT | LOAD | MATERIALIZED
+    | MAX | MIN | MODE | NULL | OLAP
+    | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONS | PAUSE | PRIMARY | PROPERTIES | QUALIFY
+    | RANDOM | RANGE | REFRESH | RENAME | REPLACE | REPLACE_IF_NOT_NULL | REPLICA | RESUME | ROLLUP | ROUTINE | ROW | SETS | SHOW | STATUS | STOP | STORED | SUM | SWAP | SYNC | TABLE
+    | TEMPORARY | TERMINATED | THAN | TO | TRUE | TRUNCATE | UNIQUE | VALUES | VIEW
     ;
 
 number

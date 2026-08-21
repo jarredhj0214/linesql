@@ -19,6 +19,13 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.MYSQL, "insert into mart.t(c1) select a from app.s on duplicate key update c1 = values(c1)");
         assertFirst(SqlDialect.MYSQL, "select id from app.users limit 10, 20");
         assertFirst(SqlDialect.MYSQL, "update mart.t join app.s on t.id = s.id set t.c = s.c");
+        assertFirst(SqlDialect.MYSQL, "rename table app.old_users to app.users");
+        assertFirst(SqlDialect.MYSQL, "lock tables app.users read, mart.user_summary write");
+        assertFirst(SqlDialect.MYSQL, "select payload->>'$.id' from app.events");
+        assertFirst(SqlDialect.MYSQL, "select id into outfile '/tmp/users.csv' from app.users");
+        assertFirst(SqlDialect.MYSQL, "alter algorithm = merge view mart.v as select id from app.users");
+        assertFirst(SqlDialect.MYSQL, "update low_priority ignore mart.t set c = 1");
+        assertFirst(SqlDialect.MYSQL, "delete low_priority quick ignore from mart.t where id = 1");
     }
 
     @Test
@@ -39,6 +46,9 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.STARROCKS, "create table dwd.orders(id bigint) duplicate key(id) distributed by hash(id)");
         assertFirst(SqlDialect.STARROCKS, "create table agg_orders(id bigint) aggregate key(id)");
         assertFirst(SqlDialect.STARROCKS, "create table r(id bigint) properties (\"replication_num\" = \"1\")");
+        assertFirst(SqlDialect.STARROCKS, "create routine load mart.job on ods.events from kafka (\"kafka_topic\" = \"events\")");
+        assertFirst(SqlDialect.STARROCKS, "load label mart.job (data infile (\"s3://bucket/*.csv\") into table ods.events)");
+        assertFirst(SqlDialect.STARROCKS, "refresh materialized view mart.mv_events with sync mode");
     }
 
     @Test
