@@ -1,10 +1,41 @@
 # LineSQL
 
 [![Maven](https://github.com/jarredhj0214/linesql/actions/workflows/maven.yml/badge.svg)](https://github.com/jarredhj0214/linesql/actions/workflows/maven.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.jarredhj0214/linesql-all.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.jarredhj0214/linesql-all)
+[![License](https://img.shields.io/github/license/jarredhj0214/linesql.svg)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-8%2B-blue.svg)](pom.xml)
+[![ANTLR4](https://img.shields.io/badge/ANTLR-4.9.3-orange.svg)](pom.xml)
 
-LineSQL is a JVM-native, ANTLR4-based, lineage-first SQL parser framework for real-world data platform SQL.
+LineSQL is a JVM-native, ANTLR4-based SQL lineage parser for real-world data platform SQL.
 
-It is not a SQL execution engine, optimizer, or query planner. Its goal is to parse production SQL and return a unified lineage model that Java data platform services can consume directly.
+It parses SQL from engines such as Spark, Hive, Flink, StarRocks, MySQL, Oracle, SQL Server, PostgreSQL, and OceanBase, then returns a unified model for table lineage, column lineage, clause-level column usage, and parser diagnostics.
+
+LineSQL is not a SQL execution engine, optimizer, or query planner. It is built for metadata platforms, data catalogs, governance systems, quality platforms, impact analysis, and lineage services that need practical SQL understanding inside JVM applications.
+
+If LineSQL helps your data platform work, please star the repository. Stars make it easier for more SQL cases, dialect contributors, and production feedback to find the project.
+
+## At a Glance
+
+```java
+import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.LineageResult;
+
+LineageResult result = LineSql.parse(
+    "insert into ads.user_summary(user_id) select id from ods.users"
+);
+
+System.out.println(result.getInputTables());      // ods.users
+System.out.println(result.getOutputTables());     // ads.user_summary
+System.out.println(result.getColumnLineage());    // ods.users.id -> ads.user_summary.user_id
+```
+
+```xml
+<dependency>
+    <groupId>io.github.jarredhj0214</groupId>
+    <artifactId>linesql-all</artifactId>
+    <version>0.1.0-alpha.3</version>
+</dependency>
+```
 
 ## Why LineSQL
 
@@ -17,6 +48,18 @@ LineSQL is designed around these constraints:
 - **Graceful degradation**: return table lineage and diagnostics when column lineage is partial.
 - **Script-friendly parsing**: bad statements should not block the rest of a script.
 - **JVM-native integration**: suitable for Java catalog, governance, metadata, quality, and impact-analysis services.
+
+## What Makes It Different
+
+LineSQL optimizes for lineage extraction rather than query execution. The parser accepts production-oriented SQL shapes, keeps dialect-specific grammar modules, and exposes one result model so downstream services do not need to normalize every engine by themselves.
+
+The core contract is simple:
+
+- parse one statement or a multi-statement script;
+- detect the dialect automatically or accept an explicit dialect;
+- return source tables, target tables, column lineage, clause column usages, warnings, and errors;
+- preserve partial results when a script contains unsupported or broken SQL;
+- keep every supported scenario backed by SQL case files and manifest assertions.
 
 ## Current Status
 
@@ -282,6 +325,18 @@ linesql-dialect-*/src/test/resources/sql/<dialect>/cases/*.sql
 
 When adding a scenario, update both the manifest and [Supported Scenarios](docs/supported-scenarios.md).
 
+## Contributing
+
+Real SQL cases are the most valuable contributions right now. The best issue includes:
+
+- dialect and engine version;
+- SQL text, with sensitive names anonymized;
+- expected source tables and target tables;
+- expected column lineage when known;
+- whether partial results are acceptable.
+
+See [Contributing](CONTRIBUTING.md) for the development workflow.
+
 ## Known Boundaries
 
 - LineSQL does not execute SQL.
@@ -296,6 +351,7 @@ When adding a scenario, update both the manifest and [Supported Scenarios](docs/
 - [Supported Scenarios](docs/supported-scenarios.md)
 - [Spark Stage 1](docs/design/spark-stage-1.md)
 - [Development](docs/development.md)
+- [Launch and Community Notes](docs/community/launch.md)
 - [License Policy](docs/legal/license-policy.md)
 - [Third-party Notices](THIRD_PARTY_NOTICES.md)
 

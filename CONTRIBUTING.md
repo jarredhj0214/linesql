@@ -1,28 +1,51 @@
 # Contributing to LineSQL
 
-Thanks for helping improve LineSQL.
+Thanks for helping LineSQL understand more real-world SQL.
 
-## Current Phase
+LineSQL is developed grammar-domain first, then validated by SQL cases. A good contribution usually updates these files together:
 
-LineSQL is in the early requirements and architecture phase. Before adding parser logic, prefer opening an issue or discussion that describes:
+| Artifact | Purpose |
+| --- | --- |
+| ANTLR grammar | Accept the dialect syntax. |
+| Lineage visitor | Map syntax to table lineage, column lineage, and column usages. |
+| SQL case file | Capture the supported SQL shape. |
+| Manifest entry | Define the expected lineage contract. |
+| Supported scenarios doc | Tell users the scenario is supported. |
 
-- SQL dialect and engine version.
-- Statement examples.
-- Expected table-level lineage.
-- Expected column-level lineage, if relevant.
-- Whether partial results are acceptable.
+## Development Setup
 
-## Development
+LineSQL builds with JDK 11 and emits Java 8 compatible bytecode.
 
 ```bash
-mvn test
+./scripts/mvn-jdk11 -B test
 ```
 
-The project targets Java 11.
+For focused dialect work:
 
-## Pull Requests
+```bash
+./scripts/mvn-jdk11 -B -pl linesql-dialect-mysql -am test
+```
 
-- Keep changes focused.
-- Add SQL examples as tests when parser behavior is introduced.
-- Do not add broad grammar support without representative real-world cases.
-- Do not copy external grammar or parser code unless its license has been reviewed and documented.
+Replace `linesql-dialect-mysql` with the dialect module you are changing.
+
+## Adding a SQL Scenario
+
+1. Add a SQL file under `linesql-dialect-*/src/test/resources/sql/<dialect>/cases/`.
+2. Add the expected result to `manifest.json`.
+3. Update `docs/supported-scenarios.md`.
+4. Run the focused dialect tests.
+5. Run the full test suite before opening a pull request.
+
+## Pull Request Checklist
+
+- The change is backed by at least one SQL case unless it is documentation-only.
+- The manifest expectation describes table lineage and column lineage where possible.
+- Unsupported behavior returns diagnostics or partial lineage instead of silently failing.
+- Public API changes are documented in `README.md`.
+- License provenance is clear for any copied or adapted grammar material.
+
+## Reporting SQL Cases
+
+When opening a SQL case issue, please include the dialect, engine version, SQL text, expected input tables, expected output tables, and expected column lineage if you know it.
+
+Anonymized production SQL is welcome. Keep enough structure to reproduce the parser behavior.

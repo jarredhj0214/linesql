@@ -7,7 +7,7 @@ labels: ["sql-case"]
 
 ## Dialect
 
-Spark / Hive / Flink / StarRocks / Trino / Presto / MySQL / Other
+Spark / Hive / Flink / StarRocks / MySQL / Oracle / SQL Server / PostgreSQL / OceanBase / Other
 
 ## SQL
 
@@ -23,7 +23,7 @@ Target tables:
 
 ## Expected column lineage
 
-Optional for early MVP.
+Optional, but very helpful.
 
 ## Notes
 
