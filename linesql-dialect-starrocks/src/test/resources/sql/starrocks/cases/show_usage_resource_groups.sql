@@ -1,0 +1,1 @@
+show usage resource groups;

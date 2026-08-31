@@ -2114,6 +2114,1261 @@
         }
       ],
       "description": "Flink nested field dereference resolves simple qualified columns only"
+    },
+    {
+      "id": "create_table_metadata_computed_partitioned",
+      "file": "cases/create_table_metadata_computed_partitioned.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.kafka_orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE TABLE with metadata column, computed column, watermark, primary key, partition, and connector options"
+    },
+    {
+      "id": "create_table_distributed_hash",
+      "file": "cases/create_table_distributed_hash.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dwd.orders_bucketed"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE TABLE with DISTRIBUTED BY HASH bucket definition"
+    },
+    {
+      "id": "create_table_like_options",
+      "file": "cases/create_table_like_options.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "dwd.orders_with_watermark"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE TABLE LIKE with include/exclude options and additional watermark"
+    },
+    {
+      "id": "replace_table_as_select",
+      "file": "cases/replace_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.order_amounts"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.order_amounts.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.order_amounts.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Flink CREATE OR REPLACE TABLE AS SELECT target and column lineage"
+    },
+    {
+      "id": "create_catalog_hive",
+      "file": "cases/create_catalog_hive.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink CREATE CATALOG statement is recognized as catalog control"
+    },
+    {
+      "id": "create_database_with_properties",
+      "file": "cases/create_database_with_properties.sql",
+      "statementType": "CREATE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink CREATE DATABASE with comment and properties"
+    },
+    {
+      "id": "create_temporary_system_function",
+      "file": "cases/create_temporary_system_function.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink CREATE TEMPORARY SYSTEM FUNCTION with language"
+    },
+    {
+      "id": "drop_temporary_table",
+      "file": "cases/drop_temporary_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "tmp.orders_buffer"
+      ],
+      "columnLineage": [],
+      "description": "Flink DROP TEMPORARY TABLE affected table"
+    },
+    {
+      "id": "drop_temporary_view",
+      "file": "cases/drop_temporary_view.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "tmp.v_orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink DROP TEMPORARY VIEW affected view"
+    },
+    {
+      "id": "drop_database_cascade",
+      "file": "cases/drop_database_cascade.sql",
+      "statementType": "DROP_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink DROP DATABASE with CASCADE is recognized"
+    },
+    {
+      "id": "drop_catalog",
+      "file": "cases/drop_catalog.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink DROP CATALOG is recognized as catalog control"
+    },
+    {
+      "id": "drop_function",
+      "file": "cases/drop_function.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink DROP TEMPORARY SYSTEM FUNCTION is recognized"
+    },
+    {
+      "id": "drop_model",
+      "file": "cases/drop_model.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink DROP MODEL is recognized as model control"
+    },
+    {
+      "id": "use_catalog",
+      "file": "cases/use_catalog.sql",
+      "statementType": "USE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink USE CATALOG statement is recognized"
+    },
+    {
+      "id": "use_database",
+      "file": "cases/use_database.sql",
+      "statementType": "USE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink USE DATABASE statement is recognized"
+    },
+    {
+      "id": "alter_database_set",
+      "file": "cases/alter_database_set.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink ALTER DATABASE SET properties is recognized"
+    },
+    {
+      "id": "alter_function_language",
+      "file": "cases/alter_function_language.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink ALTER TEMPORARY SYSTEM FUNCTION with language is recognized"
+    },
+    {
+      "id": "alter_view_as_query",
+      "file": "cases/alter_view_as_query.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.v_order_amounts"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_order_amounts.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.v_order_amounts.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Flink ALTER VIEW AS query table and column lineage"
+    },
+    {
+      "id": "alter_table_add_elements",
+      "file": "cases/alter_table_add_elements.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE ADD grouped columns, computed column, primary key, and watermark"
+    },
+    {
+      "id": "alter_table_modify_elements",
+      "file": "cases/alter_table_modify_elements.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE MODIFY grouped columns, primary key, and watermark"
+    },
+    {
+      "id": "alter_table_drop_columns",
+      "file": "cases/alter_table_drop_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE DROP grouped columns"
+    },
+    {
+      "id": "alter_table_partitions",
+      "file": "cases/alter_table_partitions.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE ADD multiple partitions with properties"
+    },
+    {
+      "id": "alter_table_drop_partition",
+      "file": "cases/alter_table_drop_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE DROP multiple partitions"
+    },
+    {
+      "id": "alter_table_distribution",
+      "file": "cases/alter_table_distribution.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE ADD DISTRIBUTION"
+    },
+    {
+      "id": "alter_table_drop_watermark",
+      "file": "cases/alter_table_drop_watermark.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE DROP WATERMARK"
+    },
+    {
+      "id": "alter_table_reset_properties",
+      "file": "cases/alter_table_reset_properties.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE RESET properties"
+    },
+    {
+      "id": "alter_table_rename_column",
+      "file": "cases/alter_table_rename_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE RENAME column"
+    },
+    {
+      "id": "explain_insert_select",
+      "file": "cases/explain_insert_select.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.order_amounts"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.order_amounts.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.order_amounts.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Flink EXPLAIN keeps inner INSERT SELECT table and column lineage while classifying as metadata read"
+    },
+    {
+      "id": "group_by_rollup",
+      "file": "cases/group_by_rollup.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "product",
+          "sources": [
+            "dwd.orders.product"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.product"
+        }
+      ],
+      "description": "Flink GROUP BY ROLLUP column lineage and grouping column usage"
+    },
+    {
+      "id": "group_by_cube",
+      "file": "cases/group_by_cube.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "product",
+          "sources": [
+            "dwd.orders.product"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.product"
+        }
+      ],
+      "description": "Flink GROUP BY CUBE column lineage and grouping column usage"
+    },
+    {
+      "id": "group_by_grouping_sets",
+      "file": "cases/group_by_grouping_sets.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "product",
+          "sources": [
+            "dwd.orders.product"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.product"
+        }
+      ],
+      "description": "Flink GROUP BY GROUPING SETS column lineage and grouping column usage"
+    },
+    {
+      "id": "hop_window",
+      "file": "cases/hop_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "window_start",
+          "sources": [
+            "dwd.orders.window_start"
+          ]
+        },
+        {
+          "target": "window_end",
+          "sources": [
+            "dwd.orders.window_end"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink HOP table-valued function table lineage and projected column dependencies"
+    },
+    {
+      "id": "cumulate_window",
+      "file": "cases/cumulate_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "window_start",
+          "sources": [
+            "dwd.orders.window_start"
+          ]
+        },
+        {
+          "target": "window_end",
+          "sources": [
+            "dwd.orders.window_end"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        }
+      ],
+      "description": "Flink CUMULATE table-valued function table lineage and projected column dependencies"
+    },
+    {
+      "id": "session_window",
+      "file": "cases/session_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "window_start",
+          "sources": [
+            "dwd.orders.window_start"
+          ]
+        },
+        {
+          "target": "window_end",
+          "sources": [
+            "dwd.orders.window_end"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        }
+      ],
+      "description": "Flink SESSION table-valued function table lineage and projected column dependencies"
+    },
+    {
+      "id": "order_by_fetch_first",
+      "file": "cases/order_by_fetch_first.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.amount"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.rowtime"
+        }
+      ],
+      "description": "Flink ORDER BY with FETCH FIRST rows only"
+    },
+    {
+      "id": "insert_partition_select",
+      "file": "cases/insert_partition_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.daily_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.daily_orders.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.daily_orders.amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.dt"
+        }
+      ],
+      "description": "Flink INSERT OVERWRITE static partition with target column mapping"
+    },
+    {
+      "id": "execute_insert_select",
+      "file": "cases/execute_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.users"
+      ],
+      "outputTables": [
+        "ads.order_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.order_users.user_id",
+          "sources": [
+            "dwd.users.id"
+          ]
+        },
+        {
+          "target": "ads.order_users.user_name",
+          "sources": [
+            "dwd.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.users.status"
+        }
+      ],
+      "description": "Flink EXECUTE INSERT SELECT table and column lineage"
+    },
+    {
+      "id": "load_module_hive",
+      "file": "cases/load_module_hive.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink LOAD MODULE utility statement"
+    },
+    {
+      "id": "unload_module_hive",
+      "file": "cases/unload_module_hive.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink UNLOAD MODULE utility statement"
+    },
+    {
+      "id": "use_modules_order",
+      "file": "cases/use_modules_order.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink USE MODULES resolution order statement"
+    },
+    {
+      "id": "add_jar",
+      "file": "cases/add_jar.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink ADD JAR utility statement"
+    },
+    {
+      "id": "remove_jar",
+      "file": "cases/remove_jar.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink REMOVE JAR utility statement"
+    },
+    {
+      "id": "set_statement",
+      "file": "cases/set_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SET session property statement"
+    },
+    {
+      "id": "reset_statement",
+      "file": "cases/reset_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink RESET session property statement"
+    },
+    {
+      "id": "show_catalogs",
+      "file": "cases/show_catalogs.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW CATALOGS metadata statement"
+    },
+    {
+      "id": "show_create_table",
+      "file": "cases/show_create_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.daily_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW CREATE TABLE metadata read"
+    },
+    {
+      "id": "show_functions",
+      "file": "cases/show_functions.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW FUNCTIONS metadata statement"
+    },
+    {
+      "id": "named_window_clause",
+      "file": "cases/named_window_clause.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "rolling_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "dwd.orders.rowtime"
+        }
+      ],
+      "description": "Flink named WINDOW clause with OVER window reference"
+    },
+    {
+      "id": "aggregate_filter_clause",
+      "file": "cases/aggregate_filter_clause.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "paid_count",
+          "sources": [
+            "dwd.orders.status"
+          ]
+        },
+        {
+          "target": "paid_amount",
+          "sources": [
+            "dwd.orders.amount",
+            "dwd.orders.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Flink aggregate FILTER clause contributes source columns to aggregate lineage"
+    },
+    {
+      "id": "is_true_false_unknown_predicate",
+      "file": "cases/is_true_false_unknown_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.is_valid"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.deleted"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.risk_flag"
+        }
+      ],
+      "description": "Flink IS TRUE/FALSE/UNKNOWN predicate column usage"
+    },
+    {
+      "id": "quantified_subquery_predicates",
+      "file": "cases/quantified_subquery_predicates.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders",
+        "dim.risk_limits",
+        "dim.promotions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink quantified ALL/ANY subquery predicates preserve subquery source tables"
+    },
+    {
+      "id": "values_query",
+      "file": "cases/values_query.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink VALUES query is recognized without table lineage"
+    },
+    {
+      "id": "create_temporary_view_comment",
+      "file": "cases/create_temporary_view_comment.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "tmp.v_active_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "tmp.v_active_orders.order_id",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        },
+        {
+          "target": "tmp.v_active_orders.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "tmp.v_active_orders.amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.status"
+        }
+      ],
+      "description": "Flink CREATE TEMPORARY VIEW with comment and query lineage"
+    },
+    {
+      "id": "create_function_using_jar_with",
+      "file": "cases/create_function_using_jar_with.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink CREATE FUNCTION with language, USING JAR, and WITH properties"
+    },
+    {
+      "id": "create_materialized_table_as_select",
+      "file": "cases/create_materialized_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.mt_order_amounts"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.mt_order_amounts.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.mt_order_amounts.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Flink CREATE MATERIALIZED TABLE AS SELECT with freshness"
+    },
+    {
+      "id": "create_materialized_table_pk_partition",
+      "file": "cases/create_materialized_table_pk_partition.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.mt_order_daily"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.mt_order_daily.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.mt_order_daily.dt",
+          "sources": [
+            "dwd.orders.dt"
+          ]
+        },
+        {
+          "target": "ads.mt_order_daily.order_count",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.dt"
+        }
+      ],
+      "description": "Flink CREATE MATERIALIZED TABLE with primary key, partition, options, freshness, and query lineage"
+    },
+    {
+      "id": "alter_materialized_table_suspend",
+      "file": "cases/alter_materialized_table_suspend.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.mt_order_amounts"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER MATERIALIZED TABLE SUSPEND affected table"
+    },
+    {
+      "id": "alter_materialized_table_resume_with",
+      "file": "cases/alter_materialized_table_resume_with.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.mt_order_amounts"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER MATERIALIZED TABLE RESUME WITH affected table"
+    },
+    {
+      "id": "alter_materialized_table_refresh_partition",
+      "file": "cases/alter_materialized_table_refresh_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.mt_order_daily"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER MATERIALIZED TABLE REFRESH PARTITION affected table"
+    },
+    {
+      "id": "drop_materialized_table",
+      "file": "cases/drop_materialized_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.mt_order_amounts"
+      ],
+      "columnLineage": [],
+      "description": "Flink DROP MATERIALIZED TABLE affected table"
+    },
+    {
+      "id": "create_table_mysql_cdc",
+      "file": "cases/create_table_mysql_cdc.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.mysql_orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink MySQL CDC connector source table DDL"
+    },
+    {
+      "id": "create_table_postgres_cdc",
+      "file": "cases/create_table_postgres_cdc.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.pg_users"
+      ],
+      "columnLineage": [],
+      "description": "Flink PostgreSQL CDC connector source table DDL"
+    },
+    {
+      "id": "create_table_upsert_kafka",
+      "file": "cases/create_table_upsert_kafka.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.user_summary_sink"
+      ],
+      "columnLineage": [],
+      "description": "Flink Upsert Kafka connector sink table DDL"
+    },
+    {
+      "id": "create_table_datagen",
+      "file": "cases/create_table_datagen.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "demo.source_orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink Datagen connector table with computed processing-time column"
+    },
+    {
+      "id": "create_table_filesystem_partitioned",
+      "file": "cases/create_table_filesystem_partitioned.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "lake.order_events"
+      ],
+      "columnLineage": [],
+      "description": "Flink filesystem connector partitioned table DDL"
+    },
+    {
+      "id": "insert_cdc_to_sink",
+      "file": "cases/insert_cdc_to_sink.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.mysql_orders"
+      ],
+      "outputTables": [
+        "ads.user_summary_sink"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary_sink.user_id",
+          "sources": [
+            "ods.mysql_orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_summary_sink.order_count",
+          "sources": [
+            "ods.mysql_orders.order_id"
+          ]
+        },
+        {
+          "target": "ads.user_summary_sink.total_amount",
+          "sources": [
+            "ods.mysql_orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.mysql_orders.user_id"
+        }
+      ],
+      "description": "Flink CDC source to sink INSERT aggregate lineage"
+    },
+    {
+      "id": "cross_join_unnest_lineage",
+      "file": "cases/cross_join_unnest_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "tag_name",
+          "sources": [
+            "dwd.user_events.tags"
+          ]
+        }
+      ],
+      "description": "Flink CROSS JOIN UNNEST generated column lineage"
+    },
+    {
+      "id": "lateral_table_function_lineage",
+      "file": "cases/lateral_table_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        },
+        {
+          "target": "sku",
+          "sources": [
+            "dwd.orders.items"
+          ]
+        }
+      ],
+      "description": "Flink LATERAL TABLE function generated column lineage"
+    },
+    {
+      "id": "match_recognize_lineage",
+      "file": "cases/match_recognize_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "aid",
+          "sources": [
+            "dwd.events.id"
+          ]
+        },
+        {
+          "target": "bid",
+          "sources": [
+            "dwd.events.id"
+          ]
+        },
+        {
+          "target": "cid",
+          "sources": [
+            "dwd.events.id"
+          ]
+        }
+      ],
+      "description": "Flink MATCH_RECOGNIZE table lineage and MEASURES generated column lineage"
     }
   ]
 }

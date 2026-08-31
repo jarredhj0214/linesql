@@ -34,7 +34,108 @@
       ],
       "outputTables": [],
       "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.id"
+        }
+      ],
       "description": "MySQL TABLE statement is treated as SELECT-style table lineage"
+    },
+    {
+      "id": "handler_open",
+      "file": "cases/handler_open.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL HANDLER OPEN is accepted as table-handle control syntax"
+    },
+    {
+      "id": "handler_read_index_range",
+      "file": "cases/handler_read_index_range.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.updated_at"
+        }
+      ],
+      "description": "MySQL HANDLER READ reports the read table and WHERE column usage"
+    },
+    {
+      "id": "handler_close",
+      "file": "cases/handler_close.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL HANDLER CLOSE is accepted as table-handle control syntax"
+    },
+    {
+      "id": "select_partition_table",
+      "file": "cases/select_partition_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL SELECT table reference with PARTITION clause preserves source table and column lineage"
+    },
+    {
+      "id": "select_distinctrow",
+      "file": "cases/select_distinctrow.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL DISTINCTROW SELECT preserves projection lineage and WHERE column usage"
     },
     {
       "id": "values_statement",
@@ -87,6 +188,41 @@
         }
       ],
       "description": "MySQL JOIN table lineage and alias-qualified column lineage"
+    },
+    {
+      "id": "cross_join_projection",
+      "file": "cases/cross_join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "dim.regions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "region_name",
+          "sources": [
+            "dim.regions.region_name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.region_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dim.regions.id"
+        }
+      ],
+      "description": "MySQL CROSS JOIN preserves both source tables, projection lineage, and WHERE join-filter columns"
     },
     {
       "id": "clause_column_usage",
@@ -569,6 +705,76 @@
       "description": "MySQL aliased subquery direct column propagation"
     },
     {
+      "id": "derived_table_column_aliases",
+      "file": "cases/derived_table_column_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL derived table column alias list propagation"
+    },
+    {
+      "id": "reserved_keyword_subquery_alias",
+      "file": "cases/reserved_keyword_subquery_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "idaas_dw.dwd_ueba_delete_device_day",
+        "idaas_ods.idaas_ods_t_device_di"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "open_id",
+          "sources": [
+            "idaas_dw.dwd_ueba_delete_device_day.open_id"
+          ]
+        },
+        {
+          "target": "delete_time",
+          "sources": [
+            "idaas_dw.dwd_ueba_delete_device_day.delete_time"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "idaas_ods.idaas_ods_t_device_di.device_id",
+            "idaas_ods.idaas_ods_t_device_di.app_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "idaas_dw.dwd_ueba_delete_device_day.dt"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "idaas_dw.dwd_ueba_delete_device_day.device_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "idaas_ods.idaas_ods_t_device_di.device_id"
+        }
+      ],
+      "description": "MySQL tolerant subquery aliases allow keyword-like production aliases and preserve column lineage"
+    },
+    {
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",
@@ -679,6 +885,50 @@
       "description": "MySQL INSERT INTO column list with SELECT source"
     },
     {
+      "id": "insert_select_with_cte_after_target",
+      "file": "cases/insert_select_with_cte_after_target.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL INSERT target followed by WITH SELECT keeps CTE source table and column lineage"
+    },
+    {
+      "id": "insert_table_statement",
+      "file": "cases/insert_table_statement.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.users_copy"
+      ],
+      "description": "MySQL INSERT INTO target TABLE source table-level lineage"
+    },
+    {
       "id": "insert_ignore_select",
       "file": "cases/insert_ignore_select.sql",
       "statementType": "INSERT",
@@ -712,7 +962,41 @@
       "outputTables": [
         "mart.user_summary"
       ],
-      "description": "MySQL INSERT INTO VALUES target table lineage"
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": []
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL INSERT INTO VALUES target table and constant column lineage"
+    },
+    {
+      "id": "insert_value_single_row",
+      "file": "cases/insert_value_single_row.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_snapshot.user_id",
+          "sources": []
+        },
+        {
+          "target": "mart.user_snapshot.user_name",
+          "sources": []
+        },
+        {
+          "target": "mart.user_snapshot.created_at",
+          "sources": []
+        }
+      ],
+      "description": "MySQL INSERT VALUE single-row form keeps target table and constant column lineage"
     },
     {
       "id": "insert_values_alias_on_duplicate",
@@ -722,7 +1006,103 @@
       "outputTables": [
         "mart.users"
       ],
-      "description": "MySQL INSERT VALUES row alias with ON DUPLICATE KEY UPDATE target table lineage"
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL INSERT VALUES row alias with ON DUPLICATE KEY UPDATE keeps insert and update-path column lineage"
+    },
+    {
+      "id": "insert_values_alias_on_duplicate_expression",
+      "file": "cases/insert_values_alias_on_duplicate_expression.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "mart.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT VALUES row alias in duplicate-key expressions does not hide existing-row column lineage"
+    },
+    {
+      "id": "insert_values_column_alias_on_duplicate",
+      "file": "cases/insert_values_column_alias_on_duplicate.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "mart.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT VALUES row and column aliases in duplicate-key expressions keep existing-row column lineage"
+    },
+    {
+      "id": "insert_values_alias_on_duplicate_scalar_subquery",
+      "file": "cases/insert_values_alias_on_duplicate_scalar_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "description": "MySQL INSERT VALUES row alias in duplicate-key update resolves inserted scalar-subquery sources"
     },
     {
       "id": "insert_values_row_constructor",
@@ -732,7 +1112,17 @@
       "outputTables": [
         "mart.users"
       ],
-      "description": "MySQL INSERT VALUES ROW constructor target table lineage"
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL INSERT VALUES ROW constructor target table and constant column lineage"
     },
     {
       "id": "insert_set",
@@ -753,6 +1143,70 @@
         }
       ],
       "description": "MySQL INSERT SET target and constant column lineage"
+    },
+    {
+      "id": "insert_set_scalar_subquery",
+      "file": "cases/insert_set_scalar_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL INSERT SET scalar subquery assignment preserves source column lineage"
+    },
+    {
+      "id": "insert_set_on_duplicate",
+      "file": "cases/insert_set_on_duplicate.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": [
+            "app.users_delta.id"
+          ]
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.updated_id",
+          "sources": [
+            "app.users_delta.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users_delta.status"
+        }
+      ],
+      "description": "MySQL INSERT SET with ON DUPLICATE KEY UPDATE preserves insert and duplicate-update lineage"
     },
     {
       "id": "insert_select_on_duplicate",
@@ -820,7 +1274,41 @@
       "outputTables": [
         "mart.user_summary"
       ],
-      "description": "MySQL REPLACE INTO VALUES target table lineage"
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": []
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL REPLACE INTO VALUES target table and constant column lineage"
+    },
+    {
+      "id": "replace_value_single_row",
+      "file": "cases/replace_value_single_row.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_snapshot.user_id",
+          "sources": []
+        },
+        {
+          "target": "mart.user_snapshot.user_name",
+          "sources": []
+        },
+        {
+          "target": "mart.user_snapshot.created_at",
+          "sources": []
+        }
+      ],
+      "description": "MySQL REPLACE VALUE single-row form keeps target table and constant column lineage"
     },
     {
       "id": "replace_set",
@@ -841,6 +1329,30 @@
         }
       ],
       "description": "MySQL REPLACE SET target and constant column lineage"
+    },
+    {
+      "id": "replace_set_scalar_subquery",
+      "file": "cases/replace_set_scalar_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": []
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL REPLACE SET scalar subquery assignment preserves source column lineage"
     },
     {
       "id": "create_table_as_select",
@@ -1053,6 +1565,52 @@
       "description": "MySQL CREATE TABLE with column constraints, primary key, unique key, and secondary index"
     },
     {
+      "id": "create_table_named_unique_constraint",
+      "file": "cases/create_table_named_unique_constraint.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_login"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with named UNIQUE KEY table constraint"
+    },
+    {
+      "id": "create_table_foreign_key_reference",
+      "file": "cases/create_table_foreign_key_reference.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE foreign key reference reports referenced parent table"
+    },
+    {
+      "id": "alter_table_add_column_options",
+      "file": "cases/alter_table_add_column_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD COLUMN with constraints, default, comment, and position"
+    },
+    {
+      "id": "alter_table_add_columns_group",
+      "file": "cases/alter_table_add_columns_group.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD COLUMN grouped column definitions"
+    },
+    {
       "id": "create_table_generated_columns",
       "file": "cases/create_table_generated_columns.sql",
       "statementType": "CREATE_TABLE",
@@ -1075,6 +1633,17 @@
       "description": "MySQL CREATE TABLE with advanced table options reports the created table"
     },
     {
+      "id": "create_table_storage_options",
+      "file": "cases/create_table_storage_options.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.session_archive"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE storage options including AUTO_INCREMENT, row-count options, INSERT_METHOD, and UNION table option"
+    },
+    {
       "id": "create_table_enum_set_types",
       "file": "cases/create_table_enum_set_types.sql",
       "statementType": "CREATE_TABLE",
@@ -1084,6 +1653,28 @@
       ],
       "columnLineage": [],
       "description": "MySQL CREATE TABLE with ENUM and SET string-list data types"
+    },
+    {
+      "id": "create_table_mysql_type_attributes",
+      "file": "cases/create_table_mysql_type_attributes.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_type_attrs"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with UNSIGNED, ZEROFILL, and column character set/collation type attributes"
+    },
+    {
+      "id": "create_table_column_storage_attributes",
+      "file": "cases/create_table_column_storage_attributes.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.geo_points"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with COLUMN_FORMAT, STORAGE, and SRID column attributes"
     },
     {
       "id": "create_table_check_invisible",
@@ -1097,6 +1688,20 @@
       "description": "MySQL CREATE TABLE with CHECK constraints and INVISIBLE column/index attributes"
     },
     {
+      "id": "create_table_foreign_key_actions",
+      "file": "cases/create_table_foreign_key_actions.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "mart.products",
+        "mart.orders"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with column/table foreign keys and ON DELETE/UPDATE reference actions"
+    },
+    {
       "id": "create_table_fulltext_spatial_index",
       "file": "cases/create_table_fulltext_spatial_index.sql",
       "statementType": "CREATE_TABLE",
@@ -1106,6 +1711,28 @@
       ],
       "columnLineage": [],
       "description": "MySQL CREATE TABLE with FULLTEXT and SPATIAL secondary indexes"
+    },
+    {
+      "id": "create_table_index_options",
+      "file": "cases/create_table_index_options.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_index_options"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with PRIMARY/UNIQUE KEY index algorithm, key block size, comment, and visibility options"
+    },
+    {
+      "id": "create_table_fulltext_index_options",
+      "file": "cases/create_table_fulltext_index_options.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "cms.article_search"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with FULLTEXT INDEX parser, comment, and visibility options"
     },
     {
       "id": "create_view",
@@ -1367,6 +1994,34 @@
       "description": "MySQL UPDATE ORDER BY LIMIT affected table and predicate column usages"
     },
     {
+      "id": "update_partition_table",
+      "file": "cases/update_partition_table.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "app.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "app.users.status",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.last_login_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.id"
+        }
+      ],
+      "description": "MySQL UPDATE table reference with PARTITION clause preserves affected table and clause column usages"
+    },
+    {
       "id": "delete_using",
       "file": "cases/delete_using.sql",
       "statementType": "DELETE",
@@ -1438,6 +2093,25 @@
         }
       ],
       "description": "MySQL DELETE ORDER BY LIMIT affected table and predicate column usages"
+    },
+    {
+      "id": "delete_partition_table",
+      "file": "cases/delete_partition_table.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "app.user_events"
+      ],
+      "outputTables": [
+        "app.user_events"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.user_events.event_time"
+        }
+      ],
+      "description": "MySQL DELETE table reference with PARTITION clause preserves affected table and predicate column usage"
     },
     {
       "id": "backquoted_identifiers",
@@ -1560,6 +2234,74 @@
       "description": "MySQL ALTER TABLE ADD INDEX affected table lineage"
     },
     {
+      "id": "alter_table_add_fulltext_index_options",
+      "file": "cases/alter_table_add_fulltext_index_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "cms.articles"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD FULLTEXT INDEX with parser, comment, and visibility options"
+    },
+    {
+      "id": "alter_table_add_spatial_index",
+      "file": "cases/alter_table_add_spatial_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "geo.places"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD SPATIAL INDEX with visibility option"
+    },
+    {
+      "id": "alter_table_add_column_reference",
+      "file": "cases/alter_table_add_column_reference.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "mart.sellers"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD COLUMN with inline REFERENCES and reference actions"
+    },
+    {
+      "id": "alter_table_add_check_enforced",
+      "file": "cases/alter_table_add_check_enforced.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD CHECK ENFORCED reports the affected table"
+    },
+    {
+      "id": "alter_table_drop_check",
+      "file": "cases/alter_table_drop_check.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE DROP CHECK reports the affected table"
+    },
+    {
+      "id": "alter_table_alter_check_not_enforced",
+      "file": "cases/alter_table_alter_check_not_enforced.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ALTER CHECK NOT ENFORCED reports the affected table"
+    },
+    {
       "id": "alter_table_online_options",
       "file": "cases/alter_table_online_options.sql",
       "statementType": "ALTER_TABLE",
@@ -1593,6 +2335,39 @@
       "description": "MySQL CREATE FULLTEXT INDEX affected table lineage"
     },
     {
+      "id": "create_index_using_options",
+      "file": "cases/create_index_using_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE INDEX with USING, visibility, ALGORITHM, and LOCK options"
+    },
+    {
+      "id": "create_index_engine_attributes",
+      "file": "cases/create_index_engine_attributes.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE INDEX with ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE options"
+    },
+    {
+      "id": "create_fulltext_index_with_parser",
+      "file": "cases/create_fulltext_index_with_parser.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "cms.articles"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE FULLTEXT INDEX with parser, comment, and visibility options"
+    },
+    {
       "id": "create_index_prefix_order",
       "file": "cases/create_index_prefix_order.sql",
       "statementType": "ALTER_TABLE",
@@ -1602,6 +2377,28 @@
       ],
       "columnLineage": [],
       "description": "MySQL CREATE INDEX with prefix length and sort direction affected table lineage"
+    },
+    {
+      "id": "create_index_expression",
+      "file": "cases/create_index_expression.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE INDEX over expression key part reports the affected table"
+    },
+    {
+      "id": "create_index_multivalued_array",
+      "file": "cases/create_index_multivalued_array.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.user_events"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE INDEX with CAST AS ARRAY multi-valued functional key part reports the affected table"
     },
     {
       "id": "drop_index",
@@ -1668,6 +2465,17 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "MySQL ANALYZE TABLE UPDATE HISTOGRAM metadata read table lineage"
+    },
+    {
+      "id": "analyze_table_histogram_using_data",
+      "file": "cases/analyze_table_histogram_using_data.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ANALYZE TABLE UPDATE HISTOGRAM USING DATA metadata read table lineage"
     },
     {
       "id": "analyze_table_drop_histogram",
@@ -1771,6 +2579,126 @@
       "description": "MySQL IFNULL and COALESCE expression column lineage"
     },
     {
+      "id": "mysql_special_function_syntax",
+      "file": "cases/mysql_special_function_syntax.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "signup_year",
+          "sources": [
+            "app.users.created_at"
+          ]
+        },
+        {
+          "target": "normalized_name",
+          "sources": [
+            "app.users.name"
+          ]
+        },
+        {
+          "target": "at_pos",
+          "sources": [
+            "app.users.email"
+          ]
+        },
+        {
+          "target": "phone_prefix",
+          "sources": [
+            "app.users.phone"
+          ]
+        }
+      ],
+      "description": "MySQL EXTRACT/TRIM/POSITION/SUBSTRING special function syntax column lineage"
+    },
+    {
+      "id": "convert_function_syntax",
+      "file": "cases/convert_function_syntax.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "utf8_name",
+          "sources": [
+            "app.orders.name"
+          ]
+        },
+        {
+          "target": "amount_decimal",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "description": "MySQL CONVERT special function syntax column lineage"
+    },
+    {
+      "id": "interval_function_lineage",
+      "file": "cases/interval_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "expires_at",
+          "sources": [
+            "app.orders.created_at"
+          ]
+        },
+        {
+          "target": "retry_window_start",
+          "sources": [
+            "app.orders.updated_at",
+            "app.orders.retry_count"
+          ]
+        }
+      ],
+      "description": "MySQL DATE_ADD/DATE_SUB interval expression column lineage"
+    },
+    {
+      "id": "select_match_against_boolean",
+      "file": "cases/select_match_against_boolean.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "cms.articles"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "cms.articles.id"
+          ]
+        },
+        {
+          "target": "relevance",
+          "sources": [
+            "cms.articles.title",
+            "cms.articles.body"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "cms.articles.title"
+        },
+        {
+          "type": "WHERE",
+          "column": "cms.articles.body"
+        }
+      ],
+      "description": "MySQL MATCH AGAINST full-text search expression lineage and predicate column usage"
+    },
+    {
       "id": "common_expression_projection",
       "file": "cases/common_expression_projection.sql",
       "statementType": "SELECT",
@@ -1827,8 +2755,8 @@
       "file": "cases/scalar_subquery_projection.sql",
       "statementType": "SELECT",
       "inputTables": [
-        "app.orders",
-        "app.users"
+        "app.users",
+        "app.orders"
       ],
       "outputTables": [],
       "columnLineage": [
@@ -1954,6 +2882,44 @@
       "description": "MySQL ORDER BY expression column usage"
     },
     {
+      "id": "order_by_with_rollup",
+      "file": "cases/order_by_with_rollup.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "app.orders.region"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "MySQL ORDER BY WITH ROLLUP preserves ordering alias usage and aggregate lineage"
+    },
+    {
       "id": "distinct_aggregate_column_usage",
       "file": "cases/distinct_aggregate_column_usage.sql",
       "statementType": "SELECT",
@@ -1992,6 +2958,37 @@
         }
       ],
       "description": "MySQL DISTINCT aggregate projection lineage and HAVING usage"
+    },
+    {
+      "id": "count_distinct_multi_column",
+      "file": "cases/count_distinct_multi_column.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "app.orders.region"
+          ]
+        },
+        {
+          "target": "unique_user_products",
+          "sources": [
+            "app.orders.user_id",
+            "app.orders.product_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.region"
+        }
+      ],
+      "description": "MySQL COUNT DISTINCT over multiple columns preserves all aggregate dependencies"
     },
     {
       "id": "group_by_expression_column_usage",
@@ -2384,6 +3381,51 @@
       "description": "MySQL DROP SCHEMA is accepted as a table-free control DDL statement"
     },
     {
+      "id": "alter_database_charset",
+      "file": "cases/alter_database_charset.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ALTER DATABASE charset and collation options are accepted as schema control DDL"
+    },
+    {
+      "id": "alter_schema_encryption",
+      "file": "cases/alter_schema_encryption.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ALTER SCHEMA current database encryption option is accepted as schema control DDL"
+    },
+    {
+      "id": "create_tablespace",
+      "file": "cases/create_tablespace.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLESPACE is accepted as table-free storage control DDL"
+    },
+    {
+      "id": "create_undo_tablespace",
+      "file": "cases/create_undo_tablespace.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CREATE UNDO TABLESPACE is accepted as table-free storage control DDL"
+    },
+    {
+      "id": "drop_tablespace",
+      "file": "cases/drop_tablespace.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL DROP TABLESPACE is accepted as table-free storage control DDL"
+    },
+    {
       "id": "create_temporary_table_like",
       "file": "cases/create_temporary_table_like.sql",
       "statementType": "CREATE_TABLE_LIKE",
@@ -2456,8 +3498,15 @@
       "outputTables": [
         "ads.user_summary"
       ],
-      "columnLineage": [],
-      "description": "MySQL UPDATE target table with SET and WHERE correlated subquery source table"
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL UPDATE target table with SET scalar subquery and WHERE correlated subquery source table"
     },
     {
       "id": "delete_with_subquery",
@@ -2518,6 +3567,68 @@
       ],
       "outputTables": [],
       "description": "MySQL GROUP_CONCAT with SEPARATOR syntax in derived query"
+    },
+    {
+      "id": "group_concat_order_separator_lineage",
+      "file": "cases/group_concat_order_separator_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "tenant_id",
+          "sources": [
+            "app.users.tenant_id"
+          ]
+        },
+        {
+          "target": "user_names",
+          "sources": [
+            "app.users.name",
+            "app.users.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.tenant_id"
+        }
+      ],
+      "description": "MySQL GROUP_CONCAT with ORDER BY and SEPARATOR contributes projection dependencies"
+    },
+    {
+      "id": "group_concat_distinct_order_separator_lineage",
+      "file": "cases/group_concat_distinct_order_separator_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "tenant_id",
+          "sources": [
+            "app.users.tenant_id"
+          ]
+        },
+        {
+          "target": "user_names",
+          "sources": [
+            "app.users.name",
+            "app.users.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.tenant_id"
+        }
+      ],
+      "description": "MySQL GROUP_CONCAT DISTINCT with ORDER BY and SEPARATOR contributes projection dependencies"
     },
     {
       "id": "logical_not_group_column_usage",
@@ -2695,6 +3806,45 @@
       "description": "MySQL EXISTS subquery table inputs and predicate column usages"
     },
     {
+      "id": "not_exists_subquery_column_usage",
+      "file": "cases/not_exists_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "MySQL NOT EXISTS subquery table inputs and predicate column usages"
+    },
+    {
       "id": "window_function_lineage",
       "file": "cases/window_function_lineage.sql",
       "statementType": "SELECT",
@@ -2772,6 +3922,38 @@
         }
       ],
       "description": "MySQL WITH before INSERT SELECT keeps CTE source table and column lineage"
+    },
+    {
+      "id": "with_replace_select",
+      "file": "cases/with_replace_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_snapshot.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_snapshot.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL WITH before REPLACE SELECT keeps CTE source table and column lineage"
     },
     {
       "id": "with_update_join",
@@ -2899,6 +4081,62 @@
       "description": "MySQL INSERT SELECT with ON DUPLICATE KEY UPDATE keeps write and duplicate-key assignment lineage"
     },
     {
+      "id": "insert_select_on_duplicate_expression",
+      "file": "cases/insert_select_on_duplicate_expression.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [
+        "app.user_stats"
+      ],
+      "columnLineage": [
+        {
+          "target": "app.user_stats.user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "app.user_stats.total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        },
+        {
+          "target": "app.user_stats.updated_at",
+          "sources": [
+            "app.orders.updated_at"
+          ]
+        },
+        {
+          "target": "app.user_stats.total_amount",
+          "sources": [
+            "app.user_stats.total_amount",
+            "app.orders.amount"
+          ]
+        },
+        {
+          "target": "app.user_stats.updated_at",
+          "sources": [
+            "app.user_stats.updated_at",
+            "app.orders.updated_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.user_id"
+        }
+      ],
+      "description": "MySQL ON DUPLICATE KEY UPDATE expression lineage separates existing-row columns from VALUES inserted sources"
+    },
+    {
       "id": "drop_multiple_views",
       "file": "cases/drop_multiple_views.sql",
       "statementType": "DROP_VIEW",
@@ -3004,6 +4242,29 @@
       "description": "MySQL CHECK TABLE reports the checked table"
     },
     {
+      "id": "checksum_table_extended",
+      "file": "cases/checksum_table_extended.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CHECKSUM TABLE EXTENDED reports the checked table"
+    },
+    {
+      "id": "checksum_multiple_tables_quick",
+      "file": "cases/checksum_multiple_tables_quick.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "app.orders",
+        "app.order_items"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CHECKSUM TABLE over multiple tables reports all checked tables"
+    },
+    {
       "id": "optimize_table",
       "file": "cases/optimize_table.sql",
       "statementType": "READ_METADATA",
@@ -3037,6 +4298,17 @@
       "description": "MySQL ALTER TABLE CHANGE COLUMN reports the affected table"
     },
     {
+      "id": "alter_table_change_column_attributes",
+      "file": "cases/alter_table_change_column_attributes.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE CHANGE COLUMN with column attributes reports the affected table"
+    },
+    {
       "id": "alter_table_modify_column",
       "file": "cases/alter_table_modify_column.sql",
       "statementType": "ALTER_TABLE",
@@ -3046,6 +4318,17 @@
       ],
       "columnLineage": [],
       "description": "MySQL ALTER TABLE MODIFY COLUMN reports the affected table"
+    },
+    {
+      "id": "alter_table_modify_column_attributes",
+      "file": "cases/alter_table_modify_column_attributes.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE MODIFY COLUMN with column attributes reports the affected table"
     },
     {
       "id": "alter_table_rename_column",
@@ -3092,6 +4375,28 @@
       "description": "MySQL ALTER TABLE DROP INDEX reports the affected table"
     },
     {
+      "id": "alter_table_rename_index",
+      "file": "cases/alter_table_rename_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE RENAME INDEX reports the affected table"
+    },
+    {
+      "id": "alter_table_alter_index_visibility",
+      "file": "cases/alter_table_alter_index_visibility.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ALTER INDEX visibility reports the affected table"
+    },
+    {
       "id": "alter_table_add_foreign_key",
       "file": "cases/alter_table_add_foreign_key.sql",
       "statementType": "ALTER_TABLE",
@@ -3103,6 +4408,19 @@
       ],
       "columnLineage": [],
       "description": "MySQL ALTER TABLE ADD FOREIGN KEY reports affected and referenced tables"
+    },
+    {
+      "id": "alter_table_add_foreign_key_actions",
+      "file": "cases/alter_table_add_foreign_key_actions.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "mart.products"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD FOREIGN KEY with ON DELETE/UPDATE reference actions"
     },
     {
       "id": "create_temporary_table_schema",
@@ -3136,6 +4454,39 @@
       ],
       "columnLineage": [],
       "description": "MySQL CREATE TABLE with RANGE partition definitions reports the created table"
+    },
+    {
+      "id": "create_table_range_columns_partition",
+      "file": "cases/create_table_range_columns_partition.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_by_day"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with RANGE COLUMNS partitioning reports the created table"
+    },
+    {
+      "id": "create_table_list_columns_partition",
+      "file": "cases/create_table_list_columns_partition.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_region"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with LIST COLUMNS partitioning reports the created table"
+    },
+    {
+      "id": "create_table_subpartition",
+      "file": "cases/create_table_subpartition.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_subpart"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with RANGE COLUMNS and HASH subpartitioning reports the created table"
     },
     {
       "id": "create_table_partition_as_select",
@@ -3263,6 +4614,36 @@
       "description": "MySQL SELECT FOR UPDATE keeps read lineage without write output tables"
     },
     {
+      "id": "select_for_update_nowait",
+      "file": "cases/select_for_update_nowait.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL SELECT FOR UPDATE NOWAIT keeps read lineage"
+    },
+    {
       "id": "select_lock_in_share_mode",
       "file": "cases/select_lock_in_share_mode.sql",
       "statementType": "SELECT",
@@ -3291,6 +4672,75 @@
         }
       ],
       "description": "MySQL LOCK IN SHARE MODE keeps read lineage"
+    },
+    {
+      "id": "select_for_share_skip_locked",
+      "file": "cases/select_for_share_skip_locked.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL SELECT FOR SHARE OF table SKIP LOCKED keeps read lineage"
+    },
+    {
+      "id": "select_for_share_of_alias_skip_locked",
+      "file": "cases/select_for_share_of_alias_skip_locked.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL SELECT FOR SHARE OF aliases with SKIP LOCKED keeps read, join, and predicate lineage"
     },
     {
       "id": "insert_low_priority_ignore_select",
@@ -3332,8 +4782,17 @@
       "outputTables": [
         "mart.users"
       ],
-      "columnLineage": [],
-      "description": "MySQL INSERT DELAYED VALUES reports the target table"
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL INSERT DELAYED VALUES reports target table and constant columns"
     },
     {
       "id": "replace_low_priority_select",
@@ -3448,6 +4907,35 @@
       "description": "MySQL multi-table DELETE resolves multiple affected aliases and predicate columns"
     },
     {
+      "id": "delete_multi_table_star_targets",
+      "file": "cases/delete_multi_table_star_targets.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "mart.users",
+        "staging.users_to_delete"
+      ],
+      "outputTables": [
+        "mart.users",
+        "staging.users_to_delete"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "staging.users_to_delete.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "staging.users_to_delete.batch_id"
+        }
+      ],
+      "description": "MySQL multi-table DELETE accepts alias.* targets and resolves affected tables"
+    },
+    {
       "id": "select_force_index",
       "file": "cases/select_force_index.sql",
       "statementType": "SELECT",
@@ -3476,6 +4964,70 @@
         }
       ],
       "description": "MySQL index hints after table aliases keep table aliases and column lineage"
+    },
+    {
+      "id": "select_ignore_key_for_order_by",
+      "file": "cases/select_ignore_key_for_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.created_at"
+        }
+      ],
+      "description": "MySQL IGNORE KEY FOR ORDER BY hint preserves predicate and ordering lineage"
+    },
+    {
+      "id": "select_use_index_empty",
+      "file": "cases/select_use_index_empty.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL USE INDEX empty hint preserves table and column lineage"
     },
     {
       "id": "group_by_with_rollup",
@@ -3510,6 +5062,54 @@
         }
       ],
       "description": "MySQL GROUP BY WITH ROLLUP keeps aggregate lineage and grouping column usage"
+    },
+    {
+      "id": "group_by_rollup_function",
+      "file": "cases/group_by_rollup_function.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "app.orders.region"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "app.orders.channel"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.deleted"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.channel"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "MySQL GROUP BY ROLLUP(...) syntax preserves aggregate lineage and grouping column usage"
     },
     {
       "id": "show_tables_from_database",
@@ -3587,6 +5187,362 @@
         }
       ],
       "description": "MySQL REGEXP, NOT REGEXP, and RLIKE predicates report WHERE column usages"
+    },
+    {
+      "id": "like_escape_predicate",
+      "file": "cases/like_escape_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.name"
+        }
+      ],
+      "description": "MySQL LIKE ESCAPE predicate reports WHERE column usage"
+    },
+    {
+      "id": "sounds_like_predicate",
+      "file": "cases/sounds_like_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.name"
+        }
+      ],
+      "description": "MySQL SOUNDS LIKE predicate reports WHERE column usage"
+    },
+    {
+      "id": "xor_predicate_column_usage",
+      "file": "cases/xor_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.is_active"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.deleted"
+        }
+      ],
+      "description": "MySQL XOR boolean predicate reports WHERE column usages"
+    },
+    {
+      "id": "is_unknown_predicate",
+      "file": "cases/is_unknown_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.score"
+        }
+      ],
+      "description": "MySQL IS UNKNOWN predicate reports WHERE column usage"
+    },
+    {
+      "id": "parameter_marker_predicate",
+      "file": "cases/parameter_marker_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL parameter marker predicates preserve real WHERE column usages"
+    },
+    {
+      "id": "typed_datetime_literals",
+      "file": "cases/typed_datetime_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.order_date"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.cutoff_time"
+        }
+      ],
+      "description": "MySQL typed DATE/TIME/TIMESTAMP literals preserve real WHERE column usages"
+    },
+    {
+      "id": "charset_string_literals",
+      "file": "cases/charset_string_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.nickname"
+        }
+      ],
+      "description": "MySQL charset introducer and national string literals preserve real WHERE column usages"
+    },
+    {
+      "id": "hex_bit_literals",
+      "file": "cases/hex_bit_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.events.id"
+          ]
+        },
+        {
+          "target": "hex_blob",
+          "sources": []
+        },
+        {
+          "target": "hex_num",
+          "sources": []
+        },
+        {
+          "target": "bit_text",
+          "sources": []
+        },
+        {
+          "target": "bit_num",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.payload_hash"
+        }
+      ],
+      "description": "MySQL hex and bit literals are treated as source-free values while preserving real predicate columns"
+    },
+    {
+      "id": "exponent_numeric_literals",
+      "file": "cases/exponent_numeric_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        },
+        {
+          "target": "normalized_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.score"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.ratio"
+        }
+      ],
+      "description": "MySQL decimal and exponent numeric literals preserve expression and predicate column lineage"
+    },
+    {
+      "id": "current_time_function_literals",
+      "file": "cases/current_time_function_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "run_date",
+          "sources": []
+        },
+        {
+          "target": "run_time",
+          "sources": []
+        },
+        {
+          "target": "run_ts",
+          "sources": []
+        },
+        {
+          "target": "utc_ts",
+          "sources": []
+        }
+      ],
+      "description": "MySQL current date/time function literals are treated as source-free projections"
+    },
+    {
+      "id": "current_time_function_parentheses",
+      "file": "cases/current_time_function_parentheses.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "run_date",
+          "sources": []
+        },
+        {
+          "target": "run_time",
+          "sources": []
+        },
+        {
+          "target": "run_ts",
+          "sources": []
+        },
+        {
+          "target": "utc_date_value",
+          "sources": []
+        },
+        {
+          "target": "utc_time_value",
+          "sources": []
+        },
+        {
+          "target": "utc_ts",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL current date/time functions with parentheses are treated as source-free values"
+    },
+    {
+      "id": "backquoted_current_time_column",
+      "file": "cases/backquoted_current_time_column.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "current_date_value",
+          "sources": [
+            "app.orders.current_date"
+          ]
+        }
+      ],
+      "description": "MySQL backquoted current-time keyword remains a real column reference"
     },
     {
       "id": "null_safe_equal_predicate",
@@ -4224,6 +6180,19 @@
       "description": "MySQL ALTER TABLE EXCHANGE PARTITION records both exchanged and partitioned tables"
     },
     {
+      "id": "alter_table_exchange_partition_with_validation",
+      "file": "cases/alter_table_exchange_partition_with_validation.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "staging.users_202609"
+      ],
+      "outputTables": [
+        "staging.users_202609",
+        "app.users"
+      ],
+      "description": "MySQL ALTER TABLE EXCHANGE PARTITION WITH VALIDATION records both exchanged and partitioned tables"
+    },
+    {
       "id": "rename_table_statement",
       "file": "cases/rename_table_statement.sql",
       "statementType": "RENAME_TABLE",
@@ -4320,6 +6289,34 @@
         }
       ],
       "description": "MySQL JSON arrow operators preserve source column lineage"
+    },
+    {
+      "id": "json_member_of_predicate",
+      "file": "cases/json_member_of_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.user_segments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.user_segments.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.user_segments.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.user_segments.payload"
+        }
+      ],
+      "description": "MySQL JSON MEMBER OF predicate reports scalar and JSON document column usage"
     },
     {
       "id": "binary_collate_expression",
@@ -4566,6 +6563,46 @@
       "description": "MySQL ROLLBACK is accepted as a script-safe control statement"
     },
     {
+      "id": "xa_start",
+      "file": "cases/xa_start.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL XA START is accepted as distributed transaction control syntax"
+    },
+    {
+      "id": "xa_end_suspend",
+      "file": "cases/xa_end_suspend.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL XA END with SUSPEND FOR MIGRATE is accepted as distributed transaction control syntax"
+    },
+    {
+      "id": "xa_prepare",
+      "file": "cases/xa_prepare.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL XA PREPARE is accepted as distributed transaction control syntax"
+    },
+    {
+      "id": "xa_commit_one_phase",
+      "file": "cases/xa_commit_one_phase.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL XA COMMIT ONE PHASE is accepted as distributed transaction control syntax"
+    },
+    {
+      "id": "xa_recover",
+      "file": "cases/xa_recover.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL XA RECOVER is accepted as distributed transaction control syntax"
+    },
+    {
       "id": "do_statement",
       "file": "cases/do_statement.sql",
       "statementType": "CONTROL",
@@ -4722,6 +6759,38 @@
       "description": "MySQL CREATE USER is accepted as a script-safe account statement"
     },
     {
+      "id": "create_user_account_options",
+      "file": "cases/create_user_account_options.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL CREATE USER account options are accepted as script-safe account statements"
+    },
+    {
+      "id": "alter_user_account_unlock",
+      "file": "cases/alter_user_account_unlock.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL ALTER USER account unlock and password options are accepted as script-safe account statements"
+    },
+    {
+      "id": "drop_user_if_exists",
+      "file": "cases/drop_user_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL DROP USER IF EXISTS is accepted as a script-safe account statement"
+    },
+    {
+      "id": "show_create_user",
+      "file": "cases/show_create_user.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SHOW CREATE USER is classified as a metadata read without table lineage"
+    },
+    {
       "id": "grant_privileges",
       "file": "cases/grant_privileges.sql",
       "statementType": "CONTROL",
@@ -4760,6 +6829,102 @@
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL RESET is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "lock_instance_for_backup",
+      "file": "cases/lock_instance_for_backup.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL LOCK INSTANCE FOR BACKUP is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "unlock_instance",
+      "file": "cases/unlock_instance.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL UNLOCK INSTANCE is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "clone_local_data_directory",
+      "file": "cases/clone_local_data_directory.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL CLONE LOCAL DATA DIRECTORY is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "clone_instance_from_donor",
+      "file": "cases/clone_instance_from_donor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL CLONE INSTANCE FROM donor is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "change_replication_source",
+      "file": "cases/change_replication_source.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL CHANGE REPLICATION SOURCE TO is accepted as a script-safe replication statement"
+    },
+    {
+      "id": "change_master_to",
+      "file": "cases/change_master_to.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL CHANGE MASTER TO is accepted as a script-safe legacy replication statement"
+    },
+    {
+      "id": "start_replica",
+      "file": "cases/start_replica.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL START REPLICA is accepted as a script-safe replication statement"
+    },
+    {
+      "id": "stop_slave",
+      "file": "cases/stop_slave.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL STOP SLAVE is accepted as a script-safe legacy replication statement"
+    },
+    {
+      "id": "reset_replica_all",
+      "file": "cases/reset_replica_all.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RESET REPLICA ALL is accepted as a script-safe replication statement"
+    },
+    {
+      "id": "show_binary_logs",
+      "file": "cases/show_binary_logs.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SHOW BINARY LOGS is classified as a metadata read without table lineage"
+    },
+    {
+      "id": "show_master_status",
+      "file": "cases/show_master_status.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SHOW MASTER STATUS is classified as a metadata read without table lineage"
+    },
+    {
+      "id": "show_replica_status",
+      "file": "cases/show_replica_status.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SHOW REPLICA STATUS is classified as a metadata read without table lineage"
     },
     {
       "id": "alter_table_add_partition",
@@ -4848,6 +7013,113 @@
       "description": "MySQL ROWS window frame keeps projection and window clause lineage"
     },
     {
+      "id": "window_frame_range_interval",
+      "file": "cases/window_frame_range_interval.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "rolling_amount",
+          "sources": [
+            "app.orders.amount",
+            "app.orders.user_id",
+            "app.orders.order_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.orders.order_time"
+        }
+      ],
+      "description": "MySQL RANGE window frame with INTERVAL bound keeps projection and window clause lineage"
+    },
+    {
+      "id": "window_frame_rows_unbounded_preceding",
+      "file": "cases/window_frame_rows_unbounded_preceding.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "running_amount",
+          "sources": [
+            "app.orders.amount",
+            "app.orders.user_id",
+            "app.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL ROWS UNBOUNDED PRECEDING window frame keeps projection and window clause lineage"
+    },
+    {
+      "id": "window_frame_range_interval_preceding",
+      "file": "cases/window_frame_range_interval_preceding.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "daily_order_count",
+          "sources": [
+            "app.orders.user_id",
+            "app.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL RANGE INTERVAL PRECEDING window frame keeps window clause lineage"
+    },
+    {
       "id": "named_window_clause",
       "file": "cases/named_window_clause.sql",
       "statementType": "SELECT",
@@ -4914,6 +7186,36 @@
       "description": "MySQL SELECT INTO user variables preserves source table and projection lineage"
     },
     {
+      "id": "select_into_local_variables",
+      "file": "cases/select_into_local_variables.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL SELECT INTO local stored-program variables preserves source table and projection lineage"
+    },
+    {
       "id": "select_user_variable_assignment",
       "file": "cases/select_user_variable_assignment.sql",
       "statementType": "SELECT",
@@ -4936,6 +7238,3830 @@
         }
       ],
       "description": "MySQL user-variable assignment expressions keep right-hand table column lineage"
+    },
+    {
+      "id": "load_data_replace_partition_charset",
+      "file": "cases/load_data_replace_partition_charset.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "app.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "app.users.id",
+          "sources": []
+        },
+        {
+          "target": "app.users.name",
+          "sources": []
+        },
+        {
+          "target": "app.users.status",
+          "sources": []
+        },
+        {
+          "target": "app.users.loaded_at",
+          "sources": []
+        }
+      ],
+      "description": "MySQL LOAD DATA with priority, replace, partition, character set, rows ignore, and set assignments"
+    },
+    {
+      "id": "load_data_concurrent_ignore",
+      "file": "cases/load_data_concurrent_ignore.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "ods.events.event_id",
+          "sources": []
+        },
+        {
+          "target": "ods.events.user_id",
+          "sources": []
+        },
+        {
+          "target": "ods.events.event_time",
+          "sources": []
+        }
+      ],
+      "description": "MySQL LOAD DATA CONCURRENT LOCAL with IGNORE reports loaded table and columns"
+    },
+    {
+      "id": "create_role",
+      "file": "cases/create_role.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CREATE ROLE account control statement"
+    },
+    {
+      "id": "drop_role",
+      "file": "cases/drop_role.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL DROP ROLE account control statement"
+    },
+    {
+      "id": "set_role",
+      "file": "cases/set_role.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SET ROLE account control statement"
+    },
+    {
+      "id": "install_plugin",
+      "file": "cases/install_plugin.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL INSTALL PLUGIN control statement"
+    },
+    {
+      "id": "uninstall_component",
+      "file": "cases/uninstall_component.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL UNINSTALL COMPONENT control statement"
+    },
+    {
+      "id": "create_server",
+      "file": "cases/create_server.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CREATE SERVER federated server control statement"
+    },
+    {
+      "id": "alter_server",
+      "file": "cases/alter_server.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ALTER SERVER federated server control statement"
+    },
+    {
+      "id": "drop_server",
+      "file": "cases/drop_server.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL DROP SERVER federated server control statement"
+    },
+    {
+      "id": "create_resource_group",
+      "file": "cases/create_resource_group.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CREATE RESOURCE GROUP workload control statement"
+    },
+    {
+      "id": "alter_resource_group",
+      "file": "cases/alter_resource_group.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ALTER RESOURCE GROUP workload control statement"
+    },
+    {
+      "id": "drop_resource_group",
+      "file": "cases/drop_resource_group.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL DROP RESOURCE GROUP workload control statement"
+    },
+    {
+      "id": "set_resource_group",
+      "file": "cases/set_resource_group.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SET RESOURCE GROUP workload control statement"
+    },
+    {
+      "id": "json_table_projection",
+      "file": "cases/json_table_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "app.orders.id"
+          ]
+        },
+        {
+          "target": "sku",
+          "sources": [
+            "app.orders.payload"
+          ]
+        },
+        {
+          "target": "qty",
+          "sources": [
+            "app.orders.payload"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.payload"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.sku"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.payload"
+        }
+      ],
+      "description": "MySQL JSON_TABLE derived relation maps extracted columns back to the JSON document source column"
+    },
+    {
+      "id": "json_table_nested_columns",
+      "file": "cases/json_table_nested_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "sku",
+          "sources": [
+            "app.orders.payload"
+          ]
+        },
+        {
+          "target": "attr_name",
+          "sources": [
+            "app.orders.payload"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.payload"
+        }
+      ],
+      "description": "MySQL JSON_TABLE nested path columns keep extracted column lineage to the JSON source column"
+    },
+    {
+      "id": "load_xml_rows_identified",
+      "file": "cases/load_xml_rows_identified.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "ods.events.event_id",
+          "sources": []
+        },
+        {
+          "target": "ods.events.user_id",
+          "sources": []
+        },
+        {
+          "target": "ods.events.event_time",
+          "sources": []
+        }
+      ],
+      "description": "MySQL LOAD XML with ROWS IDENTIFIED BY reports loaded table and columns"
+    },
+    {
+      "id": "load_xml_set_assignments",
+      "file": "cases/load_xml_set_assignments.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "ods.events.event_id",
+          "sources": []
+        },
+        {
+          "target": "ods.events.event_time",
+          "sources": []
+        }
+      ],
+      "description": "MySQL LOAD XML with column variables and SET assignment reports loaded target columns"
+    },
+    {
+      "id": "show_full_columns_from_schema_table",
+      "file": "cases/show_full_columns_from_schema_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW EXTENDED FULL COLUMNS with FROM schema reports table metadata lineage"
+    },
+    {
+      "id": "show_keys_from_schema_table",
+      "file": "cases/show_keys_from_schema_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW KEYS with IN schema and WHERE filter reports table metadata lineage"
+    },
+    {
+      "id": "show_table_status_from_schema",
+      "file": "cases/show_table_status_from_schema.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW TABLE STATUS FROM schema is accepted as schema-level metadata"
+    },
+    {
+      "id": "insert_values_scalar_subquery",
+      "file": "cases/insert_values_scalar_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL INSERT VALUES scalar subquery maps the target column to subquery source columns"
+    },
+    {
+      "id": "replace_values_scalar_subquery",
+      "file": "cases/replace_values_scalar_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": []
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL REPLACE VALUES scalar subquery maps the target column to subquery source columns"
+    },
+    {
+      "id": "tuple_in_predicate_column_usage",
+      "file": "cases/tuple_in_predicate_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.product_id"
+        }
+      ],
+      "description": "MySQL tuple IN predicate reports all row-constructor columns as WHERE usages"
+    },
+    {
+      "id": "tuple_comparison_predicate",
+      "file": "cases/tuple_comparison_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.product_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.buyer_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.sku_id"
+        }
+      ],
+      "description": "MySQL tuple comparison predicate reports left and right row-constructor columns as WHERE usages"
+    },
+    {
+      "id": "timestampadd_timestampdiff_lineage",
+      "file": "cases/timestampadd_timestampdiff_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "retry_deadline",
+          "sources": [
+            "app.orders.retry_count",
+            "app.orders.created_at"
+          ]
+        },
+        {
+          "target": "age_hours",
+          "sources": [
+            "app.orders.created_at",
+            "app.orders.updated_at"
+          ]
+        }
+      ],
+      "description": "MySQL TIMESTAMPADD and TIMESTAMPDIFF treat interval units as syntax, not source columns"
+    },
+    {
+      "id": "logical_and_operator_column_usage",
+      "file": "cases/logical_and_operator_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.is_active"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.deleted"
+        }
+      ],
+      "description": "MySQL && and ! boolean operators report WHERE column usages"
+    },
+    {
+      "id": "lateral_derived_query_lineage",
+      "file": "cases/lateral_derived_query_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "last_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL LATERAL derived query preserves inner projection lineage and correlated predicate usages"
+    },
+    {
+      "id": "create_table_compound_type_names",
+      "file": "cases/create_table_compound_type_names.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.type_samples"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE accepts compound type names such as DOUBLE PRECISION and NATIONAL VARCHAR"
+    },
+    {
+      "id": "cast_signed_unsigned_lineage",
+      "file": "cases/cast_signed_unsigned_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.metrics"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "signed_amount",
+          "sources": [
+            "app.metrics.amount"
+          ]
+        },
+        {
+          "target": "unsigned_score",
+          "sources": [
+            "app.metrics.score"
+          ]
+        }
+      ],
+      "description": "MySQL CAST AS SIGNED INTEGER and UNSIGNED preserve expression source columns"
+    },
+    {
+      "id": "get_format_type_argument_lineage",
+      "file": "cases/get_format_type_argument_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.raw_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "parsed_date",
+          "sources": [
+            "app.raw_events.date_text"
+          ]
+        }
+      ],
+      "description": "MySQL GET_FORMAT treats DATE/TIME/DATETIME type arguments as syntax, not source columns"
+    },
+    {
+      "id": "json_value_returning_lineage",
+      "file": "cases/json_value_returning_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "vin",
+          "sources": [
+            "app.events.payload"
+          ]
+        }
+      ],
+      "description": "MySQL JSON_VALUE RETURNING and ON EMPTY/ERROR syntax preserves JSON document column lineage"
+    },
+    {
+      "id": "quantified_subquery_predicate",
+      "file": "cases/quantified_subquery_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.region_limits"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.region_limits.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.region_limits.limit_amount"
+        }
+      ],
+      "description": "MySQL quantified subquery predicates such as > ALL preserve outer and subquery column usages"
+    },
+    {
+      "id": "limit_offset_keyword",
+      "file": "cases/limit_offset_keyword.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.created_at"
+        }
+      ],
+      "description": "MySQL LIMIT row_count OFFSET offset query organization preserves predicate and ordering usages"
+    },
+    {
+      "id": "limit_offset_comma",
+      "file": "cases/limit_offset_comma.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.created_at"
+        }
+      ],
+      "description": "MySQL LIMIT offset,row_count query organization preserves predicate and ordering usages"
+    },
+    {
+      "id": "insert_select_exists_subquery",
+      "file": "cases/insert_select_exists_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users",
+        "app.sessions"
+      ],
+      "outputTables": [
+        "mart.active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.active_users.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.active_users.name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.sessions.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.sessions.active"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.id"
+        }
+      ],
+      "description": "MySQL INSERT SELECT with EXISTS predicate preserves target mapping and nested predicate usages"
+    },
+    {
+      "id": "update_where_exists_subquery",
+      "file": "cases/update_where_exists_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users",
+        "app.blacklist"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.status",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.blacklist.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.blacklist.enabled"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.users.id"
+        }
+      ],
+      "description": "MySQL UPDATE WHERE EXISTS records nested predicate and ordering columns"
+    },
+    {
+      "id": "delete_where_exists_subquery",
+      "file": "cases/delete_where_exists_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "mart.users",
+        "app.blacklist"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.blacklist.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.users.id"
+        }
+      ],
+      "description": "MySQL DELETE WHERE EXISTS records nested predicate and ordering columns"
+    },
+    {
+      "id": "having_exists_subquery_usage",
+      "file": "cases/having_exists_subquery_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.region_acl"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "app.users.region"
+          ]
+        },
+        {
+          "target": "user_count",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.region_acl.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.users.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.region_acl.enabled"
+        }
+      ],
+      "description": "MySQL HAVING EXISTS records nested predicate columns against grouped queries"
+    },
+    {
+      "id": "between_not_in_subquery_usage",
+      "file": "cases/between_not_in_subquery_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.region_acl"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.min_amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.max_amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.region_acl.enabled"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.region_acl.region"
+        }
+      ],
+      "description": "MySQL BETWEEN, NOT IN list, and NOT IN subquery predicates preserve column usages"
+    },
+    {
+      "id": "not_like_not_regexp_usage",
+      "file": "cases/not_like_not_regexp_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.email"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.phone"
+        }
+      ],
+      "description": "MySQL NOT LIKE, NOT REGEXP, and NOT RLIKE predicates preserve column usages"
+    },
+    {
+      "id": "order_by_field_function_usage",
+      "file": "cases/order_by_field_function_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        },
+        {
+          "target": "status",
+          "sources": [
+            "app.orders.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.dt"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.updated_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL ORDER BY FIELD and COALESCE function arguments preserve ordering column usages"
+    },
+    {
+      "id": "having_between_aggregate_usage",
+      "file": "cases/having_between_aggregate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "app.orders.region"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.amount"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.min_amount"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.max_amount"
+        }
+      ],
+      "description": "MySQL HAVING aggregate BETWEEN predicate preserves aggregate and bound column usages"
+    },
+    {
+      "id": "if_nullif_expression_lineage",
+      "file": "cases/if_nullif_expression_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "score",
+          "sources": [
+            "app.users.is_vip",
+            "app.users.vip_score",
+            "app.users.base_score"
+          ]
+        },
+        {
+          "target": "normalized_email",
+          "sources": [
+            "app.users.primary_email",
+            "app.users.backup_email"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.deleted_at"
+        }
+      ],
+      "description": "MySQL IF and NULLIF expression lineage preserves condition and argument source columns"
+    },
+    {
+      "id": "with_insert_exists_subquery",
+      "file": "cases/with_insert_exists_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users",
+        "app.sessions"
+      ],
+      "outputTables": [
+        "mart.active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.active_users.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.active_users.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.sessions.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.sessions.active"
+        }
+      ],
+      "description": "MySQL WITH before INSERT SELECT with EXISTS preserves CTE lineage and nested predicate usages"
+    },
+    {
+      "id": "with_update_exists_subquery",
+      "file": "cases/with_update_exists_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "app.blacklist",
+        "mart.users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.status",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.blacklist.enabled"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.blacklist.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.users.id"
+        }
+      ],
+      "description": "MySQL WITH before UPDATE WHERE EXISTS preserves CTE predicate and correlated columns"
+    },
+    {
+      "id": "with_delete_exists_subquery",
+      "file": "cases/with_delete_exists_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "app.sessions",
+        "mart.users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.sessions.expired"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.sessions.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.users.id"
+        }
+      ],
+      "description": "MySQL WITH before DELETE WHERE EXISTS preserves CTE predicate and correlated columns"
+    },
+    {
+      "id": "correlated_scalar_subquery_projection",
+      "file": "cases/correlated_scalar_subquery_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "max_paid_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL correlated scalar subquery projection preserves inner projection lineage and correlated predicate usages"
+    },
+    {
+      "id": "case_exists_subquery_projection",
+      "file": "cases/case_exists_subquery_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "risk_score",
+          "sources": [
+            "app.orders.user_id",
+            "app.users.id",
+            "app.orders.status",
+            "app.users.vip_score",
+            "app.users.base_score"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL CASE WHEN EXISTS expression records branch columns and nested predicate dependencies"
+    },
+    {
+      "id": "derived_alias_expression_projection",
+      "file": "cases/derived_alias_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "display_name",
+          "sources": [
+            "app.users.name",
+            "app.users.region"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.region"
+        }
+      ],
+      "description": "MySQL derived table aliases propagate through outer expression projections and predicates"
+    },
+    {
+      "id": "update_scalar_subquery_expression",
+      "file": "cases/update_scalar_subquery_expression.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users",
+        "app.user_scores"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.score",
+          "sources": [
+            "app.user_scores.score",
+            "mart.users.score"
+          ]
+        },
+        {
+          "target": "mart.users.updated_at",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "mart.users.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.user_scores.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.users.id"
+        }
+      ],
+      "description": "MySQL UPDATE assignment expression with correlated scalar subquery preserves source column lineage"
+    },
+    {
+      "id": "alter_table_convert_charset",
+      "file": "cases/alter_table_convert_charset.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE CONVERT TO CHARACTER SET reports the affected table"
+    },
+    {
+      "id": "alter_table_default_charset_collate",
+      "file": "cases/alter_table_default_charset_collate.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE DEFAULT CHARACTER SET with COLLATE reports the affected table"
+    },
+    {
+      "id": "alter_table_disable_keys",
+      "file": "cases/alter_table_disable_keys.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE DISABLE/ENABLE KEYS reports the affected table"
+    },
+    {
+      "id": "set_names_collate",
+      "file": "cases/set_names_collate.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SET NAMES with COLLATE is accepted as a session control statement"
+    },
+    {
+      "id": "set_character_set",
+      "file": "cases/set_character_set.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SET CHARACTER SET is accepted as a session control statement"
+    },
+    {
+      "id": "create_table_directory_stats_options",
+      "file": "cases/create_table_directory_stats_options.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.audit_log"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE DATA/INDEX DIRECTORY and STATS options report the created table"
+    },
+    {
+      "id": "create_table_engine_attribute_options",
+      "file": "cases/create_table_engine_attribute_options.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.archive_orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE checksum, connection, and engine attribute options report the created table"
+    },
+    {
+      "id": "load_data_optionally_enclosed_variables",
+      "file": "cases/load_data_optionally_enclosed_variables.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.loaded_at",
+          "sources": []
+        }
+      ],
+      "description": "MySQL LOAD DATA OPTIONALLY ENCLOSED BY with user variables and SET assignments reports loaded target columns"
+    },
+    {
+      "id": "drop_table_restrict",
+      "file": "cases/drop_table_restrict.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users_old"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DROP TABLE with RESTRICT reports the affected table"
+    },
+    {
+      "id": "drop_view_cascade",
+      "file": "cases/drop_view_cascade.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.v_user_orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DROP VIEW with CASCADE reports the affected view"
+    },
+    {
+      "id": "load_data_columns_options",
+      "file": "cases/load_data_columns_options.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL LOAD DATA accepts COLUMNS as a synonym for FIELDS"
+    },
+    {
+      "id": "select_into_outfile_columns_options",
+      "file": "cases/select_into_outfile_columns_options.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL SELECT INTO OUTFILE accepts COLUMNS as a synonym for FIELDS"
+    },
+    {
+      "id": "lock_tables_alias_low_priority",
+      "file": "cases/lock_tables_alias_low_priority.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "app.users",
+        "mart.user_summary"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL LOCK TABLES with alias, READ LOCAL, and LOW_PRIORITY WRITE records lock targets"
+    },
+    {
+      "id": "show_create_procedure",
+      "file": "cases/show_create_procedure.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW CREATE PROCEDURE is accepted as routine metadata"
+    },
+    {
+      "id": "show_create_function",
+      "file": "cases/show_create_function.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW CREATE FUNCTION is accepted as routine metadata"
+    },
+    {
+      "id": "show_create_trigger",
+      "file": "cases/show_create_trigger.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW CREATE TRIGGER is accepted as trigger metadata"
+    },
+    {
+      "id": "show_create_event",
+      "file": "cases/show_create_event.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW CREATE EVENT is accepted as event metadata"
+    },
+    {
+      "id": "natural_left_join_projection",
+      "file": "cases/natural_left_join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL NATURAL LEFT OUTER JOIN keeps projection lineage and predicate usages"
+    },
+    {
+      "id": "natural_right_outer_join_projection",
+      "file": "cases/natural_right_outer_join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "order_id",
+          "sources": [
+            "app.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        }
+      ],
+      "description": "MySQL NATURAL RIGHT OUTER JOIN keeps projection lineage and predicate usages"
+    },
+    {
+      "id": "right_join_using_column_usage",
+      "file": "cases/right_join_using_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.payments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        },
+        {
+          "target": "paid_at",
+          "sources": [
+            "app.payments.paid_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.payments.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.payments.status"
+        }
+      ],
+      "description": "MySQL RIGHT JOIN USING records both joined key usages"
+    },
+    {
+      "id": "bitwise_unary_expression",
+      "file": "cases/bitwise_unary_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.order_flags"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "inverted_flags",
+          "sources": [
+            "app.order_flags.flags"
+          ]
+        },
+        {
+          "target": "combined_flags",
+          "sources": [
+            "app.order_flags.flags",
+            "app.order_flags.mask"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.order_flags.deleted_mask"
+        }
+      ],
+      "description": "MySQL unary bitwise NOT and bitwise OR preserve source and predicate columns"
+    },
+    {
+      "id": "union_distinct_column_projection",
+      "file": "cases/union_distinct_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "contact",
+          "sources": [
+            "app.users.email",
+            "app.orders.buyer_email"
+          ]
+        }
+      ],
+      "description": "MySQL UNION DISTINCT column sources are merged by output position"
+    },
+    {
+      "id": "intersect_distinct_column_projection",
+      "file": "cases/intersect_distinct_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.active_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.user_id",
+            "app.active_users.user_id"
+          ]
+        }
+      ],
+      "description": "MySQL INTERSECT DISTINCT column sources are merged by output position"
+    },
+    {
+      "id": "json_table_exists_default_columns",
+      "file": "cases/json_table_exists_default_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "sku",
+          "sources": [
+            "app.orders.payload"
+          ]
+        },
+        {
+          "target": "has_discount",
+          "sources": [
+            "app.orders.payload"
+          ]
+        }
+      ],
+      "description": "MySQL JSON_TABLE EXISTS PATH and DEFAULT ON EMPTY columns propagate the JSON document source"
+    },
+    {
+      "id": "having_projection_alias_usage",
+      "file": "cases/having_projection_alias_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "MySQL HAVING can reference a projection alias and resolve it to the projected source columns"
+    },
+    {
+      "id": "having_scalar_subquery_column_usage",
+      "file": "cases/having_scalar_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.orders_archive"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders_archive.status"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders.amount"
+        },
+        {
+          "type": "HAVING",
+          "column": "app.orders_archive.amount"
+        }
+      ],
+      "description": "MySQL HAVING scalar subquery records outer aggregate and inner predicate columns"
+    },
+    {
+      "id": "group_by_projection_alias_usage",
+      "file": "cases/group_by_projection_alias_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region_key",
+          "sources": [
+            "app.orders.region"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "app.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.region"
+        }
+      ],
+      "description": "MySQL GROUP BY can reference a projection alias and resolve it to the projected source columns"
+    },
+    {
+      "id": "select_for_update_of_alias_nowait",
+      "file": "cases/select_for_update_of_alias_nowait.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL SELECT FOR UPDATE OF alias NOWAIT keeps join and predicate lineage"
+    },
+    {
+      "id": "alter_table_order_by",
+      "file": "cases/alter_table_order_by.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ORDER BY reports the affected table"
+    },
+    {
+      "id": "alter_table_force",
+      "file": "cases/alter_table_force.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE FORCE reports the affected table"
+    },
+    {
+      "id": "alter_table_tablespace_import_discard",
+      "file": "cases/alter_table_tablespace_import_discard.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE DISCARD/IMPORT TABLESPACE reports the affected table"
+    },
+    {
+      "id": "alter_table_drop_foreign_key",
+      "file": "cases/alter_table_drop_foreign_key.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE DROP FOREIGN KEY reports the affected table"
+    },
+    {
+      "id": "alter_table_alter_column_default",
+      "file": "cases/alter_table_alter_column_default.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ALTER COLUMN SET/DROP DEFAULT reports the affected table"
+    },
+    {
+      "id": "show_open_tables_like",
+      "file": "cases/show_open_tables_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW OPEN TABLES with schema and LIKE filter is treated as a metadata read"
+    },
+    {
+      "id": "show_triggers_from_schema",
+      "file": "cases/show_triggers_from_schema.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW TRIGGERS with schema and LIKE filter is treated as a metadata read"
+    },
+    {
+      "id": "show_events_from_schema",
+      "file": "cases/show_events_from_schema.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW EVENTS with schema and WHERE filter is treated as a metadata read"
+    },
+    {
+      "id": "show_global_variables_like",
+      "file": "cases/show_global_variables_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW GLOBAL VARIABLES with LIKE filter is treated as a metadata read"
+    },
+    {
+      "id": "show_session_status_where",
+      "file": "cases/show_session_status_where.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW SESSION STATUS with WHERE filter is treated as a metadata read"
+    },
+    {
+      "id": "show_procedure_function_status",
+      "file": "cases/show_procedure_function_status.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW PROCEDURE STATUS is treated as a metadata read"
+    },
+    {
+      "id": "update_multi_table_targets",
+      "file": "cases/update_multi_table_targets.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users",
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.users",
+        "app.users_delta"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "app.users_delta.name"
+          ]
+        },
+        {
+          "target": "app.users_delta.synced_at",
+          "sources": [
+            "mart.users.updated_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.users_delta.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users_delta.status"
+        }
+      ],
+      "description": "MySQL multi-table UPDATE reports every assigned table as an output and maps each assignment to the qualified target"
+    },
+    {
+      "id": "recursive_cte_column_projection",
+      "file": "cases/recursive_cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.employees.id"
+          ]
+        },
+        {
+          "target": "manager_id",
+          "sources": [
+            "app.employees.manager_id"
+          ]
+        }
+      ],
+      "description": "MySQL WITH RECURSIVE keeps base table inputs and final CTE projection lineage without treating the recursive CTE name as a physical table"
+    },
+    {
+      "id": "create_table_linear_key_algorithm_partition",
+      "file": "cases/create_table_linear_key_algorithm_partition.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.user_shards"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE with LINEAR KEY ALGORITHM partitioning reports the created table"
+    },
+    {
+      "id": "analyze_no_write_histogram",
+      "file": "cases/analyze_no_write_histogram.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ANALYZE NO_WRITE_TO_BINLOG TABLE histogram maintenance reports the table being analyzed"
+    },
+    {
+      "id": "check_table_for_upgrade_extended",
+      "file": "cases/check_table_for_upgrade_extended.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CHECK TABLE FOR UPGRADE EXTENDED reports the checked table"
+    },
+    {
+      "id": "optimize_local_table",
+      "file": "cases/optimize_local_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL OPTIMIZE LOCAL TABLE reports the optimized table"
+    },
+    {
+      "id": "repair_no_write_quick_use_frm",
+      "file": "cases/repair_no_write_quick_use_frm.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL REPAIR NO_WRITE_TO_BINLOG TABLE QUICK USE_FRM reports the repaired table"
+    },
+    {
+      "id": "named_window_inheritance",
+      "file": "cases/named_window_inheritance.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "running_amount",
+          "sources": [
+            "app.orders.amount",
+            "app.orders.user_id",
+            "app.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL named WINDOW inheritance merges parent partition columns and child ordering columns into window expression lineage"
+    },
+    {
+      "id": "derived_values_table",
+      "file": "cases/derived_values_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL VALUES table constructor can be used as a derived table without physical input tables"
+    },
+    {
+      "id": "describe_select_lineage",
+      "file": "cases/describe_select_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL DESCRIBE SELECT behaves like EXPLAIN and preserves wrapped query lineage"
+    },
+    {
+      "id": "explain_for_connection",
+      "file": "cases/explain_for_connection.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL EXPLAIN FOR CONNECTION is treated as a metadata diagnostic read"
+    },
+    {
+      "id": "drop_index_online_options",
+      "file": "cases/drop_index_online_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DROP INDEX with ALGORITHM and LOCK options reports the affected table"
+    },
+    {
+      "id": "create_view_current_user_definer",
+      "file": "cases/create_view_current_user_definer.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.v_active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.v_active_users.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.v_active_users.name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL CREATE VIEW with CURRENT_USER definer preserves target view and projection lineage"
+    },
+    {
+      "id": "create_event_schedule_options",
+      "file": "cases/create_event_schedule_options.sql",
+      "statementType": "CREATE_EVENT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [
+        "mart.order_daily"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.order_daily.dt",
+          "sources": [
+            "app.orders.created_at"
+          ]
+        },
+        {
+          "target": "mart.order_daily.total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL CREATE EVENT schedule options preserve parseable INSERT SELECT body lineage"
+    },
+    {
+      "id": "select_procedure_analyse",
+      "file": "cases/select_procedure_analyse.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.amount"
+        }
+      ],
+      "description": "MySQL SELECT PROCEDURE ANALYSE keeps source table, projection, predicate, and ordering lineage"
+    },
+    {
+      "id": "alter_table_rebuild_partition",
+      "file": "cases/alter_table_rebuild_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE REBUILD PARTITION reports the affected table"
+    },
+    {
+      "id": "alter_table_coalesce_partition",
+      "file": "cases/alter_table_coalesce_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE COALESCE PARTITION reports the affected table"
+    },
+    {
+      "id": "alter_table_reorganize_partition",
+      "file": "cases/alter_table_reorganize_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE REORGANIZE PARTITION reports the affected table"
+    },
+    {
+      "id": "alter_table_remove_partitioning",
+      "file": "cases/alter_table_remove_partitioning.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE REMOVE PARTITIONING reports the affected table"
+    },
+    {
+      "id": "create_table_named_foreign_key_index",
+      "file": "cases/create_table_named_foreign_key_index.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE named foreign-key index reports referenced parent table"
+    },
+    {
+      "id": "alter_table_add_named_foreign_key_index",
+      "file": "cases/alter_table_add_named_foreign_key_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE ADD FOREIGN KEY with named index reports affected and referenced tables"
+    },
+    {
+      "id": "create_table_column_check_enforced",
+      "file": "cases/create_table_column_check_enforced.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.products"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE TABLE column CHECK constraints with enforcement options are accepted"
+    },
+    {
+      "id": "select_table_star_lineage",
+      "file": "cases/select_table_star_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "app.users.*"
+          ]
+        }
+      ],
+      "description": "MySQL SELECT star preserves schema-free wildcard source lineage"
+    },
+    {
+      "id": "select_qualified_star_lineage",
+      "file": "cases/select_qualified_star_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "app.users.*"
+          ]
+        },
+        {
+          "target": "order_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        }
+      ],
+      "description": "MySQL qualified table star keeps wildcard table source beside explicit projection lineage"
+    },
+    {
+      "id": "select_derived_star_lineage",
+      "file": "cases/select_derived_star_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "app.users.id",
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL derived-table star expands known derived projection sources"
+    },
+    {
+      "id": "cte_chain_column_projection",
+      "file": "cases/cte_chain_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL chained CTEs propagate column lineage through intermediate derived projections"
+    },
+    {
+      "id": "insert_empty_values",
+      "file": "cases/insert_empty_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.audit_log"
+      ],
+      "columnLineage": [],
+      "description": "MySQL INSERT empty VALUES row reports the write target without false column lineage"
+    },
+    {
+      "id": "replace_empty_values",
+      "file": "cases/replace_empty_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.audit_log"
+      ],
+      "columnLineage": [],
+      "description": "MySQL REPLACE empty VALUES row reports the write target without false column lineage"
+    },
+    {
+      "id": "create_table_as_select_star_lineage",
+      "file": "cases/create_table_as_select_star_lineage.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.users_snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users_snapshot.*",
+          "sources": [
+            "app.users.*"
+          ]
+        }
+      ],
+      "description": "MySQL CTAS SELECT star preserves wildcard source lineage on the target table"
+    },
+    {
+      "id": "create_view_select_star_lineage",
+      "file": "cases/create_view_select_star_lineage.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.v_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.v_users.*",
+          "sources": [
+            "app.users.*"
+          ]
+        }
+      ],
+      "description": "MySQL CREATE VIEW SELECT star preserves wildcard source lineage on the target view"
+    },
+    {
+      "id": "ctas_union_column_lineage",
+      "file": "cases/ctas_union_column_lineage.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [
+        "mart.user_union"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_union.user_id",
+          "sources": [
+            "app.users.id",
+            "app.admins.user_id"
+          ]
+        },
+        {
+          "target": "mart.user_union.user_name",
+          "sources": [
+            "app.users.name",
+            "app.admins.user_name"
+          ]
+        }
+      ],
+      "description": "MySQL CTAS over UNION ALL merges target column lineage by output position"
+    },
+    {
+      "id": "ctas_declared_columns_union_lineage",
+      "file": "cases/ctas_declared_columns_union_lineage.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [
+        "mart.user_union_declared"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_union_declared.uid",
+          "sources": [
+            "app.users.id",
+            "app.admins.user_id"
+          ]
+        },
+        {
+          "target": "mart.user_union_declared.uname",
+          "sources": [
+            "app.users.name",
+            "app.admins.user_name"
+          ]
+        }
+      ],
+      "description": "MySQL CTAS declared columns override UNION projection aliases for target lineage"
+    },
+    {
+      "id": "create_view_union_column_lineage",
+      "file": "cases/create_view_union_column_lineage.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [
+        "mart.v_user_union"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.v_user_union.user_id",
+          "sources": [
+            "app.users.id",
+            "app.admins.user_id"
+          ]
+        },
+        {
+          "target": "mart.v_user_union.user_name",
+          "sources": [
+            "app.users.name",
+            "app.admins.user_name"
+          ]
+        }
+      ],
+      "description": "MySQL CREATE VIEW over UNION ALL merges view column lineage by output position"
+    },
+    {
+      "id": "create_view_declared_columns_union_lineage",
+      "file": "cases/create_view_declared_columns_union_lineage.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [
+        "mart.v_user_union_declared"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.v_user_union_declared.uid",
+          "sources": [
+            "app.users.id",
+            "app.admins.user_id"
+          ]
+        },
+        {
+          "target": "mart.v_user_union_declared.uname",
+          "sources": [
+            "app.users.name",
+            "app.admins.user_name"
+          ]
+        }
+      ],
+      "description": "MySQL CREATE VIEW declared columns override UNION projection aliases for target lineage"
+    },
+    {
+      "id": "json_contains_predicate_usage",
+      "file": "cases/json_contains_predicate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.payload"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.sku"
+        }
+      ],
+      "description": "MySQL JSON_CONTAINS and JSON_CONTAINS_PATH predicate functions report payload and argument column usage"
+    },
+    {
+      "id": "json_mutation_function_lineage",
+      "file": "cases/json_mutation_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "enriched_payload",
+          "sources": [
+            "app.events.payload",
+            "app.events.vin",
+            "app.events.status"
+          ]
+        },
+        {
+          "target": "merged_payload",
+          "sources": [
+            "app.events.payload",
+            "app.events.patch_doc"
+          ]
+        },
+        {
+          "target": "cleaned_payload",
+          "sources": [
+            "app.events.payload"
+          ]
+        }
+      ],
+      "description": "MySQL JSON_SET, JSON_MERGE_PATCH, and JSON_REMOVE preserve modified JSON argument lineage"
+    },
+    {
+      "id": "json_overlaps_predicate_usage",
+      "file": "cases/json_overlaps_predicate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.order_segments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "app.order_segments.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.order_segments.segment_codes"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.order_segments.allowed_segments"
+        }
+      ],
+      "description": "MySQL JSON_OVERLAPS and JSON_VALID predicate functions report JSON argument columns"
+    },
+    {
+      "id": "json_search_schema_predicate_usage",
+      "file": "cases/json_search_schema_predicate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.payload"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.search_text"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.schema_doc"
+        }
+      ],
+      "description": "MySQL JSON_SEARCH, JSON_SCHEMA_VALID, and JSON_LENGTH predicates preserve predicate column usage"
+    },
+    {
+      "id": "insert_values_on_duplicate_default",
+      "file": "cases/insert_values_on_duplicate_default.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.status",
+          "sources": []
+        },
+        {
+          "target": "mart.users.status",
+          "sources": []
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        }
+      ],
+      "description": "MySQL ON DUPLICATE KEY UPDATE DEFAULT(column) is treated as default-value lineage rather than current-row lineage"
+    },
+    {
+      "id": "insert_select_on_duplicate_default",
+      "file": "cases/insert_select_on_duplicate_default.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [
+        "mart.user_stats"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_stats.user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.user_stats.total_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        },
+        {
+          "target": "mart.user_stats.status",
+          "sources": [
+            "app.orders.status"
+          ]
+        },
+        {
+          "target": "mart.user_stats.total_amount",
+          "sources": [
+            "mart.user_stats.total_amount",
+            "app.orders.amount"
+          ]
+        },
+        {
+          "target": "mart.user_stats.status",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.orders.user_id"
+        }
+      ],
+      "description": "MySQL INSERT SELECT duplicate-key DEFAULT assignment keeps inserted sources and current-row dependencies separated"
+    },
+    {
+      "id": "update_set_default_lineage",
+      "file": "cases/update_set_default_lineage.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users",
+        "app.user_events"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.status",
+          "sources": []
+        },
+        {
+          "target": "mart.users.updated_by",
+          "sources": [
+            "mart.users.updated_by"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.user_events.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.user_events.event_type"
+        }
+      ],
+      "description": "MySQL UPDATE SET DEFAULT(column) emits constant-style target lineage while preserving other assignment and EXISTS predicate sources"
+    },
+    {
+      "id": "select_into_variables_tail",
+      "file": "cases/select_into_variables_tail.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL tail SELECT INTO user variables preserves source table, projections, and predicates"
+    },
+    {
+      "id": "update_order_by_expression_limit",
+      "file": "cases/update_order_by_expression_limit.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.score",
+          "sources": [
+            "mart.users.score"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "mart.users.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.users.last_login_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.users.created_at"
+        }
+      ],
+      "description": "MySQL UPDATE ORDER BY expression with LIMIT reports ordering expression columns"
+    },
+    {
+      "id": "delete_order_by_expression_limit",
+      "file": "cases/delete_order_by_expression_limit.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "mart.sessions"
+      ],
+      "outputTables": [
+        "mart.sessions"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "mart.sessions.expired_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.sessions.expired_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.sessions.created_at"
+        }
+      ],
+      "description": "MySQL DELETE ORDER BY expression with LIMIT reports ordering expression columns"
+    },
+    {
+      "id": "json_aggregate_function_lineage",
+      "file": "cases/json_aggregate_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.order_items"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.order_items.user_id"
+          ]
+        },
+        {
+          "target": "items_json",
+          "sources": [
+            "app.order_items.sku",
+            "app.order_items.quantity",
+            "app.order_items.created_at"
+          ]
+        },
+        {
+          "target": "amount_by_sku",
+          "sources": [
+            "app.order_items.sku",
+            "app.order_items.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.order_items.deleted"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.order_items.user_id"
+        }
+      ],
+      "description": "MySQL JSON_ARRAYAGG and JSON_OBJECTAGG preserve argument and function ORDER BY source columns"
+    },
+    {
+      "id": "regexp_function_predicate_usage",
+      "file": "cases/regexp_function_predicate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        },
+        {
+          "target": "status_rank",
+          "sources": [
+            "app.orders.status",
+            "app.orders.allowed_statuses"
+          ]
+        },
+        {
+          "target": "email_domain",
+          "sources": [
+            "app.orders.buyer_email"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.buyer_email"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.phone"
+        }
+      ],
+      "description": "MySQL REGEXP_* and FIND_IN_SET functions preserve projection lineage and predicate columns"
+    },
+    {
+      "id": "interval_field_elt_lineage",
+      "file": "cases/interval_field_elt_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "score_bucket",
+          "sources": [
+            "app.orders.score"
+          ]
+        },
+        {
+          "target": "status_rank",
+          "sources": [
+            "app.orders.status"
+          ]
+        },
+        {
+          "target": "priority_name",
+          "sources": [
+            "app.orders.priority"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.region"
+        }
+      ],
+      "description": "MySQL INTERVAL, FIELD, and ELT function arguments preserve projection and predicate lineage"
+    },
+    {
+      "id": "string_function_lineage",
+      "file": "cases/string_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "email_domain",
+          "sources": [
+            "app.users.email"
+          ]
+        },
+        {
+          "target": "sku_dash_pos",
+          "sources": [
+            "app.users.sku_code"
+          ]
+        },
+        {
+          "target": "masked_phone",
+          "sources": [
+            "app.users.phone"
+          ]
+        },
+        {
+          "target": "repeated_prefix",
+          "sources": [
+            "app.users.prefix",
+            "app.users.retry_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.tags"
+        }
+      ],
+      "description": "MySQL SUBSTRING_INDEX, LOCATE, INSERT, and REPEAT string functions preserve argument lineage"
+    },
+    {
+      "id": "tuple_in_subquery_column_usage",
+      "file": "cases/tuple_in_subquery_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.allowed_products"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.product_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.allowed_products.enabled"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.allowed_products.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.allowed_products.product_id"
+        }
+      ],
+      "description": "MySQL tuple IN subquery predicates report outer tuple columns, subquery filter columns, and subquery projected columns"
+    },
+    {
+      "id": "quantified_any_some_subquery_predicate",
+      "file": "cases/quantified_any_some_subquery_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders",
+        "app.region_targets",
+        "app.blocked_status"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.region_targets.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.region"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.region_targets.target_amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.blocked_status.enabled"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.blocked_status.status"
+        }
+      ],
+      "description": "MySQL quantified ANY and SOME subquery predicates report outer, subquery predicate, and projected comparison columns"
+    },
+    {
+      "id": "keyword_columns_type_group",
+      "file": "cases/keyword_columns_type_group.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.accounts"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.accounts.id"
+          ]
+        },
+        {
+          "target": "account_type",
+          "sources": [
+            "app.accounts.type"
+          ]
+        },
+        {
+          "target": "account_group",
+          "sources": [
+            "app.accounts.group"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.accounts.type"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.accounts.group"
+        }
+      ],
+      "description": "MySQL tolerant identifier handling accepts common keyword-like column names such as type and group"
+    },
+    {
+      "id": "date_time_function_lineage",
+      "file": "cases/date_time_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.subscriptions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "grace_deadline",
+          "sources": [
+            "app.subscriptions.created_at",
+            "app.subscriptions.grace_days"
+          ]
+        },
+        {
+          "target": "retry_start_at",
+          "sources": [
+            "app.subscriptions.expired_at",
+            "app.subscriptions.retry_hours"
+          ]
+        },
+        {
+          "target": "active_months",
+          "sources": [
+            "app.subscriptions.close_period",
+            "app.subscriptions.open_period"
+          ]
+        },
+        {
+          "target": "year_day",
+          "sources": [
+            "app.subscriptions.year_no",
+            "app.subscriptions.day_of_year"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.subscriptions.billing_date"
+        }
+      ],
+      "description": "MySQL ADDDATE, SUBDATE, PERIOD_DIFF, MAKEDATE, and LAST_DAY preserve date/time function lineage and predicate usage"
+    },
+    {
+      "id": "json_utility_function_lineage",
+      "file": "cases/json_utility_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "pretty_payload",
+          "sources": [
+            "app.events.payload"
+          ]
+        },
+        {
+          "target": "payload_type",
+          "sources": [
+            "app.events.payload"
+          ]
+        },
+        {
+          "target": "payload_depth",
+          "sources": [
+            "app.events.payload"
+          ]
+        },
+        {
+          "target": "attr_keys",
+          "sources": [
+            "app.events.payload"
+          ]
+        },
+        {
+          "target": "json_storage_bytes",
+          "sources": [
+            "app.events.payload"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.payload"
+        }
+      ],
+      "description": "MySQL JSON_PRETTY, JSON_TYPE, JSON_DEPTH, JSON_KEYS, and JSON_STORAGE_* functions preserve JSON argument lineage"
+    },
+    {
+      "id": "date_interval_arithmetic_lineage",
+      "file": "cases/date_interval_arithmetic_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.subscriptions"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "grace_deadline",
+          "sources": [
+            "app.subscriptions.created_at",
+            "app.subscriptions.grace_days"
+          ]
+        },
+        {
+          "target": "retry_start_at",
+          "sources": [
+            "app.subscriptions.expired_at",
+            "app.subscriptions.retry_hours"
+          ]
+        },
+        {
+          "target": "buffered_updated_at",
+          "sources": [
+            "app.subscriptions.buffer_minutes",
+            "app.subscriptions.updated_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.subscriptions.billing_date"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.subscriptions.billing_grace_days"
+        }
+      ],
+      "description": "MySQL date arithmetic with INTERVAL literals preserves both timestamp and interval-count column dependencies"
+    },
+    {
+      "id": "char_using_function_lineage",
+      "file": "cases/char_using_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.status_codes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "decoded_char",
+          "sources": [
+            "app.status_codes.ascii_code"
+          ]
+        },
+        {
+          "target": "region_status",
+          "sources": [
+            "app.status_codes.region",
+            "app.status_codes.status_code"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.status_codes.flag_code"
+        }
+      ],
+      "description": "MySQL CHAR(... USING charset) special string-function syntax preserves argument lineage"
+    },
+    {
+      "id": "cast_at_time_zone_lineage",
+      "file": "cases/cast_at_time_zone_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "local_event_ts",
+          "sources": [
+            "app.events.event_ts",
+            "app.events.timezone_name"
+          ]
+        },
+        {
+          "target": "utc_created_at",
+          "sources": [
+            "app.events.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.updated_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.timezone_name"
+        }
+      ],
+      "description": "MySQL CAST timestamp AT TIME ZONE syntax preserves timestamp and timezone expression lineage"
+    },
+    {
+      "id": "template_variable_identifier_lineage",
+      "file": "cases/template_variable_identifier_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "${source_schema}.${source_table}"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "${source_schema}.${source_table}.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "${source_schema}.${source_table}.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "${source_schema}.${source_table}.dt"
+        }
+      ],
+      "description": "MySQL template variables in schema and table identifiers are preserved for production SQL scripts"
+    },
+    {
+      "id": "insert_select_template_identifier_lineage",
+      "file": "cases/insert_select_template_identifier_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "${source_schema}.${source_table}"
+      ],
+      "outputTables": [
+        "${target_schema}.${target_table}"
+      ],
+      "columnLineage": [
+        {
+          "target": "${target_schema}.${target_table}.user_id",
+          "sources": [
+            "${source_schema}.${source_table}.id"
+          ]
+        },
+        {
+          "target": "${target_schema}.${target_table}.user_name",
+          "sources": [
+            "${source_schema}.${source_table}.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "${source_schema}.${source_table}.status"
+        }
+      ],
+      "description": "MySQL INSERT SELECT preserves template-variable source and target identifiers in table and column lineage"
+    },
+    {
+      "id": "executable_comment_select_lineage",
+      "file": "cases/executable_comment_select_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL executable version comments unwrap SELECT statements instead of dropping lineage"
+    },
+    {
+      "id": "executable_comment_set_statement",
+      "file": "cases/executable_comment_set_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL executable version comments unwrap script-safe SET statements"
+    },
+    {
+      "id": "select_index_hint_join_group_lineage",
+      "file": "cases/select_index_hint_join_group_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "app.users.region"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "app.users.region"
+        }
+      ],
+      "description": "MySQL index hints scoped FOR JOIN and FOR GROUP BY do not affect table, projection, or clause lineage"
+    },
+    {
+      "id": "straight_join_operator_lineage",
+      "file": "cases/straight_join_operator_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "app.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        }
+      ],
+      "description": "MySQL STRAIGHT_JOIN operator preserves joined table lineage and JOIN ON column usages"
+    },
+    {
+      "id": "odbc_temporal_literals",
+      "file": "cases/odbc_temporal_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.order_date"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.cutoff_time"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL ODBC DATE/TIME/TIMESTAMP literals are source-free while preserving real predicate columns"
+    },
+    {
+      "id": "window_null_treatment_lineage",
+      "file": "cases/window_null_treatment_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "first_amount",
+          "sources": [
+            "app.orders.amount",
+            "app.orders.user_id",
+            "app.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL window functions with RESPECT NULLS preserve function, partition, and ordering lineage"
+    },
+    {
+      "id": "window_nth_value_from_last_lineage",
+      "file": "cases/window_nth_value_from_last_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.orders.user_id"
+          ]
+        },
+        {
+          "target": "second_last_amount",
+          "sources": [
+            "app.orders.amount",
+            "app.orders.user_id",
+            "app.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL NTH_VALUE FROM LAST with IGNORE NULLS preserves function, partition, and ordering lineage"
+    },
+    {
+      "id": "call_scalar_subquery_input",
+      "file": "cases/call_scalar_subquery_input.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "description": "MySQL CALL arguments may contain scalar subqueries and their input tables are retained"
+    },
+    {
+      "id": "do_scalar_subquery_input",
+      "file": "cases/do_scalar_subquery_input.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "description": "MySQL DO expressions may contain scalar subqueries and their input tables are retained"
+    },
+    {
+      "id": "explain_table_metadata",
+      "file": "cases/explain_table_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "description": "MySQL EXPLAIN table-name form is treated as a metadata read for the described table"
+    },
+    {
+      "id": "select_optimizer_hint_lineage",
+      "file": "cases/select_optimizer_hint_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "app.orders.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        }
+      ],
+      "description": "MySQL optimizer hints in comments do not interfere with table or column lineage"
     }
   ]
 }

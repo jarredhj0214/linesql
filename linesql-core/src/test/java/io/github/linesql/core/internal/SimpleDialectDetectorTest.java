@@ -26,6 +26,8 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.MYSQL, "alter algorithm = merge view mart.v as select id from app.users");
         assertFirst(SqlDialect.MYSQL, "update low_priority ignore mart.t set c = 1");
         assertFirst(SqlDialect.MYSQL, "delete low_priority quick ignore from mart.t where id = 1");
+        assertFirst(SqlDialect.MYSQL, "select jt.sku from app.orders u join json_table(u.payload, '$.items[*]' columns (sku varchar(64) path '$.sku')) jt");
+        assertFirst(SqlDialect.MYSQL, "load xml local infile '/tmp/events.xml' into table ods.events rows identified by '<event>' (event_id)");
     }
 
     @Test
@@ -85,6 +87,28 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void prefersSparkForLambdaHighOrderFunctions() {
+        assertFirst(SqlDialect.SPARK, "select transform(items, x -> x.id) as ids from ods.events");
+        assertFirst(SqlDialect.SPARK, "select filter(signal_list, x -> x is not null) as signals from ods.events");
+        assertFirst(SqlDialect.SPARK, "select array_sort(items, (x, y) -> case when x.rank < y.rank then -1 else 1 end) as sorted_items from ods.events");
+    }
+
+    @Test
+    public void distinguishesMysqlJsonArrowFromSparkLambdaArrow() {
+        assertFirst(SqlDialect.MYSQL, "select payload->>'$.id' as event_id from app.events");
+        assertFirst(SqlDialect.MYSQL, "select payload->'$.items[0]' as first_item from app.events");
+        assertFirst(SqlDialect.SPARK, "select transform(from_json(payload, 'array<struct<id:string>>'), x -> x.id) as ids from ods.events");
+    }
+
+    @Test
+    public void prefersSparkWhenDivAppearsWithSparkSignals() {
+        assertFirst(SqlDialect.SPARK,
+                "select map_res['vin'] as vin, from_unixtime(cast(time_nano as bigint) div 1000000000, 'yyyy-MM-dd') as time_format "
+                        + "from ods.events where dt = '${yyyy-MM-dd}'");
+        assertFirst(SqlDialect.MYSQL, "select amount div quantity as bucket from app.orders");
+    }
+
+    @Test
     public void doesNotMisclassifySparkMergeAsOracle() {
         List<SqlDialect> candidates = detector.detect(
                 "merge into ads.users t using ods.users_delta s on t.id = s.id when matched then update set name = s.name");
@@ -101,6 +125,12 @@ public class SimpleDialectDetectorTest {
 
         assertEquals(SqlDialect.SPARK, candidates.get(0));
         assertFalse(candidates.contains(SqlDialect.SQLSERVER));
+    }
+
+    @Test
+    public void keepsMysqlJsonTableWithMysqlColumnTypesAheadOfSparkFallback() {
+        assertFirst(SqlDialect.MYSQL,
+                "select jt.sku from app.orders u join json_table(u.payload, '$.items[*]' columns (sku varchar(64) path '$.sku')) jt");
     }
 
     @Test
@@ -180,6 +210,12 @@ public class SimpleDialectDetectorTest {
 
         assertEquals(SqlDialect.SPARK, candidates.get(0));
         assertFalse(candidates.contains(SqlDialect.MYSQL));
+    }
+
+    @Test
+    public void detectsMysqlExecutableVersionComments() {
+        assertFirst(SqlDialect.MYSQL, "/*!80000 select id from app.users where status = 'ACTIVE' */");
+        assertFirst(SqlDialect.MYSQL, "/*!40101 set names utf8mb4 */");
     }
 
     @Test

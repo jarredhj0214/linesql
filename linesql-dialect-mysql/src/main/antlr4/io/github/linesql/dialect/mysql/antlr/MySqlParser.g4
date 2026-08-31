@@ -13,19 +13,26 @@ statement
     | insertStatement                                                #insertStmt
     | replaceStatement                                               #replaceStmt
     | loadDataStatement                                              #loadDataStmt
+    | loadXmlStatement                                               #loadXmlStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
     | createIndexStatement                                           #createIndexStmt
     | createDatabaseStatement                                        #createDatabaseStmt
     | createTableStatement                                           #createTableStmt
+    | createTablespaceStatement                                      #createTablespaceStmt
     | createViewStatement                                            #createViewStmt
+    | alterDatabaseStatement                                         #alterDatabaseStmt
     | dropDatabaseStatement                                          #dropDatabaseStmt
+    | dropTablespaceStatement                                        #dropTablespaceStmt
     | dropIndexStatement                                             #dropIndexStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
     | dropRoutineStatement                                           #dropRoutineStmt
     | dropTriggerStatement                                           #dropTriggerStmt
     | dropEventStatement                                             #dropEventStmt
+    | resourceGroupStatement                                         #resourceGroupStmt
+    | serverStatement                                                #serverStmt
+    | pluginStatement                                                #pluginStmt
     | truncateTableStatement                                         #truncateTableStmt
     | renameTableStatement                                           #renameTableStmt
     | alterTableStatement                                            #alterTableStmt
@@ -45,6 +52,7 @@ statement
     | prepareStatement                                               #prepareStmt
     | executeStatement                                               #executeStmt
     | deallocatePrepareStatement                                     #deallocatePrepareStmt
+    | handlerStatement                                               #handlerStmt
     | createRoutineStatement                                         #createRoutineStmt
     | createTriggerStatement                                         #createTriggerStmt
     | createEventStatement                                           #createEventStmt
@@ -62,7 +70,31 @@ tableStatement
     ;
 
 valuesStatement
-    : VALUES valuesClause (COMMA valuesClause)* queryOrganization
+    : valueTable queryOrganization
+    ;
+
+valueTable
+    : VALUES valuesClause (COMMA valuesClause)*
+    ;
+
+handlerStatement
+    : HANDLER multipartIdentifier OPEN (AS? strictIdentifier)?        #handlerOpenStatement
+    | HANDLER multipartIdentifier READ handlerReadTail                #handlerReadStatement
+    | HANDLER multipartIdentifier CLOSE                               #handlerCloseStatement
+    ;
+
+handlerReadTail
+    : identifier handlerReadOperator LPAREN expressionList? RPAREN whereClause? (LIMIT expression)?
+    | identifier handlerReadDirection whereClause? (LIMIT expression)?
+    | handlerReadDirection whereClause? (LIMIT expression)?
+    ;
+
+handlerReadOperator
+    : EQ | LT | GT | LTE | GTE
+    ;
+
+handlerReadDirection
+    : FIRST | NEXT | PREV | LAST
     ;
 
 query
@@ -91,6 +123,7 @@ setOperator
 
 queryPrimary
     : querySpecification                                             #queryPrimaryDefault
+    | valueTable                                                     #valuesPrimary
     | LPAREN query RPAREN                                            #subqueryPrimary
     ;
 
@@ -104,6 +137,7 @@ selectClause
 
 setQuantifier
     : DISTINCT
+    | DISTINCTROW
     | ALL
     ;
 
@@ -141,14 +175,15 @@ relation
     ;
 
 relationPrimary
-    : multipartIdentifier tableAlias indexHint*                      #tableName
+    : jsonTable tableAlias                                           #jsonTableRelation
+    | multipartIdentifier partitionSpec? tableAlias indexHint*       #tableName
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
     ;
 
 indexHint
-    : (USE | IGNORE | FORCE) (INDEX | KEY) indexHintScope? LPAREN identifierList RPAREN
+    : (USE | IGNORE | FORCE) (INDEX | KEY) indexHintScope? LPAREN identifierList? RPAREN
     ;
 
 indexHintScope
@@ -176,7 +211,7 @@ joinCriteria
     ;
 
 tableAlias
-    : (AS? strictIdentifier)?
+    : (AS? strictIdentifier (LPAREN columnAliases=identifierList RPAREN)?)?
     ;
 
 whereClause
@@ -185,6 +220,7 @@ whereClause
 
 groupByClause
     : GROUP BY groupByItem (COMMA groupByItem)* (WITH ROLLUP)?
+    | GROUP BY ROLLUP LPAREN groupByItem (COMMA groupByItem)* RPAREN
     ;
 
 groupByItem
@@ -196,31 +232,48 @@ havingClause
     ;
 
 queryOrganization
-    : (ORDER BY sortItem (COMMA sortItem)*)?
+    : (ORDER BY sortItem (COMMA sortItem)* (WITH ROLLUP)?)?
+      procedureAnalyseClause?
       (LIMIT expression (COMMA expression)?)?
       (OFFSET expression)?
       selectIntoClause?
       lockingClause*
     ;
 
-selectIntoClause
-    : INTO (OUTFILE | DUMPFILE) string selectIntoOption*
-    | INTO userVariableList
+procedureAnalyseClause
+    : PROCEDURE ANALYSE LPAREN expressionList? RPAREN
     ;
 
-userVariableList
-    : USER_VARIABLE (COMMA USER_VARIABLE)*
+selectIntoClause
+    : INTO (OUTFILE | DUMPFILE) string selectIntoOption*
+    | INTO selectIntoVariableList
+    ;
+
+selectIntoVariableList
+    : selectIntoVariable (COMMA selectIntoVariable)*
+    ;
+
+selectIntoVariable
+    : USER_VARIABLE
+    | identifier
     ;
 
 selectIntoOption
-    : FIELDS loadDataFieldsOption+
+    : (FIELDS | COLUMNS) loadDataFieldsOption+
     | LINES loadDataLinesOption+
     | CHARACTER SET identifier
     ;
 
 lockingClause
-    : FOR UPDATE
+    : FOR UPDATE lockingOption*
+    | FOR SHARE lockingOption*
     | LOCK IN SHARE MODE
+    ;
+
+lockingOption
+    : OF multipartIdentifierList
+    | NOWAIT
+    | SKIP_ LOCKED
     ;
 
 sortItem
@@ -236,7 +289,8 @@ expression
 booleanExpression
     : (NOT | BANG) booleanExpression                                 #logicalNot
     | valueExpression predicate?                                     #predicatedExpr
-    | left=booleanExpression AND right=booleanExpression              #logicalAnd
+    | left=booleanExpression (AND | LOGICAL_AND) right=booleanExpression #logicalAnd
+    | left=booleanExpression XOR right=booleanExpression              #logicalXor
     | left=booleanExpression OR right=booleanExpression               #logicalOr
     | EXISTS LPAREN query RPAREN                                     #existsExpr
     ;
@@ -244,14 +298,17 @@ booleanExpression
 predicate
     : NOT? BETWEEN lower=valueExpression AND upper=valueExpression
     | NOT? IN LPAREN (expressionList | query) RPAREN
-    | NOT? LIKE valueExpression
+    | comparisonOperator (ALL | ANY | SOME) LPAREN query RPAREN
+    | NOT? LIKE valueExpression (ESCAPE valueExpression)?
     | NOT? (REGEXP | RLIKE) valueExpression
-    | IS NOT? (NULL | TRUE | FALSE)
+    | SOUNDS LIKE valueExpression
+    | NOT? MEMBER OF LPAREN valueExpression RPAREN
+    | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
     ;
 
 valueExpression
     : primaryExpression                                              #valueExpressionDefault
-    | operator=(MINUS | PLUS | BINARY) valueExpression               #unaryExpression
+    | operator=(MINUS | PLUS | BINARY | TILDE) valueExpression       #unaryExpression
     | left=valueExpression operator=(JSON_ARROW | JSON_UNQUOTE_ARROW) string #jsonExtractExpression
     | valueExpression COLLATE identifier                             #collateExpression
     | left=valueExpression operator=(STAR | SLASH | PERCENT | DIV | MOD) right=valueExpression   #arithmeticBinary
@@ -269,30 +326,80 @@ comparisonOperator
 primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
+    | CAST LPAREN expression AT TIME ZONE expression AS dataType RPAREN #castAtTimeZoneExpr
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
-    | functionName LPAREN STAR RPAREN (OVER windowRef)?             #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList functionSeparator? RPAREN (OVER windowRef)?  #functionCall
-    | functionName LPAREN RPAREN (OVER windowRef)?                  #functionCallEmpty
+    | CONVERT LPAREN expression USING identifier RPAREN              #convertUsingExpr
+    | CONVERT LPAREN expression COMMA dataType RPAREN                #convertTypeExpr
+    | TIMESTAMPADD LPAREN identifier COMMA expression COMMA expression RPAREN #timestampAddExpr
+    | TIMESTAMPDIFF LPAREN identifier COMMA expression COMMA expression RPAREN #timestampDiffExpr
+    | GET_FORMAT LPAREN identifier COMMA expression RPAREN             #getFormatExpr
+    | CHAR LPAREN expressionList (USING identifier)? RPAREN            #charFunctionExpr
+    | JSON_VALUE LPAREN expression COMMA string jsonValueReturning? jsonValueResponse* RPAREN #jsonValueExpr
+    | MATCH LPAREN expressionList RPAREN AGAINST LPAREN expression fullTextSearchModifier? RPAREN #matchAgainstExpr
+    | EXTRACT LPAREN identifier FROM expression RPAREN               #extractExpr
+    | TRIM LPAREN trimSpec? expression? FROM expression RPAREN       #trimFromExpr
+    | TRIM LPAREN expression RPAREN                                  #trimExpr
+    | POSITION LPAREN expression IN expression RPAREN                #positionExpr
+    | SUBSTRING LPAREN expression FROM expression (FOR expression)? RPAREN #substringFromExpr
+    | functionName LPAREN STAR RPAREN nullTreatment? (OVER windowRef)? #functionCallStar
+    | functionName LPAREN setQuantifier? expressionList functionOrderBy? functionSeparator? RPAREN windowValueFrom? nullTreatment? (OVER windowRef)?  #functionCall
+    | functionName LPAREN RPAREN windowValueFrom? nullTreatment? (OVER windowRef)?   #functionCallEmpty
     | LPAREN query RPAREN                                            #scalarSubquery
+    | LPAREN expression COMMA expressionList RPAREN                  #rowExpression
     | LPAREN expression RPAREN                                       #parenthesizedExpression
     | primaryExpression DOT identifier                                #dereference
     | identifier                                                     #columnReference
     | USER_VARIABLE                                                  #userVariable
     | number                                                         #numberLiteral
+    | HEX_LITERAL                                                    #hexLiteral
+    | BIT_LITERAL                                                    #bitLiteral
     | string                                                         #stringLiteral
+    | (DATE | TIME | TIMESTAMP) string                               #typedStringLiteral
+    | LBRACE identifier string RBRACE                                #odbcTemporalLiteral
+    | currentTimeFunction                                            #currentTimeFunctionLiteral
     | NULL                                                           #nullLiteral
     | TRUE                                                           #booleanTrue
     | FALSE                                                          #booleanFalse
+    | QUESTION                                                       #parameterMarker
     | INTERVAL expression identifier                                 #intervalLiteral
     | DEFAULT                                                        #defaultLiteral
+    ;
+
+currentTimeFunction
+    : CURRENT_DATE
+    | CURRENT_TIME
+    | CURRENT_TIMESTAMP
+    | CURRENT_USER
+    | UTC_DATE
+    | UTC_TIME
+    | UTC_TIMESTAMP
+    | LOCALTIME
+    | LOCALTIMESTAMP
     ;
 
 whenClause
     : WHEN condition=expression THEN result=expression
     ;
 
+fullTextSearchModifier
+    : IN NATURAL LANGUAGE MODE (WITH QUERY EXPANSION)?
+    | IN BOOLEAN MODE
+    | WITH QUERY EXPANSION
+    ;
+
+trimSpec
+    : BOTH
+    | LEADING
+    | TRAILING
+    ;
+
 windowSpec
-    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    : LPAREN windowInheritance? (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    ;
+
+windowInheritance
+    : IDENTIFIER
+    | BACKQUOTED_IDENTIFIER
     ;
 
 windowRef
@@ -327,6 +434,7 @@ frameBound
 
 functionName
     : identifier
+    | INSERT
     | LEFT
     | RIGHT
     | REPLACE
@@ -334,6 +442,29 @@ functionName
     | CAST
     | VALUES
     | DEFAULT
+    ;
+
+jsonTable
+    : JSON_TABLE LPAREN expression COMMA string COLUMNS LPAREN jsonTableColumn (COMMA jsonTableColumn)* RPAREN RPAREN
+    ;
+
+jsonTableColumn
+    : identifier FOR ORDINALITY
+    | identifier dataType PATH string jsonTableResponse*
+    | identifier dataType EXISTS PATH string jsonTableResponse*
+    | NESTED PATH string COLUMNS LPAREN jsonTableColumn (COMMA jsonTableColumn)* RPAREN
+    ;
+
+jsonTableResponse
+    : (NULL | ERROR | DEFAULT string) ON (EMPTY | ERROR)
+    ;
+
+jsonValueReturning
+    : RETURNING dataType
+    ;
+
+jsonValueResponse
+    : (NULL | ERROR | DEFAULT string) ON (EMPTY | ERROR)
     ;
 
 expressionList
@@ -344,21 +475,33 @@ functionSeparator
     : SEPARATOR expression
     ;
 
+functionOrderBy
+    : ORDER BY sortItem (COMMA sortItem)*
+    ;
+
+nullTreatment
+    : (RESPECT | IGNORE) NULLS
+    ;
+
+windowValueFrom
+    : FROM (FIRST | LAST)
+    ;
+
 // ============ DML Statements ============
 
 insertStatement
     : ctes? INSERT insertPriority? IGNORE? INTO? TABLE? multipartIdentifier
       partitionSpec?
-      (LPAREN columnList=identifierList RPAREN)?
-      (query | VALUES valuesClause (COMMA valuesClause)* insertRowAlias? | SET assignmentList)
+      (LPAREN columnList=identifierList? RPAREN)?
+      ((VALUES | VALUE) valuesClause (COMMA valuesClause)* insertRowAlias? | SET assignmentList | tableStatement | query)
       onDuplicateKeyUpdate?
     ;
 
 replaceStatement
-    : REPLACE insertPriority? INTO? TABLE? multipartIdentifier
+    : ctes? REPLACE insertPriority? INTO? TABLE? multipartIdentifier
       partitionSpec?
-      (LPAREN columnList=identifierList RPAREN)?
-      (query | VALUES valuesClause (COMMA valuesClause)* | SET assignmentList)
+      (LPAREN columnList=identifierList? RPAREN)?
+      ((VALUES | VALUE) valuesClause (COMMA valuesClause)* | SET assignmentList | query)
     ;
 
 partitionSpec
@@ -372,20 +515,35 @@ insertPriority
     ;
 
 loadDataStatement
-    : LOAD DATA LOCAL? INFILE string INTO TABLE multipartIdentifier loadDataOption*
+    : LOAD DATA (LOW_PRIORITY | CONCURRENT)? LOCAL? INFILE string (REPLACE | IGNORE)?
+      INTO TABLE multipartIdentifier partitionSpec? loadDataOption*
+    ;
+
+loadXmlStatement
+    : LOAD XML (LOW_PRIORITY | CONCURRENT)? LOCAL? INFILE string (REPLACE | IGNORE)?
+      INTO TABLE multipartIdentifier partitionSpec? loadXmlOption*
     ;
 
 loadDataOption
-    : FIELDS loadDataFieldsOption+
+    : (FIELDS | COLUMNS) loadDataFieldsOption+
     | LINES loadDataLinesOption+
-    | IGNORE number LINES
-    | LPAREN identifierList RPAREN
+    | IGNORE number (LINES | ROWS)
+    | CHARACTER SET identifier
+    | loadColumnList
+    | SET assignmentList
+    ;
+
+loadXmlOption
+    : CHARACTER SET identifier
+    | ROWS IDENTIFIED BY string
+    | IGNORE number (LINES | ROWS)
+    | loadColumnList
     | SET assignmentList
     ;
 
 loadDataFieldsOption
     : TERMINATED BY string
-    | ENCLOSED BY string
+    | OPTIONALLY? ENCLOSED BY string
     | ESCAPED BY string
     ;
 
@@ -394,12 +552,21 @@ loadDataLinesOption
     | TERMINATED BY string
     ;
 
+loadColumnList
+    : LPAREN loadColumnRef (COMMA loadColumnRef)* RPAREN
+    ;
+
+loadColumnRef
+    : identifier
+    | USER_VARIABLE
+    ;
+
 onDuplicateKeyUpdate
     : ON DUPLICATE KEY UPDATE assignmentList
     ;
 
 valuesClause
-    : ROW? LPAREN expressionList RPAREN
+    : ROW? LPAREN expressionList? RPAREN
     ;
 
 insertRowAlias
@@ -411,8 +578,16 @@ updateStatement
     ;
 
 deleteStatement
-    : ctes? DELETE deleteModifier* FROM multipartIdentifier tableAlias (USING relationList)? whereClause? dmlOrganization?   #deleteFrom
-    | ctes? DELETE deleteModifier* multipartIdentifierList FROM relationList whereClause? dmlOrganization?                    #deleteAlias
+    : ctes? DELETE deleteModifier* FROM multipartIdentifier partitionSpec? tableAlias (USING relationList)? whereClause? dmlOrganization? #deleteFrom
+    | ctes? DELETE deleteModifier* deleteTargetList FROM relationList whereClause? dmlOrganization?                           #deleteAlias
+    ;
+
+deleteTargetList
+    : deleteTarget (COMMA deleteTarget)*
+    ;
+
+deleteTarget
+    : multipartIdentifier (DOT STAR)?
     ;
 
 updateModifier
@@ -464,7 +639,8 @@ createViewOption
     ;
 
 definerUser
-    : (identifier | string) ((AT | AT_SIGN) (identifier | string))?
+    : CURRENT_USER (LPAREN RPAREN)?
+    | (identifier | string) ((AT | AT_SIGN) (identifier | string))?
     ;
 
 viewCheckOption
@@ -472,13 +648,29 @@ viewCheckOption
     ;
 
 createIndexStatement
-    : CREATE indexType? INDEX identifier ON multipartIdentifier LPAREN indexColumnList RPAREN
+    : CREATE indexType? INDEX identifier indexAlgorithm? ON multipartIdentifier LPAREN indexColumnList RPAREN indexOption*
     ;
 
 indexType
     : UNIQUE
     | FULLTEXT
     | SPATIAL
+    ;
+
+indexOption
+    : indexAlgorithm
+    | KEY_BLOCK_SIZE EQ? number
+    | WITH identifier identifier
+    | COMMENT string
+    | indexVisibility
+    | ALGORITHM EQ? identifier
+    | LOCK EQ? identifier
+    | ENGINE_ATTRIBUTE EQ? string
+    | SECONDARY_ENGINE_ATTRIBUTE EQ? string
+    ;
+
+indexAlgorithm
+    : USING identifier
     ;
 
 createDatabaseStatement
@@ -492,20 +684,42 @@ createDatabaseOption
     | DEFAULT? ENCRYPTION EQ? string
     ;
 
+alterDatabaseStatement
+    : ALTER (DATABASE | SCHEMA) identifier? createDatabaseOption+
+    ;
+
+createTablespaceStatement
+    : CREATE UNDO? TABLESPACE identifier .+?
+    ;
+
+dropTablespaceStatement
+    : DROP UNDO? TABLESPACE identifier .+?
+    ;
+
 dropDatabaseStatement
     : DROP (DATABASE | SCHEMA) (IF EXISTS)? identifier
     ;
 
 dropIndexStatement
-    : DROP INDEX identifier ON multipartIdentifier
+    : DROP INDEX identifier ON multipartIdentifier dropIndexOption*
+    ;
+
+dropIndexOption
+    : ALGORITHM EQ? identifier
+    | LOCK EQ? identifier
     ;
 
 dropTableStatement
-    : DROP TEMPORARY? TABLE (IF EXISTS)? multipartIdentifierList
+    : DROP TEMPORARY? TABLE (IF EXISTS)? multipartIdentifierList dropRestrictOption?
     ;
 
 dropViewStatement
-    : DROP VIEW (IF EXISTS)? multipartIdentifierList
+    : DROP VIEW (IF EXISTS)? multipartIdentifierList dropRestrictOption?
+    ;
+
+dropRestrictOption
+    : RESTRICT
+    | CASCADE
     ;
 
 dropRoutineStatement
@@ -518,6 +732,38 @@ dropTriggerStatement
 
 dropEventStatement
     : DROP EVENT (IF EXISTS)? multipartIdentifier
+    ;
+
+resourceGroupStatement
+    : CREATE RESOURCE GROUP identifier resourceGroupOption*
+    | ALTER RESOURCE GROUP identifier resourceGroupOption*
+    | DROP RESOURCE GROUP identifier
+    | SET RESOURCE GROUP identifier (FOR number (COMMA number)*)?
+    ;
+
+resourceGroupOption
+    : TYPE EQ? identifier
+    | VCPU EQ? resourceGroupVcpuSpec
+    | THREAD_PRIORITY EQ? number
+    | ENABLE
+    | DISABLE
+    ;
+
+resourceGroupVcpuSpec
+    : number (MINUS number)? (COMMA number (MINUS number)?)*
+    ;
+
+serverStatement
+    : CREATE SERVER identifier .+?
+    | ALTER SERVER identifier .+?
+    | DROP SERVER (IF EXISTS)? identifier
+    ;
+
+pluginStatement
+    : INSTALL PLUGIN identifier SONAME string
+    | UNINSTALL PLUGIN identifier
+    | INSTALL COMPONENT string (COMMA string)*
+    | UNINSTALL COMPONENT string (COMMA string)*
     ;
 
 truncateTableStatement
@@ -534,9 +780,9 @@ renameTablePair
 
 alterTableStatement
     : ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
-    | ALTER TABLE multipartIdentifier ADD COLUMN? identifier dataType         #alterTableAddColumn
-    | ALTER TABLE multipartIdentifier CHANGE COLUMN? identifier identifier dataType columnPosition? #alterTableOther
-    | ALTER TABLE multipartIdentifier MODIFY COLUMN? identifier dataType columnPosition?            #alterTableOther
+    | ALTER TABLE multipartIdentifier ADD COLUMN? tableElement columnPosition? #alterTableAddColumn
+    | ALTER TABLE multipartIdentifier CHANGE COLUMN? identifier identifier dataType columnConstraint* columnPosition? #alterTableOther
+    | ALTER TABLE multipartIdentifier MODIFY COLUMN? identifier dataType columnConstraint* columnPosition?            #alterTableOther
     | ALTER TABLE multipartIdentifier RENAME COLUMN identifier TO identifier   #alterTableOther
     | ALTER TABLE multipartIdentifier alterTableActionList                    #alterTableOther
     ;
@@ -563,20 +809,49 @@ alterEventStatement
 alterTableAction
     : DROP COLUMN identifier
     | DROP PRIMARY KEY
+    | DROP FOREIGN KEY identifier
     | DROP (KEY | INDEX) identifier
+    | RENAME (KEY | INDEX) identifier TO identifier
+    | ALTER (KEY | INDEX) identifier indexVisibility
+    | ALTER COLUMN? identifier SET DEFAULT expression
+    | ALTER COLUMN? identifier DROP DEFAULT
     | ADD PARTITION partitionDefinitionList
     | DROP PARTITION identifierList
     | TRUNCATE PARTITION identifierList
+    | REBUILD PARTITION identifierList
     | OPTIMIZE PARTITION identifierList
     | ANALYZE PARTITION identifierList
     | REPAIR PARTITION identifierList
-    | EXCHANGE PARTITION identifier WITH TABLE multipartIdentifier identifier*
-    | ADD PRIMARY KEY LPAREN identifierList RPAREN
-    | ADD UNIQUE? (KEY | INDEX) identifier? LPAREN identifierList RPAREN
-    | ADD CONSTRAINT identifier? FOREIGN KEY LPAREN identifierList RPAREN REFERENCES multipartIdentifier LPAREN identifierList RPAREN
+    | COALESCE PARTITION number
+    | REORGANIZE PARTITION identifierList INTO partitionDefinitionList
+    | REMOVE PARTITIONING
+    | EXCHANGE PARTITION identifier WITH TABLE multipartIdentifier exchangeValidation?
+    | ORDER BY sortItem (COMMA sortItem)*
+    | FORCE
+    | DISCARD TABLESPACE
+    | IMPORT TABLESPACE
+    | ALGORITHM EQ? identifier
+    | LOCK EQ? identifier
+    | ADD PRIMARY KEY indexAlgorithm? LPAREN indexColumnList RPAREN indexOption*
+    | ADD indexType? (KEY | INDEX) identifier? indexAlgorithm? LPAREN indexColumnList RPAREN indexOption*
+    | ADD (CONSTRAINT identifier?)? FOREIGN KEY identifier? LPAREN identifierList RPAREN referenceDefinition
+    | ADD CONSTRAINT? identifier? CHECK LPAREN expression RPAREN checkEnforcement?
+    | DROP CHECK identifier
+    | ALTER CHECK identifier checkEnforcement
+    | CONVERT TO CHARACTER SET identifier (COLLATE identifier)?
+    | DEFAULT? CHARACTER SET EQ? identifier (COLLATE EQ? identifier)?
+    | DEFAULT? CHARSET EQ? identifier (COLLATE EQ? identifier)?
+    | DEFAULT? COLLATE EQ? identifier
+    | (ENABLE | DISABLE) KEYS
+    | ADD COLUMN? tableElement columnPosition?
+    | ADD COLUMN? LPAREN tableElementList RPAREN
     | SET LPAREN propertyList RPAREN
     | COMMENT EQ? string
     | .+?
+    ;
+
+checkEnforcement
+    : NOT? ENFORCED
     ;
 
 columnPosition
@@ -585,20 +860,40 @@ columnPosition
     ;
 
 analyzeTableStatement
-    : ANALYZE TABLE multipartIdentifierList analyzeTableOption?
+    : ANALYZE writeToBinlogOption? TABLE multipartIdentifierList analyzeTableOption?
     ;
 
 analyzeTableOption
-    : UPDATE HISTOGRAM ON identifierList (WITH number BUCKETS)?
+    : UPDATE HISTOGRAM ON identifierList (WITH number BUCKETS)? (USING DATA string)?
     | DROP HISTOGRAM ON identifierList
     ;
 
 tableMaintenanceStatement
-    : (CHECK | OPTIMIZE | REPAIR) TABLE multipartIdentifierList identifier*
+    : CHECK TABLE multipartIdentifierList tableMaintenanceOption*
+    | CHECKSUM TABLE multipartIdentifierList tableMaintenanceOption*
+    | (OPTIMIZE | REPAIR) writeToBinlogOption? TABLE multipartIdentifierList tableMaintenanceOption*
+    ;
+
+writeToBinlogOption
+    : NO_WRITE_TO_BINLOG
+    | LOCAL
+    ;
+
+tableMaintenanceOption
+    : FOR UPGRADE
+    | QUICK
+    | FAST
+    | MEDIUM
+    | EXTENDED
+    | CHANGED
+    | USE_FRM
     ;
 
 explainStatement
-    : EXPLAIN explainOption* ANALYZE? statement
+    : EXPLAIN explainOption* FOR CONNECTION number
+    | EXPLAIN explainOption* TABLE? multipartIdentifier identifier?
+    | EXPLAIN explainOption* ANALYZE? statement
+    | (DESCRIBE | DESC) explainOption* ANALYZE? (query | insertStatement | replaceStatement | updateStatement | deleteStatement)
     ;
 
 explainOption
@@ -619,6 +914,7 @@ lockTable
 
 lockMode
     : READ LOCAL?
+    | LOW_PRIORITY WRITE
     | WRITE
     ;
 
@@ -632,7 +928,8 @@ setStatement
 
 setElement
     : (GLOBAL | SESSION | LOCAL)? setVariable (EQ | ASSIGN)? setValue
-    | NAMES (identifier | DEFAULT)
+    | NAMES (identifier | DEFAULT) (COLLATE identifier)?
+    | (CHARACTER SET | CHARSET) (identifier | DEFAULT)
     ;
 
 setVariable
@@ -651,6 +948,16 @@ transactionStatement
     | BEGIN WORK?
     | COMMIT WORK? completionOption*
     | ROLLBACK WORK? completionOption*
+    | XA START xaXid (JOIN | RESUME)?
+    | XA END xaXid (SUSPEND (FOR MIGRATE)?)?
+    | XA PREPARE xaXid
+    | XA COMMIT xaXid (ONE PHASE)?
+    | XA ROLLBACK xaXid
+    | XA RECOVER (CONVERT XID)?
+    ;
+
+xaXid
+    : expression (COMMA expression (COMMA expression)?)?
     ;
 
 doStatement
@@ -699,8 +1006,21 @@ createTriggerStatement
 
 createEventStatement
     : CREATE EVENT multipartIdentifier
-      ON SCHEDULE (AT expression | EVERY expression identifier)
+      ON SCHEDULE eventSchedule
+      eventOption*
       DO eventBodyStatement
+    ;
+
+eventSchedule
+    : AT expression
+    | EVERY expression identifier (STARTS expression)? (ENDS expression)?
+    ;
+
+eventOption
+    : ON COMPLETION NOT? PRESERVE
+    | ENABLE
+    | DISABLE (ON (SLAVE | REPLICA))?
+    | COMMENT string
     ;
 
 eventBodyStatement
@@ -712,31 +1032,120 @@ eventBodyStatement
     ;
 
 accountStatement
-    : CREATE USER .+?
-    | ALTER USER .+?
-    | DROP USER .+?
+    : CREATE USER (IF NOT EXISTS)? userAccountSpec (COMMA userAccountSpec)* accountOption*
+    | ALTER USER (IF EXISTS)? userAccountSpec (COMMA userAccountSpec)* accountOption*
+    | DROP USER (IF EXISTS)? roleNameList
+    | CREATE ROLE (IF NOT EXISTS)? roleNameList
+    | DROP ROLE (IF EXISTS)? roleNameList
+    | SET ROLE .+?
     | GRANT .+?
     | REVOKE .+?
+    ;
+
+userAccountSpec
+    : roleName authOption*
+    ;
+
+authOption
+    : IDENTIFIED (WITH identifier)? (BY string | AS string)?
+    | IDENTIFIED BY PASSWORD string
+    ;
+
+accountOption
+    : REQUIRE (NONE | SSL | X509 | CIPHER string | ISSUER string | SUBJECT string)+
+    | PASSWORD EXPIRE (DEFAULT | NEVER | INTERVAL number identifier)?
+    | ACCOUNT (LOCK | UNLOCK)
+    | COMMENT string
+    | ATTRIBUTE string
+    | FAILED_LOGIN_ATTEMPTS number
+    | PASSWORD_LOCK_TIME (number | UNBOUNDED)
+    ;
+
+roleNameList
+    : roleName (COMMA roleName)*
+    ;
+
+roleName
+    : identifier ((AT | AT_SIGN) (identifier | string))?
+    | string ((AT | AT_SIGN) (identifier | string))?
     ;
 
 adminStatement
     : FLUSH (TABLES | PRIVILEGES | STATUS | LOGS | .+?)
     | KILL (CONNECTION | QUERY)? number
+    | LOCK INSTANCE FOR BACKUP
+    | UNLOCK INSTANCE
+    | CLONE cloneTarget
+    | START (REPLICA | SLAVE) .+?
+    | STOP (REPLICA | SLAVE) .+?
+    | RESET (REPLICA | SLAVE) ALL?
+    | CHANGE (REPLICATION SOURCE | MASTER) TO .+?
     | RESET .+?
     ;
 
+cloneTarget
+    : LOCAL DATA DIRECTORY EQ? string
+    | INSTANCE FROM cloneDonor IDENTIFIED BY string DATA DIRECTORY EQ? string
+    ;
+
+cloneDonor
+    : string ((AT | AT_SIGN) string)? (COLON number)?
+    | identifier ((AT | AT_SIGN) identifier)? (COLON number)?
+    ;
+
 showStatement
-    : SHOW FULL? TABLES ((FROM | IN) identifier)?
-    | SHOW (DATABASES | SCHEMAS | VARIABLES | STATUS | WARNINGS | GRANTS | PROCESSLIST | ENGINES | COLLATION | COLLATIONS | CHARACTER SET)
+    : showCreateStatement
+    | showColumnsStatement
+    | showIndexStatement
+    | showTableStatusStatement
+    | SHOW BINARY LOGS
+    | SHOW MASTER STATUS
+    | SHOW (REPLICA | SLAVE) STATUS
+    | SHOW FULL? TABLES ((FROM | IN) identifier)? showFilter?
+    | SHOW (GLOBAL | SESSION)? (VARIABLES | STATUS) showFilter?
+    | SHOW OPEN TABLES ((FROM | IN) identifier)? showFilter?
+    | SHOW (TRIGGERS | EVENTS) showFromSchema? showFilter?
+    | SHOW (PROCEDURE | FUNCTION) STATUS showFilter?
+    | SHOW (DATABASES | SCHEMAS | WARNINGS | GRANTS | PROCESSLIST | ENGINES | COLLATION | COLLATIONS | CHARACTER SET)
     | SHOW showObject (FROM | IN) multipartIdentifier
     | SHOW .+? (TABLE | VIEW) multipartIdentifier
     | SHOW .+?
     ;
 
+showCreateStatement
+    : SHOW CREATE (DATABASE | SCHEMA) identifier
+    | SHOW CREATE (TABLE | VIEW) multipartIdentifier
+    | SHOW CREATE (PROCEDURE | FUNCTION | TRIGGER | EVENT) multipartIdentifier
+    | SHOW CREATE USER roleName
+    ;
+
+showColumnsStatement
+    : SHOW EXTENDED? FULL? (COLUMNS | FIELDS) (FROM | IN) multipartIdentifier showFromSchema? showFilter?
+    ;
+
+showIndexStatement
+    : SHOW EXTENDED? (INDEX | INDEXES | KEY | KEYS) (FROM | IN) multipartIdentifier showFromSchema? showFilter?
+    ;
+
+showTableStatusStatement
+    : SHOW TABLE STATUS showFromSchema? showFilter?
+    ;
+
+showFromSchema
+    : (FROM | IN) identifier
+    ;
+
+showFilter
+    : LIKE string
+    | WHERE expression
+    ;
+
 showObject
     : identifier
     | INDEX
+    | INDEXES
     | KEY
+    | KEYS
     ;
 
 describeStatement
@@ -768,18 +1177,43 @@ columnConstraint
     | AUTO_INCREMENT
     | PRIMARY KEY
     | UNIQUE KEY?
-    | CHECK LPAREN expression RPAREN
+    | (CONSTRAINT identifier?)? CHECK LPAREN expression RPAREN checkEnforcement?
     | VISIBLE
     | INVISIBLE
+    | COLUMN_FORMAT identifier
+    | STORAGE identifier
+    | SRID number
     | GENERATED ALWAYS? AS LPAREN expression RPAREN (VIRTUAL | STORED)?
     | AS LPAREN expression RPAREN (VIRTUAL | STORED)?
+    | referenceDefinition
     ;
 
 tableConstraint
-    : (CONSTRAINT identifier)? PRIMARY KEY LPAREN identifierList RPAREN
-    | indexType? (KEY | INDEX) identifier? LPAREN indexColumnList RPAREN indexVisibility?
-    | (CONSTRAINT identifier)? FOREIGN KEY LPAREN identifierList RPAREN REFERENCES multipartIdentifier LPAREN identifierList RPAREN
-    | (CONSTRAINT identifier)? CHECK LPAREN expression RPAREN
+    : (CONSTRAINT identifier)? PRIMARY KEY indexAlgorithm? LPAREN indexColumnList RPAREN indexOption*
+    | (CONSTRAINT identifier)? indexType? (KEY | INDEX) identifier? indexAlgorithm? LPAREN indexColumnList RPAREN indexOption*
+    | (CONSTRAINT identifier)? FOREIGN KEY identifier? LPAREN identifierList RPAREN referenceDefinition
+    | (CONSTRAINT identifier)? CHECK LPAREN expression RPAREN checkEnforcement?
+    ;
+
+referenceDefinition
+    : REFERENCES multipartIdentifier (LPAREN identifierList RPAREN)? referenceOption*
+    ;
+
+exchangeValidation
+    : (WITH | WITHOUT) VALIDATION
+    ;
+
+referenceOption
+    : MATCH identifier
+    | ON (DELETE | UPDATE) referenceAction
+    ;
+
+referenceAction
+    : RESTRICT
+    | CASCADE
+    | SET NULL
+    | NO ACTION
+    | SET DEFAULT
     ;
 
 indexColumnList
@@ -788,6 +1222,7 @@ indexColumnList
 
 indexColumn
     : identifier (LPAREN NUMBER_LITERAL RPAREN)? (ASC | DESC)?
+    | LPAREN expression RPAREN (ASC | DESC)?
     ;
 
 indexVisibility
@@ -818,29 +1253,50 @@ tableOption
     | DEFAULT? CHARACTER SET EQ? identifier
     | COLLATE EQ? identifier
     | AUTO_INCREMENT EQ? number
+    | AVG_ROW_LENGTH EQ? number
+    | MAX_ROWS EQ? number
+    | MIN_ROWS EQ? number
+    | DELAY_KEY_WRITE EQ? (identifier | number)
+    | INSERT_METHOD EQ? identifier
     | ROW_FORMAT EQ? identifier
     | PACK_KEYS EQ? (identifier | number)
     | STATS_PERSISTENT EQ? (identifier | number)
+    | STATS_AUTO_RECALC EQ? (identifier | number)
+    | STATS_SAMPLE_PAGES EQ? (identifier | number)
     | KEY_BLOCK_SIZE EQ? number
     | COMPRESSION EQ? string
     | TABLESPACE identifier
+    | DATA DIRECTORY EQ? string
+    | INDEX DIRECTORY EQ? string
+    | CHECKSUM EQ? number
+    | TABLE_CHECKSUM EQ? number
+    | PASSWORD EQ? string
+    | CONNECTION EQ? string
+    | ENGINE_ATTRIBUTE EQ? string
+    | SECONDARY_ENGINE_ATTRIBUTE EQ? string
     | AUTOEXTEND_SIZE EQ? number
     | COMMENT EQ? string
+    | UNION EQ? LPAREN multipartIdentifierList RPAREN
     ;
 
 partitionClause
-    : PARTITION BY partitionMethod LPAREN identifierList RPAREN partitionCount? partitionDefinitionList?
+    : PARTITION BY partitionMethod partitionExpression partitionCount? subpartitionClause? partitionDefinitionList?
     ;
 
 partitionMethod
-    : RANGE
-    | HASH
-    | KEY
-    | LIST
+    : LINEAR? (RANGE | HASH | KEY | LIST)
+    ;
+
+partitionExpression
+    : (ALGORITHM EQ? number)? COLUMNS? LPAREN identifierList RPAREN
     ;
 
 partitionCount
     : PARTITIONS number
+    ;
+
+subpartitionClause
+    : SUBPARTITION BY LINEAR? (HASH | KEY) (ALGORITHM EQ? number)? LPAREN identifierList RPAREN (SUBPARTITIONS number)?
     ;
 
 partitionDefinitionList
@@ -848,8 +1304,26 @@ partitionDefinitionList
     ;
 
 partitionDefinition
-    : PARTITION identifier VALUES LESS THAN LPAREN literalValueList RPAREN tableOption*
-    | PARTITION identifier VALUES LESS THAN MAXVALUE tableOption*
+    : PARTITION identifier VALUES LESS THAN LPAREN literalValueList RPAREN tableOption* subpartitionDefinitionList?
+    | PARTITION identifier VALUES LESS THAN MAXVALUE tableOption* subpartitionDefinitionList?
+    | PARTITION identifier VALUES IN LPAREN partitionValueList RPAREN tableOption* subpartitionDefinitionList?
+    ;
+
+subpartitionDefinitionList
+    : LPAREN subpartitionDefinition (COMMA subpartitionDefinition)* RPAREN
+    ;
+
+subpartitionDefinition
+    : SUBPARTITION identifier tableOption*
+    ;
+
+partitionValueList
+    : partitionValue (COMMA partitionValue)*
+    ;
+
+partitionValue
+    : literalValue
+    | LPAREN literalValueList RPAREN
     ;
 
 literalValueList
@@ -858,19 +1332,34 @@ literalValueList
 
 literalValue
     : number
+    | HEX_LITERAL
+    | BIT_LITERAL
     | string
     | identifier
     ;
 
 dataType
-    : identifier (LPAREN dataTypeArgument (COMMA dataTypeArgument)* RPAREN)?
-    | identifier LT dataType (COMMA dataType)* GT
+    : DOUBLE PRECISION dataTypeAttribute*
+    | (SIGNED | UNSIGNED) INTEGER? dataTypeAttribute*
+    | NATIONAL? (CHARACTER | CHAR | VARCHAR) VARYING? (LPAREN dataTypeArgument (COMMA dataTypeArgument)* RPAREN)? dataTypeAttribute*
+    | (NCHAR | NVARCHAR) VARYING? (LPAREN dataTypeArgument (COMMA dataTypeArgument)* RPAREN)? dataTypeAttribute*
+    | identifier (LPAREN dataTypeArgument (COMMA dataTypeArgument)* RPAREN)? dataTypeAttribute*
+    | identifier LT dataType (COMMA dataType)* GT dataTypeAttribute*
     ;
 
 dataTypeArgument
     : NUMBER_LITERAL
     | string
     | identifier
+    ;
+
+dataTypeAttribute
+    : UNSIGNED
+    | ZEROFILL
+    | ARRAY
+    | CHARACTER SET identifier
+    | CHARSET identifier
+    | COLLATE identifier
     ;
 
 // ============ Common ============
@@ -894,23 +1383,25 @@ multipartIdentifierList
 identifier
     : IDENTIFIER
     | BACKQUOTED_IDENTIFIER
+    | TEMPLATE_VARIABLE
     | nonReservedKeyword
     ;
 
 strictIdentifier
     : IDENTIFIER
     | BACKQUOTED_IDENTIFIER
+    | TEMPLATE_VARIABLE
     | nonReservedKeyword
     ;
 
 nonReservedKeyword
-    : ADD | AFTER | ALGORITHM | ANALYZE | ASC | AT | AUTO_INCREMENT | BINARY | CASCADED | CALL | CAST | CHANGE | CHARACTER | CHARSET | CHECK | COLLATE | COLLATION | COLLATIONS | CONNECTION
-    | ALWAYS | COLUMN | COMMENT | CONSTRAINT | CURRENT | DATA | DATABASES | DEFAULT | DEFINER | DELAYED | DESCRIBE | DESC | DO | DUPLICATE | EACH | ENCLOSED | END | ENGINES
-    | DATABASE | DEALLOCATE | DIV | DUMPFILE | ENCRYPTION | ENGINE | ESCAPED | EVENT | EVERY | EXCHANGE | EXECUTE | EXISTS | EXPLAIN | EXTERNAL | FALSE | FIELDS | FIRST | FLUSH | FOLLOWING | FOR | FORCE | FOREIGN | FORMAT | FULLTEXT | FUNCTION | GENERATED | GLOBAL | GRANT | GRANTS | HIGH_PRIORITY | IF | IGNORE | INDEX | INTERVAL | INVOKER | KEY | KILL | LATERAL | LIKE | LIMIT | LINES | LOCK | LOGS | MERGE | MOD | MODE | MODIFY | NAMES | NO | NULL
-    | INFILE | KEY_BLOCK_SIZE | LOAD | LOCAL | LOW_PRIORITY | OFFSET | OPTIMIZE | OPTION | OUTFILE | OVER | PACK_KEYS | PARTITION | PARTITIONS | PRECEDING | PREPARE | PRIVILEGES | PROCEDURE | PROCESSLIST | QUERY | RANGE | READ | RECURSIVE | REFERENCES | REPAIR | REPLACE | RENAME | RESET | ROW | ROW_FORMAT | ROWS | SCHEDULE | SEPARATOR
-    | BUCKETS | HASH | HISTOGRAM | LESS | LIST | MAXVALUE | NATURAL | ONLY | PRIMARY | QUICK | REGEXP | RELEASE | REVOKE | RLIKE | ROLLBACK | ROLLUP | SCHEMAS | SECURITY | SESSION | SET | SHARE | SHOW | SNAPSHOT | SPATIAL | SQL | SQL_BIG_RESULT | SQL_BUFFER_RESULT | SQL_CACHE | SQL_CALC_FOUND_ROWS
-    | SQL_NO_CACHE | SQL_SMALL_RESULT | START | STARTING | STATS_PERSISTENT | STORED | STRAIGHT_JOIN | TABLE | TABLESPACE | TEMPORARY | TEMPTABLE | TERMINATED | THAN | TO | TRANSACTION | TRUE | TRUNCATE | UNBOUNDED | UNDEFINED | UNIQUE | VALUES | VIEW | VIRTUAL | VISIBLE | INVISIBLE | WORK
-    | AUTOEXTEND_SIZE | COMPRESSION | SCHEMA | STATUS | TABLES | TRIGGER | UNLOCK | USE | USER | VARIABLES | WARNINGS | WINDOW | WITH | WRITE | BEGIN | CHAIN | COMMIT | CONSISTENT
+    : ACCOUNT | ACTION | ADD | AFTER | AGAINST | ALGORITHM | ANALYSE | ANALYZE | ANY | ARRAY | ASC | AT | ATTRIBUTE | AUTO_INCREMENT | BACKUP | BINARY | BOOLEAN | BOTH | CASCADE | CASCADED | CALL | CAST | CHANGE | CHAR | CHARACTER | CHARSET | CHECK | CHECKSUM | CIPHER | CLONE | CLOSE | COALESCE | COLLATE | COLLATION | COLLATIONS | CONNECTION
+    | ALWAYS | AVG_ROW_LENGTH | COLUMN | COLUMN_FORMAT | COMMENT | CONSTRAINT | CURRENT | CURRENT_DATE | CURRENT_TIME | CURRENT_TIMESTAMP | CURRENT_USER | DATA | DATABASES | DATE | DEFAULT | DEFINER | DELAYED | DELAY_KEY_WRITE | DELETE | DESCRIBE | DESC | DISTINCTROW | DO | DUPLICATE | EACH | ENCLOSED | END | ENGINES
+    | DATABASE | DATAFILE | DEALLOCATE | DISCARD | DIV | DOUBLE | DUMPFILE | EMPTY | ENCRYPTION | ENFORCED | ENGINE | ENDS | ERROR | ESCAPE | ESCAPED | EVENT | EVENTS | EVERY | EXCHANGE | EXECUTE | EXISTS | EXPIRE | EXPLAIN | EXTERNAL | EXTENDED | FAILED_LOGIN_ATTEMPTS | FALSE | FAST | FIELDS | FIRST | FLUSH | FOLLOWING | FOR | FORCE | FOREIGN | FORMAT | FULLTEXT | FUNCTION | GENERATED | GET_FORMAT | GLOBAL | GRANT | GRANTS | GROUP | HANDLER | HIGH_PRIORITY | IF | IGNORE | IMPORT | INDEX | INSERT_METHOD | INSTANCE | INTEGER | INTERVAL | INVOKER | ISSUER | JSON_TABLE | JSON_VALUE | KEY | KILL | LAST | LATERAL | LIKE | LIMIT | LINES | LOCK | LOCKED | LOGS | MASTER | MAX_ROWS | MEDIUM | MERGE | MIN_ROWS | MOD | MODE | MODIFY | NAMES | NATIONAL | NCHAR | NESTED | NEVER | NEXT | NO | NONE | NO_WRITE_TO_BINLOG | NOWAIT | NULL | NVARCHAR | OF
+    | EXPANSION | EXTRACT | INFILE | IDENTIFIED | INDEXES | KEY_BLOCK_SIZE | KEYS | LANGUAGE | LEADING | LINEAR | LOAD | LOCAL | LOCALTIME | LOCALTIMESTAMP | LOW_PRIORITY | MATCH | MEMBER | NULLS | OFFSET | ONE | OPEN | OPTIMIZE | OPTION | OPTIONALLY | ORDINALITY | OUTFILE | OVER | PACK_KEYS | PARTITION | PARTITIONING | PARTITIONS | PASSWORD | PASSWORD_LOCK_TIME | PATH | PHASE | POSITION | PRECEDING | PRECISION | PREPARE | PRESERVE | PREV | PRIVILEGES | PROCEDURE | PROCESSLIST | QUERY | RANGE | READ | REBUILD | RECOVER | RECURSIVE | REFERENCES | REORGANIZE | REPAIR | REPLACE | RENAME | REMOVE | REPLICA | REPLICATION | REQUIRE | RESET | RESPECT | RESUME | RETURNING | ROW | ROW_FORMAT | ROWS | SCHEDULE | SECONDARY_ENGINE_ATTRIBUTE | SEPARATOR
+    | BUCKETS | HASH | HISTOGRAM | LESS | LIST | MAXVALUE | NATURAL | ONLY | PRIMARY | QUICK | REGEXP | RELEASE | RESTRICT | REVOKE | RLIKE | ROLLBACK | ROLLUP | SCHEMAS | SECURITY | SESSION | SET | SHARE | SHOW | SKIP_ | SNAPSHOT | SOUNDS | SOURCE | SPATIAL | SQL | SQL_BIG_RESULT | SQL_BUFFER_RESULT | SQL_CACHE | SQL_CALC_FOUND_ROWS | SSL | STOP | SUBJECT
+    | SIGNED | SLAVE | SOME | SQL_NO_CACHE | SQL_SMALL_RESULT | SRID | START | STARTING | STARTS | STATS_AUTO_RECALC | STATS_PERSISTENT | STATS_SAMPLE_PAGES | STORAGE | STORED | STRAIGHT_JOIN | SUBPARTITION | SUBPARTITIONS | SUBSTRING | SUSPEND | TABLE | TABLE_CHECKSUM | TABLESPACE | TEMPORARY | TEMPTABLE | TERMINATED | THAN | TIME | TIMESTAMP | TIMESTAMPADD | TIMESTAMPDIFF | TO | TRAILING | TRANSACTION | TRIM | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNDEFINED | UNDO | UNIQUE | UNKNOWN | UNSIGNED | VALIDATION | VALUES | VIEW | VIRTUAL | VISIBLE | INVISIBLE | WITHOUT | WORK | X509 | XOR | ZEROFILL | ZONE
+    | AUTOEXTEND_SIZE | CHANGED | COLUMNS | COMPLETION | COMPRESSION | CONVERT | DIRECTORY | ENGINE_ATTRIBUTE | MIGRATE | SCHEMA | STATUS | TABLES | TRIGGER | TRIGGERS | UNLOCK | UPGRADE | USE | USE_FRM | USER | UTC_DATE | UTC_TIME | UTC_TIMESTAMP | VALUE | VARCHAR | VARIABLES | VARYING | WARNINGS | WINDOW | WITH | WRITE | XA | XID | XML | BEGIN | CHAIN | COMMIT | CONSISTENT
     ;
 
 number
@@ -920,4 +1411,6 @@ number
 string
     : STRING_LITERAL
     | DOUBLE_QUOTED_STRING
+    | CHARSET_STRING_LITERAL
+    | NATIONAL_STRING_LITERAL
     ;

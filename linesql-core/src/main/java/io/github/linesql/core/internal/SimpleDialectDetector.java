@@ -8,8 +8,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SimpleDialectDetector implements DialectDetector {
+    private static final Pattern MYSQL_EXECUTABLE_COMMENT =
+            Pattern.compile("/\\*!\\d*\\s*(.*?)\\*/", Pattern.DOTALL);
+
     @Override
     public List<SqlDialect> detect(String sql) {
         List<SqlDialect> dialects = new ArrayList<SqlDialect>();
@@ -21,28 +26,34 @@ public class SimpleDialectDetector implements DialectDetector {
 
     @Override
     public List<DialectCandidate> detectCandidates(String sql) {
-        String normalized = stripComments(sql).toLowerCase(Locale.ROOT);
+        boolean mysqlExecutableComment = containsMySqlExecutableComment(sql);
+        String normalized = stripComments(unwrapMySqlExecutableComments(sql)).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
+        boolean sparkJsonTableSignal = hasSparkJsonTableSignal(normalized);
         boolean strongSparkSignal = hasStrongSparkSignal(normalized);
         boolean sparkSignal = strongSparkSignal || hasGeneralSparkSignal(normalized);
+        boolean weakMySqlExpressionSignal = normalized.matches("(?s).*\\bdiv\\b.*")
+                || normalized.matches("(?s).*\\bmod\\b.*")
+                || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*");
 
-        if (normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
+        if (mysqlExecutableComment
+                || normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\bfrom\\b.+\\bjoin\\b.*")
                 || normalized.matches("(?s)^\\s*replace\\s+into\\b.*")
                 || normalized.matches("(?s)^\\s*rename\\s+table\\b.*")
                 || normalized.matches("(?s)^\\s*lock\\s+tables\\b.*")
                 || normalized.matches("(?s)^\\s*unlock\\s+tables\\b.*")
+                || normalized.matches("(?s)^\\s*load\\s+xml\\b.*")
                 || normalized.matches("(?s)^\\s*update\\s+(low_priority|ignore)\\b.*")
                 || normalized.matches("(?s)^\\s*delete\\s+.*\\b(low_priority|quick|ignore)\\b.*")
                 || normalized.matches("(?s)^\\s*alter\\s+algorithm\\b.*\\bview\\b.*")
                 || normalized.matches("(?s).*\\binto\\s+(out|dump)file\\b.*")
+                || (!sparkJsonTableSignal && normalized.matches("(?s).*\\bjson_table\\s*\\(.*"))
                 || normalized.contains(" on duplicate key ")
-                || normalized.contains("->")
-                || normalized.matches("(?s).*\\bdiv\\b.*")
-                || normalized.matches("(?s).*\\bmod\\b.*")
-                || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*")) {
-            candidates.add(candidate(SqlDialect.MYSQL, 0.92, "MySQL-specific write, DML, or LIMIT syntax"));
+                || hasMySqlJsonArrowSignal(normalized)
+                || (!sparkSignal && weakMySqlExpressionSignal)) {
+            candidates.add(candidate(SqlDialect.MYSQL, 0.97, "MySQL-specific write, DML, LOAD, JSON, or LIMIT syntax"));
         }
         if (normalized.contains("oceanbase")
                 || normalized.contains("ob_read_consistency")) {
@@ -108,6 +119,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || sql.matches("(?s).*\\bcast\\s*\\([^)]*\\bas\\s+string\\s*\\).*")
                 || sql.matches("(?s).*\\b(get_json_object|regexp_replace|regexp_extract|date_format|date_sub|from_unixtime|unix_timestamp|collect_list|collect_set|named_struct|posexplode|explode|if|ifnull|nvl)\\s*\\(.*")
                 || sql.matches("(?s).*\\brlike\\b.*")
+                || hasSparkJsonTableSignal(sql)
+                || hasSparkLambdaSignal(sql)
                 || containsSparkSubscript(sql);
     }
 
@@ -165,6 +178,32 @@ public class SimpleDialectDetector implements DialectDetector {
             }
         }
         return false;
+    }
+
+    private static boolean hasSparkLambdaSignal(String sql) {
+        return sql.matches("(?s).*\\b(transform|filter|aggregate|exists|forall|zip_with|map_filter|transform_keys|transform_values|array_sort)\\s*\\([^;]*->.*");
+    }
+
+    private static boolean hasMySqlJsonArrowSignal(String sql) {
+        return sql.matches("(?s).*->>?\\s*['\"]\\$\\..*");
+    }
+
+    private static boolean hasSparkJsonTableSignal(String sql) {
+        return sql.matches("(?s).*\\bjson_table\\s*\\([^;]*\\bcolumns\\s*\\([^;]*\\bstring\\s+path\\b.*");
+    }
+
+    private static boolean containsMySqlExecutableComment(String sql) {
+        return sql != null && MYSQL_EXECUTABLE_COMMENT.matcher(sql).find();
+    }
+
+    private static String unwrapMySqlExecutableComments(String sql) {
+        Matcher matcher = MYSQL_EXECUTABLE_COMMENT.matcher(sql);
+        StringBuffer normalized = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(normalized, Matcher.quoteReplacement(matcher.group(1)));
+        }
+        matcher.appendTail(normalized);
+        return normalized.toString();
     }
 
     private static char previousAdjacentNonWhitespace(String sql, int index) {

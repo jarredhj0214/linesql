@@ -19,8 +19,13 @@ fi
 
 cd "$ROOT_DIR"
 "$ROOT_DIR/scripts/mvn-jdk11" -q -pl linesql-all -am -DskipTests compile
+"$ROOT_DIR/scripts/mvn-jdk11" -q -pl linesql-all -DincludeScope=runtime \
+  -Dmdep.outputFile="$ROOT_DIR/target/benchmark-deps.classpath" \
+  dependency:build-classpath
 
-CP="$(find "$ROOT_DIR" -path '*/target/classes' -type d | paste -sd ':' -)"
+MODULE_CP="$(find "$ROOT_DIR" -path '*/target/classes' -type d | paste -sd ':' -)"
+DEPS_CP="$(cat "$ROOT_DIR/target/benchmark-deps.classpath")"
+CP="${MODULE_CP}:${DEPS_CP}"
 "$JHOME/bin/javac" -cp "$CP" -d "$ROOT_DIR/target/benchmark-classes" \
   "$ROOT_DIR/tools/benchmark/LineSqlBenchmark.java"
 

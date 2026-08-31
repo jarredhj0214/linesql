@@ -14,7 +14,12 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class MySqlDialectParser implements DialectParser {
+    private static final Pattern EXECUTABLE_COMMENT =
+            Pattern.compile("/\\*!\\d*\\s*(.*?)\\*/", Pattern.DOTALL);
 
     @Override
     public SqlDialect dialect() {
@@ -28,7 +33,7 @@ public class MySqlDialectParser implements DialectParser {
         result.setDialectConfidence(1.0d);
 
         CollectingErrorListener errorListener = new CollectingErrorListener();
-        MySqlLineageLexer lexer = new MySqlLineageLexer(CharStreams.fromString(sql));
+        MySqlLineageLexer lexer = new MySqlLineageLexer(CharStreams.fromString(unwrapExecutableComments(sql)));
         lexer.removeErrorListeners();
         lexer.addErrorListener(errorListener);
 
@@ -47,6 +52,16 @@ public class MySqlDialectParser implements DialectParser {
         visitor.visit(statement);
         visitor.finalizeResult();
         return result;
+    }
+
+    private static String unwrapExecutableComments(String sql) {
+        Matcher matcher = EXECUTABLE_COMMENT.matcher(sql);
+        StringBuffer normalized = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(normalized, Matcher.quoteReplacement(matcher.group(1)));
+        }
+        matcher.appendTail(normalized);
+        return normalized.toString();
     }
 
     private static class CollectingErrorListener extends BaseErrorListener {

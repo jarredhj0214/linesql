@@ -165,7 +165,7 @@ Case coverage and benchmark methodology are tracked in [Benchmark and Coverage](
 | Spark | Active parser | Yes | Broad production SQL coverage | Broad production SQL coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
 | MySQL | Active parser | Yes | Broad SELECT, DML, DDL, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | Hive | Active parser | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| Flink | Active parser | Yes | Common SELECT, DML, DDL, and connector DDL | Direct mappings and common expressions | Common predicate and clause usages |
+| Flink | Active parser | Yes | SELECT, DML, DDL, connector/CDC DDL, materialized table, and SQL Client utility coverage | Direct mappings, common expressions, TVF generated columns | Common predicate, grouping, window, and clause usages |
 | StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | Oracle | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | SQL Server | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
@@ -179,8 +179,8 @@ Current regression corpus:
 | Metric | Current value |
 | --- | ---: |
 | Dialects | 9 |
-| SQL cases | 896 |
-| Column-lineage cases | 555 |
+| SQL cases | 1560 |
+| Column-lineage cases | 814 |
 | Diagnostic cases | 14 |
 
 The corpus is intentionally transparent: SQL case files and manifest expectations live under each dialect module, so contributors can inspect exactly what a release claims to support.

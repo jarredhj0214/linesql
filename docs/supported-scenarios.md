@@ -17,7 +17,7 @@ Implemented detection anchors:
 
 | Dialect | Anchor examples |
 | --- | --- |
-| MySQL | `REPLACE INTO`, `ON DUPLICATE KEY`, `LIMIT offset, size`, `UPDATE ... JOIN ... SET`, `LOW_PRIORITY`/`QUICK` DML modifiers, `RENAME TABLE`, `LOCK TABLES`, `INTO OUTFILE`, JSON arrow operators |
+| MySQL | `REPLACE INTO`, `ON DUPLICATE KEY`, `LIMIT offset, size`, `UPDATE ... JOIN ... SET`, `LOW_PRIORITY`/`QUICK` DML modifiers, `RENAME TABLE`, `LOCK TABLES`, `INTO OUTFILE`, `JSON_TABLE`, `LOAD XML`, JSON arrow operators |
 | Hive | `ROW FORMAT`, `STORED AS`, `SERDEPROPERTIES`, `CLUSTERED BY` |
 | Flink | connector options, `WATERMARK FOR` |
 | StarRocks | `CREATE TABLE ... DUPLICATE KEY`, `CREATE TABLE ... AGGREGATE KEY`, `CREATE TABLE ... DISTRIBUTED BY HASH`, replication properties |
@@ -30,8 +30,9 @@ Known conflict guards:
 | Guard | Reason |
 | --- | --- |
 | Spark `MERGE INTO` is not classified as Oracle | `MERGE INTO` is shared across engines and is not a safe Oracle-only anchor. |
-| JSON path array wildcard `[*]` is not classified as SQL Server | Brackets inside strings are not SQL Server identifiers. |
+| JSON path array wildcard `[*]` is not classified as SQL Server | Brackets inside strings are not SQL Server identifiers; `JSON_TABLE(...)` is treated as a MySQL anchor. |
 | MySQL `ON DUPLICATE KEY` is not classified as StarRocks | StarRocks key anchors are scoped to `CREATE TABLE` statements. |
+| MySQL executable version comments are not dropped as ordinary comments | `/*!80000 ... */` carries MySQL SQL and is treated as a MySQL dialect anchor. |
 
 Ambiguous DML such as bare `UPDATE ... FROM`, `DELETE ... USING`, or `DELETE ... JOIN` can be valid in more than one engine. Automatic detection should rely on additional anchors when available; callers can pass an explicit dialect hint when the execution engine is known.
 
@@ -89,8 +90,8 @@ Implemented PostgreSQL scenarios:
 | ANALYZE table metadata read | `analyze verbose mart.t(c1, c2)` | `analyze_table` |
 | VACUUM affected table | `vacuum (full, analyze) mart.t` | `vacuum_table` |
 | REINDEX TABLE affected table | `reindex table concurrently mart.t` | `reindex_table` |
-| DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
-| DROP VIEW affected view | `drop view if exists mart.v` | `drop_view` |
+| DROP TABLE affected table | `drop table if exists mart.t`, `drop table if exists mart.t restrict` | `drop_table`, `drop_table_restrict` |
+| DROP VIEW affected view | `drop view if exists mart.v`, `drop view if exists mart.v cascade` | `drop_view`, `drop_view_cascade` |
 | DROP MATERIALIZED VIEW affected view | `drop materialized view if exists mart.mv` | `drop_materialized_view` |
 | TRUNCATE TABLE affected table | `truncate table mart.t` | `truncate_table` |
 | ALTER TABLE column maintenance | `alter table mart.t add column c timestamp` | `alter_table_add_column` |
@@ -166,10 +167,11 @@ Implemented SQL Server table-level lineage scenarios:
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
+| StarRocks SEMI/ANTI/ASOF joins | `left semi join ...`, `left anti join ...`, `asof join ... on ...` | `semi_anti_asof_join_column_usage` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
 | INSERT OVERWRITE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
-| INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
-| CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
+| INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)`, `insert into mart.t(c1, c2) values (..., default)` | `insert_values`, `insert_values_default` |
+| CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s`, declared target column names before `AS SELECT`, optional bitmap index in CTAS column list | `create_table_as_select`, `create_table_declared_columns_as_select`, `create_table_declared_columns_bitmap_index_as_select` |
 | SELECT INTO created table lineage | `select ... into dbo.t from dbo.s` | `select_into` |
 | CREATE TABLE model AS SELECT | `create table ads.t duplicate key(...) distributed by hash(...) properties(...) as select ...` | `create_table_model_as_select` |
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
@@ -242,13 +244,15 @@ Implemented SQL Server column-level lineage scenarios:
 | Fully qualified column references | `select db.table.col from db.table` | `SparkDialectParserTest.resolvesFullyQualifiedColumnReferences` |
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
+| LIMIT offset,size query organization | `select id from t where ... order by ... limit 10, 100` | `limit_offset_comma` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
-| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ...`, `count(distinct user_id, product_id) ...` | `distinct_aggregate_column_usage`, `count_distinct_multi_column` |
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
 | Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
+| Recursive CTE source propagation | `with recursive q(...) as (select ... union all select ... from q) select ... from q` | `recursive_cte_column_projection` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_scope` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
@@ -268,7 +272,11 @@ Implemented SQL Server clause-level column usage scenarios:
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
 | Basic predicate operators in WHERE | `where c between ... and ... and name like ... and deleted_at is null` | `predicate_operator_column_usage` |
 | IN expression-list predicate usage | `where status in (...) and region in (home_region, ...)` | `in_list_predicate_column_usage` |
+| Tuple IN subquery predicate usage | `where (user_id, product_id) [not] in (select user_id, product_id from ...)` | `tuple_in_subquery_column_usage`, `tuple_not_in_subquery_column_usage` |
 | Negated predicate operators in WHERE | `where c not between ... and name not like ... and status not in (...)` | `negated_predicate_column_usage` |
+| Pattern and regex predicates | `where name like ... escape ... and email regexp ... and phone not rlike ...` | `like_escape_regexp_usage` |
+| Boolean predicates | `where is_active is true and deleted is not false` | `is_true_false_predicate` |
+| Quantified subquery predicates | `where amount > all (select ...) and status = any (select ...)` | `quantified_subquery_predicates` |
 | Logical NOT over grouped predicates | `where not (status = ... or name like ...) and score > ...` | `logical_not_group_column_usage` |
 | Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
 | JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
@@ -321,8 +329,14 @@ Implemented Oracle table-level lineage scenarios:
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
+| SELECT wildcard EXCLUDE | `select * exclude (...) from t`, `select alias.* exclude (...) from t alias` | `select_star_exclude`, `select_qualified_star_exclude` |
+| SELECT PIVOT | `select * from t pivot(sum(v) for k in (...))`, multi-column pivot keys | `pivot_single_column`, `pivot_multi_column` |
+| SELECT EXCEPT/MINUS set operation | `select c from t1 minus distinct select c from t2` | `minus_distinct_column_projection` |
+| Aggregate FILTER clause | `sum(v) filter (where flag = ...)`, `count(*) filter (where ...)` | `aggregate_filter_where_lineage` |
+| SQL typed string literals | `date '2024-01-01'`, `timestamp '2024-01-01 00:00:00'` in predicates | `typed_string_literals_where` |
+| Dictionary/complex result access | `dictionary_get(...)[1]`, `dictionary_get(...).field` | `dictionary_get_subscript_lineage`, `dictionary_get_field_lineage` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
-| INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
+| INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)`, `insert into mart.t(c1, c2) values (..., default)` | `insert_values`, `insert_values_default` |
 | INSERT ALL multi-table target lineage | `insert all into t1 (...) values (...) into t2 (...) values (...) select ...` | `insert_all` |
 | INSERT FIRST multi-table target lineage | `insert first into t1 (...) values (...) into t2 (...) values (...) select ...` | `insert_first` |
 | CREATE TABLE schema DDL | `create table mart.t (...)` | `create_table_schema` |
@@ -334,6 +348,7 @@ Implemented Oracle table-level lineage scenarios:
 | ANALYZE TABLE metadata read | `analyze table mart.t compute statistics` | `analyze_table` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
+| INSERT OVERWRITE dynamic partition VALUES | `insert overwrite t partition(dt = '2026-08-28') with label ... values (...)` | `insert_overwrite_dynamic_partition_values` |
 | UNION source table propagation | `select a from ods.s1 union all select b from ods.s2` | `union_column_projection` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | DUAL pseudo table | `select sysdate from dual` | `dual_pseudo_table` |
@@ -386,15 +401,18 @@ Implemented Oracle column-level lineage scenarios:
 | Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as varchar)) from t` | `nested_function_projection` |
 | Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| GIN inverted-index MATCH predicate usage | `where c match 'x' and c2 match_any 'a b' and c3 match_all 'a b'` | `gin_match_predicate_usage` |
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
 | DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| HAVING projection alias usage | `select sum(amount) as total_amount from app.orders group by user_id having total_amount > ...` | `having_projection_alias_usage` |
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
 | Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
+| Recursive CTE deterministic base-field propagation | `with recursive org(...) as (anchor union all recursive) select base fields from org`; recursively derived fields are intentionally conservative | `recursive_cte_hierarchy_lineage` |
 | Single derived subquery direct column propagation | `select q.user_id from (select id as user_id from ods.s) q` | `subquery_column_projection` |
 | Same-name columns in joined subqueries stay scoped | `select t1.id, t2.id from (...) t1 join (...) t2 on t1.id = t2.id` | `joined_subquery_scope` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
@@ -472,6 +490,8 @@ Implemented StarRocks table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o` | `create_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
+| Secure CREATE VIEW with comments | `create view ads.v(c1 comment '...') comment '...' security invoker as select ...` | `create_secure_view_column_comments` |
+| ALTER VIEW AS SELECT | `alter view ads.v(c1 comment "...", c2) as select ...`, aggregate view rewrites | `alter_view_declared_columns`, `alter_view_expression_lineage` |
 | UNION source table propagation | `select a from ods.s1 union all select b from ods.s2` | `union_column_projection` |
 | Single CTE source table propagation | `with q as (...) select ... from q` | `cte_column_projection` |
 | Single derived subquery source table propagation | `select ... from (select ... from ods.s) q` | `subquery_column_projection` |
@@ -480,48 +500,110 @@ Implemented StarRocks table-level lineage scenarios:
 | WITH before UPDATE FROM | `with q as (...) update ads.t set c = q.c from q where ...` | `with_update_from` |
 | DELETE USING target and source tables | `delete from ads.t using ods.s s where ...` | `delete_using` |
 | DELETE USING derived query source tables | `delete from ads.t using (select ... from ods.s) q where ...` | `delete_using_derived` |
+| DELETE named partition with predicate usage | `delete from mart.t partition(p1) where c = ...`, `delete from mart.t partition p1 where c = ...` | `delete_partition_where`, `delete_bare_partition_where` |
 | WITH before DELETE USING | `with q as (...) delete from ads.t using q where ...` | `with_delete_using` |
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
+| UPDATE with scalar subquery predicate | `update ads.t set c = c + 1 where c < (select avg(c) from ods.s)` | `update_where_scalar_subquery_usage` |
+| UPDATE with EXISTS predicate | `update ads.t set c = c + 1 where exists (select 1 from ods.s where ...)` | `update_where_exists_subquery` |
+| UPDATE with constant/default or omitted predicate | `update ads.t set c = c + 1 where true`, `update t set c = default where ...`, partial update `update t set c = c + 1` | `update_where_true_assignment`, `update_set_default`, `update_partial_without_where` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
+| DELETE with EXISTS predicate | `delete from ads.t where exists (select 1 from ods.s where ...)` | `delete_where_exists_subquery` |
+| DELETE with constant predicate | `delete from ads.t where true` | `delete_where_true` |
 | INSERT WITH LABEL SELECT | `insert into ads.t with label job (...) select ... from ods.s` | `insert_with_label_select` |
-| CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
+| INSERT BY NAME and write properties | `insert into ads.t by name select ...`, `insert into ads.t properties(...) select ...` | `insert_by_name_lineage`, `insert_properties_lineage` |
+| INSERT INTO FILES unload | `insert into files(...) select ... from dwd.orders`, `insert into files(...) with label job values (...)` | `insert_into_files_select`, `insert_into_files_with_label_values` |
+| Load job metadata | `show load from db where label like ... and state = ... order by ... limit ...`, `show all routine load for db.job ...`, `show routine load task from db where jobname = ...` | `show_load_order_limit`, `show_all_routine_load_for_job`, `show_routine_load_task_from_db` |
+| FILES table function | `select * from files(...)`, joins between physical tables and `files(...)` | `select_from_files_table_function`, `join_files_table_function` |
+| Pipe loading lifecycle | `create or replace pipe ... as insert into ... from files(...)`, `alter pipe ... resume if suspended`, `alter pipe ... retry all` | `create_or_replace_pipe_files_load`, `alter_pipe_resume_if_suspended`, `alter_pipe_retry_all` |
+| Native query table function | `select * from native_query(...)`, joins between physical tables and `native_query(...)` | `native_query_table_function`, `join_native_query_table_function` |
+| SELECT INTO OUTFILE unload | `select ... from t ... into outfile ... format as ... properties(...)` | `select_into_outfile` |
+| StarRocks query hints | `select /*+ set_var(...) */ ...`, `insert /*+ set_var(...) */ overwrite ... select ...` | `select_set_var_hint_lineage`, `insert_overwrite_set_var_hint_lineage` |
+| Iceberg time-travel table references | `select ... from iceberg.db.t version as of ...`, `timestamp as of ...`, `insert into iceberg.db.t for version as of ... select ...` | `select_version_as_of_lineage`, `select_timestamp_as_of_lineage`, `insert_for_version_as_of_lineage` |
+| Synchronous materialized view table hint | `select ... from mv [_sync_mv_]` | `select_sync_mv_hint_lineage` |
+| CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s`, `create table mart.t partition by ... distributed by ... properties(...) like ods.s` | `create_table_like`, `create_table_like_with_options` |
+| CTAS with table model options | `create table t primary key(...) distributed by hash(...) order by (...) properties(...) as select ...`, range batch partitions with `start/end/every` | `create_table_model_as_select`, `create_table_ctas_range_batch_partition`, `create_table_ctas_order_by` |
 | CREATE TABLE table model DDL | `create table t (...) duplicate/aggregate/unique/primary key (...) distributed by ...` | `create_table_duplicate_key`, `create_table_aggregate_key`, `create_table_unique_key`, `create_table_primary_key_random` |
 | CREATE TABLE ENGINE=OLAP DDL | `create table t (...) engine=olap duplicate key(...) distributed by ...` | `create_table_engine_olap` |
+| CREATE TABLE rollup index clause | `create table t (...) duplicate key(...) distributed by ... rollup (r1(...), r2(...) from base properties(...))`, official `rollup (...) order by (...)` order | `create_table_rollup_clause`, `create_table_rollup_order_by_clause` |
+| CREATE TABLE bitmap/GIN/VECTOR index definition | `create table t (..., index idx (c) using bitmap comment '...')`, `index idx (body) using gin ("parser" = "english") comment '...'`, `index idx (embedding) using vector (...)` | `create_table_bitmap_index_definition`, `create_table_gin_index_properties`, `create_table_vector_index_definition` |
 | CREATE TABLE aggregate column types | `pv bigint sum`, `uv hll hll_union`, `tags bitmap bitmap_union` | `create_table_aggregate_types` |
+| CREATE TABLE generated columns, AUTO_INCREMENT, and complex defaults | `create table t (..., c string as json_string(...))` with same-table column lineage, `id bigint auto_increment`, array/map/struct default values | `create_table_generated_columns`, `create_table_auto_increment`, `create_table_complex_type_defaults` |
 | CREATE TABLE range partition DDL | `create table t (...) duplicate key (...) partition by range (...) distributed by ...` | `create_table_duplicate_key` |
+| CREATE TABLE expression partition DDL | `create table t (...) partition by date_trunc('day', event_time) distributed by hash(...)` | `create_table_expression_partition` |
+| CREATE TABLE multi-column list partition DDL | `create table t (...) partition by (dt, city) distributed by hash(...)` | `create_table_list_partition` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | DROP VIEW affected view | `drop view if exists ads.v` | `drop_view` |
 | DROP MATERIALIZED VIEW affected view | `drop materialized view if exists mart.mv` | `drop_materialized_view` |
-| TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
-| REFRESH MATERIALIZED VIEW affected view | `refresh materialized view mart.mv with sync mode` | `refresh_materialized_view` |
-| CREATE MATERIALIZED VIEW with distribution/refresh | `create materialized view ... distributed by ... refresh async as select ...` | `create_materialized_view_distributed_refresh` |
-| ALTER TABLE RENAME TO old and new tables | `alter table ads.old rename to ads.new` | `rename_table` |
-| ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
-| ALTER TABLE drop column maintenance | `alter table mart.t drop column c` | `alter_table_drop_column` |
-| ALTER TABLE partition maintenance | `alter table mart.t add/drop partition ...` | `alter_table_add_partition`, `alter_table_drop_partition` |
+| TRUNCATE TABLE affected table | `truncate table ads.t`, `truncate table ads.t partition(p1, p2)` | `truncate_table`, `truncate_table_partition` |
+| REFRESH MATERIALIZED VIEW affected view | `refresh materialized view mart.mv with sync mode`, `refresh materialized view mart.mv partition start (...) end (...) force with async mode` | `refresh_materialized_view`, `refresh_materialized_view_partition_force` |
+| REFRESH EXTERNAL TABLE affected table | `refresh external table catalog.db.t partition(...)` | `refresh_external_table_partition` |
+| CANCEL REFRESH MATERIALIZED VIEW control | `cancel refresh materialized view mart.mv force` | `cancel_refresh_materialized_view_force` |
+| CREATE MATERIALIZED VIEW with distribution/build/refresh | `create materialized view ... comment '...' distributed by ... refresh deferred manual as select ...`, `build immediate refresh async every(...) as select ...`, `build deferred refresh manual as select ...` | `create_materialized_view_distributed_refresh`, `create_materialized_view_comment_deferred_manual`, `create_materialized_view_build_immediate`, `create_materialized_view_build_deferred` |
+| CREATE MATERIALIZED VIEW expression partition, ORDER BY, and refresh schedule | `create materialized view ... partition by date_trunc(...) refresh async start(...) every (...) as select ...`, MV sort key `order by (...)` | `create_materialized_view_expression_partition_refresh`, `create_materialized_view_order_by_refresh_schedule` |
+| Dictionary object and column lineage | `create dictionary d using dim.t (k key, v value)`, `refresh dictionary d`, `cancel refresh dictionary d`, `drop dictionary d cache`, `show dictionary d` | `create_dictionary`, `refresh_dictionary`, `cancel_refresh_dictionary`, `drop_dictionary_cache`, `show_dictionary` |
+| ALTER TABLE RENAME TO old and new tables | `alter table ads.old rename to ads.new`, `rename rollup ...`, `rename partition ...` | `rename_table`, `alter_table_rename_rollup`, `alter_table_rename_partition` |
+| ALTER TABLE column maintenance | `alter table mart.t add column c int`, `alter table mart.t add column c varchar(...) not null default ... after other`, `alter table mart.t add columns (...)`, `add/modify column ... as expression`, `modify column ...`, `rename column ...`, `order by (...)` | `alter_table_add_column`, `alter_table_add_column_options`, `alter_table_add_columns_group`, `alter_table_add_generated_column`, `alter_table_modify_generated_column`, `alter_table_modify_column`, `alter_table_rename_column`, `alter_table_order_by` |
+| ALTER TABLE rollup-scoped columns and ordering | `add column ... to rollup`, `drop column ... from rollup`, `modify column ... from rollup`, `order by (...) from rollup properties (...)` | `alter_table_add_column_to_rollup`, `alter_table_drop_column_from_rollup`, `alter_table_modify_column_from_rollup`, `alter_table_order_by_from_rollup` |
+| ALTER TABLE STRUCT nested field maintenance | `modify column profile add field contact.email varchar(...)`, `modify column profiles drop field items.[*].legacy_code` | `alter_table_modify_struct_add_field`, `alter_table_modify_struct_array_drop_field` |
+| ALTER TABLE drop column maintenance | `alter table mart.t drop column c`, `alter table mart.t drop column if exists c` | `alter_table_drop_column`, `alter_table_drop_column_if_exists` |
+| ALTER TABLE partition maintenance | `alter table mart.t add/drop partition ...`, `drop partition if exists ... force`, `drop partitions (...) force`, `drop partitions start/end/every`, `drop partitions where ...`, `values less than (...)`, `values in (...)`, `values [(...), (...))`, table/partition-level distribution including `default buckets` | `alter_table_add_partition`, `alter_table_add_partition_range_bracket_distribution`, `alter_table_add_partition_values_in`, `alter_table_drop_partition`, `alter_table_drop_partition_force`, `alter_table_drop_partitions_batch_force`, `alter_table_drop_partitions_range_batch`, `alter_table_drop_partitions_where`, `alter_table_partitions_distributed_random`, `alter_table_distributed_hash_default_buckets` |
+| ALTER TABLE temporary/replace partition maintenance | `alter table mart.t add/drop temporary partition ...`, `add temporary partitions start(...) end(...) every(...)`, `replace partition ... with temporary partition ...` | `alter_table_add_temporary_partition`, `alter_table_add_temporary_partitions_every`, `alter_table_drop_temporary_partition`, `alter_table_replace_partition` |
+| ALTER TABLE partition properties and recovery | `alter table mart.t modify partition (...) set (...)`, `modify partition p set (...)`, `modify partition (*) set (...)`, `recover partition ...` | `alter_table_modify_partition_properties`, `alter_table_modify_partition_single`, `alter_table_modify_all_partitions`, `alter_table_recover_partition` |
+| ALTER TABLE Iceberg branch/tag lifecycle | `alter table iceberg.db.t create tag ... as of version ... retain ...`, `alter table iceberg.db.t drop branch ...` | `alter_table_create_tag_as_of`, `alter_table_drop_branch` |
+| ALTER TABLE compaction, tablet resize, and persistent index maintenance | `alter table mart.t compact`, `cumulative/base compact (...)`, `split/merge tablets ... properties(...)`, `drop persistent index on tablets (...)` | `alter_table_compact`, `alter_table_cumulative_compact_partitions`, `alter_table_split_tablets_partition`, `alter_table_merge_tablets`, `alter_table_drop_persistent_index` |
+| ALTER TABLE rollup maintenance | `alter table mart.t add/drop rollup ...`, rollups with `from base_index`, batch add/drop rollups | `alter_table_add_rollup`, `alter_table_add_rollup_from_base`, `alter_table_add_rollup_batch`, `alter_table_drop_rollup`, `alter_table_drop_rollup_batch` |
+| ALTER TABLE index maintenance | `alter table mart.t add index ... using bitmap/vector`, `alter table mart.t drop index ...` | `alter_table_add_bitmap_index`, `alter_table_add_vector_index`, `alter_table_drop_index` |
 | ALTER TABLE property maintenance | `alter table mart.t set (...)` | `alter_table_set_properties` |
 | ALTER TABLE swap affected tables | `alter table mart.t swap with table mart.t_shadow` | `alter_table_swap` |
-| CREATE INDEX affected table | `create index idx on ads.t(c)` | `create_index` |
+| CANCEL ALTER TABLE control | `cancel alter table column/optimize/rollup from mart.t`, optional rollup job ids | `cancel_alter_table_column`, `cancel_alter_table_rollup_jobs` |
+| CREATE INDEX affected table | `create index idx on ads.t(c)`, `create index ... using ngrambf (...)`, `create index ... using gin (...) comment '...'`, `create index ... using vector (...)` | `create_index`, `create_index_ngrambf_properties`, `create_index_gin_properties_comment`, `create_index_vector_properties` |
 | DROP INDEX affected table | `drop index idx on ads.t` | `drop_index` |
 | COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_on_table` |
 | COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_on_column` |
 | SHOW CREATE TABLE metadata read | `show create table ads.t` | `show_create_table` |
 | SHOW CREATE VIEW metadata read | `show create view ads.v` | `show_create_view` |
 | SHOW CREATE MATERIALIZED VIEW metadata read | `show create materialized view mart.mv` | `show_create_materialized_view` |
-| SHOW PARTITIONS metadata read | `show partitions from ads.t` | `show_partitions` |
-| SHOW COLUMNS metadata read | `show columns from ads.t` | `show_columns_from_table` |
-| SHOW TABLET metadata read | `show tablet from mart.t` | `show_tablet_from_table` |
-| SHOW PROC metadata read | `show proc '/dbs'` | `show_proc` |
-| ANALYZE TABLE metadata read | `analyze table ads.t` | `analyze_table` |
-| DESCRIBE TABLE metadata read | `desc table ads.t` | `describe_table` |
-| Schema/database control DDL | `create database ...`, `drop database ...` | `create_database`, `drop_database` |
-| Schema/session/routine lifecycle control | `use db`, `set query_timeout = ...`, `create function ... returns ... properties (...)`, `drop function ...` | `use_database`, `set_session_variable`, `create_function`, `drop_function` |
-| Routine load target table | `create routine load job on ods.t ... from kafka (...)` | `create_routine_load_kafka` |
+| ALTER MATERIALIZED VIEW affected view | `alter materialized view mart.mv active/inactive`, `alter materialized view mart.mv rename to mart.mv2`, `alter materialized view mart.mv swap with mart.mv_shadow`, `alter materialized view mart.mv refresh schedule every(...)` | `alter_materialized_view_active`, `alter_materialized_view_inactive`, `alter_materialized_view_rename`, `alter_materialized_view_swap`, `alter_materialized_view_refresh_schedule` |
+| DROP MATERIALIZED VIEW affected view | `drop materialized view mart.mv`, `drop materialized view if exists mart.mv force` | `drop_materialized_view`, `drop_materialized_view_force` |
+| SHOW PARTITIONS metadata read | `show partitions from ads.t`, `show temporary partitions from ads.t where ... order by ... limit ...` | `show_partitions`, `show_temporary_partitions_filter` |
+| SELECT from temporary partitions | `select ... from mart.t temporary partition(tp1, tp2)` | `select_temporary_partition` |
+| SHOW COLUMNS and INDEXES metadata read | `show columns from ads.t`, `show indexes from ads.t` | `show_columns_from_table`, `show_indexes_from_table` |
+| SHOW TABLE STATUS metadata read | `show table status from mart like 'ads_%'` | `show_table_status_like` |
+| SHOW TABLET metadata read | `show tablet from mart.t`, `show tablet from mart.t partition(...) where ... order by ... limit ...`, `show tablet 10010` | `show_tablet_from_table`, `show_tablet_partition_filter`, `show_tablet_by_id` |
+| Cluster/process metadata reads | `show proc '/dbs'`, `show full processlist`, `show backends`, `show compute nodes`, `show broker`, `show running queries`, `show backend blacklist` | `show_proc`, `show_processlist_full`, `show_cluster_nodes`, `show_compute_nodes`, `show_broker`, `show_running_queries`, `show_backend_blacklist` |
+| Tablet and replica admin metadata reads | `admin show replica status/distribution from mart.t partition(...)`, `admin show tablet status from mart.t where ... properties (...)` | `admin_show_replica_status`, `admin_show_replica_distribution`, `admin_show_tablet_status` |
+| Tablet and node maintenance control | `admin repair table mart.t partition(...) properties (...)`, `admin cancel repair table mart.t`, `admin check tablet (...) properties (...)`, `admin set table mart.t partition(...) version to ...`, `alter system add/drop/decommission FE/BE/CN/Broker ...`, `alter system create image`, `add/delete backend or compute node blacklist ...`, `kill connection/query ...`, `cancel decommission backend ...`, `sync` | `admin_repair_table_partition`, `admin_cancel_repair_table`, `admin_check_tablet`, `admin_set_partition_version`, `alter_system_add_backend`, `alter_system_add_follower`, `alter_system_drop_observer`, `alter_system_decommission_backend`, `alter_system_add_compute_node`, `alter_system_drop_compute_node`, `alter_system_add_broker`, `alter_system_drop_broker`, `alter_system_drop_all_broker`, `alter_system_create_image`, `add_backend_blacklist`, `delete_compute_node_blacklist`, `kill_connection`, `kill_query`, `kill_process`, `cancel_decommission_backend`, `sync_statement` |
+| ANALYZE TABLE metadata read | `analyze table ads.t`, `analyze sample table ads.t(c1, c2) properties (...)`, `analyze table ads.t update/drop histogram on c with async mode with 32 buckets` | `analyze_table`, `analyze_sample_table_columns`, `analyze_table_update_histogram`, `analyze_table_drop_histogram` |
+| Analyze job lifecycle | `create analyze sample table ads.t(c1) properties (...)`, `create analyze full database ads`, `drop analyze 10001`, `kill analyze 10001` | `create_analyze_table_columns`, `create_analyze_database`, `drop_analyze_job`, `kill_analyze_job` |
+| Analyze and function/variable metadata reads | `show analyze job where ... order by ... limit ...`, `show analyze status where ... limit ...`, `show full builtin functions from db like ...`, `show global/session variables ...` | `show_analyze_job`, `show_analyze_status`, `show_full_builtin_functions`, `show_global_variables_like`, `show_session_variables_where` |
+| Statistics metadata lifecycle | `drop stats ads.t(c1, c2)`, `drop multiple columns stats ads.t`, `show stats meta where ...`, `show histogram meta where ...` | `drop_stats_columns`, `drop_multiple_columns_stats`, `show_stats_meta_where`, `show_histogram_meta_where` |
+| DESCRIBE TABLE metadata read | `desc table ads.t`, `describe mart.t all` | `describe_table`, `describe_table_all` |
+| DESC FILES schema inspection | `desc files("path" = "...", "format" = "parquet")` | `desc_files_schema` |
+| EXPLAIN query/write metadata reads | `explain verbose select ...`, `explain analyze select ...`, `explain insert into ... select ...`, `explain analyze insert into ... select ...` | `explain_verbose_select`, `explain_analyze_select`, `explain_insert_select`, `explain_analyze_insert` |
+| Schema/database control DDL | `create database ...`, `drop database ...`, `alter database ... set data quota ...`, `alter database ... rename ...`, `alter database ... set properties (...)` | `create_database`, `drop_database`, `alter_database_data_quota`, `alter_database_rename`, `alter_database_storage_volume` |
+| External catalog lifecycle and session switch | `create external catalog ... properties (...)`, `drop catalog ...`, `show create catalog ...`, `show catalogs ...`, `set catalog ...` | `create_external_catalog_hive`, `drop_catalog`, `show_create_catalog`, `show_catalogs`, `set_catalog` |
+| Storage volume lifecycle control | `create storage volume ... type = s3 locations = (...) properties (...)`, `alter storage volume ... set properties (...)`, `drop storage volume ...` | `create_storage_volume_s3`, `alter_storage_volume_set`, `drop_storage_volume` |
+| External resource lifecycle control | `create external resource ... properties (...)`, `alter resource ... set properties (...)`, `drop resource ...`, `show resources ...` | `create_external_resource`, `alter_resource_set`, `drop_resource`, `show_resources` |
+| Resource group lifecycle and metadata reads | `create resource group ... to (...) with (...)`, `alter resource group ... add/drop/with ...`, `drop resource group ...`, `show resource groups all`, `show resource group name`, `show usage resource groups` | `create_resource_group_classifier`, `alter_resource_group_add_classifier`, `alter_resource_group_drop_classifiers`, `alter_resource_group_limits`, `drop_resource_group`, `show_resource_groups_all`, `show_resource_group_name`, `show_usage_resource_groups` |
+| Schema/session/routine lifecycle control | `use db`, `set query_timeout = ...`, `set @id1 = 1, @'batch-id' = ...`, Java UDF `create function ... returns ... properties (...)`, SQL UDF `create or replace global function ... returns expression`, `drop global function ...` | `use_database`, `set_session_variable`, `set_user_variables`, `set_quoted_user_variables`, `create_function`, `create_sql_udf_expression`, `create_or_replace_global_sql_udf`, `drop_function`, `drop_global_function_signature` |
+| Transaction and prepared statement control | `start transaction`, `commit`, `rollback`, `prepare stmt from 'select ...'`, `execute stmt using @v`, `deallocate prepare stmt` | `start_transaction_control`, `commit_control`, `rollback_control`, `prepare_select_statement`, `execute_prepared_using`, `deallocate_prepare` |
+| Account and privilege control | `create/alter/drop user`, `create/drop/set role`, `grant ... on table ... to user ...`, `revoke ... from user ...` | `create_user_default_role_properties`, `alter_user_default_role_properties`, `drop_user_if_exists`, `create_role`, `drop_role`, `set_role`, `grant_select_on_table_to_user`, `revoke_select_on_table_from_user` |
+| Account metadata reads | `show grants for user`, `show users` | `show_grants_for_user`, `show_users` |
+| Backup and restore repository control | `create read only repository ... with broker on location ...`, `drop repository ...`, `cancel backup/restore ...` | `create_repository_broker`, `drop_repository`, `cancel_backup_from_db`, `cancel_restore_external_catalog` |
+| Backup and restore object lineage | `backup database ... on (table t1, table t2)`, `backup ... on (all tables)`, `backup/restore ... on (view v, materialized view mv, function f)` | `backup_database_tables`, `backup_external_catalogs`, `backup_all_tables`, `backup_views_and_functions`, `restore_tables`, `restore_views_and_functions` |
+| Backup and restore metadata reads | `show backup from db`, `show repositories`, `show snapshot on repo where ...` | `show_backup_from_db`, `show_repositories`, `show_snapshot_on_repo` |
+| Database metadata reads | `show create database db`, `show databases from catalog`, `show data from db.table` | `show_create_database`, `show_databases_from_catalog`, `show_data_from_table` |
+| File lifecycle control and metadata reads | `create file ... in db properties (...)`, `drop file ... from db properties (...)`, `show file from db` | `create_file_properties`, `drop_file_properties`, `show_file_from_database` |
+| Table and materialized-view maintenance metadata reads | `show delete from db`, `show dynamic partition tables from db`, `show alter table column ...`, `show alter materialized view from db`, `show materialized views from db where ...`, `show materialized views like ...`, `show full columns from db.table`, `show tables from catalog.db`, `show full tables from db like ...`, `show views in db where ...` | `show_delete_from_db`, `show_dynamic_partition_tables`, `show_alter_table_column`, `show_alter_materialized_view`, `show_materialized_views`, `show_materialized_views_where`, `show_materialized_views_like`, `show_full_columns_from_table`, `show_tables_from_catalog_db`, `show_full_tables_like`, `show_views_where`, `show_full_views` |
+| Routine load target table | `create routine load job on ods.t ... from kafka (...)`, `columns(c1, tmp, c2 = f(tmp))` | `create_routine_load_kafka`, `create_routine_load_column_assignment` |
 | Broker load target table and loaded columns | `load label job (data infile (...) into table ods.t (...) where ... set (...)) with broker ...` | `load_label_data_infile` |
-| Load job control statements | `pause/resume/stop routine load for job`, `cancel load ...` | `pause_routine_load`, `resume_routine_load`, `stop_routine_load`, `cancel_load` |
-| Load job metadata reads | `show load ...`, `show routine load ...`, `show routine load task ...` | `show_load`, `show_routine_load`, `show_routine_load_task` |
-| Export source table lineage | `export table mart.t [partition(...)] to 'path' properties (...)` | `export_table`, `export_table_partition` |
-| Admin control statements | `admin set frontend config (...)`, `admin set replica status properties (...)` | `admin_set_frontend_config`, `admin_set_replica_status` |
+| Broker load extended data descriptors | `data infile (...) negative into table ods.t temporary partition (...) rows terminated by ... format options, columns from path as (...) set ...` | `load_label_extended_data_desc`, `load_label_format_options_assignments` |
+| Pipe external-file loading lifecycle | `create pipe ... as insert into t select ... from files (...)`, `alter pipe ... set/suspend/retry file`, `drop pipe ...`, `show pipes ...` | `create_pipe_files_load`, `alter_pipe_set_property`, `alter_pipe_suspend`, `alter_pipe_retry_file`, `drop_pipe`, `show_pipes` |
+| Task lifecycle and scheduled SQL wrappers | `submit task ... as insert into ... select ...`, `submit task ... as create table ... as select ...`, `alter task ... suspend/resume/set(...)`, `drop task ... force` | `submit_task_insert_select`, `submit_task_ctas`, `alter_task_suspend`, `alter_task_resume`, `alter_task_set_properties`, `drop_task_force` |
+| Load and unload job control statements | `pause/resume/stop routine load for job`, `alter routine load for job ...`, `alter load for label properties (...)`, `cancel load ...`, `cancel export from db where queryid = ...` | `pause_routine_load`, `resume_routine_load`, `stop_routine_load`, `alter_routine_load_kafka`, `alter_load_priority`, `cancel_load`, `cancel_export_by_queryid` |
+| Load and unload job metadata reads | `show load ...`, `show routine load ...`, `show routine load task ...`, `show export from db where ... order by ... limit ...`, `show transaction from db where id = ...` | `show_load`, `show_routine_load`, `show_routine_load_task`, `show_export_from_where_order_limit`, `show_transaction_from_id` |
+| Export source table lineage | `export table mart.t [partition(...)] to 'path' properties (...)`, `export table mart.t (...) to 'path' with broker (...)` | `export_table`, `export_table_partition`, `export_table_with_broker_columns` |
+| Admin control statements | `admin set frontend config (...)`, `admin set replica status properties (...)`, `admin show replica distribution from t`, `admin repair table t partition (...) properties (...)` | `admin_set_frontend_config`, `admin_set_replica_status`, `admin_show_replica_distribution`, `admin_repair_table_partition` |
 
 Implemented StarRocks column-level lineage scenarios:
 
@@ -531,6 +613,8 @@ Implemented StarRocks column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| INSERT BY NAME projection target mapping | `insert into ads.t by name select a as c1 from ods.s` | `insert_by_name_lineage` |
+| INSERT with write properties target mapping | `insert into ads.t properties(...) select a as c1 from ods.s` | `insert_properties_lineage` |
 | INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
 | INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
 | INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
@@ -554,9 +638,20 @@ Implemented StarRocks column-level lineage scenarios:
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
+| ORDER BY NULLS FIRST/LAST usage | `order by event_time desc nulls last, id asc nulls first` | `order_by_nulls_first_last` |
+| LIMIT/OFFSET query organization | `limit offset,size`, `limit size offset offset` | `limit_offset_comma`, `limit_offset_keyword` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
 | DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| JSON function expression dependencies | `get_json_string(payload, '$.id')`, `json_query(payload, '$.items')`, `parse_json(payload)` | `json_function_lineage` |
+| Generated-column rewrite expression dependencies | `select array_avg(data_array), json_string(json_query(data_json, ...)) from t` | `select_generated_column_rewrite_expression` |
+| Dictionary lookup function dependencies | `dict_mapping('dim.dict', key_col, 'value_col', true)` captures fact key and dictionary value columns | `dict_mapping_function_lineage` |
+| PIVOT generated aggregate column dependencies | `select sum_c1_1 from t pivot (sum(c1) as sum_c1 for c3 in (1))`, multi-column pivot values | `pivot_generated_column_lineage`, `pivot_multi_column_generated_lineage` |
+| Array function, array literal, and lambda dependencies | `array_length(tags)`, `array_intersect(tags, active_tags)`, `array_contains_all(tags, ['vip'])`, `array_join(tags, ',')`, `arrays_zip(scores, weights)`, `array_map(x -> x + 1, scores)`, `array_map(scores, x -> x + bonus)`, `array_map((x, y) -> x * y, xs, ys)`, `array_sort(scores, (l, r) -> l > r)` | `array_function_lineage`, `array_join_zip_all_match_lineage`, `lambda_array_function_lineage`, `lambda_array_map_last_argument`, `lambda_multi_arg_array_function_lineage`, `array_sort_lambda_comparator` |
+| Lambda predicate and complex value dependencies | `any_match(tags, tag -> tag = target_tag)`, `named_struct('id', user_id, 'score', total_score)`, `scores[1]`, `element_at(tags, 1)` | `array_filter_lambda_where_usage`, `named_struct_expression_lineage`, `array_subscript_expression_lineage` |
+| Window frame expression dependencies | `sum(v) over(partition by k order by ts range between interval 7 day preceding and current row)`, `rows between unbounded preceding and current row` | `window_frame_range_interval`, `window_frame_rows_unbounded` |
+| UNNEST table-function generated columns | `select u.unnest from ods.logs l, unnest(l.tags) u`, `cross join lateral unnest(t.scores) as s(score)`, multiple UNNEST relations, `unnest_bitmap(bitmap_col)` | `unnest_table_function_lineage`, `cross_join_lateral_unnest_lineage`, `multi_lateral_unnest_lineage`, `unnest_bitmap_table_function_lineage` |
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
+| GROUPING function over extended grouping | `select grouping(region), sum(amount) from t group by rollup(dt, region)`, `group by cube(dt, region)` | `grouping_function_rollup_lineage`, `group_by_cube` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
@@ -569,6 +664,7 @@ Implemented StarRocks column-level lineage scenarios:
 | UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s` | `update_expression_assignment` |
 | UPDATE FROM derived query assignment dependencies | `update ads.t set c1 = q.c2 from (select c2 from ods.s) q where ...` | `update_from_derived_assignment` |
 | WITH before UPDATE FROM assignment dependencies | `with q as (...) update ads.t set c1 = q.c2 from q where ...` | `with_update_from` |
+| UPDATE scalar subquery assignment dependencies | `update ads.t set c = (select max(c) from ods.s) where ...` | `update_scalar_subquery_assignment` |
 
 Implemented StarRocks clause-level column usage scenarios:
 
@@ -587,6 +683,7 @@ Implemented StarRocks clause-level column usage scenarios:
 | JOIN USING over derived subqueries | `select ... from (select ...) u join (select ...) o using (id)` | `join_using_subquery_scope` |
 | JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
 | JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
+| StarRocks join hints | `join [broadcast] t2 on ...`, `join [bucket] t2 on ...` | `join_broadcast_hint_column_usage`, `join_bucket_hint_group_usage` |
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 | DELETE USING WHERE source columns | `delete from ads.t using ods.s s where t.id = s.id` | `delete_using` |
 | DELETE USING derived WHERE columns | `delete from ads.t using (select id from ods.s) q where t.id = q.id` | `delete_using_derived` |
@@ -629,9 +726,12 @@ Implemented Flink table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods_users` | `select_basic` |
 | JOIN source tables | `select ... from ods_users u join dwd_orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads_t select ... from ods_s` | `insert_into` |
+| EXECUTE INSERT target and source | `execute insert into ads.t select ... from dwd.s` | `execute_insert_select` |
+| INSERT OVERWRITE static partition | `insert overwrite ads.t partition (...) (c1, c2) select ...` | `insert_partition_select` |
 | INSERT INTO VALUES target lineage | `insert into ads_t(c1) values (...)` | `insert_values` |
 | CREATE TABLE LIKE structure lineage | `create table mart_t like ods_s` | `create_table_like` |
 | CREATE VIEW AS SELECT | `create view v as select ... from ods_s join dwd_o` | `create_view` |
+| CREATE TEMPORARY VIEW with comment | `create temporary view if not exists v comment '...' as select ...` | `create_temporary_view_comment` |
 | INSERT SELECT over CTE | `insert into ads_t with q as (...) select ... from q` | `insert_from_cte` |
 | CREATE VIEW over CTE | `create view v as with q as (...) select ... from q` | `create_view_with_cte` |
 | UNION source table propagation | `select a from ods_s1 union all select b from ods_s2` | `union_column_projection` |
@@ -643,19 +743,45 @@ Implemented Flink table-level lineage scenarios:
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | IN/EXISTS subquery source propagation | `where id in (select id from ods_s)` / `where exists (...)` | `in_subquery`, `exists_subquery` |
 | LATERAL subquery source propagation | `from src_t, lateral (select ... from ods_s)` | `lateral_subquery` |
+| CROSS JOIN UNNEST generated column lineage | `from t cross join unnest(t.arr) as u(elem)` | `cross_join_unnest_lineage` |
+| LATERAL TABLE function generated column lineage | `from t, lateral table(fn(t.col)) as f(out_col)` | `lateral_table_function_lineage` |
+| MATCH_RECOGNIZE pattern relation lineage | `from t match_recognize (... measures A.id as aid ... pattern (...) define ...) as mr` | `match_recognize_lineage` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...` | `update_set` |
 | DELETE target table lineage | `delete from ads_t where ...` | `delete_where` |
 | UPDATE with subquery sources | `update ads_t set c = (select ... from ods_s1) where id in (select ... from ods_s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads_t where id in (select ... from ods_s)` | `delete_with_subquery` |
 | Statement set write lineage | `execute statement set begin insert into ...; end` | `execute_statement_set` |
 | CREATE TABLE connector DDL | `create table ods_t (...) with ('connector' = 'kafka')` | `create_table_connector` |
+| CREATE TABLE metadata/computed/watermark/PK/partition DDL | `create table t (... c metadata from 'k' virtual, ts as ..., watermark for ..., primary key ... not enforced) partitioned by (...) with (...)` | `create_table_metadata_computed_partitioned` |
+| CREATE TABLE distribution DDL | `create table t (...) distributed by hash(id) into 8 buckets with (...)` | `create_table_distributed_hash` |
+| CREATE TABLE LIKE options | `create table t (...) like source_t (including options, excluding generated) with (...)` | `create_table_like_options` |
+| CDC connector source DDL | `create table t (...) with ('connector' = 'mysql-cdc'/'postgres-cdc', ...)` | `create_table_mysql_cdc`, `create_table_postgres_cdc` |
+| Common Flink connector sink/source DDL | `upsert-kafka`, `datagen`, and partitioned `filesystem` connector table definitions | `create_table_upsert_kafka`, `create_table_datagen`, `create_table_filesystem_partitioned` |
+| CDC source to sink aggregate write | `insert into sink select key, count(...), sum(...) from cdc_source group by key` | `insert_cdc_to_sink` |
 | MERGE INTO target and source tables | `merge into ads.t using ods.s on ... when matched then update ...` | `merge_into` |
 | Temporal join source tables | `join rates for system_time as of o.proc_time` | `temporal_join` |
 | TUMBLE table-valued function source table | `from table(tumble(table ods.orders, descriptor(ts), interval '1' hour))` | `tumble_window` |
+| HOP/CUMULATE/SESSION table-valued function source table | `from table(hop/cumulate/session(table t, descriptor(ts), ...))` | `hop_window`, `cumulate_window`, `session_window` |
 | DROP TABLE affected table | `drop table if exists mart_t` | `drop_table` |
+| DROP TEMPORARY TABLE affected table | `drop temporary table if exists tmp.t` | `drop_temporary_table` |
+| DROP TEMPORARY VIEW affected view | `drop temporary view if exists tmp.v` | `drop_temporary_view` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart_old rename to mart_new` | `rename_table` |
 | ALTER TABLE column maintenance | `alter table mart_t add c int` | `alter_table_add_column` |
+| ALTER TABLE official column/watermark/PK maintenance | `alter table t add (... watermark ...); alter table t modify (...); alter table t drop (...)` | `alter_table_add_elements`, `alter_table_modify_elements`, `alter_table_drop_columns`, `alter_table_drop_watermark`, `alter_table_rename_column` |
+| ALTER TABLE partition maintenance | `alter table t add/drop partition (...)` | `alter_table_partitions`, `alter_table_drop_partition` |
+| ALTER TABLE distribution and property reset | `alter table t add distribution by hash(...); alter table t reset (...)` | `alter_table_distribution`, `alter_table_reset_properties` |
 | DESCRIBE TABLE metadata read | `describe table mart_t` | `describe_table` |
+| CREATE/DROP CATALOG control | `create catalog c with (...); drop catalog if exists c` | `create_catalog_hive`, `drop_catalog` |
+| CREATE/ALTER/DROP DATABASE control | `create database if not exists db with (...); alter database db set (...); drop database if exists db cascade` | `create_database_with_properties`, `alter_database_set`, `drop_database_cascade` |
+| USE CATALOG/DATABASE control | `use catalog c; use database db` | `use_catalog`, `use_database` |
+| CREATE/ALTER/DROP FUNCTION control | `create temporary system function f as 'class' language java` | `create_temporary_system_function`, `alter_function_language`, `drop_function` |
+| CREATE FUNCTION with USING JAR and properties | `create function f as 'class' language java using jar 'file:///...' with (...)` | `create_function_using_jar_with` |
+| Materialized table lifecycle | `create materialized table ... freshness = interval ... as select ...; alter materialized table ...; drop materialized table ...` | `create_materialized_table_as_select`, `create_materialized_table_pk_partition`, `alter_materialized_table_suspend`, `alter_materialized_table_resume_with`, `alter_materialized_table_refresh_partition`, `drop_materialized_table` |
+| DROP MODEL control | `drop temporary model if exists ml.m` | `drop_model` |
+| Module lifecycle control | `load module hive with (...); unload module hive; use modules hive, core` | `load_module_hive`, `unload_module_hive`, `use_modules_order` |
+| JAR lifecycle control | `add jar 'file:///...'; remove jar 'file:///...'` | `add_jar`, `remove_jar` |
+| Session property control | `set 'k' = 'v'; reset 'k'` | `set_statement`, `reset_statement` |
+| SHOW metadata utility | `show catalogs; show create table t; show functions` | `show_catalogs`, `show_create_table`, `show_functions` |
 
 Implemented Flink column-level lineage scenarios:
 
@@ -690,9 +816,15 @@ Implemented Flink column-level lineage scenarios:
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
 | DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
+| GROUP BY ROLLUP/CUBE/GROUPING SETS | `group by rollup(...); group by cube(...); group by grouping sets (...)` | `group_by_rollup`, `group_by_cube`, `group_by_grouping_sets` |
 | Temporal join projection dependencies | `select o.amount * r.rate from orders o join rates for system_time as of ... r` | `temporal_join` |
-| TUMBLE window projection dependencies | `select window_start, user_id, count(order_id) from table(tumble(...))` | `tumble_window` |
+| Window TVF projection dependencies | `select window_start, user_id, count(order_id) from table(tumble/hop/cumulate/session(...))` | `tumble_window`, `hop_window`, `cumulate_window`, `session_window` |
 | Window frame aggregate dependencies and window clause usages | `sum(amount) over (partition by user_id order by ts rows between ...)` | `window_frame` |
+| Named WINDOW clause | `select sum(v) over w from t window w as (...)` | `named_window_clause` |
+| Aggregate FILTER clause | `count(*) filter (where status = 'paid')` | `aggregate_filter_clause` |
+| VALUES query | `values (1, 'created'), (2, 'updated')` | `values_query` |
+| CREATE OR REPLACE TABLE AS SELECT output mapping | `create or replace table ads.t with (...) as select ... from dwd.s group by ...` | `replace_table_as_select` |
+| ALTER VIEW AS query output mapping | `alter view ads.v as select ... from dwd.s group by ...` | `alter_view_as_query` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods_s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods_s) select c1 from q` | `cte_column_aliases` |
@@ -710,7 +842,9 @@ Implemented Flink clause-level column usage scenarios:
 | --- | --- | --- |
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
 | Basic predicate operators in WHERE | `where c between ... and ... and name like ... and deleted_at is null` | `predicate_operator_column_usage` |
+| IS TRUE/FALSE/UNKNOWN predicate usage | `where flag is true and deleted is not false and risk is unknown` | `is_true_false_unknown_predicate` |
 | IN expression-list predicate usage | `where status in (...) and region in (home_region, ...)` | `in_list_predicate_column_usage` |
+| Quantified subquery predicates | `where amount > all (select ...) and discount < any (select ...)` | `quantified_subquery_predicates` |
 | Negated predicate operators in WHERE | `where c not between ... and name not like ... and status not in (...)` | `negated_predicate_column_usage` |
 | Logical NOT over grouped predicates | `where not (status = ... or name like ...) and score > ...` | `logical_not_group_column_usage` |
 | Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
@@ -723,6 +857,8 @@ Implemented Flink clause-level column usage scenarios:
 | JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | UNION branch WHERE source columns | `select id from s1 where ... union all select id from s2 where ...` | `set_operation_clause_column_usage` |
 | UPDATE/DELETE WHERE subquery predicate columns | `update/delete ads_t where id in (select user_id from ods_s)` | `update_with_subquery`, `delete_with_subquery` |
+| CTAS/ALTER VIEW/EXPLAIN query clause usage | `... as select ... from t group by ...` and `explain insert into ... select ...` | `replace_table_as_select`, `alter_view_as_query`, `explain_insert_select` |
+| ORDER BY with FETCH FIRST | `select ... from t where ... order by ts fetch first 100 rows only` | `order_by_fetch_first` |
 
 Current Flink diagnostics:
 
@@ -877,59 +1013,86 @@ Implemented MySQL table-level lineage scenarios:
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from app.users` | `select_basic` |
 | TABLE statement source table | `table app.users order by id limit 10` | `table_statement` |
+| HANDLER table access syntax | `handler app.users open`, `handler app.users read idx = (...) where ...`, `handler app.users close` | `handler_open`, `handler_read_index_range`, `handler_close` |
 | VALUES statement without table lineage | `values row(1, 'a'), row(2, 'b') order by 1 limit 1` | `values_statement` |
+| VALUES derived table without input tables | `select v.c from (values row(...)) as v(c)` | `derived_values_table` |
 | DUAL pseudo-table ignored | `select 1 as one from dual` | `select_from_dual` |
 | SELECT with MySQL options | `select high_priority sql_calc_found_rows ... from app.users` | `select_with_mysql_options` |
+| SELECT with LIMIT/OFFSET organization | `select ... from app.users where ... order by ... limit 100 offset 20`, `limit 20, 100` | `limit_offset_keyword`, `limit_offset_comma` |
+| SELECT wildcard projection lineage | `select * from app.users`, `select u.* from app.users u`, `select q.* from (select ...) q` | `select_table_star_lineage`, `select_qualified_star_lineage`, `select_derived_star_lineage` |
+| CTAS/VIEW wildcard projection lineage | `create table mart.t as select * from app.s`, `create view mart.v as select * from app.s` | `create_table_as_select_star_lineage`, `create_view_select_star_lineage` |
 | JOIN source tables | `select ... from app.users u join app.orders o ...` | `join_projection` |
-| NATURAL JOIN source tables | `select ... from app.users natural join app.orders` | `natural_join_projection` |
-| STRAIGHT_JOIN source tables | `select straight_join ... from app.users u straight_join app.orders o ...` | `select_straight_join` |
-| Table index hints | `select ... from app.users u force index for join (...)` | `select_force_index` |
-| SELECT locking clauses | `select ... from app.users for update`, `select ... lock in share mode` | `select_for_update`, `select_lock_in_share_mode` |
+| NATURAL JOIN source tables | `select ... from app.users natural join app.orders`, `natural left outer join ...`, `natural right outer join ...` | `natural_join_projection`, `natural_left_join_projection`, `natural_right_outer_join_projection` |
+| CROSS JOIN source tables | `select ... from app.users u cross join dim.regions r where ...` | `cross_join_projection` |
+| STRAIGHT_JOIN source tables | `select straight_join ... from app.users u straight_join app.orders o ...` | `select_straight_join`, `straight_join_operator_lineage` |
+| Table index hints | `select ... from app.users u force index for join (...)`, `ignore key for order by (...)`, `ignore key for group by (...)`, `select ... from app.users use index ()` | `select_force_index`, `select_ignore_key_for_order_by`, `select_index_hint_join_group_lineage`, `select_use_index_empty` |
+| Optimizer hint comments | `select /*+ SET_VAR(...) */ ... from app.orders` | `select_optimizer_hint_lineage` |
+| SELECT locking clauses | `select ... from app.users for update`, `select ... for update nowait`, `select ... for update of u nowait`, `select ... for share of u, o skip locked`, `select ... lock in share mode` | `select_for_update`, `select_for_update_nowait`, `select_for_update_of_alias_nowait`, `select_for_share_skip_locked`, `select_for_share_of_alias_skip_locked`, `select_lock_in_share_mode` |
+| SELECT PROCEDURE ANALYSE compatibility | `select ... from app.orders order by amount procedure analyse(...)` | `select_procedure_analyse` |
+| DISTINCTROW SELECT projection lineage | `select distinctrow id, name from app.users where ...` | `select_distinctrow` |
 | Subquery source table propagation | `select q.c from (select a as c from app.s) q` | `subquery_column_projection` |
+| LATERAL derived query propagation | `from app.users u join lateral (select ... from app.orders o where o.user_id = u.id) recent` | `lateral_derived_query_lineage` |
 | CTE source table propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
+| Chained CTE column propagation | `with q1 as (...), q2 as (select ... from q1) select ... from q2` | `cte_chain_column_projection` |
+| Recursive CTE base-table propagation | `with recursive q(...) as (... union all ... from q) select ... from q` | `recursive_cte_column_projection` |
 | Recursive CTE base-table propagation | `with recursive q as (...) select ... from q` | `with_recursive_select` |
 | UNION source table propagation | `select a from app.s1 union all select b from app.s2` | `union_column_projection` |
-| SELECT INTO OUTFILE/DUMPFILE source lineage | `select ... into outfile '...' from app.users`, `select ... into dumpfile '...' from app.users`, `select ... from app.users into outfile '...'` | `select_into_outfile`, `select_into_dumpfile`, `select_into_outfile_tail` |
-| SELECT INTO user variables source lineage | `select c1, c2 into @v1, @v2 from app.users` | `select_into_variables` |
-| GROUP_CONCAT separator syntax | `select * from (select group_concat(c separator '、') from app.t group by k) q limit 0, 10` | `group_concat_separator` |
+| SELECT INTO OUTFILE/DUMPFILE source lineage | `select ... into outfile '...' from app.users`, `select ... into dumpfile '...' from app.users`, `select ... from app.users into outfile '...'`, `select ... into outfile ... columns terminated by ...` | `select_into_outfile`, `select_into_dumpfile`, `select_into_outfile_tail`, `select_into_outfile_columns_options` |
+| SELECT INTO variables source lineage | `select c1, c2 into @v1, @v2 from app.users`, `select c1 into v1 from app.users` | `select_into_variables`, `select_into_local_variables` |
+| JSON_TABLE derived relation source table | `select jt.sku from app.orders u join json_table(u.payload, '$.items[*]' columns (...)) jt ...`, `exists path` and `default ... on empty` columns | `json_table_projection`, `json_table_nested_columns`, `json_table_exists_default_columns` |
+| GROUP_CONCAT separator/order syntax | `select group_concat(c order by ts desc separator '、') from app.t group by k` | `group_concat_separator`, `group_concat_order_separator_lineage` |
 | GROUP BY WITH ROLLUP | `select region, count(*) from app.orders group by region with rollup` | `group_by_with_rollup` |
 | GROUP BY direction with ROLLUP | `select region, count(*) from app.orders group by region desc with rollup` | `group_by_direction_rollup` |
 | ORDER BY ordinal position | `select id as user_id from app.users order by 1 desc limit 10` | `order_by_position` |
+| Tuple predicates | `where (user_id, product_id) in ((1, 100), ...)`, `where (a, b) = (c, d)` | `tuple_in_predicate_column_usage`, `tuple_comparison_predicate` |
 | INSERT INTO SELECT target and source | `insert into mart.t(c1) select a from app.s` | `insert_select` |
 | INSERT IGNORE SELECT target and source | `insert ignore into mart.t(c1) select a from app.s` | `insert_ignore_select` |
 | INSERT priority modifier target and source | `insert low_priority ignore into mart.t(c1) select a from app.s` | `insert_low_priority_ignore_select` |
 | INSERT SELECT with ORDER BY/LIMIT | `insert into mart.t(c1) select a from app.s order by a limit 100` | `insert_select_order_limit` |
+| INSERT SELECT with EXISTS predicate | `insert into mart.t select ... from app.s where exists (select 1 from app.d where ...)` | `insert_select_exists_subquery` |
+| INSERT SELECT with CTE after target | `insert into mart.t (...) with q as (...) select ... from q` | `insert_select_with_cte_after_target` |
 | INSERT target partition and source | `insert into mart.t partition (p1) (c1) select a from app.s` | `insert_partition_select` |
-| INSERT delayed VALUES target lineage | `insert delayed into mart.t(c1) values (...)` | `insert_delayed_values` |
-| INSERT INTO VALUES target lineage | `insert into mart.t(c1) values (...)` | `insert_values` |
-| INSERT VALUES row alias with duplicate-key update | `insert into mart.t(c1) values (...) as new on duplicate key update c1 = new.c1` | `insert_values_alias_on_duplicate` |
-| INSERT VALUES ROW constructor target lineage | `insert into mart.t(c1) values row(...), row(...)` | `insert_values_row_constructor` |
-| INSERT SET target and constant column lineage | `insert into mart.t set c1 = ...` | `insert_set` |
+| INSERT delayed VALUES constant column lineage | `insert delayed into mart.t(c1) values (...)` | `insert_delayed_values` |
+| INSERT INTO VALUES/VALUE constant column lineage | `insert into mart.t(c1) values (...)`, `insert into mart.t(c1) value (...)` | `insert_values`, `insert_value_single_row` |
+| INSERT VALUES scalar subquery column lineage | `insert into mart.t(c1) values ((select max(a) from app.s))` | `insert_values_scalar_subquery` |
+| INSERT VALUES row alias with duplicate-key update | `insert into mart.t(c1) values (...) as new on duplicate key update c1 = new.c1`, `values ((select ...)) as new on duplicate key update c1 = new.c1` | `insert_values_alias_on_duplicate`, `insert_values_alias_on_duplicate_scalar_subquery` |
+| INSERT VALUES ROW constructor constant column lineage | `insert into mart.t(c1) values row(...), row(...)` | `insert_values_row_constructor` |
+| INSERT/REPLACE empty VALUES rows | `insert into mart.t () values ()`, `replace into mart.t values ()` | `insert_empty_values`, `replace_empty_values` |
+| INSERT SET target and constant/subquery column lineage | `insert into mart.t set c1 = ...`, `set c1 = (select ... from app.s)`, `set ... on duplicate key update c = values(c)` | `insert_set`, `insert_set_scalar_subquery`, `insert_set_on_duplicate` |
 | INSERT SELECT with duplicate-key update | `insert into mart.t(c1) select a from app.s on duplicate key update ...` | `insert_select_on_duplicate` |
 | INSERT SELECT with duplicate-key aggregate update | `insert into mart.t(c1, c2) select a, sum(b) from app.s group by a on duplicate key update ...` | `insert_select_on_duplicate_key_update` |
-| WITH before INSERT SELECT | `with q as (...) insert into mart.t(c1) select q.c1 from q` | `with_insert_select` |
+| WITH before INSERT SELECT | `with q as (...) insert into mart.t(c1) select q.c1 from q`, `with q as (...) insert ... where exists (...)` | `with_insert_select`, `with_insert_exists_subquery` |
+| WITH before REPLACE SELECT | `with q as (...) replace into mart.t(c1) select q.c1 from q` | `with_replace_select` |
 | REPLACE INTO SELECT target and source | `replace into mart.t(c1) select a from app.s` | `replace_select` |
 | REPLACE priority modifier target and source | `replace low_priority into mart.t(c1) select a from app.s` | `replace_low_priority_select` |
 | REPLACE SELECT with ORDER BY/LIMIT | `replace into mart.t(c1) select a from app.s order by a limit 100` | `replace_select_order_limit` |
 | REPLACE target partition and source | `replace into mart.t partition (p1) (c1) select a from app.s` | `replace_partition_select` |
-| REPLACE INTO VALUES target lineage | `replace into mart.t(c1) values (...)` | `replace_values` |
-| REPLACE SET target and constant column lineage | `replace into mart.t set c1 = ...` | `replace_set` |
+| REPLACE INTO VALUES/VALUE constant column lineage | `replace into mart.t(c1) values (...)`, `replace into mart.t(c1) value (...)` | `replace_values`, `replace_value_single_row` |
+| REPLACE VALUES scalar subquery column lineage | `replace into mart.t(c1) values ((select max(a) from app.s))` | `replace_values_scalar_subquery` |
+| REPLACE SET target and constant/subquery column lineage | `replace into mart.t set c1 = ...`, `set c1 = (select ... from app.s)` | `replace_set`, `replace_set_scalar_subquery` |
 | LOAD DATA target table | `load data local infile '...' into table mart.t` | `load_data_local_infile` |
 | LOAD DATA options target table | `load data infile '...' into table mart.t fields ... lines ... ignore ...` | `load_data_with_options` |
+| LOAD DATA FIELDS/COLUMNS synonym options | `load data infile ... into table mart.t columns terminated by ...` | `load_data_columns_options` |
 | LOAD DATA SET target and constant column lineage | `load data infile '...' into table mart.t (...) set loaded_at = now()` | `load_data_set_assignments` |
+| LOAD DATA optionally enclosed fields and variables | `load data infile ... fields optionally enclosed by ... (@v, c) set id = cast(@v as unsigned)` | `load_data_optionally_enclosed_variables` |
+| LOAD DATA priority/partition/charset options | `load data low_priority infile ... replace into table app.t partition (...) character set ... ignore 1 rows (...) set ...` | `load_data_replace_partition_charset` |
+| LOAD DATA concurrent local ignore | `load data concurrent local infile ... ignore into table ods.t (...)` | `load_data_concurrent_ignore` |
+| LOAD XML target table and rows tag | `load xml local infile ... into table ods.t rows identified by '<row>' (...)` | `load_xml_rows_identified`, `load_xml_set_assignments` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from app.s` | `create_table_as_select` |
 | CREATE TABLE SELECT without AS | `create table mart.t select ... from app.s` | `create_table_select_without_as` |
 | CREATE TABLE IGNORE/REPLACE SELECT | `create table mart.t ignore select ... from app.s`, `create table mart.t replace select ...` | `create_table_ignore_select`, `create_table_replace_select` |
 | CREATE TABLE options before AS SELECT | `create table mart.t (...) engine=InnoDB default charset=utf8mb4 as select ...` | `create_table_options_as_select` |
+| CREATE TABLE storage/statistics/engine options | `create table mart.t (...) data directory ... index directory ... stats_persistent ...`, `checksum ... connection ... engine_attribute ...` | `create_table_directory_stats_options`, `create_table_engine_attribute_options` |
 | CREATE TABLE declared columns AS SELECT | `create table mart.t(c1 ...) as select a as other_name from app.s` | `create_table_declared_columns_as_select` |
-| CREATE TABLE schema DDL with constraints | `create table mart.t (id bigint auto_increment, primary key (id), unique key uk_c (c), index idx_c (c))` | `create_table_constraints` |
+| CREATE TABLE schema DDL with constraints | `create table mart.t (id bigint auto_increment, primary key (id), unique key uk_c (c), constraint uk_c unique key (c), index idx_c (c))` | `create_table_constraints`, `create_table_named_unique_constraint` |
+| CREATE TABLE foreign key reference | `create table mart.child (..., c bigint references mart.parent(id) on delete ..., foreign key [index_name] (...) references mart.parent (...) on update ...)` | `create_table_foreign_key_reference`, `create_table_foreign_key_actions`, `create_table_named_foreign_key_index` |
 | CREATE TABLE generated columns and ON UPDATE constraints | `create table mart.t (full_name varchar(...) generated always as (...), updated_at ... on update ...)` | `create_table_generated_columns` |
-| CREATE TABLE advanced table options | `create table mart.t (...) row_format=compressed key_block_size=8 compression='zlib' tablespace ts` | `create_table_advanced_options` |
-| CREATE TABLE MySQL enum/set data types | `create table mart.t (status enum('A','B'), channels set('EMAIL','SMS'))` | `create_table_enum_set_types` |
-| CREATE TABLE CHECK and invisible attributes | `create table mart.t (c int check (c > 0), index idx(c) invisible)` | `create_table_check_invisible` |
-| CREATE TABLE FULLTEXT/SPATIAL indexes | `create table mart.t (..., fulltext index idx(c), spatial index idx(g))` | `create_table_fulltext_spatial_index` |
+| CREATE TABLE advanced table options | `create table mart.t (...) row_format=compressed key_block_size=8 compression='zlib' tablespace ts`, `auto_increment=... avg_row_length=... insert_method=... union=(...)` | `create_table_advanced_options`, `create_table_storage_options` |
+| CREATE TABLE MySQL data types and type attributes | `create table mart.t (status enum('A','B'), id bigint unsigned, name varchar(...) character set utf8mb4 collate ..., point_col point srid 4326, score double precision, name national varchar(...))` | `create_table_enum_set_types`, `create_table_mysql_type_attributes`, `create_table_column_storage_attributes`, `create_table_compound_type_names` |
+| CREATE TABLE CHECK and invisible attributes | `create table mart.t (c int constraint chk check (...) enforced, index idx(c) invisible)` | `create_table_check_invisible`, `create_table_column_check_enforced` |
+| CREATE TABLE index definitions with MySQL options | `create table mart.t (..., fulltext index idx(c) with parser ngram, unique key ... comment ... visible, spatial index idx(g))` | `create_table_fulltext_spatial_index`, `create_table_index_options`, `create_table_fulltext_index_options` |
 | CREATE TEMPORARY TABLE schema DDL | `create temporary table if not exists mart.t (...) engine=InnoDB` | `create_temporary_table_schema` |
-| CREATE TABLE partition DDL | `create table mart.t (...) partition by hash/range (...)` | `create_table_hash_partition`, `create_table_range_partition` |
+| CREATE TABLE partition DDL | `create table mart.t (...) partition by hash/range (...)`, `partition by range/list columns (...)`, `partition by linear key algorithm = 2 (...)`, `subpartition by hash (...)` | `create_table_hash_partition`, `create_table_range_partition`, `create_table_range_columns_partition`, `create_table_list_columns_partition`, `create_table_linear_key_algorithm_partition`, `create_table_subpartition` |
 | CREATE TABLE partition AS SELECT | `create table mart.t (...) partition by hash (...) as select ...` | `create_table_partition_as_select` |
 | CREATE TABLE AS WITH SELECT | `create table mart.t as with q as (...) select ... from q` | `create_table_as_with_select` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like app.s` | `create_table_like` |
@@ -940,24 +1103,29 @@ Implemented MySQL table-level lineage scenarios:
 | CREATE OR REPLACE VIEW AS SELECT | `create or replace view mart.v as select ... from app.s` | `create_or_replace_view` |
 | CREATE VIEW declared column list | `create view mart.v(c1, c2) as select a as x, b as y from app.s` | `create_view_declared_columns` |
 | CREATE VIEW with MySQL options | `create algorithm=merge sql security invoker view mart.v as select ... with check option` | `create_view_with_options` |
-| CREATE VIEW with DEFINER | `create definer='u'@'%' sql security definer view mart.v as select ...` | `create_view_with_definer` |
+| CREATE VIEW with DEFINER | `create definer='u'@'%' ...`; `create definer=current_user() ...` | `create_view_with_definer`, `create_view_current_user_definer` |
 | CREATE VIEW AS WITH SELECT | `create view mart.v as with q as (...) select ... from q` | `create_view_as_with_select` |
 | ALTER VIEW AS SELECT | `alter algorithm=merge view mart.v(c1) as select ...` | `alter_view` |
 | CREATE TEMPORARY TABLE AS SELECT | `create temporary table if not exists mart.t as select ...` | `create_temporary_table_as_select` |
 | UPDATE JOIN table lineage | `update mart.t join app.s on ... set ...` | `update_join` |
 | UPDATE LOW_PRIORITY IGNORE | `update low_priority ignore mart.t join app.s ... set ...` | `update_low_priority_ignore` |
 | Multi-table UPDATE lineage | `update mart.t, app.s set ... where ...` | `update_multi_table` |
+| Multi-table UPDATE target lineage | `update mart.t join app.s on ... set t.c = s.c, s.synced_at = t.updated_at` | `update_multi_table_targets` |
 | UPDATE JOIN over derived query | `update mart.t join (select ... from app.s) q on ... set ...` | `update_join_derived_assignment` |
 | UPDATE ORDER BY LIMIT | `update mart.t set c = ... where ... order by ... limit ...` | `update_order_by_limit` |
-| WITH before UPDATE JOIN | `with q as (...) update mart.t join q on ... set ...` | `with_update_join` |
+| UPDATE WHERE EXISTS | `update mart.t t set ... where exists (select 1 from app.s where s.id = t.id) order by ... limit ...` | `update_where_exists_subquery` |
+| WITH before UPDATE JOIN/EXISTS | `with q as (...) update mart.t join q on ... set ...`, `with q as (...) update ... where exists (...)` | `with_update_join`, `with_update_exists_subquery` |
 | DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...` | `delete_using` |
 | DELETE LOW_PRIORITY QUICK IGNORE | `delete low_priority quick ignore from mart.t where ...` | `delete_low_priority_quick_ignore` |
 | DELETE ORDER BY LIMIT | `delete from mart.t where ... order by ... limit ...` | `delete_order_by_limit` |
+| DELETE WHERE EXISTS | `delete from mart.t t where exists (select 1 from app.s where s.id = t.id) order by ... limit ...` | `delete_where_exists_subquery` |
 | DELETE alias FROM JOIN table lineage | `delete t from mart.t t join app.s s ...` | `delete_join` |
-| Multi-table DELETE lineage | `delete t1, t2 from mart.t1 join app.t2 ...` | `delete_multi_table` |
+| Multi-table DELETE lineage | `delete t1, t2 from mart.t1 join app.t2 ...`, `delete t1.*, t2.* from ...` | `delete_multi_table`, `delete_multi_table_star_targets` |
 | DELETE alias FROM derived JOIN table lineage | `delete t from mart.t t join (select ... from app.s) q ...` | `delete_join_derived` |
-| WITH before DELETE alias FROM JOIN | `with q as (...) delete t from mart.t t join q ...` | `with_delete_join` |
+| WITH before DELETE alias FROM JOIN/EXISTS | `with q as (...) delete t from mart.t t join q ...`, `with q as (...) delete ... where exists (...)` | `with_delete_join`, `with_delete_exists_subquery` |
 | Backquoted non-ASCII identifiers | `` select `用户ID` from `业务库`.`用户表` `` | `backquoted_identifiers` |
+| Template variable identifiers | `from ${source_schema}.${source_table}` | `template_variable_identifier_lineage` |
+| Template variable write targets | `insert into ${target_schema}.${target_table} select ... from ${source_schema}.${source_table}` | `insert_select_template_identifier_lineage` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | DROP TABLE multiple affected tables | `drop table if exists mart.t1, mart.t2` | `drop_multiple_tables` |
 | DROP TEMPORARY TABLE affected table | `drop temporary table if exists tmp_users` | `drop_temporary_table` |
@@ -966,43 +1134,60 @@ Implemented MySQL table-level lineage scenarios:
 | TRUNCATE TABLE affected table | `truncate table ads.t` | `truncate_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |
 | RENAME TABLE old and new tables | `rename table app.old to app.new`, `rename table a.old to a.new, b.old to b.new` | `rename_table_statement`, `rename_multiple_tables` |
-| ALTER TABLE column maintenance | `alter table mart.t add column c int` | `alter_table_add_column` |
+| ALTER TABLE column maintenance | `alter table mart.t add column c int`, `add column parent_id bigint references mart.parent(id) on delete ...` | `alter_table_add_column`, `alter_table_add_column_reference` |
 | ALTER TABLE drop column maintenance | `alter table mart.t drop column c` | `alter_table_drop_column` |
 | ALTER TABLE multiple comma-separated actions | `alter table mart.t add column c int, modify column d varchar(32), drop column e` | `alter_table_multiple_actions` |
 | ALTER TABLE online DDL options | `alter table mart.t add column c int, algorithm=inplace, lock=none` | `alter_table_online_options` |
-| ALTER TABLE index maintenance | `alter table mart.t add index idx_c (c)` | `alter_table_add_index` |
-| ALTER TABLE change column maintenance | `alter table mart.t change column old_c new_c varchar(128)` | `alter_table_change_column` |
-| ALTER TABLE modify column maintenance | `alter table mart.t modify column c varchar(256)` | `alter_table_modify_column` |
+| ALTER TABLE index maintenance | `alter table mart.t add index idx_c (c)`, `add fulltext index ... with parser ...`, `add spatial index ... invisible` | `alter_table_add_index`, `alter_table_add_fulltext_index_options`, `alter_table_add_spatial_index` |
+| ALTER TABLE change column maintenance | `alter table mart.t change column old_c new_c varchar(128)`, `change column old_c new_c varchar(...) null default ... comment ... after c` | `alter_table_change_column`, `alter_table_change_column_attributes` |
+| ALTER TABLE modify column maintenance | `alter table mart.t modify column c varchar(256)`, `modify column c varchar(...) not null default ... comment ... after c` | `alter_table_modify_column`, `alter_table_modify_column_attributes` |
 | ALTER TABLE rename column maintenance | `alter table mart.t rename column old_c to new_c` | `alter_table_rename_column` |
 | ALTER TABLE primary key maintenance | `alter table mart.t add/drop primary key` | `alter_table_add_primary_key`, `alter_table_drop_primary_key` |
-| ALTER TABLE drop index maintenance | `alter table mart.t drop index idx_c` | `alter_table_drop_index` |
-| ALTER TABLE foreign key reference | `alter table mart.child add foreign key (...) references mart.parent (...)` | `alter_table_add_foreign_key` |
-| ALTER TABLE partition maintenance | `alter table app.users add/drop partition ...` | `alter_table_add_partition`, `alter_table_drop_partition` |
-| ALTER TABLE partition exchange | `alter table app.users exchange partition p with table staging.users_p ...` | `alter_table_exchange_partition` |
-| CREATE INDEX affected table | `create index idx on mart.t(c)`, `create fulltext index idx on mart.t(c)`, `create index idx on mart.t(name(32) desc)` | `create_index`, `create_fulltext_index`, `create_index_prefix_order` |
-| DROP INDEX affected table | `drop index idx on mart.t` | `drop_index` |
+| ALTER TABLE index lifecycle maintenance | `alter table mart.t drop index idx_c`, `alter table mart.t rename index idx_old to idx_new`, `alter table mart.t alter index idx invisible` | `alter_table_drop_index`, `alter_table_rename_index`, `alter_table_alter_index_visibility` |
+| ALTER TABLE check constraint maintenance | `alter table mart.t add constraint chk check (...) enforced`, `drop check ...`, `alter check ... not enforced` | `alter_table_add_check_enforced`, `alter_table_drop_check`, `alter_table_alter_check_not_enforced` |
+| ALTER TABLE foreign key reference | `alter table mart.child add foreign key [index_name] (...) references mart.parent (...) on delete ... on update ...`, `drop foreign key fk_name` | `alter_table_add_foreign_key`, `alter_table_add_foreign_key_actions`, `alter_table_add_named_foreign_key_index`, `alter_table_drop_foreign_key` |
+| ALTER TABLE column default maintenance | `alter table mart.t alter column c set default ...`, `alter column c drop default` | `alter_table_alter_column_default` |
+| ALTER TABLE charset and key maintenance | `alter table mart.t convert to character set utf8mb4 collate ...`, `alter table mart.t default character set ... collate ...`, `alter table mart.t disable keys` | `alter_table_convert_charset`, `alter_table_default_charset_collate`, `alter_table_disable_keys` |
+| ALTER TABLE storage/order maintenance | `alter table mart.t order by c`, `alter table mart.t force`, `alter table mart.t discard/import tablespace` | `alter_table_order_by`, `alter_table_force`, `alter_table_tablespace_import_discard` |
+| ALTER TABLE partition maintenance | `alter table app.users add/drop/rebuild/coalesce/reorganize/remove partition...` | `alter_table_add_partition`, `alter_table_drop_partition`, `alter_table_rebuild_partition`, `alter_table_coalesce_partition`, `alter_table_reorganize_partition`, `alter_table_remove_partitioning` |
+| ALTER TABLE partition exchange | `alter table app.users exchange partition p with table staging.users_p with/without validation` | `alter_table_exchange_partition`, `alter_table_exchange_partition_with_validation` |
+| CREATE INDEX affected table | `create index idx on mart.t(c)`, `create fulltext index idx on mart.t(c)`, `create index idx on mart.t(name(32) desc)`, `create index idx on mart.t((lower(c)))`, `create index idx on mart.t((cast(json_col->'$.ids' as unsigned array)))` | `create_index`, `create_fulltext_index`, `create_index_prefix_order`, `create_index_expression`, `create_index_multivalued_array` |
+| CREATE INDEX options | `create index idx using btree on mart.t(c) visible algorithm=inplace lock=none`, `create index idx on mart.t(c) engine_attribute='...'`, `create fulltext index idx on cms.t(body) with parser ngram comment '...' invisible` | `create_index_using_options`, `create_index_engine_attributes`, `create_fulltext_index_with_parser` |
+| DROP INDEX affected table | `drop index idx on mart.t`, `drop index idx on mart.t algorithm=inplace lock=none` | `drop_index`, `drop_index_online_options` |
 | CREATE TRIGGER affected table | `create trigger trg before insert on mart.t for each row ...` | `create_trigger` |
-| EXPLAIN wrapped SELECT lineage | `explain select ... from app.s where ...` | `explain_select` |
+| EXPLAIN/DESCRIBE wrapped SELECT lineage | `explain select ... from app.s where ...`, `describe select ... from app.s` | `explain_select`, `describe_select_lineage` |
 | EXPLAIN FORMAT/ANALYZE wrapped SELECT lineage | `explain format=json select ...`, `explain analyze select ...` | `explain_format_json_select`, `explain_analyze_select` |
+| EXPLAIN connection diagnostic metadata read | `explain format=json for connection 12345` | `explain_for_connection` |
 | USE database session statement | `use mart` | `use_database` |
 | SHOW CREATE TABLE metadata read | `show create table mart.t` | `show_create_table` |
 | SHOW CREATE VIEW metadata read | `show create view mart.v` | `show_create_view` |
 | SHOW CREATE DATABASE metadata read | `show create database app` | `show_create_database` |
-| SHOW COLUMNS metadata read | `show columns from mart.t` | `show_columns_from_table` |
-| SHOW INDEX metadata read | `show index from mart.t` | `show_index_from_table` |
-| Schema-level and server metadata reads | `show full tables from mart`, `show databases`, `show variables`, `show processlist`, `show engines` | `show_tables_from_database`, `show_databases`, `show_variables`, `show_processlist`, `show_engines` |
+| SHOW CREATE routine, trigger, and event metadata read | `show create procedure app.p`, `show create function app.f`, `show create trigger app.trg`, `show create event app.ev` | `show_create_procedure`, `show_create_function`, `show_create_trigger`, `show_create_event` |
+| SHOW COLUMNS metadata read | `show columns from mart.t`, `show extended full columns from t from mart like ...` | `show_columns_from_table`, `show_full_columns_from_schema_table` |
+| SHOW INDEX metadata read | `show index from mart.t`, `show keys in t in mart where ...` | `show_index_from_table`, `show_keys_from_schema_table` |
+| Schema-level and server metadata reads | `show full tables from mart`, `show open tables from mart like ...`, `show table status from mart like ...`, `show databases`, `show variables`, `show processlist`, `show engines` | `show_tables_from_database`, `show_open_tables_like`, `show_table_status_from_schema`, `show_databases`, `show_variables`, `show_processlist`, `show_engines` |
+| Routine/event metadata reads | `show triggers from mart like ...`, `show events from mart where ...`, `show procedure status where ...` | `show_triggers_from_schema`, `show_events_from_schema`, `show_procedure_function_status` |
+| Server variable/status metadata filters | `show global variables like ...`, `show session status where ...` | `show_global_variables_like`, `show_session_status_where` |
 | ANALYZE TABLE metadata read | `analyze table mart.t` | `analyze_table` |
-| ANALYZE TABLE histogram metadata read | `analyze table mart.t update/drop histogram on c` | `analyze_table_update_histogram`, `analyze_table_drop_histogram` |
-| CHECK TABLE metadata read | `check table mart.t` | `check_table` |
+| ANALYZE TABLE histogram metadata read | `analyze table mart.t update/drop histogram on c`, `analyze table mart.t update histogram ... using data '...'`, `analyze no_write_to_binlog table mart.t update histogram ...` | `analyze_table_update_histogram`, `analyze_table_histogram_using_data`, `analyze_table_drop_histogram`, `analyze_no_write_histogram` |
+| CHECK TABLE metadata read | `check table mart.t`, `check table mart.t for upgrade extended` | `check_table`, `check_table_for_upgrade_extended` |
+| CHECKSUM TABLE metadata read | `checksum table mart.t extended`, `checksum table app.t1, app.t2 quick` | `checksum_table_extended`, `checksum_multiple_tables_quick` |
+| Replication metadata reads | `show binary logs`, `show master status`, `show replica status` | `show_binary_logs`, `show_master_status`, `show_replica_status` |
 | Multi-table metadata maintenance reads | `analyze table app.t1, app.t2`, `check table app.t1, app.t2 for upgrade` | `analyze_multiple_tables`, `check_multiple_tables` |
-| OPTIMIZE TABLE maintenance read | `optimize table mart.t` | `optimize_table` |
-| REPAIR TABLE maintenance read | `repair table mart.t` | `repair_table` |
+| OPTIMIZE TABLE maintenance read | `optimize table mart.t`, `optimize local table mart.t` | `optimize_table`, `optimize_local_table` |
+| REPAIR TABLE maintenance read | `repair table mart.t`, `repair no_write_to_binlog table mart.t quick use_frm` | `repair_table`, `repair_no_write_quick_use_frm` |
 | DESCRIBE TABLE metadata read | `describe table mart.t` | `describe_table` |
-| LOCK TABLES metadata/control read | `lock tables app.users read, mart.user_summary write` | `lock_tables` |
+| EXPLAIN table metadata read | `explain table mart.users name` | `explain_table_metadata` |
+| LOCK TABLES metadata/control read | `lock tables app.users read, mart.user_summary write`, `lock tables app.users as u read local, mart.t low_priority write` | `lock_tables`, `lock_tables_alias_low_priority` |
 | SET user variable scalar subquery read | `set @v = (select max(id) from app.t where ...)` | `set_subquery_variable` |
-| CREATE EVENT parseable DML body lineage | `create event ... do delete/insert ...` | `create_event`, `create_event_insert_select` |
-| MySQL control, account, admin, routine, trigger, event, and dynamic SQL statements | `unlock tables`, `set session ...`, `start transaction`, `commit`, `rollback`, `do sleep(1)`, `call p()`, `prepare`, `execute`, `deallocate prepare`, `create procedure`, `drop procedure`, `alter procedure`, `create trigger`, `drop trigger`, `create event`, `alter event`, `drop event`, `create user`, `grant`, `revoke`, `flush`, `kill`, `reset` | `unlock_tables`, `set_session_statement`, `start_transaction`, `commit_statement`, `rollback_statement`, `do_statement`, `call_statement`, `prepare_statement`, `execute_statement`, `deallocate_prepare`, `create_procedure`, `drop_procedure`, `alter_procedure`, `create_trigger`, `drop_trigger`, `create_event`, `create_event_insert_select`, `alter_event`, `drop_event`, `create_user`, `grant_privileges`, `revoke_privileges`, `flush_privileges`, `kill_query`, `reset_master` |
-| MySQL schema/database control DDL | `create database ...`, `drop schema ...` | `create_database`, `drop_schema` |
+| MySQL executable version comments | `/*!80000 select ... */`, `/*!40101 set names utf8mb4 */` | `executable_comment_select_lineage`, `executable_comment_set_statement` |
+| CREATE EVENT parseable DML body lineage | `create event ... do delete/insert ...`; `every ... starts ... ends ... on completion ... enable comment ...` | `create_event`, `create_event_insert_select`, `create_event_schedule_options` |
+| MySQL control, account, admin, routine, trigger, event, and dynamic SQL statements | `unlock tables`, `set session ...`, `set names ... collate ...`, `set character set ...`, `start transaction`, `commit`, `rollback`, `xa start/end/prepare/commit/recover`, `do sleep(1)`, `call p()`, `prepare`, `execute`, `deallocate prepare`, `create procedure`, `drop procedure`, `alter procedure`, `create trigger`, `drop trigger`, `create event`, `alter event`, `drop event`, `create/alter/drop user`, `show create user`, `create/drop/set role`, `grant`, `revoke`, `flush`, `kill`, `reset`, `lock/unlock instance`, `clone local`, `clone instance from donor`, `change replication source`, `change master`, `start/stop/reset replica` | `unlock_tables`, `set_session_statement`, `set_names_collate`, `set_character_set`, `start_transaction`, `commit_statement`, `rollback_statement`, `xa_start`, `xa_end_suspend`, `xa_prepare`, `xa_commit_one_phase`, `xa_recover`, `do_statement`, `call_statement`, `prepare_statement`, `execute_statement`, `deallocate_prepare`, `create_procedure`, `drop_procedure`, `alter_procedure`, `create_trigger`, `drop_trigger`, `create_event`, `create_event_insert_select`, `alter_event`, `drop_event`, `create_user`, `create_user_account_options`, `alter_user_account_unlock`, `drop_user_if_exists`, `show_create_user`, `create_role`, `drop_role`, `set_role`, `grant_privileges`, `revoke_privileges`, `flush_privileges`, `kill_query`, `reset_master`, `lock_instance_for_backup`, `unlock_instance`, `clone_local_data_directory`, `clone_instance_from_donor`, `change_replication_source`, `change_master_to`, `start_replica`, `stop_slave`, `reset_replica_all` |
+| MySQL control expressions with scalar subqueries | `call app.p((select max(ts) from app.users))`, `do (select count(*) from app.orders)` | `call_scalar_subquery_input`, `do_scalar_subquery_input` |
+| MySQL schema/database control DDL | `create database ...`, `drop schema ...`, `alter database ... default character set ...`, `alter schema default encryption = ...` | `create_database`, `drop_schema`, `alter_database_charset`, `alter_schema_encryption` |
+| MySQL tablespace control DDL | `create tablespace ts add datafile ... engine=...`, `create undo tablespace ...`, `drop tablespace ...` | `create_tablespace`, `create_undo_tablespace`, `drop_tablespace` |
+| MySQL plugin/component and federated server control | `install plugin ... soname ...`, `uninstall component ...`, `create/alter/drop server ... options (...)` | `install_plugin`, `uninstall_component`, `create_server`, `alter_server`, `drop_server` |
+| MySQL resource group control | `create/alter/drop resource group ...`, `set resource group ... for ...` | `create_resource_group`, `alter_resource_group`, `drop_resource_group`, `set_resource_group` |
 
 Implemented MySQL column-level lineage scenarios:
 
@@ -1014,24 +1199,34 @@ Implemented MySQL column-level lineage scenarios:
 | NATURAL JOIN projection | `select u.id, o.amount from users u natural join orders o` | `natural_join_projection` |
 | STRAIGHT_JOIN projection | `select straight_join u.id, o.amount from users u straight_join orders o` | `select_straight_join` |
 | Index hint projection | `select u.id from users u force index (...)` | `select_force_index` |
+| Partition-qualified table references | `select ... from app.t partition(p1)`, `update app.t partition(p1) set ...`, `delete from app.t partition(p1) where ...` | `select_partition_table`, `update_partition_table`, `delete_partition_table` |
 | Backtick-qualified direct projections | ``select u.`department_id` from app.users u`` | `backtick_qualified_direct_projection` |
 | Case-insensitive derived column propagation | `select user_id from (select id as User_ID from app.users) u` | `derived_case_insensitive_column_projection` |
 | Single-level aliased subquery direct propagation | `select q.c from (select a as c from app.s) q` | `subquery_column_projection` |
+| Derived table column alias list propagation | `select q.c1 from (select a from app.s) as q(c1)` | `derived_table_column_aliases` |
+| Derived table aliases in outer expressions | `select concat(q.c1, q.c2) from (select a as c1, b as c2 from app.s) q where q.c2 = ...` | `derived_alias_expression_projection` |
 | Single CTE direct propagation | `with q as (select a as c from app.s) select c from q` | `cte_column_projection` |
 | Recursive CTE base-column propagation | `with recursive q as (...) select id from q` | `with_recursive_select` |
 | UNION column sources merged by position | `select a as c1 from s1 union all select b from s2` | `union_column_projection` |
 | INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
 | EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
+| DISTINCT set operation column sources merged by position | `select a from s1 union distinct select b from s2`, `select a from s1 intersect distinct select b from s2` | `union_distinct_column_projection`, `intersect_distinct_column_projection` |
 | INSERT target column list mapping | `insert into mart.t(c1, c2) select a, b from app.s` | `insert_select` |
+| INSERT from TABLE statement source | `insert into mart.t table app.s order by id limit 100` | `insert_table_statement` |
 | INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
 | INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
 | INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
 | INSERT IGNORE target column list mapping | `insert ignore into mart.t(c1, c2) select a, b from app.s` | `insert_ignore_select` |
 | INSERT priority modifier target mapping | `insert low_priority ignore into mart.t(c1, c2) select a, b from app.s` | `insert_low_priority_ignore_select` |
 | INSERT SELECT ORDER BY/LIMIT target mapping | `insert into mart.t(c1, c2) select a, b from app.s order by b limit ...` | `insert_select_order_limit` |
+| INSERT SELECT EXISTS target mapping | `insert into mart.t(c1, c2) select a, b from app.s where exists (...)` | `insert_select_exists_subquery` |
 | INSERT partition target column mapping | `insert into mart.t partition (p1) (c1, c2) select a, b from app.s` | `insert_partition_select` |
 | INSERT duplicate-key SELECT and update mapping | `insert into mart.t(c1) select a from app.s on duplicate key update c1 = values(c1)` | `insert_select_on_duplicate` |
-| WITH before INSERT SELECT target mapping | `with q as (...) insert into mart.t(c1) select q.c1 from q` | `with_insert_select` |
+| INSERT duplicate-key expression mapping | `insert into mart.t(c1) select a from app.s on duplicate key update c1 = c1 + values(c1)`, `insert into mart.t set c1 = ... on duplicate key update c2 = values(c1)` | `insert_select_on_duplicate_expression`, `insert_set_on_duplicate` |
+| INSERT duplicate-key DEFAULT mapping | `insert into mart.t(c1) select a from app.s on duplicate key update c2 = default`, `... update c2 = default(c2)` | `insert_select_on_duplicate_default`, `insert_values_on_duplicate_default` |
+| INSERT VALUES row alias duplicate-key expression mapping | `insert into mart.t(c1) values (...) as new on duplicate key update c1 = concat(c1, new.c1)` | `insert_values_alias_on_duplicate_expression`, `insert_values_column_alias_on_duplicate` |
+| WITH before INSERT SELECT target mapping | `with q as (...) insert into mart.t(c1) select q.c1 from q`, `with q as (...) insert ... where exists (...)` | `with_insert_select`, `with_insert_exists_subquery` |
+| WITH before REPLACE SELECT target mapping | `with q as (...) replace into mart.t(c1) select q.c1 from q` | `with_replace_select` |
 | REPLACE SELECT target column list mapping | `replace into mart.t(c1, c2) select a, b from app.s` | `replace_select` |
 | REPLACE priority modifier target mapping | `replace low_priority into mart.t(c1, c2) select a, b from app.s` | `replace_low_priority_select` |
 | REPLACE SELECT ORDER BY/LIMIT target mapping | `replace into mart.t(c1, c2) select a, b from app.s order by b limit ...` | `replace_select_order_limit` |
@@ -1042,6 +1237,8 @@ Implemented MySQL column-level lineage scenarios:
 | CTAS declared-column target names | `create table mart.t(c1 ...) as select a as other_name from app.s` | `create_table_declared_columns_as_select` |
 | Partitioned CTAS output column targets | `create table mart.t (...) partition by hash (...) as select id as c1 from app.s` | `create_table_partition_as_select` |
 | CTAS over CTE output column targets | `create table mart.t as with q as (...) select c1 from q` | `create_table_as_with_select` |
+| CTAS over UNION ALL output column targets | `create table mart.t as select a as c1 from s1 union all select b from s2` | `ctas_union_column_lineage` |
+| CTAS declared-column targets over UNION ALL | `create table mart.t(c1 ...) as select a from s1 union all select b from s2` | `ctas_declared_columns_union_lineage` |
 | Script-local temporary table column propagation | `create temporary table tmp as select id as c1 from app.s; insert into mart.t(c1) select c1 from tmp` | `script_temp_table_lineage` |
 | CREATE VIEW output column targets | `create view mart.v as select u.id from app.users u` | `create_view` |
 | CREATE VIEW declared-column target names | `create view mart.v(c1, c2) as select a as x, b as y from app.s` | `create_view_declared_columns` |
@@ -1049,11 +1246,36 @@ Implemented MySQL column-level lineage scenarios:
 | CREATE VIEW options output column targets | `create algorithm=merge sql security invoker view mart.v as select id as c1 from app.s` | `create_view_with_options` |
 | CREATE VIEW DEFINER output column targets | `create definer='u'@'%' view mart.v as select id as c1 from app.s` | `create_view_with_definer` |
 | CREATE VIEW over CTE output column targets | `create view mart.v as with q as (...) select c1 from q` | `create_view_as_with_select` |
+| CREATE VIEW over UNION ALL output column targets | `create view mart.v as select a as c1 from s1 union all select b from s2` | `create_view_union_column_lineage` |
+| CREATE VIEW declared-column targets over UNION ALL | `create view mart.v(c1, c2) as select a, b from s1 union all select x, y from s2` | `create_view_declared_columns_union_lineage` |
 | ALTER VIEW output column targets | `alter view mart.v(c1, c2) as select a, b from app.s` | `alter_view` |
 | MySQL function expression lineage | `select ifnull(nickname, name), coalesce(phone, email) from app.s` | `mysql_function_expression_projection` |
+| MySQL conditional function lineage | `select if(flag, c1, c2), nullif(c3, c4) from app.s` | `if_nullif_expression_lineage` |
+| MySQL special function syntax lineage | `extract(year from ts)`, `trim(both ' ' from name)`, `position('@' in email)`, `substring(phone from 1 for 3)` | `mysql_special_function_syntax` |
+| MySQL CONVERT special syntax lineage | `convert(name using utf8mb4)`, `convert(amount, decimal(10,2))` | `convert_function_syntax` |
+| MySQL CAST signedness type lineage | `cast(amount as signed integer)`, `cast(score as unsigned)` | `cast_signed_unsigned_lineage` |
+| MySQL CAST time-zone conversion lineage | `cast(event_ts at time zone timezone_name as datetime)` | `cast_at_time_zone_lineage` |
+| MySQL interval function lineage | `date_add(created_at, interval 7 day)`, `date_sub(updated_at, interval retry_count hour)` | `interval_function_lineage` |
+| MySQL timestamp unit function lineage | `timestampadd(day, retry_count, created_at)`, `timestampdiff(hour, created_at, updated_at)` | `timestampadd_timestampdiff_lineage` |
+| MySQL format type function lineage | `str_to_date(date_text, get_format(date, 'USA'))` | `get_format_type_argument_lineage` |
+| MySQL full-text search expression lineage | `select match(title, body) against (... in boolean mode) from cms.articles where match(...) against (... with query expansion)` | `select_match_against_boolean` |
 | MySQL JSON arrow expression lineage | `select payload->>'$.id' from app.events` | `json_extract_expression` |
+| MySQL JSON_VALUE expression lineage | `json_value(payload, '$.vin' returning char(...) default ... on empty null on error)` | `json_value_returning_lineage` |
+| MySQL JSON aggregate function lineage | `json_arrayagg(json_object(...) order by created_at)`, `json_objectagg(k, v)` | `json_aggregate_function_lineage` |
+| MySQL JSON MEMBER OF predicate usage | `where user_id member of(payload->'$.ids')` | `json_member_of_predicate` |
+| MySQL JSON predicate function usage | `where json_contains(payload, json_quote(sku), '$.skus') and json_overlaps(a, b)` | `json_contains_predicate_usage`, `json_overlaps_predicate_usage` |
+| MySQL JSON mutation and validation functions | `json_set(payload, '$.k', value)`, `json_merge_patch(a, b)`, `json_search(...)`, `json_schema_valid(schema, doc)`, `json_length(doc, path)` | `json_mutation_function_lineage`, `json_search_schema_predicate_usage` |
+| MySQL JSON utility functions | `json_pretty(payload)`, `json_type(payload)`, `json_storage_size(payload)` | `json_utility_function_lineage` |
+| MySQL REGEXP_* and FIND_IN_SET function lineage | `regexp_like(c, p)`, `regexp_replace(c, p, r)`, `find_in_set(c, list)` | `regexp_function_predicate_usage` |
+| MySQL numeric and enum-position function lineage | `interval(score, ...)`, `field(status, ...)`, `elt(priority, ...)` | `interval_field_elt_lineage` |
+| MySQL string function lineage | `substring_index(email, '@', -1)`, `locate('-', sku_code)`, `insert(phone, ...)`, `repeat(prefix, retry_count)` | `string_function_lineage` |
+| MySQL string function special syntax | `char(ascii_code using utf8mb4)`, `concat_ws('-', region, char(code using utf8mb4))` | `char_using_function_lineage` |
+| MySQL date/time utility functions | `adddate(created_at, interval grace_days day)`, `period_diff(close_period, open_period)` | `date_time_function_lineage` |
+| MySQL date interval arithmetic | `created_at + interval grace_days day`, `expired_at - interval retry_hours hour` | `date_interval_arithmetic_lineage` |
 | MySQL BINARY and COLLATE expression lineage | `select binary name from app.users where name collate ...` | `binary_collate_expression` |
-| MySQL DIV, MOD, and bitwise expression lineage | `select amount div quantity, score mod 10, flags & 4 from app.orders` | `div_mod_bit_expression` |
+| MySQL DIV, MOD, and bitwise expression lineage | `select amount div quantity, score mod 10, flags & 4 from app.orders`, `select ~flags, flags | mask from app.order_flags` | `div_mod_bit_expression`, `bitwise_unary_expression` |
+| Keyword-like production column names | `select a.type, a.group from app.accounts a where a.type = ...` | `keyword_columns_type_group` |
+| Keyword-like production table aliases | `select delete.open_id from (select ... from app.events) delete` | `reserved_keyword_subquery_alias` |
 | CREATE OR REPLACE VIEW output column targets | `create or replace view mart.v as select id as c1 from app.s` | `create_or_replace_view` |
 | CREATE TEMPORARY TABLE output column targets | `create temporary table mart.t as select id as c1 from app.s` | `create_temporary_table_as_select` |
 | UPDATE SET direct assignment mapping | `update mart.t t join app.s s ... set t.c = s.c` | `update_join` |
@@ -1062,28 +1284,45 @@ Implemented MySQL column-level lineage scenarios:
 | Multi-table UPDATE assignment mapping | `update mart.t, app.s set mart.t.c = app.s.c, app.s.flag = 1` | `update_multi_table` |
 | UPDATE SET expression dependencies | `update mart.t join app.s on ... set c1 = upper(s.c2), c3 = s.c4 + t.c5` | `update_expression_assignment` |
 | UPDATE JOIN derived query assignment dependencies | `update mart.t join (select c2 from app.s) q on ... set c1 = q.c2` | `update_join_derived_assignment` |
-| WITH before UPDATE JOIN assignment dependencies | `with q as (...) update mart.t join q on ... set c1 = q.c2` | `with_update_join` |
+| UPDATE scalar subquery assignment dependencies | `update mart.t t set t.c = coalesce((select max(s.c) from app.s s where s.id = t.id), t.c)` | `update_scalar_subquery_expression` |
+| UPDATE SET DEFAULT assignment dependencies | `update mart.t set c1 = default(c1), c2 = coalesce(c2, ...) where exists (...)` | `update_set_default_lineage` |
+| UPDATE WHERE EXISTS predicate dependencies | `update mart.t t set c = ... where exists (select 1 from app.s s where s.id = t.id)` | `update_where_exists_subquery` |
+| UPDATE ORDER BY expression usage | `update mart.t set c = c + 1 where ... order by coalesce(c1, c2) limit ...` | `update_order_by_expression_limit` |
+| WITH before UPDATE JOIN/EXISTS assignment dependencies | `with q as (...) update mart.t join q on ... set c1 = q.c2`, `with q as (...) update ... where exists (...)` | `with_update_join`, `with_update_exists_subquery` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
 | Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | CAST, function, and arithmetic expression dependencies | `select cast(id as char), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
 | Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as char)) from t` | `nested_function_projection` |
 | Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
+| Correlated scalar subquery projection dependencies | `select u.id, (select max(o.amount) from orders o where o.user_id = u.id) from users u` | `correlated_scalar_subquery_projection` |
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
+| CASE expression with EXISTS subquery dependencies | `case when exists (select 1 from orders o where o.user_id = u.id) then u.vip_score else u.base_score end` | `case_exists_subquery_projection` |
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY ordinal position compatibility | `select id as user_id from t order by 1 desc` | `order_by_position` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
+| ORDER BY WITH ROLLUP usage | `select region, sum(amount) as total_amount from t group by region order by total_amount with rollup` | `order_by_with_rollup` |
+| ORDER BY MySQL function column usage | `order by field(status, ...), coalesce(updated_at, created_at)` | `order_by_field_function_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
 | GROUP BY WITH ROLLUP aggregate dependencies | `select region, count(order_id) from t group by region with rollup` | `group_by_with_rollup` |
+| GROUP BY ROLLUP(...) aggregate dependencies | `select region, channel, sum(amount) from t group by rollup(region, channel)` | `group_by_rollup_function` |
 | GROUP BY direction and ROLLUP usages | `select region, count(order_id) from t group by region desc with rollup` | `group_by_direction_rollup` |
+| GROUP BY projection alias usage | `select lower(region) as region_key from app.orders group by region_key` | `group_by_projection_alias_usage` |
+| HAVING scalar subquery usage | `having sum(amount) > (select avg(amount) from app.archive where ...)` | `having_scalar_subquery_column_usage` |
+| HAVING EXISTS subquery usage | `group by u.region having exists (select 1 from app.region_acl a where a.region = u.region)` | `having_exists_subquery_usage` |
+| HAVING BETWEEN aggregate usage | `having sum(amount) between min_amount and max_amount` | `having_between_aggregate_usage` |
 | DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
+| GROUP_CONCAT DISTINCT dependencies | `group_concat(distinct name order by created_at desc separator ',')` | `group_concat_distinct_order_separator_lineage` |
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
 | Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_lineage` |
-| Window frame expression dependencies | `sum(v) over(partition by k order by ts rows between ... preceding and current row)` | `window_frame_rows` |
-| Named WINDOW clause expression dependencies and usages | `select sum(v) over w from t window w as (partition by k order by ts)` | `named_window_clause` |
+| Window frame expression dependencies | `sum(v) over(partition by k order by ts rows between ... preceding and current row)`, `rows unbounded preceding`, `range interval 1 day preceding`, `range between interval 7 day preceding and current row` | `window_frame_rows`, `window_frame_rows_unbounded_preceding`, `window_frame_range_interval_preceding`, `window_frame_range_interval` |
+| Window function null treatment | `first_value(amount) respect nulls over (partition by user_id order by created_at)` | `window_null_treatment_lineage` |
+| Window value direction | `nth_value(amount, 2) from last ignore nulls over (...)` | `window_nth_value_from_last_lineage` |
+| Named WINDOW clause expression dependencies and usages | `select sum(v) over w from t window w as (partition by k order by ts)`, `window w2 as (w1 order by ts)` | `named_window_clause`, `named_window_inheritance` |
 | Backquoted non-ASCII column identifiers | `` select `用户ID` as `用户标识` from `业务库`.`用户表` `` | `backquoted_identifiers` |
 | EXPLAIN wrapped SELECT output columns | `explain select id as user_id from app.users` | `explain_select` |
 | EXPLAIN FORMAT/ANALYZE output columns | `explain format=json select id as user_id ...` | `explain_format_json_select`, `explain_analyze_select` |
 | SELECT INTO OUTFILE/DUMPFILE output columns | `select id, name into outfile '...' from app.users` | `select_into_outfile`, `select_into_dumpfile`, `select_into_outfile_tail` |
+| SELECT INTO variable forms | `select id into @v from app.users`, `select id from app.users into @v` | `select_into_variables`, `select_into_local_variables`, `select_into_variables_tail` |
 | User-variable assignment expression lineage | `select @v := id as v from app.users` | `select_user_variable_assignment` |
 
 Implemented MySQL clause-level column usage scenarios:
@@ -1093,18 +1332,36 @@ Implemented MySQL clause-level column usage scenarios:
 | WHERE, GROUP BY, HAVING, and ORDER BY source columns | `select u.id, count(o.id) from users u join orders o where ... group by u.id having ... order by ...` | `clause_column_usage` |
 | MySQL SELECT option predicate columns | `select high_priority ... from users where ...` | `select_with_mysql_options` |
 | NATURAL JOIN predicate columns | `select ... from users natural join orders where users.status = ...` | `natural_join_projection` |
+| CROSS JOIN predicate columns | `select ... from users cross join regions where users.region_id = regions.id` | `cross_join_projection` |
 | STRAIGHT_JOIN predicate columns | `select ... from users u straight_join orders o on ... where ...` | `select_straight_join` |
-| Index hint predicate columns | `select ... from users u force index (...) where ...` | `select_force_index` |
-| SELECT locking clause predicate columns | `select ... from users where ... for update` | `select_for_update`, `select_lock_in_share_mode` |
+| Index hint predicate and ordering columns | `select ... from users u force index (...) where ...`, `ignore key for order by (...) order by ...` | `select_force_index`, `select_ignore_key_for_order_by` |
+| SELECT locking clause predicate columns | `select ... from users where ... for update/for share/lock in share mode`, `for update of alias nowait` | `select_for_update`, `select_for_update_nowait`, `select_for_update_of_alias_nowait`, `select_for_share_skip_locked`, `select_lock_in_share_mode` |
 | MySQL regex predicate columns | `where name regexp '^A' and phone rlike '...'` | `regexp_predicate_column_usage` |
+| MySQL pattern and phonetic predicate columns | `where name like 'A\\_%' escape '\\'`, `where name sounds like 'Jon'` | `like_escape_predicate`, `sounds_like_predicate` |
+| MySQL negative pattern predicates | `where name not like ... and email not regexp ... and phone not rlike ...` | `not_like_not_regexp_usage` |
+| MySQL boolean truth predicates | `where a = 1 xor b = 1`, `where (score > 0) is unknown`, `where a && !b` | `xor_predicate_column_usage`, `is_unknown_predicate`, `logical_and_operator_column_usage` |
+| MySQL parameter marker predicates | `where id = ? and status = ?` | `parameter_marker_predicate` |
+| MySQL typed datetime literal predicates | `where ts >= timestamp '...' and ds = date '...'` | `typed_datetime_literals` |
+| MySQL ODBC temporal literal predicates | `where ds >= {d '2026-01-01'} and ts < {ts '2026-01-02 00:00:00'}` | `odbc_temporal_literals` |
+| MySQL charset string literal predicates | `where name = _utf8mb4'...' and nickname = N'...'` | `charset_string_literals` |
+| MySQL hex, bit, decimal, and exponent literals | `select x'0A', 0xFF, b'1010', 0b1011`, `where score >= .5e1 and ratio < 10.` | `hex_bit_literals`, `exponent_numeric_literals` |
+| MySQL current date/time function literals | `select current_date, current_timestamp, utc_timestamp from ...`, `select current_date(), utc_timestamp() from ...` | `current_time_function_literals`, `current_time_function_parentheses` |
+| Backquoted current-time keyword columns | `` select `current_date` from app.orders `` | `backquoted_current_time_column` |
+| MySQL quantified subquery predicates | `where amount > all (select limit_amount from region_limits where ...)` | `quantified_subquery_predicate` |
+| MySQL ANY/SOME quantified subquery predicates | `where amount = any (select ...) and status <> some (select ...)` | `quantified_any_some_subquery_predicate` |
+| MySQL correlated scalar subquery predicates | `select ... (select max(o.amount) from orders o where o.user_id = u.id) ...` | `correlated_scalar_subquery_projection` |
+| MySQL EXISTS predicates in DML, CTE-DML, and HAVING | `insert/update/delete ... where exists (...)`, `with q as (...) update/delete ... where exists (...)`, `having exists (...)` | `insert_select_exists_subquery`, `update_where_exists_subquery`, `delete_where_exists_subquery`, `with_insert_exists_subquery`, `with_update_exists_subquery`, `with_delete_exists_subquery`, `having_exists_subquery_usage` |
+| MySQL BETWEEN and NOT IN predicates | `where amount between min_amount and max_amount and region not in (select ...)` | `between_not_in_subquery_usage` |
+| MySQL tuple IN subquery predicates | `where (c1, c2) in (select x, y from ...)` | `tuple_in_subquery_column_usage` |
 | MySQL null-safe equality predicate columns | `on a.id <=> b.id where a.c <=> b.c` | `null_safe_equal_predicate` |
 | Bang logical NOT predicate columns | `where !(status = ... or name like ...)` | `bang_logical_not_predicate` |
 | MySQL boolean predicate columns | `where is_active is true and deleted is not false` | `is_true_false_predicate` |
 | MySQL JSON and COLLATE predicate columns | `where payload->>'$.type' = ...`, `where name collate ... = ...` | `json_extract_expression`, `binary_collate_expression` |
 | UPDATE JOIN and WHERE source columns | `update users u join orders o on ... set ... where ...` | `dml_predicate_column_usage` |
 | Multi-table UPDATE WHERE source columns | `update users u, orders o set ... where u.id = o.user_id` | `update_multi_table` |
+| DELETE ORDER BY expression usage | `delete from mart.t where ... order by coalesce(c1, c2) limit ...` | `delete_order_by_expression_limit` |
 | Self-join aliases | `select e.id, m.name from employees e left join employees m on e.manager_id = m.id` | `self_join_column_usage` |
-| JOIN USING source columns | `select u.id from users u join orders o using (id)` | `join_using_column_usage` |
+| JOIN USING source columns | `select u.id from users u join orders o using (id)`, `right join ... using (id)` | `join_using_column_usage`, `right_join_using_column_usage` |
 | Chained JOIN USING source columns | `select u.id from users u join orders o using (id) join payments p using (id)` | `join_using_multi_table_scope` |
 | JOIN USING scoped inside comma-separated relations | `select b.id from audit a, users b join orders o using (id)` | `join_using_comma_scope` |
 | JOIN USING over CTE references | `with u as (...), o as (...) select ... from u join o using (id)` | `join_using_derived_scope` |
@@ -1114,13 +1371,16 @@ Implemented MySQL clause-level column usage scenarios:
 | UNION branch WHERE source columns | `select id from app.s1 where ... union all select id from app.s2 where ...` | `set_operation_clause_column_usage` |
 | INSERT/REPLACE query ORDER BY source columns | `insert/replace into mart.t select ... from app.s order by ...` | `insert_select_order_limit`, `replace_select_order_limit` |
 | DELETE derived JOIN predicate columns | `delete t from mart.t t join (select id from app.s) q on t.id = q.id` | `delete_join_derived` |
-| Multi-table DELETE predicate columns | `delete t1, t2 from mart.t1 join app.t2 on ... where ...` | `delete_multi_table` |
-| WITH before DELETE JOIN predicate columns | `with q as (...) delete t from mart.t t join q on t.id = q.id` | `with_delete_join` |
-| EXISTS subquery predicate column usage | `where exists (select 1 from app.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
+| Multi-table DELETE predicate columns | `delete t1, t2 from mart.t1 join app.t2 on ... where ...`, `delete t1.*, t2.* from ...` | `delete_multi_table`, `delete_multi_table_star_targets` |
+| WITH before DELETE JOIN/EXISTS predicate columns | `with q as (...) delete t from mart.t t join q on t.id = q.id`, `with q as (...) delete ... where exists (...)` | `with_delete_join`, `with_delete_exists_subquery` |
+| EXISTS subquery predicate column usage | `where exists (select 1 from app.orders o where o.user_id = u.id)`, `where not exists (...)` | `exists_subquery_column_usage`, `not_exists_subquery_column_usage` |
+| CASE/EXISTS nested predicate dependencies | `case when exists (select 1 from app.orders o where o.user_id = u.id) then ... end` | `case_exists_subquery_projection` |
 | DELETE WHERE subquery predicate columns | `delete from ads.t where user_id in (select id from ods.s)` | `delete_with_subquery` |
 | EXPLAIN wrapped SELECT predicate columns | `explain select ... from app.s where ...` | `explain_select` |
 | EXPLAIN FORMAT/ANALYZE predicate columns | `explain analyze select ... from app.s where ...` | `explain_format_json_select`, `explain_analyze_select` |
-| SELECT INTO OUTFILE/DUMPFILE predicate columns | `select ... into outfile '...' from app.users where ...` | `select_into_outfile`, `select_into_dumpfile`, `select_into_outfile_tail` |
+| SELECT INTO OUTFILE/DUMPFILE predicate columns | `select ... into outfile '...' from app.users where ...`, `select ... into outfile ... columns terminated by ...` | `select_into_outfile`, `select_into_dumpfile`, `select_into_outfile_tail`, `select_into_outfile_columns_options` |
+| JSON_TABLE extracted column propagation | `json_table(u.payload, '$.items[*]' columns (sku ... path '$.sku', nested path ..., exists path ...)) jt` | `json_table_projection`, `json_table_nested_columns`, `json_table_exists_default_columns` |
+| JSON MEMBER OF predicate columns | `where user_id member of(payload->'$.ids')` | `json_member_of_predicate` |
 
 Current MySQL diagnostics:
 
@@ -1135,9 +1395,9 @@ Known MySQL gaps:
 | Gap | Current behavior |
 | --- | --- |
 | Full MySQL grammar | The parser uses ANTLR tokenization plus a lineage walker; full parser grammar will be expanded incrementally. |
-| `select *` expansion | Not expanded without schema metadata. |
+| `select *` expansion | Schema-free table stars are represented as wildcard lineage such as `app.users.*`; known derived-table stars can expand to their projected source columns. |
 | Ambiguous plain SQL dialect detection | Explicit MySQL features are auto-detected; dialect-neutral `SELECT` remains default-detected by the current detector. |
-| Complex expressions and subqueries | Direct projections, common expressions, joins, UNION, CTAS/view/insert mappings, single-level subquery propagation, and single CTE propagation are covered; nested query propagation is still limited. |
+| Complex expressions and subqueries | Direct projections, common expressions, joins, UNION, CTAS/view/insert mappings, scalar subqueries, chained CTE propagation, and common recursive CTE base propagation are covered; deeply nested correlation remains limited. |
 | DML column lineage | `UPDATE SET`, `UPDATE JOIN`, duplicate-key update assignments, and `DELETE USING` predicate usages are covered; richer MySQL DML forms are still expanding. |
 
 ## Spark

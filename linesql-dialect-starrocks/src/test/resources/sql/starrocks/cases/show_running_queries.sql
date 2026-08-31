@@ -1,0 +1,1 @@
+show running queries;

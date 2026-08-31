@@ -131,17 +131,17 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
 | --- | --- | --- | --- | --- | --- |
-| Statement dispatch | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
+| Statement dispatch | COVERED | COVERED | PARTIAL | PARTIAL | P0 |
 | Query core | PARTIAL | COVERED | COVERED | COVERED | P0 |
-| CTE | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| CTE | PARTIAL | COVERED | COVERED | COVERED | P1 |
 | Relation and aliases | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Join | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Set operation | PARTIAL | COVERED | COVERED | COVERED | P1 |
-| Expression | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
-| Predicate subquery | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
+| Expression | PARTIAL | COVERED | COVERED | COVERED | P0 |
+| Predicate subquery | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Aggregation | PARTIAL | COVERED | COVERED | COVERED | P1 |
 | Window | PARTIAL | COVERED | COVERED | COVERED | P1 |
-| Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
+| Insert | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Update | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
 | Delete | PARTIAL | COVERED | N/A | PARTIAL | P0 |
 | Merge | N/A | N/A | N/A | N/A | N/A |
@@ -222,12 +222,12 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P1 |
-| Merge | PARTIAL | COVERED | PARTIAL | PARTIAL | P2 |
+| Merge | PARTIAL | COVERED | PARTIAL | COVERED | P2 |
 | Create table | PARTIAL | COVERED | N/A | N/A | P1 |
-| CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
-| Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
-| Schema and routine DDL | PLANNED | PLANNED | N/A | N/A | P1 |
-| Control statements | PLANNED | PLANNED | N/A | N/A | P1 |
+| CTAS | PARTIAL | COVERED | COVERED | COVERED | P1 |
+| Create view | PARTIAL | COVERED | COVERED | COVERED | P1 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | Flink extensions | PARTIAL | COVERED | N/A | N/A | P1 |
 
