@@ -1,0 +1,1 @@
+DROP MATERIALIZED TABLE IF EXISTS ads.mt_order_amounts

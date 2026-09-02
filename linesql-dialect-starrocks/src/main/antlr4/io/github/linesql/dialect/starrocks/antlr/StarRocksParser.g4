@@ -3,7 +3,7 @@ parser grammar StarRocksParser;
 options { tokenVocab = StarRocksLineageLexer; }
 
 singleStatement
-    : statement SEMI? EOF
+    : statement SEMI? VERTICAL_OUTPUT? EOF
     ;
 
 statement
@@ -24,6 +24,7 @@ statement
     | alterSystemStatement                                           #alterSystemStmt
     | cancelDecommissionStatement                                    #cancelDecommissionStmt
     | backendBlacklistStatement                                      #backendBlacklistStmt
+    | sqlBlacklistStatement                                          #sqlBlacklistStmt
     | syncStatement                                                  #syncStmt
     | createRoutineLoadStatement                                     #createRoutineLoadStmt
     | alterRoutineLoadStatement                                      #alterRoutineLoadStmt
@@ -42,6 +43,7 @@ statement
     | killStatement                                                  #killStmt
     | accountControlStatement                                        #accountControlStmt
     | backupStatement                                                #backupStmt
+    | recoverStatement                                               #recoverStmt
     | restoreStatement                                               #restoreStmt
     | repositoryStatement                                            #repositoryStmt
     | fileStatement                                                  #fileStmt
@@ -55,6 +57,7 @@ statement
     | refreshDictionaryStatement                                     #refreshDictionaryStmt
     | cancelRefreshDictionaryStatement                               #cancelRefreshDictionaryStmt
     | dropDictionaryStatement                                        #dropDictionaryStmt
+    | mergeStatement                                                 #mergeStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
     | createIndexStatement                                           #createIndexStmt
@@ -376,7 +379,15 @@ explainStatement
     ;
 
 submitTaskStatement
-    : SUBMIT TASK identifier? AS (insertStatement | createTableStatement | query)
+    : SUBMIT TASK identifier? taskScheduleClause? propertiesClause? AS (insertStatement | createTableStatement | cacheSelectStatement | query)
+    ;
+
+taskScheduleClause
+    : SCHEDULE (START LPAREN expression RPAREN)? EVERY LPAREN intervalLiteralValue RPAREN
+    ;
+
+cacheSelectStatement
+    : CACHE query
     ;
 
 alterTaskStatement
@@ -499,17 +510,42 @@ killStatement
     ;
 
 catalogStatement
-    : CREATE EXTERNAL CATALOG (IF NOT EXISTS)? identifier propertiesClause?
+    : CREATE EXTERNAL CATALOG (IF NOT EXISTS)? identifier (COMMENT string)? propertiesClause?
     | DROP CATALOG (IF EXISTS)? identifier
     ;
 
 backupStatement
-    : BACKUP (ALL EXTERNAL CATALOGS | EXTERNAL CATALOGS? LPAREN identifierList RPAREN)?
-      (DATABASE identifier)? SNAPSHOT multipartIdentifier TO identifier backupOnClause? propertiesClause?
+    : BACKUP (ALL EXTERNAL CATALOGS | EXTERNAL (CATALOG | CATALOGS) LPAREN identifierList RPAREN)?
+      (DATABASE database=identifier)? SNAPSHOT snapshot=multipartIdentifier TO repository=identifier backupOnClause? propertiesClause?
+    ;
+
+recoverStatement
+    : RECOVER DATABASE identifier
+    | RECOVER TABLE multipartIdentifier
+    | RECOVER PARTITION identifier FROM multipartIdentifier
     ;
 
 restoreStatement
-    : RESTORE (DATABASE identifier)? SNAPSHOT multipartIdentifier FROM identifier backupOnClause? propertiesClause?
+    : RESTORE restoreLegacyDatabaseClause? SNAPSHOT snapshot=multipartIdentifier FROM repository=identifier
+      restoreExternalCatalogClause? restoreDatabaseClause? backupOnClause? propertiesClause?
+    ;
+
+restoreLegacyDatabaseClause
+    : DATABASE identifier
+    ;
+
+restoreDatabaseClause
+    : DATABASE source=identifier (AS target=identifier)?
+    ;
+
+restoreExternalCatalogClause
+    : ALL EXTERNAL CATALOGS
+    | EXTERNAL (CATALOG | CATALOGS) restoreExternalCatalogObject
+      (COMMA EXTERNAL (CATALOG | CATALOGS) restoreExternalCatalogObject)*
+    ;
+
+restoreExternalCatalogObject
+    : identifier backupObjectAlias?
     ;
 
 backupOnClause
@@ -518,13 +554,17 @@ backupOnClause
 
 backupObject
     : ALL TABLES
-    | (TABLE | TABLES)? multipartIdentifier partitionClause?
+    | (TABLE | TABLES)? multipartIdentifier partitionClause? backupObjectAlias?
     | ALL MATERIALIZED VIEWS
-    | MATERIALIZED (VIEW | VIEWS) multipartIdentifier
+    | MATERIALIZED (VIEW | VIEWS) multipartIdentifier backupObjectAlias?
     | ALL VIEWS
-    | (VIEW | VIEWS) multipartIdentifier
+    | (VIEW | VIEWS) multipartIdentifier backupObjectAlias?
     | ALL FUNCTIONS
-    | (FUNCTION | FUNCTIONS) multipartIdentifier
+    | (FUNCTION | FUNCTIONS) multipartIdentifier backupObjectAlias?
+    ;
+
+backupObjectAlias
+    : AS identifier
     ;
 
 repositoryStatement
@@ -554,9 +594,14 @@ storageVolumeOption
     ;
 
 resourceStatement
-    : CREATE EXTERNAL? RESOURCE (IF NOT EXISTS)? identifier propertiesClause?
-    | ALTER RESOURCE identifier SET propertiesClause
-    | DROP RESOURCE (IF EXISTS)? identifier
+    : CREATE EXTERNAL? RESOURCE (IF NOT EXISTS)? resourceIdentifier propertiesClause?
+    | ALTER RESOURCE resourceIdentifier SET propertiesClause
+    | DROP RESOURCE (IF EXISTS)? resourceIdentifier
+    ;
+
+resourceIdentifier
+    : identifier
+    | string
     ;
 
 resourceGroupStatement
@@ -579,8 +624,12 @@ fileStatement
     ;
 
 createFunctionStatement
-    : CREATE (OR REPLACE)? GLOBAL? FUNCTION multipartIdentifier LPAREN (functionParameterList | dataTypeList)? RPAREN
-      RETURNS (dataType propertiesClause? | expression)
+    : CREATE (OR REPLACE)? GLOBAL? (AGGREGATE | TABLE)? FUNCTION multipartIdentifier LPAREN (functionParameterList | dataTypeList)? RPAREN
+      RETURNS functionReturnTail
+    ;
+
+functionReturnTail
+    : ~SEMI+
     ;
 
 dropFunctionStatement
@@ -642,8 +691,19 @@ adminSetPartitionVersionStatement
 
 loadLabelStatement
     : LOAD LABEL label=multipartIdentifier LPAREN loadDataElement (COMMA loadDataElement)* RPAREN
-      (WITH BROKER identifier? (LPAREN propertyList RPAREN)?)?
+      ((WITH BROKER brokerName? (LPAREN propertyList RPAREN)?)
+      | (WITH RESOURCE resourceName (LPAREN propertyList RPAREN)?))?
       propertiesClause?
+    ;
+
+brokerName
+    : identifier
+    | string
+    ;
+
+resourceName
+    : identifier
+    | string
     ;
 
 alterLoadStatement
@@ -670,12 +730,18 @@ backendBlacklistStatement
     : (ADD | DELETE) (BACKEND | COMPUTE NODE) BLACKLIST numberList
     ;
 
+sqlBlacklistStatement
+    : ADD SQLBLACKLIST string
+    | DELETE SQLBLACKLIST numberList
+    ;
+
 syncStatement
     : SYNC
     ;
 
 loadDataElement
     : DATA INFILE LPAREN string (COMMA string)* RPAREN NEGATIVE? INTO TABLE target=multipartIdentifier loadDataOption*
+    | DATA FROM TABLE source=multipartIdentifier NEGATIVE? INTO TABLE target=multipartIdentifier loadDataOption*
     ;
 
 loadDataOption
@@ -712,6 +778,31 @@ deleteStatement
     : ctes? DELETE FROM multipartIdentifier partitionClause? tableAlias
       (USING relationList)?
       whereClause?
+    ;
+
+mergeStatement
+    : ctes? MERGE INTO multipartIdentifier tableAlias
+      USING (multipartIdentifier tableAlias | LPAREN query RPAREN tableAlias)
+      ON expression
+      mergeClause+
+    ;
+
+mergeClause
+    : WHEN MATCHED mergeCondition? THEN mergeMatchedAction
+    | WHEN NOT MATCHED mergeCondition? THEN mergeNotMatchedAction
+    ;
+
+mergeCondition
+    : AND expression
+    ;
+
+mergeMatchedAction
+    : UPDATE SET assignmentList
+    | DELETE
+    ;
+
+mergeNotMatchedAction
+    : INSERT (LPAREN identifierList RPAREN)? VALUES LPAREN expressionList RPAREN
     ;
 
 assignmentList
@@ -805,7 +896,7 @@ dropIndexStatement
     ;
 
 dropDatabaseStatement
-    : DROP DATABASE (IF EXISTS)? identifier
+    : DROP DATABASE (IF EXISTS)? identifier FORCE?
     ;
 
 alterDatabaseStatement
@@ -816,11 +907,11 @@ alterDatabaseAction
     : RENAME identifier
     | SET DATA QUOTA number identifier?
     | SET REPLICA QUOTA number
-    | SET propertiesClause
+    | SET (propertiesClause | LPAREN propertyList RPAREN)
     ;
 
 dropTableStatement
-    : DROP TABLE (IF EXISTS)? multipartIdentifier
+    : DROP TEMPORARY? TABLE (IF EXISTS)? multipartIdentifier FORCE?
     ;
 
 dropViewStatement
@@ -857,7 +948,7 @@ alterMaterializedViewStatement
 alterMaterializedViewAction
     : RENAME (TO | AS)? multipartIdentifier
     | SWAP WITH multipartIdentifier
-    | SET propertiesClause
+    | SET (propertiesClause | LPAREN propertyList RPAREN)
     | (ACTIVE | INACTIVE)
     | REFRESH (SYNC | ASYNC | MANUAL)? (SCHEDULE? refreshSchedule)?
     | identifier .+?
@@ -867,12 +958,12 @@ alterMaterializedViewAction
 alterTableStatement
     : ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier     #alterTableRename
     | ALTER TABLE multipartIdentifier SWAP WITH TABLE multipartIdentifier        #alterTableSwap
-    | ALTER TABLE multipartIdentifier ADD COLUMN? identifier dataType generatedColumn? aggregateType? columnConstraint* columnPosition? rollupTarget? propertiesClause?  #alterTableAddColumn
-    | ALTER TABLE multipartIdentifier alterTableAction               #alterTableOther
+    | ALTER TABLE multipartIdentifier alterTableAction (COMMA alterTableAction)* #alterTableOther
     ;
 
 alterTableAction
-    : DROP COLUMN (IF EXISTS)? identifier rollupSource?
+    : ADD COLUMN? identifier dataType generatedColumn? aggregateType? columnConstraint* columnPosition? rollupTarget? propertiesClause?
+    | DROP COLUMN (IF EXISTS)? identifier rollupSource?
     | ADD COLUMNS? LPAREN tableElementList RPAREN rollupTarget? propertiesClause?
     | ADD COLUMN? LPAREN tableElementList RPAREN rollupTarget? propertiesClause?
     | MODIFY COLUMN? identifier dataType? generatedColumn? aggregateType? columnConstraint* columnPosition? rollupSource? propertiesClause?
@@ -948,20 +1039,25 @@ showStatement
     | SHOW CREATE DATABASE identifier
     | SHOW CREATE MATERIALIZED? VIEW multipartIdentifier
     | SHOW CREATE CATALOG identifier
-    | SHOW CATALOGS queryOrganization
+    | SHOW CATALOGS (LIKE string)? queryOrganization
     | SHOW DATABASES (FROM identifier)?
     | SHOW DATA (FROM multipartIdentifier)?
     | SHOW FILE (FROM identifier)?
     | SHOW DELETE (FROM identifier)?
     | SHOW DYNAMIC PARTITION TABLES FROM identifier
-    | SHOW ALTER MATERIALIZED VIEW (FROM identifier)?
+    | SHOW ALTER MATERIALIZED VIEW ((FROM | IN) identifier)?
     | SHOW ALTER TABLE (COLUMN | OPTIMIZE | ROLLUP) (FROM identifier)? whereClause? queryOrganization
-    | SHOW MATERIALIZED VIEWS (FROM identifier)? (whereClause | LIKE string)?
+    | SHOW MATERIALIZED (VIEW | VIEWS) (FROM identifier)? (whereClause | LIKE string)?
     | SHOW DICTIONARY multipartIdentifier?
-    | SHOW FULL COLUMNS FROM multipartIdentifier
+    | SHOW FULL? COLUMNS FROM multipartIdentifier (FROM identifier)?
+    | SHOW (INDEX | INDEXES | KEY | KEYS) FROM multipartIdentifier (FROM identifier)?
     | SHOW FULL? (TABLES | VIEWS) ((FROM | IN) qualifiedName)? (LIKE string | whereClause)?
+    | SHOW GRANTS
     | SHOW GRANTS .+?
+    | SHOW ROLES
     | SHOW USERS
+    | SHOW ALL? AUTHENTICATION (FOR (identifier | string))?
+    | SHOW PROPERTY (FOR (identifier | string))? (LIKE string)?
     | SHOW (BACKUP | RESTORE) (FROM identifier)?
     | SHOW REPOSITORIES
     | SHOW SNAPSHOT ON identifier whereClause?
@@ -981,9 +1077,11 @@ showStatement
     | SHOW FULL? PROCESSLIST
     | SHOW (BACKENDS | FRONTENDS | BROKER | RUNNING QUERIES | COMPUTE NODES)
     | SHOW (BACKEND | COMPUTE NODE) BLACKLIST
+    | SHOW SQLBLACKLIST
     | SHOW RESOURCE GROUPS ALL?
     | SHOW RESOURCE GROUP identifier
     | SHOW USAGE RESOURCE GROUPS
+    | SHOW STORAGE VOLUMES (LIKE string)?
     | SHOW RESOURCES whereClause? queryOrganization
     | SHOW PIPES (FROM identifier)? whereClause? queryOrganization
     | SHOW TEMPORARY? PARTITIONS FROM multipartIdentifier whereClause? queryOrganization
@@ -1020,6 +1118,17 @@ accountControlStatement
     | CREATE ROLE .+?
     | DROP ROLE .+?
     | SET ROLE .+?
+    | SET DEFAULT ROLE .+? TO .+?
+    | SET PASSWORD .+?
+    | EXECUTE AS .+? WITH NO REVERT
+    | GRANT .+? ON TABLE multipartIdentifier .+?
+    | REVOKE .+? ON TABLE multipartIdentifier .+?
+    | GRANT .+? ON VIEW multipartIdentifier .+?
+    | REVOKE .+? ON VIEW multipartIdentifier .+?
+    | GRANT .+? ON MATERIALIZED VIEW multipartIdentifier .+?
+    | REVOKE .+? ON MATERIALIZED VIEW multipartIdentifier .+?
+    | GRANT .+? ON multipartIdentifier .+?
+    | REVOKE .+? ON multipartIdentifier .+?
     | GRANT .+?
     | REVOKE .+?
     ;
@@ -1282,14 +1391,14 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ACTIVE | ADD | ADMIN | AFTER | AGGREGATE | ANALYZE | ASC | AUTO_INCREMENT | BACKEND | BACKUP | BASE | BEGIN | BLACKLIST | BUCKETS | BUILD | BUILTIN | CACHE | CANCEL | CAST | CHECK | COLUMN | COLUMNS | COMMENT | COMMIT | COMPUTE | CONFIG | CUMULATIVE | DATABASES | DEALLOCATE | DECOMMISSION | DEFAULT
+    : ACTIVE | ADD | ADMIN | AFTER | AGGREGATE | ANALYZE | ASC | AUTHENTICATION | AUTO_INCREMENT | BACKEND | BACKUP | BASE | BEGIN | BLACKLIST | BUCKETS | BUILD | BUILTIN | CACHE | CANCEL | CAST | CHECK | COLUMN | COLUMNS | COMMENT | COMMIT | COMPUTE | CONFIG | CUMULATIVE | DATABASES | DEALLOCATE | DECOMMISSION | DEFAULT
     | ANTI | ANY | ASOF | BRANCH | BROKER | CONNECTION | COSTS | CURRENT | DATA | DATABASE | DAYS | DESCRIBE | DESC | DICTIONARY | DISTRIBUTED | DISTRIBUTION | DROP | DUPLICATE | DYNAMIC | END | ENGINE | ESCAPE | EXISTS | EXCLUDE | EXPLAIN | EXPORT | EXTERNAL | FALSE | FOLLOWER
     | DEFERRED | EXECUTE | FIELD | FILTER | FUNCTIONS | GRANT | GRANTS | GROUPS | IMMEDIATE | INACTIVE
-    | ASYNC | BACKENDS | BITMAP_UNION | CUBE | EVERY | FIRST | FOLLOWING | FOR | FORCE | FORMAT | FRONTEND | FRONTENDS | FUNCTION | GLOBAL | GROUPING | HASH | HISTOGRAM | HLL_UNION | HOURS | IF | IMAGE | INDEX | INFILE | INTERVAL | JOB | KEY | KILL | LABEL | LAST | LATERAL | LESS | LIKE | LIMIT | LOAD | LOGICAL | MATERIALIZED | MINUTES
-    | INVOKER | MANUAL | MATCH | MATCH_ALL | MATCH_ANY | MAX | MERGE | META | MIN | MINUS_KW | MODE | MULTIPLE | NEGATIVE | NODE | NODES | NONE | NULL | NULLS | OBSERVER | OLAP
+    | ASYNC | BACKENDS | BITMAP_UNION | CUBE | EVERY | FIRST | FOLLOWING | FOR | FORCE | FORMAT | FRONTEND | FRONTENDS | FUNCTION | GLOBAL | GROUPING | HASH | HISTOGRAM | HLL_UNION | HOURS | IF | IMAGE | INDEX | INDEXES | INFILE | INTERVAL | JOB | KEY | KEYS | KILL | LABEL | LAST | LATERAL | LESS | LIKE | LIMIT | LOAD | LOGICAL | MATERIALIZED | MINUTES
+    | INVOKER | MANUAL | MATCH | MATCH_ALL | MATCH_ANY | MATCHED | MAX | MERGE | META | MIN | MINUS_KW | MODE | MULTIPLE | NEGATIVE | NODE | NODES | NONE | NULL | NULLS | OBSERVER | OLAP
     | OF | OFFSET | ONLY | OPTIMIZE | OUTFILE | OVER | OVERWRITE | PARTITION | PARTITIONS | PAUSE | PREPARE | PRIMARY | PROPERTIES | QUALIFY | QUOTA
-    | NAME | PATH | PRECEDING | PROC | PROCESSLIST | QUERIES | QUERY | RANDOM | RANGE | READ | RECURSIVE | REFRESH | REGEXP | RENAME | REPAIR | REPLACE | REPLACE_IF_NOT_NULL | REPLICA | REPOSITORIES | REPOSITORY | RESUME | RESTORE | RETURNS | REVOKE | RLIKE | ROLLBACK | ROLE | ROLLUP | ROUTINE | ROW | ROWS | RUNNING | SAMPLE | SCHEDULE | SECURITY | SEMI_JOIN | SESSION | SETS | SHOW | SNAPSHOT | SOME | START | STATUS | STATS | STOP | STORED | SUBMIT | SUM | SWAP | SYNC | SYSTEM | TABLE | TABLES | TASK | TRANSACTION | UNBOUNDED | USER | USERS | VARIABLES | VIEWS
-    | CATALOG | CATALOGS | FILE | FILES | PIPE | PIPES | PIVOT | PROPERTY | RETRY | SUSPEND | SUSPENDED
+    | NAME | PATH | PRECEDING | PROC | PROCESSLIST | QUERIES | QUERY | RANDOM | RANGE | READ | RECURSIVE | REFRESH | REGEXP | RENAME | REPAIR | REPLACE | REPLACE_IF_NOT_NULL | REPLICA | REPOSITORIES | REPOSITORY | RESUME | RESTORE | RETURNS | REVOKE | RLIKE | ROLLBACK | ROLE | ROLES | ROLLUP | ROUTINE | ROW | ROWS | RUNNING | SAMPLE | SCHEDULE | SECURITY | SEMI_JOIN | SESSION | SETS | SHOW | SNAPSHOT | SOME | SQLBLACKLIST | START | STATUS | STATS | STOP | STORED | SUBMIT | SUM | SWAP | SYNC | SYSTEM | TABLE | TABLES | TASK | TRANSACTION | UNBOUNDED | USER | USERS | VARIABLES | VIEWS
+    | CATALOG | CATALOGS | FILE | FILES | PIPE | PIPES | PIVOT | PROPERTY | RETRY | SUSPEND | SUSPENDED | VOLUMES
     | RETAIN | SPLIT | STRUCT | TABLET | TAG | TEMPORARY | TERMINATED | THAN | TIMESTAMP | TO | TRUE | TRUNCATE | UNIQUE | USAGE | VALUE | VALUES | VERSION | VERBOSE | VIEW
     ;
 

@@ -1,0 +1,1 @@
+ALTER TABLE ods.raw_orders DROP IF EXISTS PARTITION (dt = '2026-09-01')

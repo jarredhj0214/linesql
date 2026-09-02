@@ -1,0 +1,1 @@
+SHOW CREATE MATERIALIZED TABLE dwd.mv_orders

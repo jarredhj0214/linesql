@@ -27,6 +27,7 @@ public class SimpleDialectDetector implements DialectDetector {
     @Override
     public List<DialectCandidate> detectCandidates(String sql) {
         boolean mysqlExecutableComment = containsMySqlExecutableComment(sql);
+        String rawNormalized = unwrapMySqlExecutableComments(sql).toLowerCase(Locale.ROOT);
         String normalized = stripComments(unwrapMySqlExecutableComments(sql)).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
         boolean sparkJsonTableSignal = hasSparkJsonTableSignal(normalized);
@@ -74,11 +75,36 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bclustered\\s+by\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.90, "Hive storage or table layout syntax"));
         }
-        if (normalized.contains("'connector'")
+        if (rawNormalized.matches("(?s).*?/\\*\\+\\s*options\\s*\\(.*")
+                || normalized.contains("'connector'")
+                || normalized.contains("'connector.type'")
                 || normalized.contains("\"connector\"")
+                || normalized.contains("\"connector.type\"")
+                || normalized.matches("(?s)^\\s*set\\s+table\\..*")
+                || normalized.matches("(?s)^\\s*set\\s+['\"]table\\..*")
+                || normalized.matches("(?s)^\\s*reset\\s+table\\..*")
+                || normalized.matches("(?s).*\\bcreate\\s+catalog\\b.*")
+                || normalized.matches("(?s).*\\buse\\s+catalog\\b.*")
+                || normalized.matches("(?s).*\\bjson_(value|query|exists|object|array|objectagg|arrayagg)\\s*\\(.*")
+                || normalized.matches("(?s).*\\bfloor\\s*\\([^;]+\\bto\\s+(minute|hour|day|month|year)\\b.*")
+                || normalized.matches("(?s).*\\bceil\\s*\\([^;]+\\bto\\s+(minute|hour|day|month|year)\\b.*")
+                || normalized.matches("(?s).*\\bextract\\s*\\([^;]+\\bfrom\\b.*")
+                || normalized.matches("(?s).*\\b(tumble|hop|session)_(start|end|rowtime|proctime)\\s*\\(.*")
+                || normalized.matches("(?s).*\\bfrom\\s+table\\s*\\(\\s*(tumble|hop|session|cumulate)\\s*\\(.*")
+                || normalized.matches("(?s).*\\bfor\\s+system_time\\s+as\\s+of\\b.*")
+                || normalized.matches("(?s).*\\bproctime\\s*\\(\\s*\\).*")
+                || normalized.matches("(?s).*\\bsplit_index\\s*\\(.*")
+                || normalized.matches("(?s).*\\bcreate\\s+(temporary\\s+)?view\\s+if\\s+not\\s+exist\\b.*")
                 || normalized.matches("(?s).*\\bwatermark\\s+for\\b.*")
+                || normalized.matches("(?s)^\\s*(compile|execute)\\s+plan\\b.*")
+                || normalized.matches("(?s)^\\s*show\\s+jobs\\b.*")
+                || normalized.matches("(?s)^\\s*(describe|desc)\\s+job\\b.*")
+                || normalized.matches("(?s)^\\s*stop\\s+job\\b.*")
+                || normalized.matches("(?s)^\\s*call\\s+`[^`]+`\\s*\\..*")
+                || normalized.matches("(?s)^\\s*create\\s+(temporary\\s+)?model\\b.*")
+                || normalized.matches("(?s)^\\s*create\\s+(or\\s+alter\\s+)?materialized\\s+table\\b.*")
                 || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
-            candidates.add(candidate(SqlDialect.FLINK, 0.93, "Flink connector or watermark syntax"));
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }
         if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\baggregate\\s+key\\b.*")

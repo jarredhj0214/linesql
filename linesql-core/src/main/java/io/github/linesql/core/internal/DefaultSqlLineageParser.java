@@ -43,8 +43,9 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     @Override
     public List<LineageResult> parseScript(String script, ParseOptions options, ParseContext context) {
         List<LineageResult> results = new ArrayList<>();
+        DialectCandidate scriptCandidate = selectScriptDialect(script, options);
         for (String statement : statementSplitter.split(script)) {
-            DialectCandidate candidate = selectDialect(statement, options);
+            DialectCandidate candidate = selectDialect(statement, options, scriptCandidate);
             LineageResult result = parseStatement(statement, candidate.getDialect(), options, context);
             applyDetection(result, candidate);
             results.add(result);
@@ -61,7 +62,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         return parser.parse(sql, options, context);
     }
 
-    private DialectCandidate selectDialect(String statement, ParseOptions options) {
+    private DialectCandidate selectDialect(String statement, ParseOptions options, DialectCandidate scriptCandidate) {
         if (!options.getDialectHints().isEmpty()) {
             return new DialectCandidate(options.getDialectHints().get(0), 1.0, "Dialect selected from parse options hint");
         }
@@ -69,9 +70,42 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             return new DialectCandidate(SqlDialect.UNKNOWN, 0.0, "Dialect detection is disabled");
         }
         List<DialectCandidate> candidates = dialectDetector.detectCandidates(statement);
-        return candidates.isEmpty()
+        DialectCandidate statementCandidate = candidates.isEmpty()
                 ? new DialectCandidate(SqlDialect.UNKNOWN, 0.0, "No dialect candidate detected")
                 : candidates.get(0);
+        if (shouldUseScriptDialect(scriptCandidate, statementCandidate)) {
+            return new DialectCandidate(
+                    scriptCandidate.getDialect(),
+                    scriptCandidate.getConfidence(),
+                    scriptCandidate.getReason() + "; inherited from script context");
+        }
+        return statementCandidate;
+    }
+
+    private DialectCandidate selectScriptDialect(String script, ParseOptions options) {
+        if (!options.getDialectHints().isEmpty() || !options.isDialectDetectionEnabled()) {
+            return null;
+        }
+        List<DialectCandidate> candidates = dialectDetector.detectCandidates(script);
+        return candidates.isEmpty() ? null : candidates.get(0);
+    }
+
+    private boolean shouldUseScriptDialect(DialectCandidate scriptCandidate, DialectCandidate statementCandidate) {
+        if (scriptCandidate == null
+                || scriptCandidate.getDialect() == statementCandidate.getDialect()
+                || scriptCandidate.getConfidence() < 0.95
+                || scriptCandidate.getConfidence() <= statementCandidate.getConfidence()
+                || !isContextOverridable(statementCandidate.getDialect())
+                || !parsers.containsKey(scriptCandidate.getDialect())) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isContextOverridable(SqlDialect dialect) {
+        return dialect == SqlDialect.SPARK
+                || dialect == SqlDialect.MYSQL
+                || dialect == SqlDialect.UNKNOWN;
     }
 
     private void applyDetection(LineageResult result, DialectCandidate candidate) {

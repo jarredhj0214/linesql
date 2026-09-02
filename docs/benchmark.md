@@ -12,16 +12,28 @@ The repository contains a case-backed regression corpus across bundled dialect m
 | --- | ---: | ---: | ---: |
 | Spark | 182 | 92 | 14 |
 | Hive | 65 | 53 | 0 |
-| Flink | 143 | 85 | 0 |
-| StarRocks | 452 | 162 | 0 |
+| Flink | 296 | 157 | 0 |
+| StarRocks | 591 | 198 | 0 |
 | MySQL | 503 | 271 | 0 |
 | Oracle | 81 | 61 | 0 |
 | SQL Server | 83 | 63 | 0 |
 | PostgreSQL | 41 | 20 | 0 |
 | OceanBase | 10 | 7 | 0 |
-| **Total** | **1560** | **814** | **14** |
+| **Total** | **1852** | **922** | **14** |
 
 These numbers describe the public regression suite, not a claim of full SQL grammar coverage.
+
+## Current Local Production Corpus Snapshot
+
+The latest local Flink corpus run uses 1,149 scripts and 3,393 split statements. It is not published as a public dataset because the raw SQL contains business identifiers, but it is useful as an internal regression signal.
+
+| Corpus | Script parse success | Script table lineage | Script column lineage | Statement parse success | Statement column lineage | Remaining table-without-column statements |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Flink production SQL sample | 99.83% | 99.56% | 99.48% | 99.94% | 59.95% | 78 `CREATE_TABLE`, 15 `DROP_VIEW` |
+
+The statement-level column-lineage rate includes control, metadata, source-only DDL, and drop statements that do not naturally emit source-to-target column edges. In the same run, `INSERT` and `CREATE_VIEW` statements with table lineage no longer appear in the no-column sample list, and the remaining parser errors are invalid standalone fragments rather than supported SQL statements.
+
+When running local benchmark helpers against in-tree changes, put module `target/classes` entries before dependency classpath entries so the benchmark does not accidentally load an older published alpha from the local Maven repository.
 
 ## What the Numbers Mean
 

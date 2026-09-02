@@ -41,6 +41,27 @@ public class SimpleDialectDetectorTest {
     public void detectsFlinkAnchors() {
         assertFirst(SqlDialect.FLINK, "create table ods_users(id bigint) with ('connector' = 'kafka')");
         assertFirst(SqlDialect.FLINK, "create table events(ts timestamp(3), watermark for ts as ts - interval '5' second)");
+        assertFirst(SqlDialect.FLINK, "compile plan '/tmp/p.json' for insert into sink select id from source");
+        assertFirst(SqlDialect.FLINK, "execute plan '/tmp/p.json'");
+        assertFirst(SqlDialect.FLINK, "show jobs");
+        assertFirst(SqlDialect.FLINK, "stop job '8e0d' with savepoint with drain");
+        assertFirst(SqlDialect.FLINK, "call `system`.generate_n(4)");
+        assertFirst(SqlDialect.FLINK, "set table.exec.sink.not-null-enforcer=drop");
+        assertFirst(SqlDialect.FLINK, "set 'table.exec.state.ttl'='30d'");
+        assertFirst(SqlDialect.FLINK, "reset table.exec.source.cdc-events-duplicate");
+        assertFirst(SqlDialect.FLINK, "create catalog myhive with ('type' = 'hive')");
+        assertFirst(SqlDialect.FLINK, "create catalog c with ('type' = 'paimon'); use catalog c; insert into sink /*+ options('sink.parallelism'='2') */ select json_value(payload, '$.id' returning string) from src");
+        assertFirst(SqlDialect.FLINK, "insert into sink /*+ options('sink.parallelism'='2') */ select id from src");
+        assertFirst(SqlDialect.FLINK, "select json_query(payload, '$.items' returning array<string>) from src");
+        assertFirst(SqlDialect.FLINK, "select floor(ts to minute), extract(epoch from ts) from src");
+        assertFirst(SqlDialect.FLINK, "select tumble_start(proc_time, interval '1' minute) from src");
+        assertFirst(SqlDialect.FLINK, "select * from table(hop(table src, descriptor(ts), interval '1' minute, interval '1' hour))");
+        assertFirst(SqlDialect.FLINK, "create table t(id int) with ('connector.type' = 'jdbc')");
+        assertFirst(SqlDialect.FLINK, "select * from src for system_time as of proctime()");
+        assertFirst(SqlDialect.FLINK, "create temporary view v as select split_index(source, '/', 1) as p from src");
+        assertFirst(SqlDialect.FLINK, "create view if not exist dwd.v as select id from ods.s");
+        assertFirst(SqlDialect.FLINK, "create model ml.m with ('provider' = 'openai')");
+        assertFirst(SqlDialect.FLINK, "create materialized table mart.t as select id from ods.s");
     }
 
     @Test
@@ -225,7 +246,7 @@ public class SimpleDialectDetectorTest {
 
         assertFalse(candidates.isEmpty());
         assertEquals(SqlDialect.FLINK, candidates.get(0).getDialect());
-        assertEquals(0.93, candidates.get(0).getConfidence(), 0.001);
+        assertEquals(0.98, candidates.get(0).getConfidence(), 0.001);
         assertTrue(candidates.get(0).getReason().contains("Flink"));
     }
 

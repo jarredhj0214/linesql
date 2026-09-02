@@ -43,6 +43,7 @@ public class FlinkDialectParser implements DialectParser {
         }
 
         FlinkLineageVisitor visitor = new FlinkLineageVisitor(result);
+        visitor.setContext(context);
         visitor.visit(statement);
         visitor.finalizeResult();
         return result;

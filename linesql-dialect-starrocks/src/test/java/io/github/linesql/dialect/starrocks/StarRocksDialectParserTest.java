@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -61,6 +62,177 @@ public class StarRocksDialectParserTest {
         LineageResult result = LineSql.parse(sqlCase("create_table_duplicate_key"));
 
         assertEquals(SqlDialect.STARROCKS, result.getDialect());
+    }
+
+    @Test
+    public void representsTableStarColumnLineageWithoutMetadata() {
+        LineageResult result = parser.parse(
+                "SELECT * FROM ods.users",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertColumnLineage(list(
+                "* <- ods.users.*"
+        ), result);
+    }
+
+    @Test
+    public void expandsAliasedSubqueryStarColumnLineage() {
+        LineageResult result = parser.parse(
+                "SELECT q.* FROM (SELECT id AS user_id, name FROM ods.users) q",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertColumnLineage(list(
+                "user_id <- ods.users.id",
+                "name <- ods.users.name"
+        ), result);
+    }
+
+    @Test
+    public void resolvesQualifiedColumnsFromDerivedSelectStar() {
+        LineageResult result = parser.parse(
+                "INSERT INTO ads.users(user_id, name) SELECT q.id, q.name FROM (SELECT * FROM ods.users) q",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertColumnLineage(list(
+                "ads.users.user_id <- ods.users.id",
+                "ads.users.name <- ods.users.name"
+        ), result);
+    }
+
+    @Test
+    public void resolvesStructFieldDereferenceFromSingleInputTable() {
+        LineageResult result = parser.parse(
+                "SELECT data_json.publish_time AS publish_time FROM ods.events",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertColumnLineage(list(
+                "publish_time <- ods.events.data_json.publish_time"
+        ), result);
+    }
+
+    @Test
+    public void infersUnaliasedSingleSourceExpressionTarget() {
+        LineageResult result = parser.parse(
+                "SELECT ifnull(workshop_code, 'N/A') FROM ods.orders",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertColumnLineage(list(
+                "workshop_code <- ods.orders.workshop_code"
+        ), result);
+    }
+
+    @Test
+    public void expandsWildcardFromPriorCreateTableSchemaInSharedContext() {
+        ParseContext context = new ParseContext();
+        parser.parse(
+                "CREATE TABLE ods.users (id bigint, name varchar(64)) DUPLICATE KEY(id)",
+                ParseOptions.defaults(),
+                context);
+        LineageResult result = parser.parse(
+                "INSERT INTO ads.users SELECT * FROM ods.users",
+                ParseOptions.defaults(),
+                context);
+
+        assertColumnLineage(list(
+                "ads.users.id <- ods.users.id",
+                "ads.users.name <- ods.users.name"
+        ), result);
+    }
+
+    @Test
+    public void propagatesCreateViewLineageInSharedContext() {
+        ParseContext context = new ParseContext();
+        parser.parse(
+                "CREATE VIEW dwd.active_users AS SELECT id AS user_id, name FROM ods.users WHERE status = 1",
+                ParseOptions.defaults(),
+                context);
+        LineageResult result = parser.parse(
+                "SELECT v.* FROM dwd.active_users v",
+                ParseOptions.defaults(),
+                context);
+
+        assertColumnLineage(list(
+                "user_id <- ods.users.id",
+                "name <- ods.users.name"
+        ), result);
+    }
+
+    @Test
+    public void parseScriptExpandsWildcardFromPriorCreateTableSchema() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TABLE ods.users (id bigint, name varchar(64)) DUPLICATE KEY(id);"
+                        + "INSERT INTO ads.users SELECT * FROM ods.users;",
+                SqlDialect.STARROCKS);
+
+        assertEquals(2, results.size());
+        assertColumnLineage(list(
+                "ads.users.id <- ods.users.id",
+                "ads.users.name <- ods.users.name"
+        ), results.get(1));
+    }
+
+    @Test
+    public void parseScriptPropagatesPriorCtasLineage() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TABLE dwd.active_users AS SELECT id AS user_id, name FROM ods.users WHERE status = 1;"
+                        + "SELECT t.* FROM dwd.active_users t;",
+                SqlDialect.STARROCKS);
+
+        assertEquals(2, results.size());
+        assertColumnLineage(list(
+                "user_id <- ods.users.id",
+                "name <- ods.users.name"
+        ), results.get(1));
+    }
+
+    @Test
+    public void parseScriptExpandsKnownQualifiedStarExclude() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TABLE ods.users (id bigint, name varchar(64), email varchar(128)) DUPLICATE KEY(id);"
+                        + "SELECT u.* EXCLUDE (email) FROM ods.users u;",
+                SqlDialect.STARROCKS);
+
+        assertEquals(2, results.size());
+        assertColumnLineage(list(
+                "id <- ods.users.id",
+                "name <- ods.users.name"
+        ), results.get(1));
+    }
+
+    @Test
+    public void parseScriptResolvesKnownTableAliasColumnList() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TABLE ods.users (id bigint, name varchar(64)) DUPLICATE KEY(id);"
+                        + "SELECT u.user_id, u.user_name FROM ods.users AS u(user_id, user_name);",
+                SqlDialect.STARROCKS);
+
+        assertEquals(2, results.size());
+        assertColumnLineage(list(
+                "user_id <- ods.users.id",
+                "user_name <- ods.users.name"
+        ), results.get(1));
+    }
+
+    @Test
+    public void appliesDefaultNamespaceFromParseContext() {
+        ParseContext context = new ParseContext();
+        context.setDefaultCatalog("iceberg");
+        context.setDefaultSchema("ods");
+
+        LineageResult result = parser.parse(
+                "SELECT user_id FROM users",
+                ParseOptions.defaults(),
+                context);
+
+        assertEquals(list("iceberg.ods.users"), tableNames(result.getInputTables()));
+        assertColumnLineage(list(
+                "user_id <- iceberg.ods.users.user_id"
+        ), result);
     }
 
     private static String sqlCase(String caseId) throws IOException {
@@ -116,6 +288,15 @@ public class StarRocksDialectParserTest {
         }
     }
 
+    private static void assertColumnLineage(List<String> expected, LineageResult result) {
+        List<String> actual = result.getColumnLineage().stream()
+                .map(lineage -> columnName(lineage.getTarget()) + " <- " + lineage.getSources().stream()
+                        .map(StarRocksDialectParserTest::columnName)
+                        .collect(Collectors.joining(", ")))
+                .collect(Collectors.toList());
+        assertEquals(expected, actual);
+    }
+
     private static void assertColumnUsages(String caseId, JsonNode expectedNode, LineageResult result) {
         List<String> expected = new ArrayList<>();
         expectedNode.forEach(node -> expected.add(node.get("type").asText() + ":" + node.get("column").asText()));
@@ -152,5 +333,11 @@ public class StarRocksDialectParserTest {
             return column.getName();
         }
         return tableName(column.getTable()) + "." + column.getName();
+    }
+
+    private static List<String> list(String... values) {
+        List<String> result = new ArrayList<>();
+        Collections.addAll(result, values);
+        return result;
     }
 }

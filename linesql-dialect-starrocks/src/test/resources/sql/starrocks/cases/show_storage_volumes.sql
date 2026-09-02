@@ -1,0 +1,1 @@
+show storage volumes;

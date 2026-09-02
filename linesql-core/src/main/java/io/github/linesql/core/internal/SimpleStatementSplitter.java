@@ -13,11 +13,21 @@ public class SimpleStatementSplitter implements StatementSplitter {
         char quote = 0;
         boolean lineComment = false;
         boolean blockComment = false;
+        boolean dollarQuote = false;
 
         for (int i = 0; i < script.length(); i++) {
             char c = script.charAt(i);
             char next = i + 1 < script.length() ? script.charAt(i + 1) : 0;
 
+            if (dollarQuote) {
+                current.append(c);
+                if (c == '$' && next == '$') {
+                    current.append(next);
+                    i++;
+                    dollarQuote = false;
+                }
+                continue;
+            }
             if (lineComment) {
                 current.append(c);
                 if (c == '\n' || c == '\r') {
@@ -44,6 +54,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 current.append(c).append(next);
                 i++;
                 blockComment = true;
+                continue;
+            }
+            if (quote == 0 && c == '$' && next == '$') {
+                current.append(c).append(next);
+                i++;
+                dollarQuote = true;
                 continue;
             }
             if (quote == 0 && c == '\\' && (next == 'n' || next == 'r' || next == 't')) {
@@ -92,11 +108,21 @@ public class SimpleStatementSplitter implements StatementSplitter {
         char quote = 0;
         boolean lineComment = false;
         boolean blockComment = false;
+        boolean dollarQuote = false;
 
         for (int i = 0; i < sql.length(); i++) {
             char c = sql.charAt(i);
             char next = i + 1 < sql.length() ? sql.charAt(i + 1) : 0;
 
+            if (dollarQuote) {
+                stripped.append(c);
+                if (c == '$' && next == '$') {
+                    stripped.append(next);
+                    i++;
+                    dollarQuote = false;
+                }
+                continue;
+            }
             if (lineComment) {
                 if (c == '\n' || c == '\r') {
                     stripped.append(c);
@@ -119,6 +145,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
             if (quote == 0 && c == '/' && next == '*') {
                 i++;
                 blockComment = true;
+                continue;
+            }
+            if (quote == 0 && c == '$' && next == '$') {
+                stripped.append(c).append(next);
+                i++;
+                dollarQuote = true;
                 continue;
             }
             if (c == '\'' || c == '"' || c == '`') {

@@ -28,4 +28,18 @@ public class SimpleStatementSplitterTest {
         assertEquals(1, statements.size());
         assertEquals("select id,\n name from ods.users where note = '\\n'", statements.get(0));
     }
+
+    @Test
+    public void keepsSemicolonsInsideDollarQuotedBlocks() {
+        List<String> statements = splitter.split(
+                "create function f(int) returns int as $$\n"
+                        + "def f(x):\n"
+                        + "    y = x + 1;\n"
+                        + "    return y\n"
+                        + "$$;\n"
+                        + "select id from ods.users;");
+
+        assertEquals(2, statements.size());
+        assertEquals("select id from ods.users", statements.get(1));
+    }
 }

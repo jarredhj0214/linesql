@@ -8,6 +8,7 @@ import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.spi.DialectParser;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -29,7 +30,7 @@ public class DefaultSqlLineageParserTest {
 
         assertEquals(1, results.size());
         assertEquals(SqlDialect.FLINK, results.get(0).getDialect());
-        assertEquals(0.93, results.get(0).getDialectConfidence(), 0.001);
+        assertEquals(0.98, results.get(0).getDialectConfidence(), 0.001);
         assertTrue(results.get(0).getDialectDetectionReason().contains("Flink"));
     }
 
@@ -49,6 +50,26 @@ public class DefaultSqlLineageParserTest {
         assertEquals(SqlDialect.MYSQL, results.get(0).getDialect());
         assertEquals(1.0, results.get(0).getDialectConfidence(), 0.001);
         assertTrue(results.get(0).getDialectDetectionReason().contains("hint"));
+    }
+
+    @Test
+    public void inheritsStrongScriptDialectForWeakStatements() {
+        DefaultSqlLineageParser parser = new DefaultSqlLineageParser(
+                Arrays.asList(new FakeParser(SqlDialect.FLINK), new FakeParser(SqlDialect.SPARK)),
+                new SimpleDialectDetector(),
+                script -> Arrays.asList(
+                        "set table.exec.state.ttl=1209600000ms",
+                        "create temporary view v as select id from ods.s"));
+
+        List<LineageResult> results = parser.parseScript(
+                "set table.exec.state.ttl=1209600000ms; create temporary view v as select id from ods.s",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertEquals(2, results.size());
+        assertEquals(SqlDialect.FLINK, results.get(0).getDialect());
+        assertEquals(SqlDialect.FLINK, results.get(1).getDialect());
+        assertTrue(results.get(1).getDialectDetectionReason().contains("script context"));
     }
 
     private static class FakeParser implements DialectParser {

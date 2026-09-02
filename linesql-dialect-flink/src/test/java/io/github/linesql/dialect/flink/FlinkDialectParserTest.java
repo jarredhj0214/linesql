@@ -63,6 +63,122 @@ public class FlinkDialectParserTest {
         assertEquals(SqlDialect.FLINK, result.getDialect());
     }
 
+    @Test
+    public void propagatesWildcardLineageAcrossTemporaryViewScript() throws IOException {
+        List<LineageResult> results = LineSql.parseScript(
+                resource("/sql/flink/scripts/temp_view_select_star_propagation.sql"),
+                SqlDialect.FLINK);
+
+        assertEquals(2, results.size());
+        assertEquals(2, results.get(0).getColumnLineage().size());
+        assertEquals("ads.orders_copy.id", columnName(results.get(1).getColumnLineage().get(0).getTarget()));
+        List<String> sources = results.get(1).getColumnLineage().get(0).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList());
+        assertEquals(list("ods.orders.id"), sources);
+    }
+
+    @Test
+    public void expandsWildcardLineageFromScriptCreateTableSchema() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TABLE ods.orders (id BIGINT, amount DECIMAL(10, 2)) WITH ('connector' = 'datagen');"
+                        + "CREATE TABLE ads.orders_copy (id BIGINT, amount DECIMAL(10, 2)) WITH ('connector' = 'blackhole');"
+                        + "INSERT INTO ads.orders_copy SELECT * FROM ods.orders;",
+                SqlDialect.FLINK);
+
+        assertEquals(3, results.size());
+        assertEquals("ads.orders_copy.id", columnName(results.get(2).getColumnLineage().get(0).getTarget()));
+        List<String> sources = results.get(2).getColumnLineage().get(0).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList());
+        assertEquals(list("ods.orders.id"), sources);
+    }
+
+    @Test
+    public void resolvesQualifiedColumnsFromDerivedSelectStar() {
+        LineageResult result = parser.parse(
+                "INSERT INTO ads.orders_copy (id, amount) "
+                        + "SELECT s.id, s.amount FROM (SELECT * FROM ods.orders) s",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("ads.orders_copy.id", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals(list("ods.orders.id"), result.getColumnLineage().get(0).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList()));
+        assertEquals("ads.orders_copy.amount", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals(list("ods.orders.amount"), result.getColumnLineage().get(1).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void infersUnaliasedSingleSourceExpressionTarget() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TEMPORARY VIEW v AS SELECT ifnull(workshop_code, 'N/A'), count(1) num_pass "
+                        + "FROM ods.orders GROUP BY ifnull(workshop_code, 'N/A');"
+                        + "INSERT INTO ads.order_summary SELECT * FROM v;",
+                SqlDialect.FLINK);
+
+        assertEquals(2, results.size());
+        assertEquals("v.workshop_code", columnName(results.get(0).getColumnLineage().get(0).getTarget()));
+        assertEquals(list("ods.orders.workshop_code"), results.get(0).getColumnLineage().get(0).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList()));
+        assertEquals("ads.order_summary.workshop_code", columnName(results.get(1).getColumnLineage().get(0).getTarget()));
+        assertEquals(list("ods.orders.workshop_code"), results.get(1).getColumnLineage().get(0).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void resolvesStructFieldDereferenceFromSingleInputTable() {
+        LineageResult result = parser.parse(
+                "CREATE TEMPORARY VIEW v AS "
+                        + "SELECT DATE_FORMAT(data_json.publish_time, 'yyyyMMdd') AS dt, "
+                        + "data_json.work_id AS work_id "
+                        + "FROM lake_stage_rt.topic_events "
+                        + "WHERE data_json.publish_time >= CURRENT_TIMESTAMP - INTERVAL '48' HOUR",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("v.dt", columnName(result.getColumnLineage().get(0).getTarget()));
+        assertEquals(list("lake_stage_rt.topic_events.data_json.publish_time"),
+                result.getColumnLineage().get(0).getSources().stream()
+                        .map(FlinkDialectParserTest::columnName)
+                        .collect(Collectors.toList()));
+        assertEquals("v.work_id", columnName(result.getColumnLineage().get(1).getTarget()));
+        assertEquals(list("lake_stage_rt.topic_events.data_json.work_id"),
+                result.getColumnLineage().get(1).getSources().stream()
+                        .map(FlinkDialectParserTest::columnName)
+                        .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void expandsQualifiedStarFromKnownTemporaryViewColumns() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TEMPORARY VIEW v1 AS SELECT id AS order_id, amount FROM ods.orders;"
+                        + "CREATE TEMPORARY VIEW passthrough AS SELECT *, PROCTIME() AS proc FROM v1;"
+                        + "CREATE TEMPORARY VIEW v2 AS SELECT p.*, dim.name AS customer_name "
+                        + "FROM passthrough p LEFT JOIN dim.customer dim ON p.order_id = dim.order_id;"
+                        + "INSERT INTO ads.orders SELECT order_id, customer_name FROM v2;",
+                SqlDialect.FLINK);
+
+        assertEquals(4, results.size());
+        List<String> v2Targets = results.get(2).getColumnLineage().stream()
+                .map(lineage -> columnName(lineage.getTarget()))
+                .collect(Collectors.toList());
+        assertTrue(v2Targets.contains("v2.order_id"));
+        assertTrue(v2Targets.contains("v2.amount"));
+        assertTrue(v2Targets.contains("v2.customer_name"));
+        assertEquals("ads.orders.order_id", columnName(results.get(3).getColumnLineage().get(0).getTarget()));
+        assertEquals(list("ods.orders.id"), results.get(3).getColumnLineage().get(0).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList()));
+    }
+
     private static String sqlCase(String caseId) throws IOException {
         return resource("/sql/flink/cases/" + caseId + ".sql");
     }
@@ -99,6 +215,14 @@ public class FlinkDialectParserTest {
         List<String> expected = new ArrayList<>();
         expectedNode.forEach(node -> expected.add(node.asText()));
         assertEquals(caseId, expected, actual);
+    }
+
+    private static List<String> list(String... values) {
+        List<String> result = new ArrayList<>();
+        for (String value : values) {
+            result.add(value);
+        }
+        return result;
     }
 
     private static void assertColumnLineage(String caseId, JsonNode expectedNode, LineageResult result) {

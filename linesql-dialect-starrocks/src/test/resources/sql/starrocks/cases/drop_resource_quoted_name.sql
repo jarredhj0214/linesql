@@ -1,0 +1,1 @@
+drop resource 'hive0'

@@ -1,0 +1,4 @@
+SELECT x, y
+FROM hive_src
+DISTRIBUTE BY x
+SORT BY y DESC

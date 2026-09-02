@@ -1,0 +1,1 @@
+SHOW PARTITIONS dwd.orders PARTITION (dt = '2026-09-01')

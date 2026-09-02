@@ -1,0 +1,1 @@
+show table status;

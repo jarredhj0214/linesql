@@ -1,0 +1,3 @@
+SELECT
+  JSON_VALUE(payload, '$.vin' RETURNING STRING DEFAULT vin ON EMPTY NULL ON ERROR) AS vin_text
+FROM dwd.events

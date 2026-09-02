@@ -4,6 +4,7 @@ import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
@@ -36,9 +37,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
+    private ParseContext context;
 
     FlinkLineageVisitor(LineageResult result) {
         this.result = result;
+    }
+
+    void setContext(ParseContext context) {
+        this.context = context;
     }
 
     @Override
@@ -51,6 +57,65 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitInsertStmt(FlinkParser.InsertStmtContext ctx) {
         result.setStatementType(StatementType.INSERT);
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitHiveMultiInsertStmt(FlinkParser.HiveMultiInsertStmtContext ctx) {
+        result.setStatementType(StatementType.INSERT);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitInsertDirectoryStmt(FlinkParser.InsertDirectoryStmtContext ctx) {
+        result.setStatementType(StatementType.INSERT);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitInsertDirectoryStatement(FlinkParser.InsertDirectoryStatementContext ctx) {
+        visit(ctx.query());
+        refreshColumnLineage();
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitHiveMultiInsertStatement(FlinkParser.HiveMultiInsertStatementContext ctx) {
+        visit(ctx.relation());
+        result.setInputTables(new ArrayList<>(inputTables));
+        for (FlinkParser.HiveInsertBranchContext branch : ctx.hiveInsertBranch()) {
+            processHiveInsertBranch(branch);
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    private void processHiveInsertBranch(FlinkParser.HiveInsertBranchContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        LineageResult branchResult = new LineageResult();
+        FlinkLineageVisitor branchVisitor = new FlinkLineageVisitor(branchResult);
+        branchVisitor.setContext(context);
+        branchVisitor.cteNames.addAll(cteNames);
+        branchVisitor.inputTables.addAll(inputTables);
+        branchVisitor.tableAliases.putAll(tableAliases);
+        branchVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        branchVisitor.derivedAliases.putAll(derivedAliases);
+        branchVisitor.derivedReferences.addAll(derivedReferences);
+        branchVisitor.visibleRelationCount = visibleRelationCount;
+        branchVisitor.visibleRelations.addAll(visibleRelations);
+        if (ctx.columnList != null) {
+            for (FlinkParser.IdentifierContext id : ctx.columnList.identifier()) {
+                branchVisitor.insertTargetColumns.add(cleanIdentifier(id));
+            }
+        }
+        branchVisitor.visit(ctx.querySpecification());
+        branchVisitor.refreshColumnLineage();
+        branchVisitor.retargetColumnLineage(target);
+        result.getColumnLineage().addAll(branchResult.getColumnLineage());
+        LineageModelUtils.mergeColumnUsages(result, branchResult);
     }
 
     @Override
@@ -110,6 +175,20 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitMergeStmt(FlinkParser.MergeStmtContext ctx) {
         result.setStatementType(StatementType.MERGE);
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLoadDataStmt(FlinkParser.LoadDataStmtContext ctx) {
+        result.setStatementType(StatementType.LOAD_DATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLoadDataStatement(FlinkParser.LoadDataStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
     }
 
     @Override
@@ -208,13 +287,16 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
+        addTableModelSemantics(target, ctx.tableElementList(), ctx.distributionClause(), ctx.partitionedByClause());
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            collectColumnNameOnlyTargets(ctx.tableElementList());
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
+            registerTableSchema(target, ctx.tableElementList());
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -254,13 +336,16 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitCreateMaterializedTableStatement(FlinkParser.CreateMaterializedTableStatementContext ctx) {
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
+        addTableModelSemantics(target, ctx.tableElementList(), ctx.distributionClause(), ctx.partitionedByClause());
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            collectColumnNameOnlyTargets(ctx.tableElementList());
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
+            registerTableSchema(target, ctx.tableElementList());
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -285,6 +370,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         visit(ctx.query());
         refreshColumnLineage();
         retargetColumnLineage(target);
+        registerTemporaryRelation(target);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -385,9 +471,16 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableAddColumn(FlinkParser.AlterTableAddColumnContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addTableElementSemantics(target, ctx.tableElement());
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    @Override
+    public Void visitAlterTableChangeColumn(FlinkParser.AlterTableChangeColumnContext ctx) {
+        return addAlteredTable(ctx.multipartIdentifier());
     }
 
     @Override
@@ -396,18 +489,40 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterTableAddHiveColumns(FlinkParser.AlterTableAddHiveColumnsContext ctx) {
+        return addAlteredTable(ctx.multipartIdentifier());
+    }
+
+    @Override
     public Void visitAlterTableAddColumns(FlinkParser.AlterTableAddColumnsContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addTableElementSemantics(target, ctx.alterTableElementList());
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableReplaceColumns(FlinkParser.AlterTableReplaceColumnsContext ctx) {
         return addAlteredTable(ctx.multipartIdentifier());
     }
 
     @Override
     public Void visitAlterTableModifyColumn(FlinkParser.AlterTableModifyColumnContext ctx) {
-        return addAlteredTable(ctx.multipartIdentifier());
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addTableElementSemantics(target, ctx.tableElement());
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
     }
 
     @Override
     public Void visitAlterTableModifyColumns(FlinkParser.AlterTableModifyColumnsContext ctx) {
-        return addAlteredTable(ctx.multipartIdentifier());
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addTableElementSemantics(target, ctx.alterTableElementList());
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
     }
 
     @Override
@@ -431,8 +546,31 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitAlterTableAddDistribution(FlinkParser.AlterTableAddDistributionContext ctx) {
+    public Void visitAlterTableRenamePartition(FlinkParser.AlterTableRenamePartitionContext ctx) {
         return addAlteredTable(ctx.multipartIdentifier());
+    }
+
+    @Override
+    public Void visitAlterTablePartitionSetLocation(FlinkParser.AlterTablePartitionSetLocationContext ctx) {
+        return addAlteredTable(ctx.multipartIdentifier());
+    }
+
+    @Override
+    public Void visitAlterTablePartitionSetFileFormat(FlinkParser.AlterTablePartitionSetFileFormatContext ctx) {
+        return addAlteredTable(ctx.multipartIdentifier());
+    }
+
+    @Override
+    public Void visitAlterTableAddDistribution(FlinkParser.AlterTableAddDistributionContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        if (ctx.distributionClause() != null) {
+            addDistributionUsages(target, ctx.distributionClause());
+        } else {
+            addIdentifierListUsages(target, firstIdentifierList(ctx.alterDistributionClause()));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
     }
 
     @Override
@@ -503,6 +641,18 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterCatalogStmt(FlinkParser.AlterCatalogStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterModelStmt(FlinkParser.AlterModelStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitAlterMaterializedTableStmt(FlinkParser.AlterMaterializedTableStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);
@@ -510,8 +660,16 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterMaterializedTableStatement(FlinkParser.AlterMaterializedTableStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addTableElementSemantics(target, ctx.materializedTableAction().tableElement());
+        if (ctx.materializedTableAction().query() != null) {
+            visit(ctx.materializedTableAction().query());
+            refreshColumnLineage();
+            retargetColumnLineage(target);
+        }
         result.setOutputTables(new ArrayList<>(outputTables));
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
@@ -529,15 +687,27 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitShowStatement(FlinkParser.ShowStatementContext ctx) {
-        for (int i = 0; i < ctx.getChildCount(); i++) {
-            ParseTree child = ctx.getChild(i);
-            if (child instanceof FlinkParser.MultipartIdentifierContext) {
-                inputTables.add(tableRef((FlinkParser.MultipartIdentifierContext) child));
-                break;
+        if (shouldCollectShowTableInput(ctx)) {
+            for (int i = 0; i < ctx.getChildCount(); i++) {
+                ParseTree child = ctx.getChild(i);
+                if (child instanceof FlinkParser.MultipartIdentifierContext) {
+                    inputTables.add(tableRef((FlinkParser.MultipartIdentifierContext) child));
+                    break;
+                }
             }
         }
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
+    }
+
+    private boolean shouldCollectShowTableInput(FlinkParser.ShowStatementContext ctx) {
+        String text = ctx.getText().toLowerCase(Locale.ROOT);
+        return text.startsWith("showcreatetable")
+                || text.startsWith("showcolumns")
+                || text.startsWith("showpartitions")
+                || text.startsWith("showcreateview")
+                || text.startsWith("showcreatematerializedtable")
+                || text.startsWith("showcreateoraltermaterializedtable");
     }
 
     @Override
@@ -547,12 +717,37 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAnalyzeStmt(FlinkParser.AnalyzeStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAnalyzeStatement(FlinkParser.AnalyzeStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
     public Void visitDescribeStatement(FlinkParser.DescribeStatementContext ctx) {
-        if (ctx.multipartIdentifier() != null) {
+        if (ctx.multipartIdentifier() != null && shouldCollectDescribeTableInput(ctx)) {
             inputTables.add(tableRef(ctx.multipartIdentifier()));
         }
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
+    }
+
+    private boolean shouldCollectDescribeTableInput(FlinkParser.DescribeStatementContext ctx) {
+        String text = ctx.getText().toLowerCase(Locale.ROOT);
+        return !text.startsWith("describecatalog")
+                && !text.startsWith("desccatalog")
+                && !text.startsWith("describefunction")
+                && !text.startsWith("descfunction")
+                && !text.startsWith("describemodel")
+                && !text.startsWith("descmodel")
+                && !text.startsWith("describejob")
+                && !text.startsWith("descjob");
     }
 
     @Override
@@ -581,6 +776,36 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitExplainStmt(FlinkParser.ExplainStmtContext ctx) {
         visitChildren(ctx);
         result.setStatementType(StatementType.READ_METADATA);
+        return null;
+    }
+
+    @Override
+    public Void visitPlanStmt(FlinkParser.PlanStmtContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCompilePlanStatement(FlinkParser.CompilePlanStatementContext ctx) {
+        visit(ctx.statement());
+        result.setStatementType(StatementType.READ_METADATA);
+        return null;
+    }
+
+    @Override
+    public Void visitExecutePlanStatement(FlinkParser.ExecutePlanStatementContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitCallStmt(FlinkParser.CallStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitJobStmt(FlinkParser.JobStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -656,6 +881,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
         }
+        String temporaryRelationName = temporaryRelationName(table);
+        if (temporaryRelationName != null) {
+            addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
+            return null;
+        }
         addInputTable(table, ctx.tableAlias(), true);
         return null;
     }
@@ -664,6 +894,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitTemporalTableName(FlinkParser.TemporalTableNameContext ctx) {
         TableRef table = tableRef(ctx.multipartIdentifier());
         addInputTable(table, ctx.tableAlias(), true);
+        addTemporalColumnUsages(ctx.temporalClause());
+        return null;
+    }
+
+    @Override
+    public Void visitTemporalClause(FlinkParser.TemporalClauseContext ctx) {
+        addTemporalColumnUsages(ctx);
         return null;
     }
 
@@ -671,12 +908,35 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitMatchRecognizeRelation(FlinkParser.MatchRecognizeRelationContext ctx) {
         TableRef table = tableRef(ctx.multipartIdentifier());
         addInputTable(table, false);
+        FlinkParser.MatchRecognizeClauseContext clause = ctx.matchRecognizeClause();
+        if (clause.expressionList() != null) {
+            addPatternColumnUsages(ColumnUsageType.WINDOW_PARTITION_BY,
+                    sourceColumns(clause.expressionList()),
+                    table);
+        }
+        for (FlinkParser.SortItemContext sortItem : clause.sortItem()) {
+            addPatternColumnUsages(ColumnUsageType.WINDOW_ORDER_BY,
+                    sourceColumns(sortItem.expression()),
+                    table);
+        }
+        for (FlinkParser.MatchDefineContext define : clause.matchDefine()) {
+            addPatternColumnUsages(ColumnUsageType.WHERE,
+                    sourceColumns(define.expression()),
+                    table);
+        }
         String alias = tableAlias(ctx.tableAlias());
         if (alias == null) {
             return null;
         }
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        for (FlinkParser.MatchMeasureContext measure : ctx.matchRecognizeClause().matchMeasure()) {
+        if (clause.expressionList() != null) {
+            for (SourceColumn partitionColumn : sourceColumns(clause.expressionList())) {
+                List<ColumnRef> refs = new ArrayList<>();
+                refs.add(new ColumnRef(table, partitionColumn.name));
+                columns.put(partitionColumn.name, refs);
+            }
+        }
+        for (FlinkParser.MatchMeasureContext measure : clause.matchMeasure()) {
             List<ColumnRef> refs = patternMeasureRefs(measure.expression(), table);
             columns.put(cleanIdentifier(measure.identifier()), refs);
         }
@@ -703,6 +963,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitRelation(FlinkParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        for (FlinkParser.LateralViewClauseContext lateralView : ctx.lateralViewClause()) {
+            visit(lateralView);
+        }
         for (FlinkParser.JoinRelationContext join : ctx.joinRelation()) {
             visit(join.relationPrimary());
             if (join.temporalClause() != null) {
@@ -716,15 +979,50 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitLateralViewClause(FlinkParser.LateralViewClauseContext ctx) {
+        registerGeneratedRelation(cleanIdentifier(ctx.strictIdentifier().getText()),
+                identifierNames(ctx.identifierList()),
+                sourceColumns(ctx.expressionList()));
+        return null;
+    }
+
+    @Override
     public Void visitTableFunction(FlinkParser.TableFunctionContext ctx) {
         // TABLE(fn(TABLE source, DESCRIPTOR(col), expr)) - visit args to collect table refs
         visitChildren(ctx);
+        TableRef source = firstTableFunctionInput(ctx.tableFunctionArgList());
+        addWindowTableFunctionUsages(ctx.functionName(), ctx.tableFunctionArgList(), source);
+        String alias = tableAlias(ctx.tableAlias());
+        if (source != null && alias != null) {
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), source);
+            visibleRelationCount++;
+            visibleRelations.add(VisibleRelation.table(source));
+            refreshColumnLineage();
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitBareTableFunction(FlinkParser.BareTableFunctionContext ctx) {
+        addWindowTableFunctionUsages(ctx.functionName(),
+                ctx.tableFunctionArgList(),
+                firstTableFunctionInput(ctx.tableFunctionArgList()));
+        registerGeneratedRelation(ctx.tableAlias(), sourceColumns(ctx.tableFunctionArgList()));
+        if (ctx.tableFunctionArgList() != null) {
+            visit(ctx.tableFunctionArgList());
+        }
         return null;
     }
 
     @Override
     public Void visitLateralTableFunction(FlinkParser.LateralTableFunctionContext ctx) {
+        addWindowTableFunctionUsages(ctx.functionName(),
+                ctx.tableFunctionArgList(),
+                firstTableFunctionInput(ctx.tableFunctionArgList()));
         registerGeneratedRelation(ctx.tableAlias(), sourceColumns(ctx.tableFunctionArgList()));
+        if (ctx.tableFunctionArgList() != null) {
+            visit(ctx.tableFunctionArgList());
+        }
         return null;
     }
 
@@ -742,15 +1040,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitNamedTableFunctionArg(FlinkParser.NamedTableFunctionArgContext ctx) {
+        return visit(ctx.tableFunctionArg());
+    }
+
+    @Override
     public Void visitSelectClause(FlinkParser.SelectClauseContext ctx) {
-        for (FlinkParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
-            if (item instanceof FlinkParser.SelectExpressionContext) {
-                Projection projection = projection((FlinkParser.SelectExpressionContext) item);
-                if (projection != null) {
-                    projections.add(projection);
-                }
-            }
-        }
+        collectSelectClauseProjections(ctx);
         return visitChildren(ctx);
     }
 
@@ -788,6 +1084,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQualifyClause(FlinkParser.QualifyClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        collectSubqueryInputs(ctx.expression());
+        return null;
+    }
+
+    @Override
     public Void visitWindowSpec(FlinkParser.WindowSpecContext ctx) {
         if (ctx.expressionList() != null) {
             for (FlinkParser.ExpressionContext expression : ctx.expressionList().expression()) {
@@ -812,6 +1115,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return visitChildren(ctx);
     }
 
+    @Override
+    public Void visitHiveQueryOrganization(FlinkParser.HiveQueryOrganizationContext ctx) {
+        if (ctx.expressionList() != null) {
+            for (FlinkParser.ExpressionContext expression : ctx.expressionList().expression()) {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(expression));
+            }
+        }
+        for (FlinkParser.SortItemContext sortItem : ctx.sortItem()) {
+            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+        }
+        return visitChildren(ctx);
+    }
+
     // ============ Internal helpers ============
 
     void finalizeResult() {
@@ -829,6 +1145,160 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         outputTables.add(tableRef(ctx));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void addTableModelSemantics(
+            TableRef target,
+            FlinkParser.TableElementListContext tableElements,
+            FlinkParser.DistributionClauseContext distribution,
+            FlinkParser.PartitionedByClauseContext partitioning) {
+        addTableElementSemantics(target, tableElements);
+        addDistributionUsages(target, distribution);
+        addPartitionUsages(target, partitioning);
+    }
+
+    private void addTableElementSemantics(TableRef target, FlinkParser.TableElementListContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        for (FlinkParser.TableElementContext element : ctx.tableElement()) {
+            addTableElementSemantics(target, element);
+        }
+    }
+
+    private void addTableElementSemantics(TableRef target, FlinkParser.AlterTableElementListContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        for (FlinkParser.AlterTableElementContext element : ctx.alterTableElement()) {
+            addTableElementSemantics(target, element.tableElement());
+        }
+    }
+
+    private void addTableElementSemantics(TableRef target, FlinkParser.TableElementContext element) {
+        if (target == null || element == null) {
+            return;
+        }
+        if (element instanceof FlinkParser.ComputedColumnDefinitionContext) {
+            FlinkParser.ComputedColumnDefinitionContext computed =
+                    (FlinkParser.ComputedColumnDefinitionContext) element;
+            addSameTableLineage(target,
+                    cleanIdentifier(computed.identifier()),
+                    sourceColumns(computed.expression()),
+                    computed.expression().getText());
+        } else if (element instanceof FlinkParser.WatermarkDefinitionContext) {
+            FlinkParser.WatermarkDefinitionContext watermark =
+                    (FlinkParser.WatermarkDefinitionContext) element;
+            List<ColumnRef> refs = sameTableRefs(target, sourceColumns(watermark.expression()));
+            refs.add(new ColumnRef(target, cleanIdentifier(watermark.identifier())));
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, distinctColumnRefs(refs));
+        } else if (element instanceof FlinkParser.PrimaryKeyDefinitionContext) {
+            FlinkParser.PrimaryKeyDefinitionContext primaryKey =
+                    (FlinkParser.PrimaryKeyDefinitionContext) element;
+            addIdentifierListUsages(target, primaryKey.identifierList());
+        } else if (element instanceof FlinkParser.ColumnDefinitionContext) {
+            FlinkParser.ColumnDefinitionContext column = (FlinkParser.ColumnDefinitionContext) element;
+            if (hasInlinePrimaryKey(column)) {
+                List<ColumnRef> refs = new ArrayList<>();
+                refs.add(new ColumnRef(target, cleanIdentifier(column.identifier())));
+                LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+            }
+        }
+    }
+
+    private void addDistributionUsages(TableRef target, FlinkParser.DistributionClauseContext ctx) {
+        if (ctx == null || ctx.identifierList() == null) {
+            return;
+        }
+        addIdentifierListUsages(target, ctx.identifierList());
+    }
+
+    private FlinkParser.IdentifierListContext firstIdentifierList(ParseTree tree) {
+        if (tree == null) {
+            return null;
+        }
+        if (tree instanceof FlinkParser.IdentifierListContext) {
+            return (FlinkParser.IdentifierListContext) tree;
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            FlinkParser.IdentifierListContext found = firstIdentifierList(tree.getChild(i));
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private void addPartitionUsages(TableRef target, FlinkParser.PartitionedByClauseContext ctx) {
+        if (ctx == null || ctx.tableElementList() == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (FlinkParser.TableElementContext element : ctx.tableElementList().tableElement()) {
+            if (element instanceof FlinkParser.ColumnDefinitionContext) {
+                refs.add(new ColumnRef(target,
+                        cleanIdentifier(((FlinkParser.ColumnDefinitionContext) element).identifier())));
+            } else if (element instanceof FlinkParser.ColumnNameOnlyDefinitionContext) {
+                refs.add(new ColumnRef(target,
+                        cleanIdentifier(((FlinkParser.ColumnNameOnlyDefinitionContext) element).identifier())));
+            } else if (element instanceof FlinkParser.ComputedColumnDefinitionContext) {
+                refs.add(new ColumnRef(target,
+                        cleanIdentifier(((FlinkParser.ComputedColumnDefinitionContext) element).identifier())));
+            }
+        }
+        if (!refs.isEmpty()) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+        }
+    }
+
+    private void addIdentifierListUsages(TableRef target, FlinkParser.IdentifierListContext ctx) {
+        if (target == null || ctx == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String name : identifierNames(ctx)) {
+            refs.add(new ColumnRef(target, name));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+    }
+
+    private void addSameTableLineage(
+            TableRef target,
+            String targetColumn,
+            List<SourceColumn> sourceColumns,
+            String expression) {
+        List<ColumnRef> sources = sameTableRefs(target, sourceColumns);
+        if (sources.isEmpty()) {
+            return;
+        }
+        ColumnLineage lineage = LineageModelUtils.columnLineage(target, targetColumn, sources, expression);
+        List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
+        lineages.add(lineage);
+        result.setColumnLineage(lineages);
+    }
+
+    private List<ColumnRef> sameTableRefs(TableRef target, List<SourceColumn> sourceColumns) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (SourceColumn sourceColumn : sourceColumns) {
+            if (sourceColumn.resolvedRef != null) {
+                refs.add(sourceColumn.resolvedRef);
+                continue;
+            }
+            String name = sourceColumn.qualifier == null
+                    ? sourceColumn.name
+                    : sourceColumn.qualifier + "." + sourceColumn.name;
+            refs.add(new ColumnRef(target, name));
+        }
+        return refs;
+    }
+
+    private static boolean hasInlinePrimaryKey(FlinkParser.ColumnDefinitionContext ctx) {
+        for (FlinkParser.ColumnConstraintContext constraint : ctx.columnConstraint()) {
+            if (constraint.PRIMARY() != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private TableRef firstOutputTable() {
@@ -887,12 +1357,15 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (alias == null) {
             return;
         }
+        registerGeneratedRelation(alias, tableAliasColumnAliases(aliasCtx), sources);
+    }
+
+    private void registerGeneratedRelation(String alias, List<String> columnAliases, List<SourceColumn> sources) {
         List<ColumnRef> refs = resolveSources(sources);
         if (refs == null) {
             refs = new ArrayList<>();
         }
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        List<String> columnAliases = tableAliasColumnAliases(aliasCtx);
         if (columnAliases.isEmpty()) {
             columns.put("*", refs);
         } else {
@@ -909,9 +1382,56 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         refreshColumnLineage();
     }
 
+    private static TableRef firstTableFunctionInput(FlinkParser.TableFunctionArgListContext ctx) {
+        if (ctx == null) {
+            return null;
+        }
+        for (FlinkParser.TableFunctionArgContext arg : ctx.tableFunctionArg()) {
+            TableRef table = firstTableFunctionInput(arg);
+            if (table != null) {
+                return table;
+            }
+        }
+        return null;
+    }
+
+    private static TableRef firstTableFunctionInput(FlinkParser.TableFunctionArgContext ctx) {
+        if (ctx instanceof FlinkParser.TvfTableArgContext) {
+            return tableRef(((FlinkParser.TvfTableArgContext) ctx).multipartIdentifier());
+        }
+        if (ctx instanceof FlinkParser.NamedTableFunctionArgContext) {
+            return firstTableFunctionInput(((FlinkParser.NamedTableFunctionArgContext) ctx).tableFunctionArg());
+        }
+        return null;
+    }
+
+    private static List<String> tableFunctionDescriptors(FlinkParser.TableFunctionArgListContext ctx) {
+        List<String> descriptors = new ArrayList<>();
+        if (ctx == null) {
+            return descriptors;
+        }
+        for (FlinkParser.TableFunctionArgContext arg : ctx.tableFunctionArg()) {
+            collectTableFunctionDescriptors(arg, descriptors);
+        }
+        return descriptors;
+    }
+
+    private static void collectTableFunctionDescriptors(FlinkParser.TableFunctionArgContext ctx,
+                                                        List<String> descriptors) {
+        if (ctx instanceof FlinkParser.TvfDescriptorArgContext) {
+            descriptors.add(cleanIdentifier(((FlinkParser.TvfDescriptorArgContext) ctx).identifier()));
+            return;
+        }
+        if (ctx instanceof FlinkParser.NamedTableFunctionArgContext) {
+            collectTableFunctionDescriptors(((FlinkParser.NamedTableFunctionArgContext) ctx).tableFunctionArg(),
+                    descriptors);
+        }
+    }
+
     private void registerDerivedRelation(String name, FlinkParser.QueryContext query, List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
         FlinkLineageVisitor relationVisitor = new FlinkLineageVisitor(relationResult);
+        relationVisitor.setContext(context);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
@@ -935,6 +1455,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private LineageResult lineageForQueryTerm(FlinkParser.QueryTermContext queryTerm) {
         LineageResult queryResult = new LineageResult();
         FlinkLineageVisitor queryVisitor = new FlinkLineageVisitor(queryResult);
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -950,6 +1471,47 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
         }
+    }
+
+    private void addPatternColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns, TableRef table) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (SourceColumn sourceColumn : sourceColumns) {
+            refs.add(new ColumnRef(table, sourceColumn.name));
+        }
+        if (!refs.isEmpty()) {
+            LineageModelUtils.addColumnUsages(result, type, distinctColumnRefs(refs));
+        }
+    }
+
+    private void addTemporalColumnUsages(FlinkParser.TemporalClauseContext ctx) {
+        if (ctx != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
+        }
+    }
+
+    private void addWindowTableFunctionUsages(FlinkParser.FunctionNameContext functionName,
+                                              FlinkParser.TableFunctionArgListContext args,
+                                              TableRef source) {
+        if (source == null || args == null || !isWindowTableFunction(functionName)) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String descriptor : tableFunctionDescriptors(args)) {
+            refs.add(new ColumnRef(source, descriptor));
+        }
+        if (!refs.isEmpty()) {
+            LineageModelUtils.addColumnUsages(result,
+                    ColumnUsageType.WINDOW_ORDER_BY,
+                    distinctColumnRefs(refs));
+        }
+    }
+
+    private static boolean isWindowTableFunction(FlinkParser.FunctionNameContext functionName) {
+        String name = cleanIdentifier(functionName.getText()).toUpperCase(Locale.ROOT);
+        return "TUMBLE".equals(name)
+                || "HOP".equals(name)
+                || "CUMULATE".equals(name)
+                || "SESSION".equals(name);
     }
 
     private List<ColumnRef> columnUsageRefs(List<SourceColumn> sourceColumns) {
@@ -1048,6 +1610,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         List<ColumnLineage> columnLineage = new ArrayList<>();
         for (int i = 0; i < projections.size(); i++) {
             Projection projection = projections.get(i);
+            if (projection.wildcard && expandWildcardProjectionLineage(targetTable, projection, columnLineage)) {
+                continue;
+            }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
                 continue;
@@ -1056,6 +1621,43 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
+    }
+
+    private boolean expandWildcardProjectionLineage(
+            TableRef targetTable,
+            Projection projection,
+            List<ColumnLineage> columnLineage) {
+        if (projection.sourceColumns.size() != 1) {
+            return false;
+        }
+        SourceColumn wildcard = projection.sourceColumns.get(0);
+        if (!"*".equals(wildcard.name)) {
+            return false;
+        }
+        String derivedName = null;
+        if (wildcard.qualifier != null) {
+            derivedName = derivedAliases.get(wildcard.qualifier.toLowerCase(Locale.ROOT));
+        } else if (visibleRelations.size() == 1 && visibleRelations.get(0).derivedName != null) {
+            derivedName = visibleRelations.get(0).derivedName;
+        }
+        if (derivedName == null) {
+            return false;
+        }
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
+        if (columns == null || columns.isEmpty() || (columns.size() == 1 && columns.containsKey("*"))) {
+            return false;
+        }
+        for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
+            if ("*".equals(entry.getKey())) {
+                continue;
+            }
+            columnLineage.add(LineageModelUtils.columnLineage(
+                    targetTable,
+                    entry.getKey(),
+                    entry.getValue(),
+                    projection.expression));
+        }
+        return true;
     }
 
     private void flushPendingColumnUsages() {
@@ -1071,7 +1673,23 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 insertTargetColumns));
     }
 
+    private void collectColumnNameOnlyTargets(FlinkParser.TableElementListContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        for (FlinkParser.TableElementContext element : ctx.tableElement()) {
+            if (element instanceof FlinkParser.ColumnNameOnlyDefinitionContext) {
+                FlinkParser.ColumnNameOnlyDefinitionContext column =
+                        (FlinkParser.ColumnNameOnlyDefinitionContext) element;
+                insertTargetColumns.add(cleanIdentifier(column.identifier()));
+            }
+        }
+    }
+
     private String targetColumn(Projection projection, int index) {
+        if (projection.wildcard) {
+            return "*";
+        }
         if (index < insertTargetColumns.size()) {
             return insertTargetColumns.get(index);
         }
@@ -1109,6 +1727,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            if ("*".equals(sourceColumn.name)) {
+                List<ColumnRef> wildcardRefs = wildcardColumnRefs(sourceColumn.qualifier);
+                if (wildcardRefs == null) {
+                    return null;
+                }
+                refs.addAll(wildcardRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
@@ -1117,6 +1743,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             TableRef table = defaultTable;
             if (sourceColumn.qualifier != null) {
                 table = tableAliases.get(sourceColumn.qualifier.toLowerCase(Locale.ROOT));
+                if (table == null && defaultTable != null) {
+                    refs.add(new ColumnRef(defaultTable, sourceColumn.qualifier + "." + sourceColumn.name));
+                    continue;
+                }
             } else if (currentDmlTarget != null) {
                 table = currentDmlTarget;
             }
@@ -1126,6 +1756,58 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             refs.add(new ColumnRef(table, sourceColumn.name));
         }
         return refs;
+    }
+
+    private List<ColumnRef> wildcardColumnRefs(String qualifier) {
+        List<ColumnRef> refs = new ArrayList<>();
+        if (qualifier != null) {
+            String key = qualifier.toLowerCase(Locale.ROOT);
+            String derivedName = derivedAliases.get(key);
+            if (derivedName != null) {
+                addDerivedWildcardRefs(refs, derivedName);
+                return refs.isEmpty() ? null : distinctColumnRefs(refs);
+            }
+            TableRef table = tableAliases.get(key);
+            if (table != null) {
+                refs.add(new ColumnRef(table, "*"));
+                return refs;
+            }
+            return null;
+        }
+        for (VisibleRelation relation : visibleRelations) {
+            if (relation.table != null) {
+                refs.add(new ColumnRef(relation.table, "*"));
+            } else {
+                addDerivedWildcardRefs(refs, relation.derivedName);
+            }
+        }
+        if (refs.isEmpty() && inputTables.size() == 1) {
+            refs.add(new ColumnRef(inputTables.iterator().next(), "*"));
+        }
+        return refs.isEmpty() ? null : distinctColumnRefs(refs);
+    }
+
+    private void addDerivedWildcardRefs(List<ColumnRef> refs, String derivedName) {
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
+        if (columns == null) {
+            return;
+        }
+        List<ColumnRef> wildcard = columns.get("*");
+        if (wildcard != null) {
+            refs.addAll(wildcard);
+            return;
+        }
+        for (List<ColumnRef> columnRefs : columns.values()) {
+            refs.addAll(columnRefs);
+        }
+    }
+
+    private static List<ColumnRef> distinctColumnRefs(List<ColumnRef> refs) {
+        Map<String, ColumnRef> unique = new LinkedHashMap<>();
+        for (ColumnRef ref : refs) {
+            unique.put(columnKey(ref), ref);
+        }
+        return new ArrayList<>(unique.values());
     }
 
     private SourceColumn scopedSourceColumn(SourceColumn sourceColumn) {
@@ -1149,6 +1831,24 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             derivedName = derivedAliases.get(sourceColumn.qualifier.toLowerCase(Locale.ROOT));
         } else if (visibleRelationCount == 1 && derivedReferences.size() == 1) {
             derivedName = derivedReferences.iterator().next();
+        } else {
+            List<ColumnRef> unique = null;
+            for (VisibleRelation relation : visibleRelations) {
+                if (relation.derivedName == null) {
+                    continue;
+                }
+                Map<String, List<ColumnRef>> relationColumns = derivedColumnLineage.get(relation.derivedName);
+                if (relationColumns == null || !relationColumns.containsKey(sourceColumn.name)) {
+                    continue;
+                }
+                if (unique != null) {
+                    return null;
+                }
+                unique = relationColumns.get(sourceColumn.name);
+            }
+            if (unique != null) {
+                return unique;
+            }
         }
         if (derivedName == null) {
             return null;
@@ -1157,7 +1857,126 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        return columns.get(sourceColumn.name);
+        List<ColumnRef> refs = columns.get(sourceColumn.name);
+        if (refs != null) {
+            return refs;
+        }
+        return wildcardDerivedColumnRefs(columns.get("*"), sourceColumn.name);
+    }
+
+    private static List<ColumnRef> wildcardDerivedColumnRefs(List<ColumnRef> wildcardRefs, String columnName) {
+        if (wildcardRefs == null || wildcardRefs.isEmpty()) {
+            return null;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (ColumnRef wildcardRef : wildcardRefs) {
+            if (wildcardRef.getTable() == null) {
+                continue;
+            }
+            if ("*".equals(wildcardRef.getName())) {
+                refs.add(new ColumnRef(wildcardRef.getTable(), columnName));
+            } else if (wildcardRef.getName().equalsIgnoreCase(columnName)) {
+                refs.add(wildcardRef);
+            }
+        }
+        return refs.isEmpty() ? null : refs;
+    }
+
+    private void registerTemporaryRelation(TableRef table) {
+        if (context == null) {
+            return;
+        }
+        context.getTemporaryRelations().put(relationKey(table), copyResult(result));
+    }
+
+    private void registerTableSchema(TableRef table, FlinkParser.TableElementListContext tableElements) {
+        if (context == null || tableElements == null) {
+            return;
+        }
+        List<String> columnNames = declaredColumnNames(tableElements);
+        if (columnNames.isEmpty()) {
+            return;
+        }
+        LineageResult schema = new LineageResult();
+        schema.setDialect(result.getDialect());
+        schema.setDialectConfidence(result.getDialectConfidence());
+        schema.setStatementType(StatementType.CREATE_TABLE);
+        List<TableRef> input = new ArrayList<>();
+        input.add(table);
+        schema.setInputTables(input);
+        List<ColumnLineage> columns = new ArrayList<>();
+        for (String columnName : columnNames) {
+            List<ColumnRef> sources = new ArrayList<>();
+            sources.add(new ColumnRef(table, columnName));
+            columns.add(LineageModelUtils.columnLineage(table, columnName, sources, columnName));
+        }
+        schema.setColumnLineage(columns);
+        context.getTemporaryRelations().put(relationKey(table), schema);
+    }
+
+    private static List<String> declaredColumnNames(FlinkParser.TableElementListContext ctx) {
+        List<String> columns = new ArrayList<>();
+        for (FlinkParser.TableElementContext element : ctx.tableElement()) {
+            if (element instanceof FlinkParser.ColumnDefinitionContext) {
+                columns.add(cleanIdentifier(((FlinkParser.ColumnDefinitionContext) element).identifier()));
+            } else if (element instanceof FlinkParser.ColumnNameOnlyDefinitionContext) {
+                columns.add(cleanIdentifier(((FlinkParser.ColumnNameOnlyDefinitionContext) element).identifier()));
+            } else if (element instanceof FlinkParser.ComputedColumnDefinitionContext) {
+                columns.add(cleanIdentifier(((FlinkParser.ComputedColumnDefinitionContext) element).identifier()));
+            }
+        }
+        return columns;
+    }
+
+    private String temporaryRelationName(TableRef table) {
+        if (context == null) {
+            return null;
+        }
+        String key = relationKey(table);
+        return context.getTemporaryRelations().containsKey(key) ? key : null;
+    }
+
+    private void addTemporaryRelationReference(String relationName, FlinkParser.TableAliasContext aliasCtx) {
+        LineageResult relation = context.getTemporaryRelations().get(relationName);
+        if (relation == null) {
+            return;
+        }
+        visibleRelationCount++;
+        visibleRelations.add(VisibleRelation.derived(relationName));
+        derivedReferences.add(relationName);
+        derivedAliases.put(relationName, relationName);
+        String alias = tableAlias(aliasCtx);
+        if (alias != null) {
+            derivedAliases.put(alias.toLowerCase(Locale.ROOT), relationName);
+        }
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (ColumnLineage lineage : relation.getColumnLineage()) {
+            columns.put(lineage.getTarget().getName(), lineage.getSources());
+        }
+        if (columns.isEmpty() && relation.getInputTables().size() == 1) {
+            List<ColumnRef> wildcard = new ArrayList<>();
+            wildcard.add(new ColumnRef(relation.getInputTables().get(0), "*"));
+            columns.put("*", wildcard);
+        }
+        derivedColumnLineage.put(relationName, columns);
+        for (TableRef table : relation.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, relation);
+        refreshColumnLineage();
+    }
+
+    private static LineageResult copyResult(LineageResult source) {
+        LineageResult copy = new LineageResult();
+        copy.setDialect(source.getDialect());
+        copy.setDialectConfidence(source.getDialectConfidence());
+        copy.setStatementType(source.getStatementType());
+        copy.setInputTables(new ArrayList<>(source.getInputTables()));
+        copy.setOutputTables(new ArrayList<>(source.getOutputTables()));
+        copy.setColumnLineage(new ArrayList<>(source.getColumnLineage()));
+        copy.setColumnUsages(new ArrayList<>(source.getColumnUsages()));
+        copy.setDiagnostics(new ArrayList<>(source.getDiagnostics()));
+        return copy;
     }
 
     private boolean isCteReference(TableRef table) {
@@ -1307,6 +2126,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private LineageResult lineageForQuery(FlinkParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         FlinkLineageVisitor queryVisitor = new FlinkLineageVisitor(queryResult);
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -1326,14 +2146,55 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (specification == null || specification.selectClause() == null) {
             return;
         }
-        for (FlinkParser.SelectItemContext item : specification.selectClause().selectItemList().selectItem()) {
+        collectSelectClauseProjections(specification.selectClause());
+    }
+
+    private void collectSelectClauseProjections(FlinkParser.SelectClauseContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        if (ctx.transformClause() != null) {
+            projections.addAll(transformProjections(ctx.transformClause()));
+            return;
+        }
+        if (ctx.selectItemList() == null) {
+            return;
+        }
+        for (FlinkParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
             if (item instanceof FlinkParser.SelectExpressionContext) {
                 Projection projection = projection((FlinkParser.SelectExpressionContext) item);
                 if (projection != null) {
                     projections.add(projection);
                 }
+            } else if (item instanceof FlinkParser.SelectQualifiedStarContext) {
+                FlinkParser.SelectQualifiedStarContext star = (FlinkParser.SelectQualifiedStarContext) item;
+                projections.add(wildcardProjection(qualifiedName(star.qualifiedName()), star.getText()));
+            } else if (item instanceof FlinkParser.SelectStarContext) {
+                projections.add(wildcardProjection(null, item.getText()));
             }
         }
+    }
+
+    private List<Projection> transformProjections(FlinkParser.TransformClauseContext ctx) {
+        List<Projection> result = new ArrayList<>();
+        List<SourceColumn> inputColumns = sourceColumns(ctx.expressionList());
+        List<String> outputColumns = transformOutputNames(ctx.transformOutputList());
+        for (String outputColumn : outputColumns) {
+            result.add(new Projection(inputColumns, outputColumn, ctx.getText()));
+        }
+        return result;
+    }
+
+    private static List<String> transformOutputNames(FlinkParser.TransformOutputListContext ctx) {
+        List<String> names = new ArrayList<>();
+        if (ctx == null) {
+            names.add("transform");
+            return names;
+        }
+        for (FlinkParser.TransformOutputContext output : ctx.transformOutput()) {
+            names.add(cleanIdentifier(output.identifier(0)));
+        }
+        return names;
     }
 
     private static FlinkParser.QuerySpecificationContext topLevelQuerySpecification(FlinkParser.QueryContext query) {
@@ -1360,16 +2221,60 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (sourceColumns.size() > 1 && ctx.alias == null) {
             return null;
         }
-        String targetColumn = ctx.alias == null ? directColumn : cleanIdentifier(ctx.alias);
+        String targetColumn = ctx.alias == null
+                ? inferredSingleSourceTarget(directColumn, sourceColumns, ctx.expression())
+                : cleanIdentifier(ctx.alias);
         if (targetColumn == null) {
             return null;
         }
         return new Projection(sourceColumns, targetColumn, expression);
     }
 
+    private String inferredSingleSourceTarget(
+            String directColumn,
+            List<SourceColumn> sourceColumns,
+            FlinkParser.ExpressionContext expression) {
+        if (directColumn != null) {
+            return directColumn;
+        }
+        if (containsSubquery(expression) || isAggregateExpression(expression.getText())) {
+            return null;
+        }
+        if (sourceColumns.size() == 1) {
+            return unqualifiedName(sourceColumns.get(0).name);
+        }
+        return null;
+    }
+
+    private static boolean isAggregateExpression(String expression) {
+        if (expression == null) {
+            return false;
+        }
+        String normalized = expression.trim().toUpperCase(Locale.ROOT);
+        return normalized.startsWith("COUNT(")
+                || normalized.startsWith("SUM(")
+                || normalized.startsWith("AVG(")
+                || normalized.startsWith("MIN(")
+                || normalized.startsWith("MAX(")
+                || normalized.startsWith("COLLECT(")
+                || normalized.startsWith("LISTAGG(")
+                || normalized.startsWith("ARRAY_AGG(")
+                || normalized.startsWith("JSON_OBJECTAGG(")
+                || normalized.startsWith("JSON_ARRAYAGG(");
+    }
+
+    private static Projection wildcardProjection(String qualifier, String expression) {
+        List<SourceColumn> sourceColumns = new ArrayList<>();
+        sourceColumns.add(new SourceColumn(qualifier, "*"));
+        return new Projection(sourceColumns, "*", expression, true);
+    }
+
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
         String raw = column.qualifier != null ? column.qualifier + "." + column.name : column.name;
-        return expression.equals(raw) || expression.endsWith("." + column.name);
+        String normalizedExpression = cleanIdentifier(expression);
+        String normalizedRaw = cleanIdentifier(raw);
+        String normalizedName = cleanIdentifier(column.name);
+        return normalizedExpression.equals(normalizedRaw) || normalizedExpression.endsWith("." + normalizedName);
     }
 
     private static String unqualifiedName(String raw) {
@@ -1387,6 +2292,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private void addScalarSubquerySourceColumns(FlinkParser.QueryContext query, Set<SourceColumn> columns) {
         LineageResult subResult = lineageForQuery(query);
+        for (TableRef table : subResult.getInputTables()) {
+            addInputTable(table, false);
+        }
         int before = columns.size();
         for (ColumnLineage lineage : subResult.getColumnLineage()) {
             for (ColumnRef source : lineage.getSources()) {
@@ -1407,6 +2315,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(FlinkParser.QueryContext query) {
         FlinkLineageVisitor queryVisitor = new FlinkLineageVisitor(new LineageResult());
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -1418,7 +2327,20 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return new ArrayList<>();
         }
         List<ColumnRef> refs = new ArrayList<>();
-        for (FlinkParser.SelectItemContext item : specification.selectClause().selectItemList().selectItem()) {
+        FlinkParser.SelectClauseContext selectClause = specification.selectClause();
+        if (selectClause.transformClause() != null) {
+            for (Projection projection : queryVisitor.transformProjections(selectClause.transformClause())) {
+                List<ColumnRef> itemRefs = queryVisitor.columnRefs(projection.sourceColumns);
+                if (itemRefs != null) {
+                    refs.addAll(itemRefs);
+                }
+            }
+            return refs;
+        }
+        if (selectClause.selectItemList() == null) {
+            return refs;
+        }
+        for (FlinkParser.SelectItemContext item : selectClause.selectItemList().selectItem()) {
             if (item instanceof FlinkParser.SelectExpressionContext) {
                 List<ColumnRef> itemRefs = queryVisitor.columnRefs(
                         queryVisitor.sourceColumns(((FlinkParser.SelectExpressionContext) item).expression()));
@@ -1438,6 +2360,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         if (tree instanceof FlinkParser.DereferenceContext) {
             FlinkParser.DereferenceContext deref = (FlinkParser.DereferenceContext) tree;
+            if (deref.primaryExpression() instanceof FlinkParser.SubscriptExpressionContext) {
+                collectSourceColumns(deref.primaryExpression(), columns);
+                return;
+            }
             List<String> parts = collectDereferenceParts(deref);
             if (parts.size() >= 2) {
                 String qualifier = parts.get(parts.size() - 2);
@@ -1446,6 +2372,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             } else if (parts.size() == 1) {
                 columns.add(new SourceColumn(null, parts.get(0)));
             }
+            return;
+        }
+        if (tree instanceof FlinkParser.SubscriptExpressionContext) {
+            FlinkParser.SubscriptExpressionContext subscript = (FlinkParser.SubscriptExpressionContext) tree;
+            collectSourceColumns(subscript.primaryExpression(), columns);
+            collectSourceColumns(subscript.expression(), columns);
             return;
         }
         if (tree instanceof FlinkParser.ScalarSubqueryContext) {
@@ -1504,6 +2436,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             FlinkParser.DereferenceContext deref = (FlinkParser.DereferenceContext) tree;
             collectPrimaryParts(deref.primaryExpression(), parts);
             parts.add(cleanIdentifier(deref.identifier()));
+        } else if (tree instanceof FlinkParser.SubscriptExpressionContext) {
+            FlinkParser.SubscriptExpressionContext subscript = (FlinkParser.SubscriptExpressionContext) tree;
+            collectPrimaryParts(subscript.primaryExpression(), parts);
         } else if (tree instanceof FlinkParser.ColumnReferenceContext) {
             FlinkParser.ColumnReferenceContext colRef = (FlinkParser.ColumnReferenceContext) tree;
             parts.add(cleanIdentifier(colRef.identifier()));
@@ -1523,6 +2458,26 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             parts.add(cleanIdentifier(id));
         }
         return parts;
+    }
+
+    private static String qualifiedName(FlinkParser.QualifiedNameContext ctx) {
+        List<String> parts = new ArrayList<>();
+        for (FlinkParser.IdentifierContext id : ctx.identifier()) {
+            parts.add(cleanIdentifier(id));
+        }
+        return String.join(".", parts);
+    }
+
+    private static String relationKey(TableRef table) {
+        List<String> parts = new ArrayList<>();
+        if (table.getCatalog() != null) {
+            parts.add(table.getCatalog());
+        }
+        if (table.getSchema() != null) {
+            parts.add(table.getSchema());
+        }
+        parts.add(table.getName());
+        return String.join(".", parts).toLowerCase(Locale.ROOT);
     }
 
     private static String tableAlias(FlinkParser.TableAliasContext ctx) {
@@ -1573,11 +2528,17 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         final List<SourceColumn> sourceColumns;
         final String targetColumn;
         final String expression;
+        final boolean wildcard;
 
         Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
+            this(sourceColumns, targetColumn, expression, false);
+        }
+
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, boolean wildcard) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
+            this.wildcard = wildcard;
         }
     }
 

@@ -1,0 +1,1 @@
+show authentication for root;

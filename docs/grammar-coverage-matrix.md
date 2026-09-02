@@ -80,8 +80,8 @@ These domains are the shared planning vocabulary across dialects.
 | Spark | `linesql-dialect-spark/src/main/antlr4/io/github/linesql/dialect/spark/antlr/SqlBaseParser.g4` | Broad Spark grammar baseline. |
 | MySQL | `linesql-dialect-mysql/src/main/antlr4/io/github/linesql/dialect/mysql/antlr/MySqlParser.g4` | Lightweight lineage grammar for common MySQL platform SQL. |
 | Hive | `linesql-dialect-hive/src/main/antlr4/io/github/linesql/dialect/hive/antlr/HiveParser.g4` | Lightweight lineage grammar with Hive DDL extensions. |
-| Flink | `linesql-dialect-flink/src/main/antlr4/io/github/linesql/dialect/flink/antlr/FlinkParser.g4` | Lightweight lineage grammar with Flink connector DDL extensions. |
-| StarRocks | `linesql-dialect-starrocks/src/main/antlr4/io/github/linesql/dialect/starrocks/antlr/StarRocksParser.g4` | Lightweight lineage grammar with StarRocks table model syntax. |
+| Flink | `linesql-dialect-flink/src/main/antlr4/io/github/linesql/dialect/flink/antlr/FlinkParser.g4` | Lightweight lineage grammar with Flink connector DDL, model DDL signatures, SQL Client utility statements, temporal joins, window table-valued functions, MATCH_RECOGNIZE, DESCRIBE variants, and Hive-compatible DDL extensions. |
+| StarRocks | `linesql-dialect-starrocks/src/main/antlr4/io/github/linesql/dialect/starrocks/antlr/StarRocksParser.g4` | Lightweight lineage grammar with StarRocks table model, load/unload, task, metadata, resource, and lifecycle syntax. |
 | Oracle | `linesql-dialect-oracle/src/main/antlr4/io/github/linesql/dialect/oracle/antlr/OracleParser.g4` | Lightweight lineage grammar with Oracle query and DML syntax anchors. |
 | SQL Server | `linesql-dialect-sqlserver/src/main/antlr4/io/github/linesql/dialect/sqlserver/antlr/SqlServerParser.g4` | Lightweight lineage grammar with SQL Server query and DML syntax anchors. |
 | PostgreSQL | `linesql-dialect-postgresql/src/main/antlr4/io/github/linesql/dialect/postgresql/antlr/PostgreSqlParser.g4` | Dedicated lightweight lineage grammar for common PostgreSQL query and DML syntax. |
@@ -119,11 +119,11 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 | Delete | PARTIAL | COVERED | N/A | PARTIAL | P1 |
 | Merge | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
-| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
+| Create table | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
 | CTAS | COVERED | COVERED | COVERED | PARTIAL | P0 |
 | Create view | COVERED | COVERED | COVERED | PARTIAL | P0 |
 | Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
-| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | COVERED | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P2 |
 | Spark extensions | PARTIAL | PARTIAL | PARTIAL | PARTIAL | P1 |
 
@@ -145,9 +145,9 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Update | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
 | Delete | PARTIAL | COVERED | N/A | PARTIAL | P0 |
 | Merge | N/A | N/A | N/A | N/A | N/A |
-| Create table | PARTIAL | COVERED | N/A | N/A | P1 |
-| CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
-| Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
+| Create table | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
+| CTAS | PARTIAL | COVERED | COVERED | COVERED | P1 |
+| Create view | PARTIAL | COVERED | COVERED | COVERED | P1 |
 | Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
 | Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P2 |
@@ -170,14 +170,14 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
-| Merge | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
+| Merge | PARTIAL | COVERED | COVERED | COVERED | P1 |
 | Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
 | Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
-| DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
-| StarRocks extensions | PARTIAL | COVERED | N/A | N/A | P1 |
+| DDL affected table | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
+| StarRocks extensions | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 
 ### Hive
 
@@ -229,7 +229,7 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
 | Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
-| Flink extensions | PARTIAL | COVERED | N/A | N/A | P1 |
+| Flink extensions | PARTIAL | COVERED | COVERED | COVERED | P1 |
 
 ### Oracle
 
@@ -364,7 +364,7 @@ The next development batches should follow this order:
 | --- | --- | --- |
 | P0 | Query core, relation scope, join predicates, insert mappings, MySQL/StarRocks/SQL Server DML, PostgreSQL basic DML, OceanBase MySQL-mode baseline | These paths protect common catalog and governance use cases. |
 | P1 | CTE propagation, predicate subqueries, merge actions, CTAS/view output columns, dialect DDL anchors, OceanBase Oracle-mode baseline | These make the parser useful for production scripts and warehouse jobs. |
-| P2 | Window functions, richer DDL metadata, less common dialect extensions | Important, but less likely to break basic lineage adoption. |
+| P2 | Richer DDL metadata, less common dialect extensions, and advanced generated-column expansion | Important, but less likely to break basic lineage adoption. |
 
 ## Acceptance Checklist
 
@@ -385,4 +385,5 @@ A grammar domain is not considered done until:
 - The lightweight dialect grammars should be expanded by domain, not by isolated SQL examples.
 - MySQL, StarRocks, and SQL Server DML should stay near the front of the queue because they are common in platform metadata services.
 - Hive and Flink DDL extensions should remain table-lineage focused unless they expose real data flow.
+- Flink temporal joins, window TVFs, and MATCH_RECOGNIZE now have case-backed lineage semantics; remaining Flink work should focus on advanced generated-column expansion and lower-frequency SQL Client variants.
 - Oracle and SQL Server merge behavior should be strengthened after DML assignment lineage stabilizes.

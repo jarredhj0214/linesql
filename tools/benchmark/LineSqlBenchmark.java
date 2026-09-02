@@ -51,9 +51,9 @@ public final class LineSqlBenchmark {
         System.out.println("LineSQL benchmark tools");
         System.out.println();
         System.out.println("Commands:");
-        System.out.println("  eval <input.tsv> <report.md> <failures.tsv>");
+        System.out.println("  eval <input.tsv> <report.md> <failures.tsv> [--dialect DIALECT]");
         System.out.println("  no-column <input.tsv> [samples.tsv]");
-        System.out.println("  debug <sql-file>");
+        System.out.println("  debug <sql-file> [--dialect DIALECT]");
         System.out.println();
         System.out.println("Input TSV columns: taskRow<TAB>scriptIndex<TAB>sqlBase64");
     }
@@ -65,6 +65,7 @@ public final class LineSqlBenchmark {
         Path input = Paths.get(args[1]);
         Path report = Paths.get(args[2]);
         Path failures = Paths.get(args[3]);
+        SqlDialect dialect = optionalDialect(args, 4);
         EvalStats stats = new EvalStats();
         List<FailureSample> samples = new ArrayList<FailureSample>();
 
@@ -75,7 +76,7 @@ public final class LineSqlBenchmark {
             while ((line = reader.readLine()) != null) {
                 CorpusRow row = CorpusRow.parse(line);
                 if (row != null) {
-                    evaluateRow(row, stats, samples);
+                    evaluateRow(row, stats, samples, dialect);
                 }
             }
             for (FailureSample sample : samples) {
@@ -91,14 +92,16 @@ public final class LineSqlBenchmark {
         System.out.println("FAILURES=" + failures);
     }
 
-    private static void evaluateRow(CorpusRow row, EvalStats stats, List<FailureSample> samples) {
+    private static void evaluateRow(CorpusRow row, EvalStats stats, List<FailureSample> samples, SqlDialect forcedDialect) {
         stats.scripts++;
         boolean scriptError = false;
         boolean anyTable = false;
         boolean anyColumn = false;
         boolean anyOk = false;
         try {
-            List<LineageResult> results = LineSql.parseScript(row.sql);
+            List<LineageResult> results = forcedDialect == null
+                    ? LineSql.parseScript(row.sql)
+                    : LineSql.parseScript(row.sql, forcedDialect);
             if (results.isEmpty()) {
                 scriptError = true;
                 stats.increment(stats.errors, "EMPTY_RESULT");
@@ -221,7 +224,10 @@ public final class LineSqlBenchmark {
             throw new IllegalArgumentException("debug requires <sql-file>");
         }
         String sql = new String(Files.readAllBytes(Paths.get(args[1])), StandardCharsets.UTF_8);
-        List<LineageResult> results = LineSql.parseScript(sql);
+        SqlDialect dialect = optionalDialect(args, 2);
+        List<LineageResult> results = dialect == null
+                ? LineSql.parseScript(sql)
+                : LineSql.parseScript(sql, dialect);
         for (int i = 0; i < results.size(); i++) {
             LineageResult result = results.get(i);
             System.out.println("#" + (i + 1) + " dialect=" + result.getDialect()
@@ -305,6 +311,16 @@ public final class LineSqlBenchmark {
     private static void increment(Map<String, Long> map, String key) {
         Long current = map.get(key);
         map.put(key, current == null ? 1L : current + 1L);
+    }
+
+    private static SqlDialect optionalDialect(String[] args, int index) {
+        if (args.length <= index) {
+            return null;
+        }
+        if (args.length == index + 2 && "--dialect".equals(args[index])) {
+            return SqlDialect.valueOf(args[index + 1].toUpperCase(Locale.ROOT));
+        }
+        throw new IllegalArgumentException("Expected optional --dialect DIALECT");
     }
 
     private static List<Map.Entry<String, Long>> top(Map<String, Long> map, int limit) {

@@ -4,6 +4,7 @@ import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
@@ -39,10 +40,16 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
+    private int externalLoadCount;
     private boolean suppressColumnLineage;
+    private ParseContext context;
 
     StarRocksLineageVisitor(LineageResult result) {
         this.result = result;
+    }
+
+    void setContext(ParseContext context) {
+        this.context = context;
     }
 
     @Override
@@ -132,6 +139,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             visit(ctx.insertStatement());
         } else if (ctx.createTableStatement() != null) {
             visit(ctx.createTableStatement());
+        } else if (ctx.cacheSelectStatement() != null) {
+            result.setStatementType(StatementType.SELECT);
+            visit(ctx.cacheSelectStatement().query());
         } else if (ctx.query() != null) {
             result.setStatementType(StatementType.SELECT);
             visit(ctx.query());
@@ -182,9 +192,25 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitExportTableStatement(StarRocksParser.ExportTableStatementContext ctx) {
-        inputTables.add(tableRef(ctx.source));
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        if (ctx.identifierList() != null) {
+            result.setColumnLineage(exportColumnLineage(source, identifierNames(ctx.identifierList())));
+        }
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
+    }
+
+    private List<ColumnLineage> exportColumnLineage(TableRef source, List<String> columns) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (String column : columns) {
+            lineages.add(LineageModelUtils.columnLineage(
+                    null,
+                    column,
+                    Collections.singletonList(new ColumnRef(source, column)),
+                    null));
+        }
+        return lineages;
     }
 
     @Override
@@ -195,19 +221,24 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateRoutineLoadStatement(StarRocksParser.CreateRoutineLoadStatementContext ctx) {
-        TableRef target = tableRef(ctx.target);
+        TableRef target = routineLoadTargetTable(ctx.job, ctx.target);
         currentDmlTarget = target;
         outputTables.add(target);
         List<ColumnLineage> lineages = new ArrayList<>();
+        String sourcePrefix = "$routine_load" + (++externalLoadCount);
         for (StarRocksParser.RoutineLoadClauseContext clause : ctx.routineLoadClause()) {
             if (clause.loadColumnList() != null) {
-                lineages.addAll(readLoadDataColumns(clause.loadColumnList(), target));
+                lineages.addAll(readLoadDataColumns(clause.loadColumnList(), target, sourcePrefix));
             }
             if (clause.whereClause() != null) {
-                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(clause.whereClause().expression()));
+                addExternalColumnUsages(ColumnUsageType.WHERE,
+                        sourceColumns(clause.whereClause().expression()),
+                        sourcePrefix);
             }
         }
-        result.setColumnLineage(lineages);
+        List<ColumnLineage> allLineages = new ArrayList<>(result.getColumnLineage());
+        allLineages.addAll(lineages);
+        result.setColumnLineage(allLineages);
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -227,12 +258,28 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitCancelLoadStmt(StarRocksParser.CancelLoadStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
-        return null;
+        return visitChildren(ctx);
     }
 
     @Override
     public Void visitCancelExportStmt(StarRocksParser.CancelExportStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCancelLoadStatement(StarRocksParser.CancelLoadStatementContext ctx) {
+        LineageModelUtils.addColumnUsages(result,
+                ColumnUsageType.READ_METADATA,
+                metadataColumnRefs(null, sourceColumns(ctx.expression())));
+        return null;
+    }
+
+    @Override
+    public Void visitCancelExportStatement(StarRocksParser.CancelExportStatementContext ctx) {
+        LineageModelUtils.addColumnUsages(result,
+                ColumnUsageType.READ_METADATA,
+                metadataColumnRefs(null, sourceColumns(ctx.expression())));
         return null;
     }
 
@@ -273,10 +320,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         visit(ctx.insertStatement());
         result.setStatementType(StatementType.LOAD_DATA);
         TableRef target = outputTables.size() == 1 ? outputTables.iterator().next() : null;
+        String sourcePrefix = "$pipe" + (++externalLoadCount);
         result.setColumnLineage(externalLoadColumnLineage(
                 result.getColumnLineage(),
                 target,
-                insertColumns(ctx.insertStatement())));
+                insertColumns(ctx.insertStatement()),
+                sourcePrefix));
         projections.clear();
         suppressColumnLineage = true;
         result.setInputTables(new ArrayList<>(inputTables));
@@ -295,28 +344,43 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private List<ColumnLineage> externalLoadColumnLineage(
             List<ColumnLineage> lineages,
             TableRef target,
-            List<String> targetColumns) {
+            List<String> targetColumns,
+            String sourcePrefix) {
         List<ColumnLineage> sanitized = new ArrayList<>();
         for (ColumnLineage lineage : lineages) {
             if (lineage.getTarget() == null) {
                 continue;
             }
+            List<ColumnRef> sources = new ArrayList<>();
+            for (ColumnRef source : lineage.getSources()) {
+                sources.add(new ColumnRef(null, sourcePrefix + "." + simpleExternalColumnName(source)));
+            }
             sanitized.add(LineageModelUtils.columnLineage(
                     lineage.getTarget().getTable(),
                     lineage.getTarget().getName(),
-                    new ArrayList<ColumnRef>(),
+                    sources,
                     lineage.getExpression()));
         }
         if (sanitized.isEmpty() && target != null) {
             for (String columnName : targetColumns) {
+                List<ColumnRef> sources = Collections.singletonList(new ColumnRef(null, sourcePrefix + "." + columnName));
                 sanitized.add(LineageModelUtils.columnLineage(
                         target,
                         columnName,
-                        new ArrayList<ColumnRef>(),
+                        sources,
                         null));
             }
         }
         return sanitized;
+    }
+
+    private static String simpleExternalColumnName(ColumnRef source) {
+        if (source == null || source.getName() == null) {
+            return "*";
+        }
+        String name = source.getName();
+        int dot = name.lastIndexOf('.');
+        return dot >= 0 && dot + 1 < name.length() ? name.substring(dot + 1) : name;
     }
 
     @Override
@@ -340,8 +404,10 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitCreateAnalyzeStatement(StarRocksParser.CreateAnalyzeStatementContext ctx) {
         if (ctx.multipartIdentifier() != null) {
-            inputTables.add(tableRef(ctx.multipartIdentifier()));
+            TableRef table = tableRef(ctx.multipartIdentifier());
+            inputTables.add(table);
             result.setInputTables(new ArrayList<>(inputTables));
+            addMetadataColumnUsages(table, ctx.identifierList());
         }
         return null;
     }
@@ -374,6 +440,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitAccountControlStmt(StarRocksParser.AccountControlStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAccountControlStatement(StarRocksParser.AccountControlStatementContext ctx) {
+        if (ctx.multipartIdentifier() != null && (ctx.GRANT() != null || ctx.REVOKE() != null)) {
+            outputTables.add(tableRef(ctx.multipartIdentifier()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
         return null;
     }
 
@@ -385,8 +460,27 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitBackupStatement(StarRocksParser.BackupStatementContext ctx) {
-        collectBackupObjects(ctx.backupOnClause(), true);
+        collectBackupObjects(ctx.backupOnClause(), true, backupDatabase(ctx), false);
         result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRecoverStmt(StarRocksParser.RecoverStmtContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRecoverStatement(StarRocksParser.RecoverStatementContext ctx) {
+        if (ctx.DATABASE() != null) {
+            result.setStatementType(StatementType.CREATE_SCHEMA);
+            return null;
+        }
+        result.setStatementType(StatementType.ALTER_TABLE);
+        if (ctx.multipartIdentifier() != null) {
+            outputTables.add(tableRef(ctx.multipartIdentifier()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
         return null;
     }
 
@@ -398,7 +492,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitRestoreStatement(StarRocksParser.RestoreStatementContext ctx) {
-        collectBackupObjects(ctx.backupOnClause(), false);
+        collectBackupObjects(ctx.backupOnClause(), false, restoreTargetDatabase(ctx), true);
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -428,6 +522,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     private void collectBackupObjects(StarRocksParser.BackupOnClauseContext ctx, boolean input) {
+        collectBackupObjects(ctx, input, null, false);
+    }
+
+    private void collectBackupObjects(StarRocksParser.BackupOnClauseContext ctx,
+                                      boolean input,
+                                      String schemaOverride,
+                                      boolean useObjectAlias) {
         if (ctx == null) {
             return;
         }
@@ -435,13 +536,67 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             if (object.multipartIdentifier() == null || object.FUNCTION() != null || object.FUNCTIONS() != null) {
                 continue;
             }
-            TableRef table = tableRef(object.multipartIdentifier());
+            TableRef table = backupObjectTable(object, schemaOverride, useObjectAlias);
             if (input) {
                 inputTables.add(table);
             } else {
                 outputTables.add(table);
             }
         }
+    }
+
+    private TableRef backupObjectTable(StarRocksParser.BackupObjectContext object,
+                                       String schemaOverride,
+                                       boolean useObjectAlias) {
+        TableRef table = tableRef(object.multipartIdentifier());
+        List<String> parts = identifierParts(object.multipartIdentifier());
+        String alias = backupObjectAlias(object);
+        String name = useObjectAlias && alias != null ? alias : table.getName();
+        if (schemaOverride != null && !schemaOverride.isEmpty()) {
+            String catalog = parts.size() >= 3 ? parts.get(parts.size() - 3)
+                    : (context == null ? null : context.getDefaultCatalog());
+            return new TableRef(catalog, schemaOverride, name);
+        }
+        if (useObjectAlias && alias != null) {
+            return new TableRef(table.getCatalog(), table.getSchema(), alias);
+        }
+        return table;
+    }
+
+    private static String backupObjectAlias(StarRocksParser.BackupObjectContext object) {
+        if (object.backupObjectAlias() == null) {
+            return null;
+        }
+        return cleanIdentifier(object.backupObjectAlias().identifier());
+    }
+
+    private static String restoreTargetDatabase(StarRocksParser.RestoreStatementContext ctx) {
+        if (ctx.restoreDatabaseClause() == null) {
+            if (ctx.restoreLegacyDatabaseClause() != null) {
+                return cleanIdentifier(ctx.restoreLegacyDatabaseClause().identifier());
+            }
+            return snapshotDatabase(ctx.snapshot);
+        }
+        StarRocksParser.IdentifierContext target = ctx.restoreDatabaseClause().target;
+        if (target != null) {
+            return cleanIdentifier(target);
+        }
+        return cleanIdentifier(ctx.restoreDatabaseClause().source);
+    }
+
+    private static String backupDatabase(StarRocksParser.BackupStatementContext ctx) {
+        if (ctx.database != null) {
+            return cleanIdentifier(ctx.database);
+        }
+        return snapshotDatabase(ctx.snapshot);
+    }
+
+    private static String snapshotDatabase(StarRocksParser.MultipartIdentifierContext snapshot) {
+        List<String> parts = identifierParts(snapshot);
+        if (parts.size() < 2) {
+            return null;
+        }
+        return parts.get(parts.size() - 2);
     }
 
     @Override
@@ -489,7 +644,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
                     Collections.singletonList(new ColumnRef(source, columnName)),
                     null));
         }
-        result.setColumnLineage(lineages);
+        List<ColumnLineage> allLineages = new ArrayList<>(result.getColumnLineage());
+        allLineages.addAll(lineages);
+        result.setColumnLineage(allLineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -544,6 +701,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitSqlBlacklistStmt(StarRocksParser.SqlBlacklistStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitKillStmt(StarRocksParser.KillStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;
@@ -558,25 +721,49 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitLoadDataElement(StarRocksParser.LoadDataElementContext ctx) {
         TableRef target = tableRef(ctx.target);
+        TableRef source = ctx.source == null ? null : tableRef(ctx.source);
         currentDmlTarget = target;
+        if (source != null) {
+            inputTables.add(source);
+        }
         outputTables.add(target);
         List<ColumnLineage> lineages = new ArrayList<>();
+        String sourcePrefix = "$load" + (++externalLoadCount);
         for (StarRocksParser.LoadDataOptionContext option : ctx.loadDataOption()) {
             if (isLoadColumnOption(option)) {
-                lineages.addAll(readLoadDataColumns(option.loadColumnList(), target));
+                if (source == null) {
+                    lineages.addAll(readLoadDataColumns(option.loadColumnList(), target, sourcePrefix));
+                } else {
+                    lineages.addAll(readLoadTableColumns(option.loadColumnList(), target, source));
+                }
             }
-            if (option.FROM() != null && option.identifierList() != null) {
-                lineages.addAll(readLoadDataColumns(option.identifierList(), target));
+            if (source == null && option.FROM() != null && option.identifierList() != null) {
+                lineages.addAll(readLoadDataColumns(option.identifierList(), target, sourcePrefix));
             }
             if (option.whereClause() != null) {
-                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(option.whereClause().expression()));
+                if (source == null) {
+                    addExternalColumnUsages(ColumnUsageType.WHERE,
+                            sourceColumns(option.whereClause().expression()),
+                            sourcePrefix);
+                } else {
+                    addLoadTableColumnUsages(ColumnUsageType.WHERE,
+                            sourceColumns(option.whereClause().expression()),
+                            source);
+                }
             }
             if (option.assignmentList() != null) {
                 collectSubqueryInputs(option.assignmentList());
-                lineages.addAll(readAssignments(option.assignmentList(), target));
+                if (source == null) {
+                    lineages.addAll(readExternalAssignments(option.assignmentList(), target, sourcePrefix));
+                } else {
+                    lineages.addAll(readLoadTableAssignments(option.assignmentList(), target, source));
+                }
             }
         }
-        result.setColumnLineage(lineages);
+        List<ColumnLineage> allLineages = new ArrayList<>(result.getColumnLineage());
+        allLineages.addAll(lineages);
+        result.setColumnLineage(allLineages);
+        result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -589,17 +776,20 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         return firstTokenType == StarRocksParser.LPAREN;
     }
 
-    private List<ColumnLineage> readLoadDataColumns(StarRocksParser.LoadColumnListContext ctx, TableRef target) {
+    private List<ColumnLineage> readLoadDataColumns(StarRocksParser.LoadColumnListContext ctx,
+                                                    TableRef target,
+                                                    String sourcePrefix) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (StarRocksParser.LoadColumnItemContext item : ctx.loadColumnItem()) {
             if (item.identifier() != null) {
+                String columnName = cleanIdentifier(item.identifier());
                 lineages.add(LineageModelUtils.columnLineage(
                         target,
-                        cleanIdentifier(item.identifier()),
-                        new ArrayList<ColumnRef>(),
+                        columnName,
+                        Collections.singletonList(new ColumnRef(null, sourcePrefix + "." + columnName)),
                         null));
             } else if (item.assignment() != null) {
-                ColumnLineage lineage = readAssignment(item.assignment(), target);
+                ColumnLineage lineage = readExternalAssignment(item.assignment(), target, sourcePrefix);
                 if (lineage != null) {
                     lineages.add(lineage);
                 }
@@ -608,16 +798,113 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         return lineages;
     }
 
-    private List<ColumnLineage> readLoadDataColumns(StarRocksParser.IdentifierListContext ctx, TableRef target) {
+    private List<ColumnLineage> readLoadTableColumns(StarRocksParser.LoadColumnListContext ctx,
+                                                     TableRef target,
+                                                     TableRef source) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (StarRocksParser.LoadColumnItemContext item : ctx.loadColumnItem()) {
+            if (item.identifier() != null) {
+                String columnName = cleanIdentifier(item.identifier());
+                lineages.add(LineageModelUtils.columnLineage(
+                        target,
+                        columnName,
+                        Collections.singletonList(new ColumnRef(source, columnName)),
+                        null));
+            } else if (item.assignment() != null) {
+                ColumnLineage lineage = readLoadTableAssignment(item.assignment(), target, source);
+                if (lineage != null) {
+                    lineages.add(lineage);
+                }
+            }
+        }
+        return lineages;
+    }
+
+    private List<ColumnLineage> readLoadDataColumns(StarRocksParser.IdentifierListContext ctx,
+                                                    TableRef target,
+                                                    String sourcePrefix) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (String columnName : identifierNames(ctx)) {
             lineages.add(LineageModelUtils.columnLineage(
                     target,
                     columnName,
-                    new ArrayList<ColumnRef>(),
+                    Collections.singletonList(new ColumnRef(null, sourcePrefix + "." + columnName)),
                     null));
         }
         return lineages;
+    }
+
+    private List<ColumnLineage> readExternalAssignments(StarRocksParser.AssignmentListContext ctx,
+                                                        TableRef target,
+                                                        String sourcePrefix) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (StarRocksParser.AssignmentContext assignment : ctx.assignment()) {
+            ColumnLineage lineage = readExternalAssignment(assignment, target, sourcePrefix);
+            if (lineage != null) {
+                lineages.add(lineage);
+            }
+        }
+        return lineages;
+    }
+
+    private List<ColumnLineage> readLoadTableAssignments(StarRocksParser.AssignmentListContext ctx,
+                                                         TableRef target,
+                                                         TableRef source) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (StarRocksParser.AssignmentContext assignment : ctx.assignment()) {
+            ColumnLineage lineage = readLoadTableAssignment(assignment, target, source);
+            if (lineage != null) {
+                lineages.add(lineage);
+            }
+        }
+        return lineages;
+    }
+
+    private ColumnLineage readExternalAssignment(StarRocksParser.AssignmentContext assignment,
+                                                 TableRef target,
+                                                 String sourcePrefix) {
+        List<String> parts = identifierParts(assignment.multipartIdentifier());
+        String columnName = parts.get(parts.size() - 1);
+        ColumnLineage lineage = new ColumnLineage();
+        lineage.setTarget(new ColumnRef(target, columnName));
+        lineage.setSources(externalColumnRefs(sourceColumns(assignment.expression()), sourcePrefix));
+        lineage.setExpression(assignment.expression().getText());
+        return lineage;
+    }
+
+    private ColumnLineage readLoadTableAssignment(StarRocksParser.AssignmentContext assignment,
+                                                  TableRef target,
+                                                  TableRef source) {
+        List<String> parts = identifierParts(assignment.multipartIdentifier());
+        String columnName = parts.get(parts.size() - 1);
+        List<ColumnRef> sources = loadTableColumnRefs(sourceColumns(assignment.expression()), source);
+        ColumnLineage lineage = new ColumnLineage();
+        lineage.setTarget(new ColumnRef(target, columnName));
+        lineage.setSources(sources);
+        lineage.setExpression(assignment.expression().getText());
+        return lineage;
+    }
+
+    private void addLoadTableColumnUsages(ColumnUsageType type,
+                                          List<SourceColumn> sourceColumns,
+                                          TableRef source) {
+        LineageModelUtils.addColumnUsages(result, type, loadTableColumnRefs(sourceColumns, source));
+    }
+
+    private List<ColumnRef> loadTableColumnRefs(List<SourceColumn> sourceColumns, TableRef source) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (SourceColumn sourceColumn : sourceColumns) {
+            if (sourceColumn.resolvedRef != null) {
+                refs.add(sourceColumn.resolvedRef);
+            } else if (sourceColumn.qualifier == null) {
+                refs.add(new ColumnRef(source, sourceColumn.name));
+            } else if (sourceColumn.qualifier.equalsIgnoreCase(source.getName())) {
+                refs.add(new ColumnRef(source, sourceColumn.name));
+            } else {
+                refs.add(new ColumnRef(source, sourceColumn.qualifier + "." + sourceColumn.name));
+            }
+        }
+        return refs;
     }
 
     @Override
@@ -688,6 +975,69 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitMergeStmt(StarRocksParser.MergeStmtContext ctx) {
+        result.setStatementType(StatementType.MERGE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitMergeStatement(StarRocksParser.MergeStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
+        TableRef target = tableRef(ctx.multipartIdentifier(0));
+        currentDmlTarget = target;
+        inputTables.add(target);
+        outputTables.add(target);
+        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        String targetAlias = tableAlias(ctx.tableAlias(0));
+        if (targetAlias != null) {
+            tableAliases.put(targetAlias.toLowerCase(Locale.ROOT), target);
+        }
+
+        if (ctx.multipartIdentifier().size() > 1) {
+            TableRef source = tableRef(ctx.multipartIdentifier(1));
+            if (isCteReference(source)) {
+                addDerivedReference(source.getName(), ctx.tableAlias(1));
+            } else {
+                inputTables.add(source);
+                tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
+                String sourceAlias = tableAlias(ctx.tableAlias(1));
+                if (sourceAlias != null) {
+                    tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
+                }
+            }
+        } else if (ctx.query() != null) {
+            String alias = tableAlias(ctx.tableAlias(1));
+            String relationName = alias == null ? "$merge_source" : alias;
+            registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), tableAliasColumns(ctx.tableAlias(1)));
+            addDerivedReference(relationName, ctx.tableAlias(1));
+        }
+
+        addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
+
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (StarRocksParser.MergeClauseContext clause : ctx.mergeClause()) {
+            if (clause.mergeCondition() != null) {
+                addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(clause.mergeCondition().expression()));
+                collectSubqueryInputs(clause.mergeCondition().expression());
+            }
+            if (clause.mergeMatchedAction() != null && clause.mergeMatchedAction().assignmentList() != null) {
+                collectSubqueryInputs(clause.mergeMatchedAction().assignmentList());
+                lineages.addAll(readAssignments(clause.mergeMatchedAction().assignmentList(), target));
+            }
+            if (clause.mergeNotMatchedAction() != null && clause.mergeNotMatchedAction().expressionList() != null) {
+                collectSubqueryInputs(clause.mergeNotMatchedAction().expressionList());
+                lineages.addAll(readMergeInsertValues(clause.mergeNotMatchedAction(), target));
+            }
+        }
+        result.setColumnLineage(lineages);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStmt(StarRocksParser.CreateTableStmtContext ctx) {
         return visitChildren(ctx);
     }
@@ -700,8 +1050,10 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateIndexStatement(StarRocksParser.CreateIndexStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        outputTables.add(table);
         result.setOutputTables(new ArrayList<>(outputTables));
+        addIndexColumnUsages(table, ctx.identifierList());
         return null;
     }
 
@@ -723,6 +1075,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         }
         TableRef target = tableRef(ctx.multipartIdentifier(0));
         outputTables.add(target);
+        addTableModelColumnUsages(target, ctx.keyDesc(), ctx.distributionDesc(), ctx.orderByDesc());
+        addPartitionColumnUsages(target, ctx.partitionDesc());
+        addRollupColumnUsages(target, ctx.rollupClause());
+        if (ctx.propertiesClause() != null) {
+            addBloomFilterColumnUsages(target, ctx.propertiesClause().propertyList());
+        }
         if (ctx.ctasElements != null) {
             insertTargetColumns.addAll(ctasElementNames(ctx.ctasElements));
         }
@@ -731,9 +1089,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
+            registerTemporaryRelation(target);
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
             result.setColumnLineage(readGeneratedColumnLineage(ctx.tableElementList(), target));
+            addTableElementIndexColumnUsages(target, ctx.tableElementList());
+            registerTableSchema(target, ctx.tableElementList());
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -758,6 +1119,10 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         visit(ctx.query());
         refreshColumnLineage();
         retargetColumnLineage(target);
+        registerTemporaryRelation(target);
+        if (ctx.MATERIALIZED() != null) {
+            addMaterializedViewModelColumnUsages(target, ctx.materializedViewOption());
+        }
         addMaterializedViewOrderByUsages(ctx.materializedViewOption());
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -895,6 +1260,10 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         } else {
             outputTables.add(view);
         }
+        if (ctx.alterMaterializedViewAction() != null
+                && ctx.alterMaterializedViewAction().SET() != null) {
+            addBloomFilterColumnUsages(view, firstPropertyList(ctx.alterMaterializedViewAction()));
+        }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -932,17 +1301,83 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitAlterTableAddColumn(StarRocksParser.AlterTableAddColumnContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+    public Void visitAlterTableOther(StarRocksParser.AlterTableOtherContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        outputTables.add(table);
         result.setOutputTables(new ArrayList<>(outputTables));
+        for (StarRocksParser.AlterTableActionContext action : ctx.alterTableAction()) {
+            collectAlterTableActionLineage(table, action);
+        }
         return null;
     }
 
-    @Override
-    public Void visitAlterTableOther(StarRocksParser.AlterTableOtherContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
-        result.setOutputTables(new ArrayList<>(outputTables));
-        return null;
+    private void collectAlterTableActionLineage(TableRef table, StarRocksParser.AlterTableActionContext action) {
+        if (action == null) {
+            return;
+        }
+        if (action.ADD() != null
+                && action.INDEX() != null
+                && !action.identifierList().isEmpty()) {
+            addIndexColumnUsages(table, action.identifierList().get(0));
+        }
+        if (action.ADD() != null
+                && action.ROLLUP() != null) {
+            addRollupColumnUsages(table, action.rollupDefinition());
+        }
+        if (action.ADD() != null
+                && action.generatedColumn() != null
+                && !action.identifier().isEmpty()) {
+            appendColumnLineage(readGeneratedColumnLineage(
+                    table,
+                    action.identifier().get(0),
+                    action.generatedColumn()));
+        }
+        if (action.tableElementList() != null) {
+            appendColumnLineage(readGeneratedColumnLineage(action.tableElementList(), table));
+            addTableElementIndexColumnUsages(table, action.tableElementList());
+        }
+        if (action.MODIFY() != null
+                && action.generatedColumn() != null
+                && !action.identifier().isEmpty()) {
+            appendColumnLineage(readGeneratedColumnLineage(
+                    table,
+                    action.identifier().get(0),
+                    action.generatedColumn()));
+        }
+        if (action.ORDER() != null
+                && !action.identifierList().isEmpty()) {
+            addColumnUsages(table, action.identifierList().get(0), ColumnUsageType.TABLE_MODEL);
+        }
+        if (action.DISTRIBUTED() != null
+                && action.HASH() != null
+                && !action.identifierList().isEmpty()) {
+            List<StarRocksParser.IdentifierListContext> lists = action.identifierList();
+            addColumnUsages(table, lists.get(lists.size() - 1), ColumnUsageType.TABLE_MODEL);
+        }
+        if (action.distributionDesc() != null) {
+            addDistributionColumnUsages(table, action.distributionDesc());
+        }
+        if (action.DROP() != null
+                && action.PARTITIONS() != null
+                && action.WHERE() != null
+                && !action.expression().isEmpty()) {
+            List<ColumnRef> refs = tableModelRefs(
+                    table,
+                    sourceColumns(action.expression().get(action.expression().size() - 1)));
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+        }
+        if (action.SET() != null) {
+            addBloomFilterColumnUsages(table, firstPropertyList(action));
+        }
+    }
+
+    private void appendColumnLineage(List<ColumnLineage> lineages) {
+        if (lineages == null || lineages.isEmpty()) {
+            return;
+        }
+        List<ColumnLineage> allLineages = new ArrayList<>(result.getColumnLineage());
+        allLineages.addAll(lineages);
+        result.setColumnLineage(allLineages);
     }
 
     @Override
@@ -953,8 +1388,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitAnalyzeTableStatement(StarRocksParser.AnalyzeTableStatementContext ctx) {
-        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        inputTables.add(table);
         result.setInputTables(new ArrayList<>(inputTables));
+        addMetadataColumnUsages(table, ctx.identifierList());
+        if (ctx.analyzeHistogramClause() != null) {
+            addMetadataColumnUsages(table, ctx.analyzeHistogramClause().identifierList());
+        }
         return null;
     }
 
@@ -966,10 +1406,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitShowStatement(StarRocksParser.ShowStatementContext ctx) {
+        TableRef metadataTable = null;
         if (ctx.multipartIdentifier() != null) {
-            inputTables.add(tableRef(ctx.multipartIdentifier()));
+            metadataTable = showMetadataTable(ctx);
+            inputTables.add(metadataTable);
             result.setInputTables(new ArrayList<>(inputTables));
         }
+        addShowMetadataColumnUsages(metadataTable, ctx);
         return null;
     }
 
@@ -1071,6 +1514,11 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitTableName(StarRocksParser.TableNameContext ctx) {
         TableRef table = tableRef(ctx.multipartIdentifier());
+        String temporaryRelationName = temporaryRelationName(table);
+        if (temporaryRelationName != null) {
+            addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
+            return null;
+        }
         if (isCteReference(table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
@@ -1081,8 +1529,21 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitFilesTableFunction(StarRocksParser.FilesTableFunctionContext ctx) {
+        String filesName = "$files" + (visibleRelationCount + 1);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (String aliasColumn : tableAliasColumns(ctx.tableAlias())) {
+            columns.put(aliasColumn.toLowerCase(Locale.ROOT),
+                    Collections.singletonList(new ColumnRef(null, filesName + "." + aliasColumn)));
+        }
+        if (!columns.isEmpty()) {
+            String alias = tableAlias(ctx.tableAlias());
+            String derivedName = alias == null ? filesName : alias.toLowerCase(Locale.ROOT);
+            derivedColumnLineage.put(derivedName, columns);
+            addDerivedReference(derivedName, ctx.tableAlias());
+            return null;
+        }
         visibleRelationCount++;
-        visibleRelations.add(VisibleRelation.derived("$files" + visibleRelationCount));
+        visibleRelations.add(VisibleRelation.derived(filesName));
         return null;
     }
 
@@ -1094,6 +1555,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         }
         List<ColumnRef> sources = columnRefs(sourceColumns(ctx.expressionList()), new LinkedHashSet<>());
         if (sources == null || sources.isEmpty()) {
+            addOpaqueTableFunction(ctx.identifier(), ctx.tableAlias());
             return null;
         }
         String functionName = cleanIdentifier(ctx.identifier()).toLowerCase(Locale.ROOT);
@@ -1114,7 +1576,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         String functionName = cleanIdentifier(name).toLowerCase(Locale.ROOT);
         String alias = tableAlias(aliasCtx);
         String derivedName = alias == null ? functionName : alias.toLowerCase(Locale.ROOT);
-        derivedColumnLineage.put(derivedName, new LinkedHashMap<String, List<ColumnRef>>());
+        String functionRelationName = "$" + functionName + (visibleRelationCount + 1);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (String aliasColumn : tableAliasColumns(aliasCtx)) {
+            columns.put(aliasColumn.toLowerCase(Locale.ROOT),
+                    Collections.singletonList(new ColumnRef(null, functionRelationName + "." + aliasColumn)));
+        }
+        derivedColumnLineage.put(derivedName, columns);
         addDerivedReference(derivedName, aliasCtx);
     }
 
@@ -1122,8 +1590,39 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     public Void visitAliasedQuery(StarRocksParser.AliasedQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
-        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), new ArrayList<>());
+        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), tableAliasColumns(ctx.tableAlias()));
         addDerivedReference(relationName, ctx.tableAlias());
+        return null;
+    }
+
+    @Override
+    public Void visitLateralQuery(StarRocksParser.LateralQueryContext ctx) {
+        String alias = tableAlias(ctx.tableAlias());
+        String relationName = alias == null ? "$lateral" + derivedColumnLineage.size() : alias;
+        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), tableAliasColumns(ctx.tableAlias()));
+        addDerivedReference(relationName, ctx.tableAlias());
+        return null;
+    }
+
+    @Override
+    public Void visitAliasedRelation(StarRocksParser.AliasedRelationContext ctx) {
+        int relationStart = visibleRelations.size();
+        visit(ctx.relation());
+        String alias = tableAlias(ctx.tableAlias());
+        if (alias == null) {
+            return null;
+        }
+        List<VisibleRelation> addedRelations = visibleRelations.subList(relationStart, visibleRelations.size());
+        if (addedRelations.size() != 1) {
+            return null;
+        }
+        VisibleRelation relation = addedRelations.get(0);
+        if (relation.table != null) {
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), relation.table);
+        } else if (relation.derivedName != null) {
+            derivedAliases.put(alias.toLowerCase(Locale.ROOT), relation.derivedName);
+        }
+        refreshColumnLineage();
         return null;
     }
 
@@ -1158,6 +1657,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
                 if (projection != null) {
                     projections.add(projection);
                 }
+            } else if (item instanceof StarRocksParser.SelectQualifiedStarContext) {
+                StarRocksParser.SelectQualifiedStarContext star = (StarRocksParser.SelectQualifiedStarContext) item;
+                projections.add(wildcardProjection(
+                        qualifiedName(star.qualifiedName()),
+                        star.getText(),
+                        excludedColumnNames(star.excludeClause())));
+            } else if (item instanceof StarRocksParser.SelectStarContext) {
+                StarRocksParser.SelectStarContext star = (StarRocksParser.SelectStarContext) item;
+                projections.add(wildcardProjection(null, item.getText(), excludedColumnNames(star.excludeClause())));
             }
         }
         return visitChildren(ctx);
@@ -1343,6 +1851,188 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         }
     }
 
+    private void addExternalColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns, String sourcePrefix) {
+        LineageModelUtils.addColumnUsages(result, type, externalColumnRefs(sourceColumns, sourcePrefix));
+    }
+
+    private List<ColumnRef> externalColumnRefs(List<SourceColumn> sourceColumns, String sourcePrefix) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (SourceColumn source : sourceColumns) {
+            refs.add(new ColumnRef(null, sourcePrefix + "." + source.name));
+        }
+        return refs;
+    }
+
+    private void addMetadataColumnUsages(TableRef table, StarRocksParser.IdentifierListContext ctx) {
+        addColumnUsages(table, ctx, ColumnUsageType.READ_METADATA);
+    }
+
+    private void addShowMetadataColumnUsages(TableRef table, StarRocksParser.ShowStatementContext ctx) {
+        List<ColumnRef> refs = new ArrayList<>();
+        if (ctx.whereClause() != null) {
+            refs.addAll(metadataColumnRefs(table, sourceColumns(ctx.whereClause().expression())));
+        }
+        if (ctx.expression() != null) {
+            refs.addAll(metadataColumnRefs(table, sourceColumns(ctx.expression())));
+        }
+        if (ctx.queryOrganization() != null) {
+            for (StarRocksParser.SortItemContext sortItem : ctx.queryOrganization().sortItem()) {
+                refs.addAll(metadataColumnRefs(table, sourceColumns(sortItem.expression())));
+            }
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.READ_METADATA, refs);
+    }
+
+    private static List<ColumnRef> metadataColumnRefs(TableRef table, List<SourceColumn> sourceColumns) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (SourceColumn source : sourceColumns) {
+            String columnName = source.qualifier == null ? source.name : source.qualifier + "." + source.name;
+            refs.add(new ColumnRef(table, columnName));
+        }
+        return refs;
+    }
+
+    private void addIndexColumnUsages(TableRef table, StarRocksParser.IdentifierListContext ctx) {
+        addColumnUsages(table, ctx, ColumnUsageType.INDEX);
+    }
+
+    private void addBloomFilterColumnUsages(TableRef table, StarRocksParser.PropertyListContext ctx) {
+        if (table == null || ctx == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (StarRocksParser.PropertyContext property : ctx.property()) {
+            String key = cleanPropertyValue(property.getChild(0).getText());
+            if (!"bloom_filter_columns".equalsIgnoreCase(key)) {
+                continue;
+            }
+            String value = cleanPropertyValue(property.getChild(2).getText());
+            for (String columnName : value.split(",")) {
+                String cleaned = cleanIdentifier(columnName.trim());
+                if (!cleaned.isEmpty()) {
+                    refs.add(new ColumnRef(table, cleaned));
+                }
+            }
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.INDEX, refs);
+    }
+
+    private StarRocksParser.PropertyListContext firstPropertyList(ParseTree tree) {
+        if (tree instanceof StarRocksParser.PropertyListContext) {
+            return (StarRocksParser.PropertyListContext) tree;
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            StarRocksParser.PropertyListContext found = firstPropertyList(tree.getChild(i));
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private void addTableModelColumnUsages(TableRef table,
+                                           StarRocksParser.KeyDescContext keyDesc,
+                                           StarRocksParser.DistributionDescContext distributionDesc,
+                                           StarRocksParser.OrderByDescContext orderByDesc) {
+        if (keyDesc != null) {
+            addColumnUsages(table, keyDesc.identifierList(), ColumnUsageType.TABLE_MODEL);
+        }
+        if (distributionDesc != null && distributionDesc.identifierList() != null) {
+            addDistributionColumnUsages(table, distributionDesc);
+        }
+        if (orderByDesc != null) {
+            addColumnUsages(table, orderByDesc.identifierList(), ColumnUsageType.TABLE_MODEL);
+        }
+    }
+
+    private void addDistributionColumnUsages(TableRef table, StarRocksParser.DistributionDescContext ctx) {
+        if (ctx != null && ctx.identifierList() != null) {
+            addColumnUsages(table, ctx.identifierList(), ColumnUsageType.TABLE_MODEL);
+        }
+    }
+
+    private void addPartitionColumnUsages(TableRef table, StarRocksParser.PartitionDescContext ctx) {
+        if (table == null || ctx == null) {
+            return;
+        }
+        if (ctx.identifierList() != null) {
+            addColumnUsages(table, ctx.identifierList(), ColumnUsageType.TABLE_MODEL);
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        if (ctx.expressionList() != null) {
+            for (StarRocksParser.ExpressionContext expression : ctx.expressionList().expression()) {
+                refs.addAll(tableModelRefs(table, sourceColumns(expression)));
+            }
+        } else if (ctx.expression() != null) {
+            refs.addAll(tableModelRefs(table, sourceColumns(ctx.expression())));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+    }
+
+    private void addColumnUsages(TableRef table, StarRocksParser.IdentifierListContext ctx, ColumnUsageType type) {
+        if (table == null || ctx == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String columnName : identifierNames(ctx)) {
+            refs.add(new ColumnRef(table, columnName));
+        }
+        LineageModelUtils.addColumnUsages(result, type, refs);
+    }
+
+    private static List<ColumnRef> tableModelRefs(TableRef table, List<SourceColumn> sourceColumns) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (SourceColumn source : sourceColumns) {
+            refs.add(new ColumnRef(table, source.name));
+        }
+        return refs;
+    }
+
+    private void addTableElementIndexColumnUsages(TableRef table, StarRocksParser.TableElementListContext ctx) {
+        if (table == null || ctx == null) {
+            return;
+        }
+        for (StarRocksParser.TableElementContext element : ctx.tableElement()) {
+            if (element.indexDefinition() != null) {
+                addIndexColumnUsages(table, element.indexDefinition().identifierList());
+            }
+        }
+    }
+
+    private void addRollupColumnUsages(TableRef table, StarRocksParser.RollupClauseContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        addRollupColumnUsages(table, ctx.rollupDefinition());
+    }
+
+    private void addRollupColumnUsages(TableRef table, List<StarRocksParser.RollupDefinitionContext> definitions) {
+        if (table == null || definitions == null) {
+            return;
+        }
+        for (StarRocksParser.RollupDefinitionContext definition : definitions) {
+            addColumnUsages(table, definition.identifierList(), ColumnUsageType.TABLE_MODEL);
+        }
+    }
+
+    private void addMaterializedViewModelColumnUsages(TableRef target,
+                                                      List<StarRocksParser.MaterializedViewOptionContext> options) {
+        if (target == null || options == null) {
+            return;
+        }
+        for (StarRocksParser.MaterializedViewOptionContext option : options) {
+            addPartitionColumnUsages(target, option.partitionDesc());
+            addDistributionColumnUsages(target, option.distributionDesc());
+            if (option.orderByDesc() != null) {
+                addColumnUsages(target, option.orderByDesc().identifierList(), ColumnUsageType.TABLE_MODEL);
+            }
+            if (option.propertiesClause() != null) {
+                addBloomFilterColumnUsages(target, option.propertiesClause().propertyList());
+            }
+        }
+    }
+
     private void addFunctionFilterUsage(StarRocksParser.FunctionFilterClauseContext ctx) {
         if (ctx != null) {
             pendingColumnUsages.add(new PendingColumnUsage(ColumnUsageType.WHERE, sourceColumns(ctx.expression())));
@@ -1468,6 +2158,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         List<ColumnLineage> columnLineage = new ArrayList<>();
         for (int i = 0; i < projections.size(); i++) {
             Projection projection = projections.get(i);
+            if (projection.wildcard && expandWildcardProjectionLineage(targetTable, projection, columnLineage)) {
+                continue;
+            }
+            if (projection.wildcard) {
+                addPivotGeneratedColumnLineage(targetTable, projection, columnLineage);
+            }
+            if (projection.wildcard && !projection.excludedColumns.isEmpty()) {
+                continue;
+            }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
                 continue;
@@ -1476,6 +2175,69 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
+    }
+
+    private boolean expandWildcardProjectionLineage(
+            TableRef targetTable,
+            Projection projection,
+            List<ColumnLineage> columnLineage) {
+        if (projection.sourceColumns.size() != 1) {
+            return false;
+        }
+        SourceColumn wildcard = projection.sourceColumns.get(0);
+        if (!"*".equals(wildcard.name)) {
+            return false;
+        }
+        String derivedName = null;
+        if (wildcard.qualifier != null) {
+            derivedName = derivedAliases.get(wildcard.qualifier.toLowerCase(Locale.ROOT));
+        } else if (visibleRelations.size() == 1 && visibleRelations.get(0).derivedName != null) {
+            derivedName = visibleRelations.get(0).derivedName;
+        }
+        if (derivedName == null) {
+            return false;
+        }
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
+        if (columns == null || columns.isEmpty() || (columns.size() == 1 && columns.containsKey("*"))) {
+            return false;
+        }
+        for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
+            if ("*".equals(entry.getKey())) {
+                continue;
+            }
+            if (projection.excludedColumns.contains(entry.getKey().toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            columnLineage.add(LineageModelUtils.columnLineage(
+                    targetTable,
+                    entry.getKey(),
+                    entry.getValue(),
+                    projection.expression));
+        }
+        return true;
+    }
+
+    private void addPivotGeneratedColumnLineage(
+            TableRef targetTable,
+            Projection projection,
+            List<ColumnLineage> columnLineage) {
+        if (pivotColumnLineage.isEmpty() || projection.sourceColumns.size() != 1) {
+            return;
+        }
+        SourceColumn wildcard = projection.sourceColumns.get(0);
+        if (!"*".equals(wildcard.name) || wildcard.qualifier != null) {
+            return;
+        }
+        for (Map.Entry<String, List<ColumnRef>> entry : pivotColumnLineage.entrySet()) {
+            if (projection.excludedColumns.contains(entry.getKey().toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            columnLineage.add(LineageModelUtils.columnLineage(
+                    targetTable,
+                    entry.getKey(),
+                    entry.getValue(),
+                    projection.expression));
+        }
     }
 
     private void flushPendingColumnUsages() {
@@ -1527,6 +2289,14 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            if ("*".equals(sourceColumn.name)) {
+                List<ColumnRef> wildcardRefs = wildcardColumnRefs(sourceColumn.qualifier);
+                if (wildcardRefs == null) {
+                    return null;
+                }
+                refs.addAll(wildcardRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
@@ -1541,7 +2311,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             }
             TableRef table = defaultTable;
             if (sourceColumn.qualifier != null) {
-                table = tableAliases.get(sourceColumn.qualifier.toLowerCase(Locale.ROOT));
+                String qualifierKey = sourceColumn.qualifier.toLowerCase(Locale.ROOT);
+                table = tableAliases.get(qualifierKey);
+                if (table == null && derivedAliases.containsKey(qualifierKey)) {
+                    return null;
+                }
+                if (table == null && defaultTable != null) {
+                    refs.add(new ColumnRef(defaultTable, sourceColumn.qualifier + "." + sourceColumn.name));
+                    continue;
+                }
             } else if (currentDmlTarget != null) {
                 table = currentDmlTarget;
             }
@@ -1551,6 +2329,58 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             refs.add(new ColumnRef(table, sourceColumn.name));
         }
         return refs;
+    }
+
+    private List<ColumnRef> wildcardColumnRefs(String qualifier) {
+        List<ColumnRef> refs = new ArrayList<>();
+        if (qualifier != null) {
+            String key = qualifier.toLowerCase(Locale.ROOT);
+            String derivedName = derivedAliases.get(key);
+            if (derivedName != null) {
+                addDerivedWildcardRefs(refs, derivedName);
+                return refs.isEmpty() ? null : distinctColumnRefs(refs);
+            }
+            TableRef table = tableAliases.get(key);
+            if (table != null) {
+                refs.add(new ColumnRef(table, "*"));
+                return refs;
+            }
+            return null;
+        }
+        for (VisibleRelation relation : visibleRelations) {
+            if (relation.table != null) {
+                refs.add(new ColumnRef(relation.table, "*"));
+            } else {
+                addDerivedWildcardRefs(refs, relation.derivedName);
+            }
+        }
+        if (refs.isEmpty() && inputTables.size() == 1) {
+            refs.add(new ColumnRef(inputTables.iterator().next(), "*"));
+        }
+        return refs.isEmpty() ? null : distinctColumnRefs(refs);
+    }
+
+    private void addDerivedWildcardRefs(List<ColumnRef> refs, String derivedName) {
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
+        if (columns == null) {
+            return;
+        }
+        List<ColumnRef> wildcard = columns.get("*");
+        if (wildcard != null) {
+            refs.addAll(wildcard);
+            return;
+        }
+        for (List<ColumnRef> columnRefs : columns.values()) {
+            refs.addAll(columnRefs);
+        }
+    }
+
+    private static List<ColumnRef> distinctColumnRefs(List<ColumnRef> refs) {
+        Map<String, ColumnRef> unique = new LinkedHashMap<>();
+        for (ColumnRef ref : refs) {
+            unique.put(columnKey(ref), ref);
+        }
+        return new ArrayList<>(unique.values());
     }
 
     private TableRef singleVisiblePhysicalTable() {
@@ -1602,7 +2432,126 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        return caseInsensitiveColumnRefs(columns, sourceColumn.name);
+        List<ColumnRef> refs = caseInsensitiveColumnRefs(columns, sourceColumn.name);
+        if (refs != null) {
+            return refs;
+        }
+        return wildcardDerivedColumnRefs(columns.get("*"), sourceColumn.name);
+    }
+
+    private static List<ColumnRef> wildcardDerivedColumnRefs(List<ColumnRef> wildcardRefs, String columnName) {
+        if (wildcardRefs == null || wildcardRefs.isEmpty()) {
+            return null;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (ColumnRef wildcardRef : wildcardRefs) {
+            if (wildcardRef.getTable() == null) {
+                continue;
+            }
+            if ("*".equals(wildcardRef.getName())) {
+                refs.add(new ColumnRef(wildcardRef.getTable(), columnName));
+            } else if (wildcardRef.getName().equalsIgnoreCase(columnName)) {
+                refs.add(wildcardRef);
+            }
+        }
+        return refs.isEmpty() ? null : refs;
+    }
+
+    private void registerTemporaryRelation(TableRef table) {
+        if (context == null) {
+            return;
+        }
+        context.getTemporaryRelations().put(relationKey(table), copyResult(result));
+    }
+
+    private void registerTableSchema(TableRef table, StarRocksParser.TableElementListContext tableElements) {
+        if (context == null || tableElements == null) {
+            return;
+        }
+        List<String> columnNames = declaredColumnNames(tableElements);
+        if (columnNames.isEmpty()) {
+            return;
+        }
+        LineageResult schema = new LineageResult();
+        schema.setDialect(result.getDialect());
+        schema.setDialectConfidence(result.getDialectConfidence());
+        schema.setStatementType(StatementType.CREATE_TABLE);
+        List<TableRef> input = new ArrayList<>();
+        input.add(table);
+        schema.setInputTables(input);
+        List<ColumnLineage> columns = new ArrayList<>();
+        for (String columnName : columnNames) {
+            List<ColumnRef> sources = new ArrayList<>();
+            sources.add(new ColumnRef(table, columnName));
+            columns.add(LineageModelUtils.columnLineage(table, columnName, sources, columnName));
+        }
+        schema.setColumnLineage(columns);
+        context.getTemporaryRelations().put(relationKey(table), schema);
+    }
+
+    private static List<String> declaredColumnNames(StarRocksParser.TableElementListContext ctx) {
+        List<String> columns = new ArrayList<>();
+        for (StarRocksParser.TableElementContext element : ctx.tableElement()) {
+            if (element.identifier() != null) {
+                columns.add(cleanIdentifier(element.identifier()));
+            }
+        }
+        return columns;
+    }
+
+    private String temporaryRelationName(TableRef table) {
+        if (context == null) {
+            return null;
+        }
+        String key = relationKey(table);
+        return context.getTemporaryRelations().containsKey(key) ? key : null;
+    }
+
+    private void addTemporaryRelationReference(String relationName, StarRocksParser.TableAliasContext aliasCtx) {
+        LineageResult relation = context.getTemporaryRelations().get(relationName);
+        if (relation == null) {
+            return;
+        }
+        visibleRelationCount++;
+        visibleRelations.add(VisibleRelation.derived(relationName));
+        derivedReferences.add(relationName);
+        derivedAliases.put(relationName, relationName);
+        String alias = tableAlias(aliasCtx);
+        if (alias != null) {
+            derivedAliases.put(alias.toLowerCase(Locale.ROOT), relationName);
+        }
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        List<String> aliasColumns = tableAliasColumns(aliasCtx);
+        List<ColumnLineage> lineages = relation.getColumnLineage();
+        for (int i = 0; i < lineages.size(); i++) {
+            ColumnLineage lineage = lineages.get(i);
+            String columnName = i < aliasColumns.size() ? aliasColumns.get(i) : lineage.getTarget().getName();
+            columns.put(columnName, lineage.getSources());
+        }
+        if (columns.isEmpty() && relation.getInputTables().size() == 1) {
+            List<ColumnRef> wildcard = new ArrayList<>();
+            wildcard.add(new ColumnRef(relation.getInputTables().get(0), "*"));
+            columns.put("*", wildcard);
+        }
+        derivedColumnLineage.put(relationName, columns);
+        for (TableRef table : relation.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, relation);
+        refreshColumnLineage();
+    }
+
+    private static LineageResult copyResult(LineageResult source) {
+        LineageResult copy = new LineageResult();
+        copy.setDialect(source.getDialect());
+        copy.setDialectConfidence(source.getDialectConfidence());
+        copy.setStatementType(source.getStatementType());
+        copy.setInputTables(new ArrayList<>(source.getInputTables()));
+        copy.setOutputTables(new ArrayList<>(source.getOutputTables()));
+        copy.setColumnLineage(new ArrayList<>(source.getColumnLineage()));
+        copy.setColumnUsages(new ArrayList<>(source.getColumnUsages()));
+        copy.setDiagnostics(new ArrayList<>(source.getDiagnostics()));
+        return copy;
     }
 
     private static List<ColumnRef> caseInsensitiveColumnRefs(Map<String, List<ColumnRef>> columns, String columnName) {
@@ -1642,6 +2591,20 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         return lineages;
     }
 
+    private List<ColumnLineage> readGeneratedColumnLineage(TableRef target,
+                                                           StarRocksParser.IdentifierContext identifier,
+                                                           StarRocksParser.GeneratedColumnContext generatedColumn) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        if (target == null || identifier == null || generatedColumn == null) {
+            return lineages;
+        }
+        List<ColumnRef> sources = generatedColumnSources(generatedColumn.expression(), target);
+        if (!sources.isEmpty()) {
+            lineages.add(LineageModelUtils.columnLineage(target, cleanIdentifier(identifier), sources, null));
+        }
+        return lineages;
+    }
+
     private List<ColumnRef> generatedColumnSources(StarRocksParser.ExpressionContext expression, TableRef target) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn source : sourceColumns(expression)) {
@@ -1661,6 +2624,30 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             if (lineage != null) {
                 lineages.add(lineage);
             }
+        }
+        return lineages;
+    }
+
+    private List<ColumnLineage> readMergeInsertValues(StarRocksParser.MergeNotMatchedActionContext ctx,
+                                                      TableRef target) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        if (ctx.identifierList() == null || ctx.expressionList() == null) {
+            return lineages;
+        }
+        List<String> targetColumns = identifierNames(ctx.identifierList());
+        List<StarRocksParser.ExpressionContext> expressions = ctx.expressionList().expression();
+        int count = Math.min(targetColumns.size(), expressions.size());
+        for (int i = 0; i < count; i++) {
+            StarRocksParser.ExpressionContext expression = expressions.get(i);
+            List<ColumnRef> sources = resolveSources(sourceColumns(expression));
+            if (sources == null) {
+                sources = new ArrayList<>();
+            }
+            ColumnLineage lineage = new ColumnLineage();
+            lineage.setTarget(new ColumnRef(target, targetColumns.get(i)));
+            lineage.setSources(sources);
+            lineage.setExpression(expression.getText());
+            lineages.add(lineage);
         }
         return lineages;
     }
@@ -1803,6 +2790,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
                 if (projection != null) {
                     projections.add(projection);
                 }
+            } else if (item instanceof StarRocksParser.SelectQualifiedStarContext) {
+                StarRocksParser.SelectQualifiedStarContext star = (StarRocksParser.SelectQualifiedStarContext) item;
+                projections.add(wildcardProjection(
+                        qualifiedName(star.qualifiedName()),
+                        star.getText(),
+                        excludedColumnNames(star.excludeClause())));
+            } else if (item instanceof StarRocksParser.SelectStarContext) {
+                StarRocksParser.SelectStarContext star = (StarRocksParser.SelectStarContext) item;
+                projections.add(wildcardProjection(null, item.getText(), excludedColumnNames(star.excludeClause())));
             }
         }
     }
@@ -1831,11 +2827,62 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         if (sourceColumns.size() > 1 && ctx.alias == null) {
             return null;
         }
-        String targetColumn = ctx.alias == null ? directColumn : cleanIdentifier(ctx.alias);
+        String targetColumn = ctx.alias == null
+                ? inferredSingleSourceTarget(directColumn, sourceColumns, ctx.expression())
+                : cleanIdentifier(ctx.alias);
         if (targetColumn == null) {
             return null;
         }
         return new Projection(sourceColumns, targetColumn, expression);
+    }
+
+    private String inferredSingleSourceTarget(
+            String directColumn,
+            List<SourceColumn> sourceColumns,
+            StarRocksParser.ExpressionContext expression) {
+        if (directColumn != null) {
+            return directColumn;
+        }
+        if (containsSubquery(expression) || isAggregateExpression(expression.getText())) {
+            return null;
+        }
+        if (sourceColumns.size() == 1) {
+            return unqualifiedName(sourceColumns.get(0).name);
+        }
+        return null;
+    }
+
+    private static boolean isAggregateExpression(String expression) {
+        if (expression == null) {
+            return false;
+        }
+        String normalized = expression.trim().toUpperCase(Locale.ROOT);
+        return normalized.startsWith("COUNT(")
+                || normalized.startsWith("SUM(")
+                || normalized.startsWith("AVG(")
+                || normalized.startsWith("MIN(")
+                || normalized.startsWith("MAX(")
+                || normalized.startsWith("GROUP_CONCAT(")
+                || normalized.startsWith("ARRAY_AGG(")
+                || normalized.startsWith("BITMAP_UNION(")
+                || normalized.startsWith("HLL_UNION(");
+    }
+
+    private static Projection wildcardProjection(String qualifier, String expression, Set<String> excludedColumns) {
+        List<SourceColumn> sourceColumns = new ArrayList<>();
+        sourceColumns.add(new SourceColumn(qualifier, "*"));
+        return new Projection(sourceColumns, "*", expression, true, excludedColumns);
+    }
+
+    private static Set<String> excludedColumnNames(StarRocksParser.ExcludeClauseContext ctx) {
+        Set<String> excluded = new LinkedHashSet<>();
+        if (ctx == null || ctx.identifierList() == null) {
+            return excluded;
+        }
+        for (StarRocksParser.IdentifierContext identifier : ctx.identifierList().identifier()) {
+            excluded.add(cleanIdentifier(identifier).toLowerCase(Locale.ROOT));
+        }
+        return excluded;
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
@@ -2163,9 +3210,61 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     // ============ Utility ============
 
-    private static TableRef tableRef(StarRocksParser.MultipartIdentifierContext ctx) {
+    private TableRef tableRef(StarRocksParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
+        if (parts.size() == 1 && context != null
+                && (context.getDefaultSchema() != null || context.getDefaultCatalog() != null)) {
+            return new TableRef(context.getDefaultCatalog(), context.getDefaultSchema(), parts.get(0));
+        }
+        if (parts.size() == 2 && context != null && context.getDefaultCatalog() != null) {
+            return new TableRef(context.getDefaultCatalog(), parts.get(0), parts.get(1));
+        }
         return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private TableRef routineLoadTargetTable(StarRocksParser.MultipartIdentifierContext job,
+                                            StarRocksParser.MultipartIdentifierContext target) {
+        List<String> targetParts = identifierParts(target);
+        if (targetParts.size() != 1) {
+            return tableRef(target);
+        }
+        List<String> jobParts = identifierParts(job);
+        if (jobParts.size() >= 2) {
+            String catalog = jobParts.size() >= 3 ? jobParts.get(jobParts.size() - 3)
+                    : (context == null ? null : context.getDefaultCatalog());
+            return new TableRef(catalog, jobParts.get(jobParts.size() - 2), targetParts.get(0));
+        }
+        return tableRef(target);
+    }
+
+    private TableRef showMetadataTable(StarRocksParser.ShowStatementContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        if (ctx.INDEX() == null
+                && ctx.INDEXES() == null
+                && ctx.KEY() == null
+                && ctx.KEYS() == null
+                && ctx.COLUMNS() == null) {
+            return table;
+        }
+        List<String> parts = identifierParts(ctx.multipartIdentifier());
+        if (parts.size() != 1 || ctx.identifier() == null) {
+            return table;
+        }
+        String schema = cleanIdentifier(ctx.identifier());
+        String catalog = context == null ? null : context.getDefaultCatalog();
+        return new TableRef(catalog, schema, parts.get(0));
+    }
+
+    private static String relationKey(TableRef table) {
+        List<String> parts = new ArrayList<>();
+        if (table.getCatalog() != null) {
+            parts.add(table.getCatalog());
+        }
+        if (table.getSchema() != null) {
+            parts.add(table.getSchema());
+        }
+        parts.add(table.getName());
+        return String.join(".", parts).toLowerCase(Locale.ROOT);
     }
 
     private static List<String> identifierParts(StarRocksParser.MultipartIdentifierContext ctx) {
@@ -2174,6 +3273,14 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             parts.add(cleanIdentifier(id));
         }
         return parts;
+    }
+
+    private static String qualifiedName(StarRocksParser.QualifiedNameContext ctx) {
+        List<String> parts = new ArrayList<>();
+        for (StarRocksParser.IdentifierContext id : ctx.identifier()) {
+            parts.add(cleanIdentifier(id));
+        }
+        return String.join(".", parts);
     }
 
     private static TableRef tableRefFromLiteral(String text) {
@@ -2202,6 +3309,11 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         String body = value.substring(1, value.length() - 1);
         String doubled = String.valueOf(quote) + quote;
         return body.replace(doubled, String.valueOf(quote));
+    }
+
+    private static String cleanPropertyValue(String text) {
+        String literal = stringLiteralValue(text);
+        return literal == null ? cleanIdentifier(text) : literal;
     }
 
     private static String tableAlias(StarRocksParser.TableAliasContext ctx) {
@@ -2266,11 +3378,28 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         final List<SourceColumn> sourceColumns;
         final String targetColumn;
         final String expression;
+        final boolean wildcard;
+        final Set<String> excludedColumns;
 
         Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
+            this(sourceColumns, targetColumn, expression, false);
+        }
+
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, boolean wildcard) {
+            this(sourceColumns, targetColumn, expression, wildcard, Collections.emptySet());
+        }
+
+        Projection(
+                List<SourceColumn> sourceColumns,
+                String targetColumn,
+                String expression,
+                boolean wildcard,
+                Set<String> excludedColumns) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
+            this.wildcard = wildcard;
+            this.excludedColumns = excludedColumns;
         }
     }
 

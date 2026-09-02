@@ -160,13 +160,13 @@ Detailed compatibility is case-backed and tracked in [Supported Scenarios](docs/
 Grammar-domain coverage and development priorities are tracked in [Grammar Coverage Matrix](docs/grammar-coverage-matrix.md).
 Case coverage and benchmark methodology are tracked in [Benchmark and Coverage](docs/benchmark.md).
 
-| Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Clause Column Usage |
+| Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Column Usage |
 | --- | --- | --- | --- | --- | --- |
 | Spark | Active parser | Yes | Broad production SQL coverage | Broad production SQL coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
 | MySQL | Active parser | Yes | Broad SELECT, DML, DDL, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | Hive | Active parser | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
-| Flink | Active parser | Yes | SELECT, DML, DDL, connector/CDC DDL, materialized table, and SQL Client utility coverage | Direct mappings, common expressions, TVF generated columns | Common predicate, grouping, window, and clause usages |
-| StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
+| Flink | Active parser | Yes | SELECT, DML, default/Hive-compatible DDL, connector/CDC DDL, materialized table, SQL Client utility, temporal join, window TVF, and MATCH_RECOGNIZE coverage | Direct mappings, common expressions, TVF generated columns, pattern measures | Common predicate, grouping, window descriptor, temporal join, pattern, and clause usages |
+| StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, lifecycle, and vertical-output metadata statement coverage | Direct mappings and common expressions | Predicate, clause, metadata/statistics, index, and table-model usages |
 | Oracle | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | SQL Server | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | PostgreSQL | Baseline parser | Yes | SELECT, DML, CTAS, VIEW, `ON CONFLICT`, `RETURNING`, `MERGE`, schema/routine DDL | Direct mappings and common expressions | Basic predicate and merge/clause usages |
@@ -179,8 +179,8 @@ Current regression corpus:
 | Metric | Current value |
 | --- | ---: |
 | Dialects | 9 |
-| SQL cases | 1560 |
-| Column-lineage cases | 814 |
+| SQL cases | 1852 |
+| Column-lineage cases | 922 |
 | Diagnostic cases | 14 |
 
 The corpus is intentionally transparent: SQL case files and manifest expectations live under each dialect module, so contributors can inspect exactly what a release claims to support.
@@ -302,7 +302,7 @@ LineageResult result = LineSql.parse(
 | `inputTables` | Source tables |
 | `outputTables` | Target or affected tables |
 | `columnLineage` | Projection lineage edges from source columns to target columns |
-| `columnUsages` | Clause-level column usages such as `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
+| `columnUsages` | Non-projection column usages such as `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY`, `READ_METADATA`, `INDEX`, `TABLE_MODEL` |
 | `diagnostics` | Parser warnings and errors |
 
 Example JSON:

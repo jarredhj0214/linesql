@@ -9,5 +9,8 @@ public enum ColumnUsageType {
     WINDOW_PARTITION_BY,
     WINDOW_ORDER_BY,
     MERGE_ON,
-    MERGE_WHEN
+    MERGE_WHEN,
+    READ_METADATA,
+    INDEX,
+    TABLE_MODEL
 }

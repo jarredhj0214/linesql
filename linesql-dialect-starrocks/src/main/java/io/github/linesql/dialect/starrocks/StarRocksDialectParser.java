@@ -43,6 +43,7 @@ public class StarRocksDialectParser implements DialectParser {
         }
 
         StarRocksLineageVisitor visitor = new StarRocksLineageVisitor(result);
+        visitor.setContext(context);
         visitor.visit(statement);
         visitor.finalizeResult();
         return result;

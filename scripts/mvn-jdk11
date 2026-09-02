@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+is_java11_home() {
+  local home="$1"
+  [[ -x "${home}/bin/java" ]] && "${home}/bin/java" -version 2>&1 | grep -q 'version "11\.'
+}
+
+is_complete_jdk_home() {
+  local home="$1"
+  [[ -x "${home}/bin/javac" && -x "${home}/bin/javadoc" ]]
+}
+
 find_java11_home() {
-  if [[ -n "${JAVA11_HOME:-}" && -x "${JAVA11_HOME}/bin/java" ]]; then
+  if [[ -n "${JAVA11_HOME:-}" ]] && is_java11_home "${JAVA11_HOME}" && is_complete_jdk_home "${JAVA11_HOME}"; then
     printf '%s\n' "${JAVA11_HOME}"
     return 0
   fi
@@ -19,7 +29,7 @@ find_java11_home() {
 
   local home
   for home in "${candidates[@]}"; do
-    if [[ -x "${home}/bin/java" ]] && "${home}/bin/java" -version 2>&1 | grep -q 'version "11\.'; then
+    if is_java11_home "${home}" && is_complete_jdk_home "${home}"; then
       printf '%s\n' "${home}"
       return 0
     fi
@@ -27,7 +37,30 @@ find_java11_home() {
 
   if command -v /usr/libexec/java_home >/dev/null 2>&1; then
     home="$(/usr/libexec/java_home -v 11 2>/dev/null || true)"
-    if [[ -n "${home}" && -x "${home}/bin/java" ]]; then
+    if [[ -n "${home}" ]] && is_java11_home "${home}" && is_complete_jdk_home "${home}"; then
+      printf '%s\n' "${home}"
+      return 0
+    fi
+  fi
+
+  if [[ -n "${JAVA11_HOME:-}" ]] && is_java11_home "${JAVA11_HOME}"; then
+    echo "Warning: JAVA11_HOME points to a Java 11 runtime without javac/javadoc; release packaging may fail." >&2
+    printf '%s\n' "${JAVA11_HOME}"
+    return 0
+  fi
+
+  for home in "${candidates[@]}"; do
+    if is_java11_home "${home}"; then
+      echo "Warning: using Java 11 runtime without javac/javadoc: ${home}; release packaging may fail." >&2
+      printf '%s\n' "${home}"
+      return 0
+    fi
+  done
+
+  if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    home="$(/usr/libexec/java_home -v 11 2>/dev/null || true)"
+    if [[ -n "${home}" ]] && is_java11_home "${home}"; then
+      echo "Warning: using Java 11 runtime without javac/javadoc: ${home}; release packaging may fail." >&2
       printf '%s\n' "${home}"
       return 0
     fi
