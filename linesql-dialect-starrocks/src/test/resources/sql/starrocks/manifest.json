@@ -4520,6 +4520,80 @@
       "description": "StarRocks INSERT INTO temporary partition with label and target column mapping"
     },
     {
+      "id": "insert_overwrite_temporary_partition",
+      "file": "cases/insert_overwrite_temporary_partition.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.user_order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_order_summary.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_order_summary.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.dt"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "StarRocks INSERT OVERWRITE TEMPORARY PARTITION with target column mapping"
+    },
+    {
+      "id": "insert_by_name_properties",
+      "file": "cases/insert_by_name_properties.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.user_events_delta"
+      ],
+      "outputTables": [
+        "ads.user_events"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_events.event_id",
+          "sources": [
+            "ods.user_events_delta.event_id"
+          ]
+        },
+        {
+          "target": "ads.user_events.user_id",
+          "sources": [
+            "ods.user_events_delta.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_events.event_time",
+          "sources": [
+            "ods.user_events_delta.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.user_events_delta.event_time"
+        }
+      ],
+      "description": "StarRocks INSERT BY NAME with PROPERTIES keeps projection-name target mapping"
+    },
+    {
       "id": "backtick_qualified_direct_projection",
       "file": "cases/backtick_qualified_direct_projection.sql",
       "statementType": "SELECT",

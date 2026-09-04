@@ -513,8 +513,10 @@ Implemented StarRocks table-level lineage scenarios:
 | DELETE with EXISTS predicate | `delete from ads.t where exists (select 1 from ods.s where ...)` | `delete_where_exists_subquery` |
 | DELETE with constant predicate | `delete from ads.t where true` | `delete_where_true` |
 | INSERT WITH LABEL SELECT | `insert into ads.t with label job (...) select ... from ods.s` | `insert_with_label_select` |
-| INSERT BY NAME and write properties | `insert into ads.t by name select ...`, `insert into ads.t properties(...) select ...` | `insert_by_name_lineage`, `insert_properties_lineage` |
+| INSERT BY NAME and write properties | `insert into ads.t by name select ...`, `insert into ads.t by name properties(...) select ...`, `insert into ads.t properties(...) select ...` | `insert_by_name_lineage`, `insert_by_name_properties`, `insert_properties_lineage` |
+| INSERT OVERWRITE TEMPORARY PARTITION | `insert overwrite table ads.t temporary partition(p1) (...) properties(...) select ...` | `insert_overwrite_temporary_partition` |
 | INSERT INTO FILES unload | `insert into files(...) select ... from dwd.orders`, remote FILES unload properties such as `partition_by` and compression, `insert into files(...) with label job values (...)` | `insert_into_files_select`, `insert_into_files_partitioned_unload`, `insert_into_files_with_label_values` |
+| Broker Load multiple data_desc entries | one `load label` statement loading multiple `data infile ... into table ...` entries | `load_label_multi_table_data_infile` |
 | Load job metadata | `show load from db where label like ... and state = ... order by ... limit ...`, `show all routine load for db.job ...`, `show routine load task from db where jobname = ...` | `show_load_order_limit`, `show_all_routine_load_for_job`, `show_routine_load_task_from_db` |
 | FILES table function | `select * from files(...)`, `files(...) as f(c1, c2)`, joins between physical tables and `files(...)` | `select_from_files_table_function`, `files_table_function_alias_columns`, `join_files_table_function` |
 | Pipe loading lifecycle | `create or replace pipe ... as insert into ... from files(...)`, `alter pipe ... resume if suspended`, `alter pipe ... retry all` | `create_or_replace_pipe_files_load`, `alter_pipe_resume_if_suspended`, `alter_pipe_retry_all` |
@@ -621,8 +623,9 @@ Implemented StarRocks column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
-| INSERT BY NAME projection target mapping | `insert into ads.t by name select a as c1 from ods.s` | `insert_by_name_lineage` |
+| INSERT BY NAME projection target mapping | `insert into ads.t by name select a as c1 from ods.s`, `insert into ads.t by name properties(...) select c1 from ods.s` | `insert_by_name_lineage`, `insert_by_name_properties` |
 | INSERT with write properties target mapping | `insert into ads.t properties(...) select a as c1 from ods.s` | `insert_properties_lineage` |
+| INSERT OVERWRITE TEMPORARY PARTITION target mapping | `insert overwrite table ads.t temporary partition(p1) (c1, c2) select a, sum(b) from ods.s group by a` | `insert_overwrite_temporary_partition` |
 | INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
 | INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
 | INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
