@@ -90,7 +90,7 @@ For public reports, do not publish raw business table names, column names, comme
 
 ## Release Readiness Signal
 
-For an alpha release, LineSQL should publish:
+For a release, LineSQL should publish:
 
 | Requirement | Status |
 | --- | --- |
