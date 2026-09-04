@@ -179,7 +179,7 @@ Current regression corpus:
 | Metric | Current value |
 | --- | ---: |
 | Dialects | 9 |
-| SQL cases | 1855 |
+| SQL cases | 1856 |
 | Column-lineage cases | 925 |
 | Diagnostic cases | 14 |
 

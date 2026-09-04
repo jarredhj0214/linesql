@@ -579,6 +579,7 @@ updateStatement
 
 deleteStatement
     : ctes? DELETE deleteModifier* FROM multipartIdentifier partitionSpec? tableAlias (USING relationList)? whereClause? dmlOrganization? #deleteFrom
+    | ctes? DELETE deleteModifier* FROM deleteTargetList USING relationList whereClause? dmlOrganization?                      #deleteAliasUsing
     | ctes? DELETE deleteModifier* deleteTargetList FROM relationList whereClause? dmlOrganization?                           #deleteAlias
     ;
 

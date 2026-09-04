@@ -450,7 +450,36 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             visit(ctx.ctes());
         }
         visitRelationListForInputs(ctx.relationList());
-        for (MySqlParser.DeleteTargetContext deleteTargetContext : ctx.deleteTargetList().deleteTarget()) {
+        addDeleteTargets(ctx.deleteTargetList());
+        if (ctx.whereClause() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+            collectSubqueryInputs(ctx.whereClause());
+        }
+        collectDmlOrganization(ctx.dmlOrganization());
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDeleteAliasUsing(MySqlParser.DeleteAliasUsingContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
+        visitRelationListForInputs(ctx.relationList());
+        addDeleteTargets(ctx.deleteTargetList());
+        if (ctx.whereClause() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+            collectSubqueryInputs(ctx.whereClause());
+        }
+        collectDmlOrganization(ctx.dmlOrganization());
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    private void addDeleteTargets(MySqlParser.DeleteTargetListContext ctx) {
+        for (MySqlParser.DeleteTargetContext deleteTargetContext : ctx.deleteTarget()) {
             List<String> parts = identifierParts(deleteTargetContext.multipartIdentifier());
             String deleteAlias = parts.get(parts.size() - 1).toLowerCase(Locale.ROOT);
             TableRef target = tableAliases.get(deleteAlias);
@@ -463,14 +492,6 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                 outputTables.add(tableRef(deleteTargetContext.multipartIdentifier()));
             }
         }
-        if (ctx.whereClause() != null) {
-            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
-            collectSubqueryInputs(ctx.whereClause());
-        }
-        collectDmlOrganization(ctx.dmlOrganization());
-        result.setInputTables(new ArrayList<>(inputTables));
-        result.setOutputTables(new ArrayList<>(outputTables));
-        return null;
     }
 
     private void visitRelationListForInputs(MySqlParser.RelationListContext ctx) {

@@ -2114,6 +2114,40 @@
       "description": "MySQL DELETE alias FROM derived JOIN resolves input tables and JOIN predicate usages"
     },
     {
+      "id": "delete_from_targets_using",
+      "file": "cases/delete_from_targets_using.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "mart.users",
+        "mart.user_acl",
+        "app.deleted_users"
+      ],
+      "outputTables": [
+        "mart.users",
+        "mart.user_acl"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "mart.user_acl.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.deleted_users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.deleted_users.deleted_at"
+        }
+      ],
+      "description": "MySQL DELETE FROM target list USING joined tables resolves multi-table delete targets"
+    },
+    {
       "id": "delete_order_by_limit",
       "file": "cases/delete_order_by_limit.sql",
       "statementType": "DELETE",

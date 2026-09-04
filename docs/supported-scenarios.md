@@ -1199,7 +1199,7 @@ Implemented MySQL table-level lineage scenarios:
 | UPDATE ORDER BY LIMIT | `update mart.t set c = ... where ... order by ... limit ...` | `update_order_by_limit` |
 | UPDATE WHERE EXISTS | `update mart.t t set ... where exists (select 1 from app.s where s.id = t.id) order by ... limit ...` | `update_where_exists_subquery` |
 | WITH before UPDATE JOIN/EXISTS | `with q as (...) update mart.t join q on ... set ...`, `with q as (...) update ... where exists (...)` | `with_update_join`, `with_update_exists_subquery` |
-| DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...` | `delete_using` |
+| DELETE USING table lineage | `delete from mart.t using mart.t join app.s ...`, `delete from t1, t2 using t1 join t2 ...` | `delete_using`, `delete_from_targets_using` |
 | DELETE LOW_PRIORITY QUICK IGNORE | `delete low_priority quick ignore from mart.t where ...` | `delete_low_priority_quick_ignore` |
 | DELETE ORDER BY LIMIT | `delete from mart.t where ... order by ... limit ...` | `delete_order_by_limit` |
 | DELETE WHERE EXISTS | `delete from mart.t t where exists (select 1 from app.s where s.id = t.id) order by ... limit ...` | `delete_where_exists_subquery` |
