@@ -493,7 +493,7 @@ insertStatement
     : ctes? INSERT insertPriority? IGNORE? INTO? TABLE? multipartIdentifier
       partitionSpec?
       (LPAREN columnList=identifierList? RPAREN)?
-      ((VALUES | VALUE) valuesClause (COMMA valuesClause)* insertRowAlias? | SET assignmentList | tableStatement | query)
+      ((VALUES | VALUE) valuesClause (COMMA valuesClause)* insertRowAlias? | SET assignmentList insertRowAlias? | tableStatement | query)
       onDuplicateKeyUpdate?
     ;
 

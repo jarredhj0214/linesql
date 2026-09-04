@@ -120,6 +120,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             for (MySqlParser.IdentifierContext id : ctx.columnList.identifier()) {
                 insertTargetColumns.add(cleanIdentifier(id));
             }
+        } else if (ctx.assignmentList() != null) {
+            for (MySqlParser.AssignmentContext assignment : ctx.assignmentList().assignment()) {
+                List<String> parts = identifierParts(assignment.multipartIdentifier());
+                if (!parts.isEmpty()) {
+                    insertTargetColumns.add(parts.get(parts.size() - 1));
+                }
+            }
         }
         registerInsertRowAlias(ctx.insertRowAlias());
         if (ctx.query() != null) {

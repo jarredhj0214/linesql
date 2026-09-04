@@ -1209,6 +1209,48 @@
       "description": "MySQL INSERT SET with ON DUPLICATE KEY UPDATE preserves insert and duplicate-update lineage"
     },
     {
+      "id": "insert_set_row_alias_on_duplicate",
+      "file": "cases/insert_set_row_alias_on_duplicate.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.id",
+          "sources": [
+            "app.users_delta.id"
+          ]
+        },
+        {
+          "target": "mart.users.name",
+          "sources": []
+        },
+        {
+          "target": "mart.users.updated_id",
+          "sources": [
+            "app.users_delta.id"
+          ]
+        },
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "mart.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users_delta.status"
+        }
+      ],
+      "description": "MySQL INSERT SET row and column aliases in duplicate-key updates resolve inserted-row sources"
+    },
+    {
       "id": "insert_select_on_duplicate",
       "file": "cases/insert_select_on_duplicate.sql",
       "statementType": "INSERT",
