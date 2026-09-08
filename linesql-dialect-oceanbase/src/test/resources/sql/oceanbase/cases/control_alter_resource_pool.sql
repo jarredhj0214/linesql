@@ -1,0 +1,1 @@
+ALTER RESOURCE POOL pool1 UNIT = 'unit2';

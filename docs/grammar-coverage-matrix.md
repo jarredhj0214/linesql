@@ -82,10 +82,10 @@ These domains are the shared planning vocabulary across dialects.
 | Hive | `linesql-dialect-hive/src/main/antlr4/io/github/linesql/dialect/hive/antlr/HiveParser.g4` | Lightweight lineage grammar with Hive DDL extensions. |
 | Flink | `linesql-dialect-flink/src/main/antlr4/io/github/linesql/dialect/flink/antlr/FlinkParser.g4` | Lightweight lineage grammar with Flink connector DDL, model DDL signatures, SQL Client utility statements, temporal joins, window table-valued functions, MATCH_RECOGNIZE, DESCRIBE variants, and Hive-compatible DDL extensions. |
 | StarRocks | `linesql-dialect-starrocks/src/main/antlr4/io/github/linesql/dialect/starrocks/antlr/StarRocksParser.g4` | Lightweight lineage grammar with StarRocks table model, load/unload, task, metadata, resource, and lifecycle syntax. |
-| Oracle | `linesql-dialect-oracle/src/main/antlr4/io/github/linesql/dialect/oracle/antlr/OracleParser.g4` | Lightweight lineage grammar with Oracle query and DML syntax anchors. |
-| SQL Server | `linesql-dialect-sqlserver/src/main/antlr4/io/github/linesql/dialect/sqlserver/antlr/SqlServerParser.g4` | Lightweight lineage grammar with SQL Server query and DML syntax anchors. |
+| Oracle | `linesql-dialect-oracle/src/main/antlr4/io/github/linesql/dialect/oracle/antlr/OracleParser.g4` | Lightweight lineage grammar with Oracle query, DML, schema object, synonym reference, and materialized-view refresh/build anchors. |
+| SQL Server | `linesql-dialect-sqlserver/src/main/antlr4/io/github/linesql/dialect/sqlserver/antlr/SqlServerParser.g4` | Lightweight lineage grammar with SQL Server query, temporal-table reads, JSON/XML output suffixes, DML, APPLY/table-valued functions, OPENJSON WITH schema, table hints, DML OUTPUT, synonym, trigger, and online index option anchors. |
 | PostgreSQL | `linesql-dialect-postgresql/src/main/antlr4/io/github/linesql/dialect/postgresql/antlr/PostgreSqlParser.g4` | Dedicated lightweight lineage grammar for common PostgreSQL query and DML syntax. |
-| OceanBase | `linesql-dialect-oceanbase/src/main/java/io/github/linesql/dialect/oceanbase/OceanBaseDialectParser.java` | Compatibility-mode parser that delegates to MySQL or Oracle lineage domains. |
+| OceanBase | `linesql-dialect-oceanbase/src/main/java/io/github/linesql/dialect/oceanbase/OceanBaseDialectParser.java` | Compatibility-mode parser that delegates to MySQL or Oracle lineage domains, including Oracle-style DBLink, synonym, flashback, and materialized-view patterns. |
 
 ## Dialect Variant Policy
 
@@ -201,8 +201,10 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Schema and routine DDL | PLANNED | PLANNED | N/A | N/A | P1 |
-| Control statements | PLANNED | PLANNED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
+
+SQL Server relation coverage includes regular table references, derived tables, `CROSS/OUTER APPLY`, table-valued functions, external query functions such as `OPENQUERY`, local/global temporary tables, table variables, parameterized table hints, query `OPTION` hints, `TOP PERCENT WITH TIES`, and PIVOT/UNPIVOT source table preservation. T-SQL DML/control/DDL coverage includes `CREATE VIEW WITH SCHEMABINDING`, `UPDATE TOP`, alias-target `UPDATE ... FROM`, `DELETE TOP`, alias-target `DELETE ... OUTPUT ... FROM`, MERGE `WHEN MATCHED AND` predicates, `MERGE WHEN NOT MATCHED BY SOURCE`, transaction controls, procedure execution, trigger lifecycle DDL, synonym object references, table object grants/revokes, `DROP INDEX IF EXISTS`, partition-scoped `TRUNCATE TABLE`, identity columns, and computed columns.
 | Hive extensions | PARTIAL | COVERED | N/A | N/A | P1 |
 
 ### Flink
@@ -256,6 +258,8 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | Oracle extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
+
+Oracle extensions currently include hierarchical queries, flashback reads, DBLink table references, sequence pseudocolumns, TABLE(function), CROSS/OUTER APPLY table functions, JSON_TABLE/XMLTABLE relation sources, MATCH_RECOGNIZE relation usage, MODEL clause usage, materialized-view lifecycle DDL, PIVOT/UNPIVOT, SAMPLE, partition table extensions, column/table maintenance DDL, transaction controls, `FOR UPDATE NOWAIT/WAIT/SKIP LOCKED`, `LOCK TABLE ... IN ... MODE`, table object `GRANT`/`REVOKE`, package DDL, and anonymous PL/SQL block envelopes.
 
 ### SQL Server
 
@@ -331,12 +335,12 @@ OceanBase should be tracked by compatibility mode rather than as a single flat g
 | CTE | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
 | Relation and aliases | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Join | PARTIAL | COVERED | COVERED | COVERED | P0 |
-| Set operation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
+| Set operation | PARTIAL | COVERED | COVERED | N/A | P1 |
 | Expression | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Predicate subquery | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
 | Aggregation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
 | Window | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
-| Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
+| Insert | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
 | Merge | PARTIAL | COVERED | PARTIAL | COVERED | P1 |
@@ -344,16 +348,16 @@ OceanBase should be tracked by compatibility mode rather than as a single flat g
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Schema and routine DDL | PLANNED | PLANNED | N/A | N/A | P1 |
-| Control statements | PLANNED | PLANNED | N/A | N/A | P1 |
+| Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
-| OceanBase MySQL mode extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P0 |
-| OceanBase Oracle mode extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
+| OceanBase MySQL mode extensions | PARTIAL | COVERED | COVERED | COVERED | P0 |
+| OceanBase Oracle mode extensions | PARTIAL | COVERED | COVERED | COVERED | P1 |
 
-Initial OceanBase focus:
+Current OceanBase focus:
 
-- reuse MySQL grammar domains for OceanBase MySQL mode; baseline SELECT, INSERT, CTAS, UPDATE JOIN, and DELETE USING are covered
-- reuse Oracle grammar domains for OceanBase Oracle mode; baseline DUAL, CREATE VIEW, and MERGE are covered
-- add OceanBase-specific DDL, hints, partition syntax, and compatibility-mode detection anchors
+- reuse MySQL grammar domains for OceanBase MySQL mode; SELECT, `IN`, quantified, CASE/EXISTS subquery predicates, JSON expressions, JSON predicate/mutation functions including `MEMBER OF`, `JSON_TABLE`, locking reads, flashback `AS OF SNAPSHOT`, SELECT INTO OUTFILE, LOAD DATA/XML option variants, transaction/savepoint and lock-table control, system-view SELECT, table/routine/server metadata reads, table maintenance reads, tablespace control, CTE, CTE-DML, aggregate/window projections, INSERT/REPLACE with `SET`, `VALUES ROW`, target partitions, and `ON DUPLICATE KEY UPDATE`, CTAS, generated/check/invisible table DDL, `CREATE TABLE LIKE`, `RENAME TABLE`, UPDATE JOIN, DML `WHERE EXISTS`, DELETE USING, multi-table DELETE, LOAD DATA, EXPLAIN FORMAT/BASIC/PARTITIONS/OUTLINE, `CREATE OUTLINE`, `CREATE FORMAT OUTLINE`, `DROP OUTLINE`, `READ_CONSISTENCY`/`QUERY_TIMEOUT`/optimizer hints, INTERSECT DISTINCT, MINUS DISTINCT, TRUNCATE, read-only database DDL, TABLEGROUP table options, CREATE/ALTER table constraint DDL, MySQL type/table/storage/index options, `ALTER TABLE` table options, HASH/KEY/RANGE/RANGE COLUMNS/LIST COLUMNS partition DDL, LOCAL/GLOBAL index DDL, `ALTER TABLE` index lifecycle, partition exchange, and partition maintenance DDL including rebuild/optimize/analyze/repair/coalesce/reorganize/remove, trigger/event/routine lifecycle DDL, and partition/subpartition DDL are covered by OceanBase cases; Oracle-mode table clauses include `PIVOT`, `UNPIVOT`, `SAMPLE`, `MATCH_RECOGNIZE`, and partition/subpartition table extensions
+- reuse Oracle grammar domains for OceanBase Oracle mode; DUAL, CREATE TABLE, global/private temporary tables, partitioned CREATE TABLE/CTAS, ALTER TABLE partition maintenance, CREATE VIEW, `FORCE VIEW`, `NO FORCE VIEW`, view `WITH READ ONLY` / `WITH CHECK OPTION` including named constraints, `COMMENT ON TABLE/COLUMN`, table maintenance DDL, `DROP TABLE ... CASCADE CONSTRAINTS PURGE`, index lifecycle DDL including local and global partitioned indexes, trigger lifecycle DDL, package DDL and anonymous block envelopes, CTAS, INSERT from derived subquery, INSERT ALL/FIRST, DML `RETURNING INTO`, UPDATE/DELETE WHERE EXISTS, UPDATE expression assignments, MERGE including matched `DELETE WHERE`, hierarchical START WITH / CONNECT BY including `NOCYCLE` and `CONNECT_BY_ROOT`, legacy outer join marker `(+)`, `ROWNUM`, `ROWID`, `ORA_ROWSCN`, `LEVEL`, ORDER SIBLINGS BY, ORDER BY `NULLS FIRST/LAST`, INTERSECT, MINUS, TRUNCATE with `DROP/REUSE STORAGE`, locking reads including `SKIP LOCKED`, `LOCK TABLE ... IN ... MODE`, `OFFSET` / `FETCH FIRST` variants, window projections, flashback `AS OF TIMESTAMP/SCN`, PIVOT/UNPIVOT source table lineage, PIVOT generated column lineage, multi-column PIVOT lineage, multi-value UNPIVOT lineage, SAMPLE table clauses, DBLink table references, sequence pseudocolumns, sequence DDL, synonym object references, and database-link DDL are covered by OceanBase cases
+- add OceanBase-specific tenant, resource, tablegroup, proxy configuration, cluster server control, system parameter control, major/minor freeze, tenant/resource/tablegroup/parameter metadata reads, recyclebin, purge, flashback table/tenant, tenant rename, and compatibility-only divergence cases
 - keep public output dialect explicit enough for downstream systems to distinguish MySQL-compatible OceanBase from native MySQL
 
 ## Near-Term Priorities

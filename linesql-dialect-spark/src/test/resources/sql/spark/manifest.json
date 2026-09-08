@@ -2083,6 +2083,99 @@
       "description": "Nested fields from a derived expression root resolve to the root expression sources"
     },
     {
+      "id": "lambda_transform_struct_field",
+      "file": "cases/lambda_transform_struct_field.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "adjusted_amounts",
+          "sources": [
+            "ods.orders.items",
+            "ods.orders.tax_rate"
+          ]
+        }
+      ],
+      "description": "Spark transform lambda ignores lambda parameters while preserving array input and captured columns"
+    },
+    {
+      "id": "lambda_filter_struct_field",
+      "file": "cases/lambda_filter_struct_field.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "paid_items",
+          "sources": [
+            "ods.orders.items"
+          ]
+        }
+      ],
+      "description": "Spark filter lambda maps filtered arrays to the original array column"
+    },
+    {
+      "id": "lambda_exists_outer_capture",
+      "file": "cases/lambda_exists_outer_capture.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "has_status",
+          "sources": [
+            "ods.orders.items",
+            "ods.orders.status_filter"
+          ]
+        }
+      ],
+      "description": "Spark exists lambda keeps captured outer columns and excludes lambda-only fields"
+    },
+    {
+      "id": "lambda_aggregate_struct_field",
+      "file": "cases/lambda_aggregate_struct_field.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "total_amount",
+          "sources": [
+            "ods.orders.items"
+          ]
+        }
+      ],
+      "description": "Spark aggregate lambda excludes accumulator and element parameters from source columns"
+    },
+    {
+      "id": "lambda_zip_with_struct_field",
+      "file": "cases/lambda_zip_with_struct_field.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.order_pairs"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "scores",
+          "sources": [
+            "ods.order_pairs.left_items",
+            "ods.order_pairs.right_items"
+          ]
+        }
+      ],
+      "description": "Spark zip_with lambda maps paired-array output to both array input columns"
+    },
+    {
       "id": "lateral_view_explode",
       "file": "cases/lateral_view_explode.sql",
       "statementType": "SELECT",

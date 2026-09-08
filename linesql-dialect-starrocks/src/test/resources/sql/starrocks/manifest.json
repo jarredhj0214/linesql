@@ -8237,6 +8237,28 @@
       "description": "StarRocks SHOW PROC metadata statement"
     },
     {
+      "id": "show_proc_database",
+      "file": "cases/show_proc_database.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "crs_starrocks"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW PROC database path reports the database metadata object"
+    },
+    {
+      "id": "show_proc_table",
+      "file": "cases/show_proc_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "crs_starrocks.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW PROC table path reports the table metadata object"
+    },
+    {
       "id": "desc_files_schema",
       "file": "cases/desc_files_schema.sql",
       "statementType": "READ_METADATA",

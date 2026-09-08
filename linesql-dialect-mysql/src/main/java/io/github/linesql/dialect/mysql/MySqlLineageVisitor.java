@@ -565,6 +565,55 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitOceanBaseControlStmt(MySqlParser.OceanBaseControlStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitFlashbackStmt(MySqlParser.FlashbackStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitFlashbackStatement(MySqlParser.FlashbackStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier(0)));
+        if (ctx.multipartIdentifier().size() > 1) {
+            outputTables.add(tableRef(ctx.multipartIdentifier(1)));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitFlashbackTenantStmt(MySqlParser.FlashbackTenantStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitPurgeStmt(MySqlParser.PurgeStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitPurgeStatement(MySqlParser.PurgeStatementContext ctx) {
+        if (ctx.multipartIdentifier() != null) {
+            outputTables.add(tableRef(ctx.multipartIdentifier()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitOutlineStmt(MySqlParser.OutlineStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitAlterDatabaseStmt(MySqlParser.AlterDatabaseStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;
@@ -776,6 +825,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitRenameTenantStmt(MySqlParser.RenameTenantStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableStmt(MySqlParser.AlterTableStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);
@@ -961,7 +1016,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitLockTablesStmt(MySqlParser.LockTablesStmtContext ctx) {
-        result.setStatementType(StatementType.READ_METADATA);
+        result.setStatementType(StatementType.CONTROL);
         return visitChildren(ctx);
     }
 

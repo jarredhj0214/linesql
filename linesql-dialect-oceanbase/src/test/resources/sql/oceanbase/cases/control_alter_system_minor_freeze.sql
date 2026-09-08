@@ -1,0 +1,1 @@
+alter system minor freeze;

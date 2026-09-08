@@ -9,24 +9,36 @@ singleStatement
 statement
     : query                                                          #statementDefault
     | insertStatement                                                #insertStmt
+    | updateStatisticsStatement                                      #updateStatisticsStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
     | mergeStatement                                                 #mergeStmt
+    | createStatisticsStatement                                      #createStatisticsStmt
     | createIndexStatement                                           #createIndexStmt
     | alterIndexStatement                                            #alterIndexStmt
+    | dropStatisticsStatement                                        #dropStatisticsStmt
     | dropIndexStatement                                             #dropIndexStmt
     | createSchemaStatement                                          #createSchemaStmt
+    | createSynonymStatement                                         #createSynonymStmt
     | createProcedureStatement                                       #createProcedureStmt
+    | createTriggerStatement                                         #createTriggerStmt
     | createTableStatement                                           #createTableStmt
+    | declareTableVariableStatement                                  #declareTableVariableStmt
     | createViewStatement                                            #createViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
+    | dropSynonymStatement                                           #dropSynonymStmt
     | dropProcedureStatement                                         #dropProcedureStmt
+    | dropTriggerStatement                                           #dropTriggerStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
     | useStatement                                                   #useStmt
     | setStatement                                                   #setStmt
+    | executeStatement                                               #executeStmt
+    | transactionStatement                                           #transactionStmt
+    | grantStatement                                                 #grantStmt
+    | revokeStatement                                                #revokeStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
@@ -64,7 +76,7 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause?
+    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause? queryHintClause?
     ;
 
 selectClause
@@ -75,8 +87,29 @@ selectIntoClause
     : INTO multipartIdentifier
     ;
 
+queryHintClause
+    : OPTION LPAREN queryHintItem (COMMA queryHintItem)* RPAREN
+    ;
+
+queryHintItem
+    : RECOMPILE
+    | MAXDOP number
+    | OPTIMIZE FOR LPAREN queryHintContent* RPAREN
+    | identifier queryHintContent*
+    ;
+
+queryHintContent
+    : LPAREN queryHintContent* RPAREN
+    | identifier
+    | number
+    | string
+    | COMMA
+    | DOT
+    | EQ
+    ;
+
 topClause
-    : TOP (LPAREN expression RPAREN | NUMBER_LITERAL)
+    : TOP (LPAREN expression RPAREN | NUMBER_LITERAL) PERCENT_KEYWORD? (WITH TIES)?
     ;
 
 setQuantifier
@@ -103,21 +136,44 @@ relationList
     ;
 
 relation
-    : relationPrimary joinRelation*
+    : relationPrimary tableOperator* joinRelation*
     ;
 
 relationPrimary
-    : multipartIdentifier tableHint? tableAlias                      #tableName
+    : multipartIdentifier FOR SYSTEM_TIME temporalTablePeriod tableHint? tableAlias #temporalTableName
+    | multipartIdentifier LPAREN expressionList? RPAREN tableFunctionSchema? tableAlias #tableValuedFunction
+    | multipartIdentifier tableHint? tableAlias                      #tableName
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     ;
 
+temporalTablePeriod
+    : AS OF expression
+    | FROM expression TO expression
+    | BETWEEN expression AND expression
+    | CONTAINED IN LPAREN expression COMMA expression RPAREN
+    | ALL
+    ;
+
+tableFunctionSchema
+    : WITH LPAREN tableFunctionColumn (COMMA tableFunctionColumn)* RPAREN
+    ;
+
+tableFunctionColumn
+    : identifier dataType string? (AS JSON)?
+    ;
+
 tableHint
-    : WITH LPAREN identifier (COMMA identifier)* RPAREN
+    : WITH LPAREN tableHintItem (COMMA tableHintItem)* RPAREN
+    ;
+
+tableHintItem
+    : identifier (LPAREN expressionList? RPAREN)?
     ;
 
 joinRelation
     : joinType? JOIN relationPrimary joinCriteria?
+    | applyType relationPrimary
     ;
 
 joinType
@@ -128,9 +184,33 @@ joinType
     | CROSS
     ;
 
+applyType
+    : CROSS APPLY
+    | OUTER APPLY
+    ;
+
 joinCriteria
     : ON expression
     | USING LPAREN identifierList RPAREN
+    ;
+
+tableOperator
+    : pivotClause
+    | unpivotClause
+    ;
+
+pivotClause
+    : PIVOT LPAREN expression FOR multipartIdentifier IN LPAREN pivotInItem (COMMA pivotInItem)* RPAREN RPAREN tableAlias
+    ;
+
+unpivotClause
+    : UNPIVOT LPAREN multipartIdentifier FOR multipartIdentifier IN LPAREN identifierList RPAREN RPAREN tableAlias
+    ;
+
+pivotInItem
+    : identifier
+    | string
+    | number
     ;
 
 tableAlias
@@ -152,7 +232,22 @@ havingClause
 queryOrganization
     : (ORDER BY sortItem (COMMA sortItem)*)?
       (LIMIT expression)?
-      (OFFSET expression)?
+      (OFFSET expression ROWS?)?
+      (FETCH (FIRST | NEXT) expression ROWS ONLY)?
+      forOutputClause?
+    ;
+
+forOutputClause
+    : FOR (JSON | XML) forOutputMode (COMMA forOutputOption)*
+    ;
+
+forOutputMode
+    : identifier (LPAREN string RPAREN)?
+    ;
+
+forOutputOption
+    : identifier
+    | ROOT LPAREN string RPAREN
     ;
 
 sortItem
@@ -240,7 +335,8 @@ expressionList
 insertStatement
     : ctes? INSERT INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
-      (query | VALUES valuesClause (COMMA valuesClause)*)
+      outputClause?
+      (query | VALUES valuesClause (COMMA valuesClause)* | executeStatement)
     ;
 
 valuesClause
@@ -248,24 +344,38 @@ valuesClause
     ;
 
 updateStatement
-    : ctes? UPDATE multipartIdentifier tableAlias SET assignmentList fromClause? whereClause?
+    : ctes? UPDATE topClause? multipartIdentifier tableAlias SET assignmentList outputClause? fromClause? whereClause?
     ;
 
 deleteStatement
-    : ctes? DELETE FROM multipartIdentifier tableAlias whereClause?             #deleteSimple
-    | ctes? DELETE multipartIdentifier FROM relationList whereClause?           #deleteFromJoin
+    : ctes? DELETE topClause? FROM multipartIdentifier tableAlias outputClause? whereClause?  #deleteSimple
+    | ctes? DELETE topClause? multipartIdentifier outputClause? FROM relationList whereClause? #deleteFromJoin
+    ;
+
+outputClause
+    : OUTPUT outputItemList (INTO multipartIdentifier (LPAREN identifierList RPAREN)?)?
+    ;
+
+outputItemList
+    : outputItem (COMMA outputItem)*
+    ;
+
+outputItem
+    : (expression | identifier DOT STAR | STAR) (AS? alias=identifier)?
     ;
 
 mergeStatement
-    : MERGE INTO? multipartIdentifier tableAlias
+    : ctes? MERGE INTO? multipartIdentifier tableHint? tableAlias
       USING (multipartIdentifier tableAlias | LPAREN query RPAREN tableAlias)
       ON expression
       mergeClause+
+      outputClause?
     ;
 
 mergeClause
-    : WHEN MATCHED THEN mergeMatchedAction
-    | WHEN NOT MATCHED (BY identifier)? THEN mergeNotMatchedAction
+    : WHEN MATCHED (AND matchedCondition=expression)? THEN mergeMatchedAction
+    | WHEN NOT MATCHED BY SOURCE (AND bySourceCondition=expression)? THEN mergeMatchedBySourceAction
+    | WHEN NOT MATCHED (BY TARGET)? (AND notMatchedCondition=expression)? THEN mergeNotMatchedAction
     ;
 
 mergeMatchedAction
@@ -274,6 +384,11 @@ mergeMatchedAction
 
 mergeNotMatchedAction
     : INSERT (LPAREN identifierList RPAREN)? VALUES LPAREN expressionList RPAREN whereClause?
+    ;
+
+mergeMatchedBySourceAction
+    : UPDATE SET assignmentList whereClause?
+    | DELETE whereClause?
     ;
 
 assignmentList
@@ -291,10 +406,54 @@ createIndexStatement
       ON multipartIdentifier LPAREN indexElementList RPAREN
       (INCLUDE LPAREN identifierList RPAREN)?
       whereClause?
+      indexOptionClause?
+    ;
+
+createStatisticsStatement
+    : CREATE STATISTICS multipartIdentifier
+      ON multipartIdentifier LPAREN identifierList RPAREN
+      whereClause?
+    ;
+
+updateStatisticsStatement
+    : UPDATE STATISTICS tableName=multipartIdentifier statsName=multipartIdentifier?
+      (WITH updateStatisticsOptionList)?
+    ;
+
+dropStatisticsStatement
+    : DROP STATISTICS multipartIdentifier
+    ;
+
+updateStatisticsOptionList
+    : updateStatisticsOption (COMMA updateStatisticsOption)*
+    ;
+
+updateStatisticsOption
+    : identifier (EQ (identifier | number | string))?
+    ;
+
+indexOptionClause
+    : WITH LPAREN indexOptionList RPAREN
+    ;
+
+indexOptionList
+    : indexOption (COMMA indexOption)*
+    ;
+
+indexOption
+    : identifier (EQ indexOptionValue)?
+    ;
+
+indexOptionValue
+    : identifier
+    | ON
+    | OFF
+    | number
+    | string
     ;
 
 dropIndexStatement
-    : DROP INDEX multipartIdentifier ON multipartIdentifier
+    : DROP INDEX (IF EXISTS)? multipartIdentifier ON multipartIdentifier indexOptionClause?
     ;
 
 alterIndexStatement
@@ -328,45 +487,88 @@ indexElement
     ;
 
 createTableStatement
-    : CREATE TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
+    : CREATE EXTERNAL? TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
       commentClause?
+      externalTableOptionClause?
       (AS query)?
     | CREATE TEMPORARY? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
+    ;
+
+externalTableOptionClause
+    : WITH LPAREN externalTableOptionContent* RPAREN
+    ;
+
+externalTableOptionContent
+    : LPAREN externalTableOptionContent* RPAREN
+    | identifier
+    | number
+    | string
+    | COMMA
+    | EQ
+    ;
+
+declareTableVariableStatement
+    : DECLARE identifier TABLE LPAREN tableElementList RPAREN
     ;
 
 createSchemaStatement
     : CREATE SCHEMA identifier
     ;
 
+createSynonymStatement
+    : CREATE SYNONYM multipartIdentifier FOR multipartIdentifier
+    ;
+
 createProcedureStatement
     : CREATE (OR ALTER)? PROCEDURE multipartIdentifier .+?
+    ;
+
+createTriggerStatement
+    : CREATE (OR ALTER)? TRIGGER multipartIdentifier ON multipartIdentifier .+?
     ;
 
 createViewStatement
     : CREATE (OR (REPLACE | ALTER))? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
+      viewOptionClause?
       AS query
     ;
 
+viewOptionClause
+    : WITH identifier (COMMA identifier)*
+    ;
+
 dropTableStatement
-    : DROP TABLE (IF EXISTS)? multipartIdentifier
+    : DROP TABLE (IF EXISTS)? multipartIdentifier (COMMA multipartIdentifier)*
     ;
 
 dropViewStatement
-    : DROP VIEW (IF EXISTS)? multipartIdentifier
+    : DROP VIEW (IF EXISTS)? multipartIdentifier (COMMA multipartIdentifier)*
     ;
 
 dropSchemaStatement
     : DROP SCHEMA (IF EXISTS)? identifier
     ;
 
+dropSynonymStatement
+    : DROP SYNONYM (IF EXISTS)? multipartIdentifier
+    ;
+
 dropProcedureStatement
     : DROP PROCEDURE (IF EXISTS)? multipartIdentifier
     ;
 
+dropTriggerStatement
+    : DROP TRIGGER (IF EXISTS)? multipartIdentifier
+    ;
+
 truncateTableStatement
-    : TRUNCATE TABLE? multipartIdentifier
+    : TRUNCATE TABLE? multipartIdentifier truncateTableOption?
+    ;
+
+truncateTableOption
+    : WITH LPAREN PARTITIONS LPAREN expressionList RPAREN RPAREN
     ;
 
 alterTableStatement
@@ -388,6 +590,29 @@ useStatement
 
 setStatement
     : SET identifier (ON | OFF | EQ expression)?
+    ;
+
+executeStatement
+    : (EXEC | EXECUTE) .+?
+    ;
+
+transactionStatement
+    : BEGIN (TRAN | TRANSACTION) identifier?
+    | COMMIT (TRAN | TRANSACTION)? identifier?
+    | ROLLBACK (TRAN | TRANSACTION)? identifier?
+    | SAVE (TRAN | TRANSACTION) identifier
+    ;
+
+grantStatement
+    : GRANT .+? ON objectScope? multipartIdentifier TO .+?
+    ;
+
+revokeStatement
+    : REVOKE .+? ON objectScope? multipartIdentifier FROM .+?
+    ;
+
+objectScope
+    : OBJECT DOUBLE_COLON
     ;
 
 showStatement
@@ -412,6 +637,7 @@ tableElementList
 
 tableElement
     : identifier dataType columnConstraint*
+    | identifier AS expression PERSISTED?
     ;
 
 columnConstraint
@@ -419,6 +645,7 @@ columnConstraint
     | NULL
     | COMMENT string
     | DEFAULT expression
+    | IDENTITY LPAREN NUMBER_LITERAL COMMA NUMBER_LITERAL RPAREN
     | PRIMARY KEY
     | UNIQUE
     ;
@@ -456,23 +683,25 @@ identifierList
 
 identifier
     : IDENTIFIER
+    | VARIABLE_IDENTIFIER
     | BACKQUOTED_IDENTIFIER
     | nonReservedKeyword
     ;
 
 strictIdentifier
     : IDENTIFIER
+    | VARIABLE_IDENTIFIER
     | BACKQUOTED_IDENTIFIER
     | nonReservedKeyword
     ;
 
 nonReservedKeyword
-    : ADD | ASC | CAST | COLUMN | COMMENT | DEFAULT
-    | CLUSTERED | DESCRIBE | DESC | DISABLE | END | EXISTS | EXTERNAL | FALSE
-    | INCLUDE | INDEX | INTERVAL | KEY | LIKE | LIMIT | NOLOCK | NONCLUSTERED | NULL | OFF
-    | OFFSET | OUTPUT | OVER | PARTITION | REPLACE | RENAME
-    | PRIMARY | PROCEDURE | REBUILD | REORGANIZE | SCHEMA | SET | SHOW | TABLE | TEMPORARY | TO | TOP | TRUE | TRUNCATE | USE | VALUES | VIEW
-    | UNIQUE
+    : ADD | APPLY | ASC | CAST | COLUMN | COMMENT | CONTAINED | DEFAULT
+    | BEGIN | CLUSTERED | COMMIT | DECLARE | DESCRIBE | DESC | DISABLE | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
+    | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
+    | FETCH | FIRST | FOR | GRANT | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROW | ROWS
+    | AFTER | PERSISTED | PRIMARY | PROCEDURE | REBUILD | RECOMPILE | REORGANIZE | ROLLBACK | SAVE | SCHEMA | SET | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | TIES | TO | TOP | TRAN | TRANSACTION | TRIGGER | TRUE | TRUNCATE | USE | VALUES | VIEW
+    | UNIQUE | XML
     ;
 
 number

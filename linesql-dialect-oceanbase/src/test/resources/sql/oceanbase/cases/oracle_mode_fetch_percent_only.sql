@@ -1,0 +1,4 @@
+SELECT id, amount
+FROM ods.orders
+ORDER BY amount DESC
+FETCH FIRST 10 PERCENT ROWS ONLY;

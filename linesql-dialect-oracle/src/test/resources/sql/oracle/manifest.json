@@ -520,6 +520,38 @@
       "description": "Oracle CREATE TABLE AS SELECT table and column lineage"
     },
     {
+      "id": "create_table_list_partition_as_select",
+      "file": "cases/create_table_list_partition_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.order_region"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.order_region.id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "mart.order_region.region",
+          "sources": [
+            "ods.orders.region"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.dt"
+        }
+      ],
+      "description": "Oracle partitioned CTAS keeps source-to-target column lineage"
+    },
+    {
       "id": "ctas_expression_projection",
       "file": "cases/ctas_expression_projection.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
@@ -598,6 +630,85 @@
       "description": "Oracle CREATE VIEW AS SELECT table and column lineage"
     },
     {
+      "id": "create_view_check_option_constraint",
+      "file": "cases/create_view_check_option_constraint.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.v_active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_active_users.id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.v_active_users.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Oracle CREATE VIEW WITH CHECK OPTION CONSTRAINT keeps view and column lineage"
+    },
+    {
+      "id": "create_view_bequeath_definer",
+      "file": "cases/create_view_bequeath_definer.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.v_active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.v_active_users.id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.v_active_users.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Oracle CREATE VIEW BEQUEATH DEFINER keeps view and column lineage"
+    },
+    {
+      "id": "create_view_bequeath_current_user",
+      "file": "cases/create_view_bequeath_current_user.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.v_user_names"],
+      "columnLineage": [
+        {"target": "ads.v_user_names.id", "sources": ["ods.users.id"]},
+        {"target": "ads.v_user_names.name", "sources": ["ods.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.status"}
+      ],
+      "description": "Oracle CREATE VIEW BEQUEATH CURRENT_USER keeps view and column lineage"
+    },
+    {
       "id": "create_materialized_view",
       "file": "cases/create_materialized_view.sql",
       "statementType": "CREATE_VIEW",
@@ -639,6 +750,108 @@
       "description": "Oracle CREATE MATERIALIZED VIEW AS SELECT records view target and query lineage"
     },
     {
+      "id": "create_materialized_view_build_refresh",
+      "file": "cases/create_materialized_view_build_refresh.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.mv_active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.mv_active_users.id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "mart.mv_active_users.name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Oracle CREATE MATERIALIZED VIEW BUILD/REFRESH options keep view and column lineage"
+    },
+    {
+      "id": "create_materialized_view_deferred_complete",
+      "file": "cases/create_materialized_view_deferred_complete.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.mv_daily_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.mv_daily_orders.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.mv_daily_orders.total_amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.user_id"
+        }
+      ],
+      "description": "Oracle CREATE MATERIALIZED VIEW BUILD DEFERRED REFRESH COMPLETE ON COMMIT keeps aggregate lineage"
+    },
+    {
+      "id": "create_materialized_view_refresh_force",
+      "file": "cases/create_materialized_view_refresh_force.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.mv_recent_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.mv_recent_orders.id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "mart.mv_recent_orders.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.mv_recent_orders.amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "Oracle CREATE MATERIALIZED VIEW REFRESH FORCE ON DEMAND keeps view and column lineage"
+    },
+    {
       "id": "create_bitmap_index",
       "file": "cases/create_bitmap_index.sql",
       "statementType": "ALTER_TABLE",
@@ -648,6 +861,28 @@
       ],
       "columnLineage": [],
       "description": "Oracle CREATE BITMAP INDEX records the affected table"
+    },
+    {
+      "id": "create_index_local",
+      "file": "cases/create_index_local.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE INDEX LOCAL records the affected table"
+    },
+    {
+      "id": "create_index_global_hash_partition",
+      "file": "cases/create_index_global_hash_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE UNIQUE INDEX GLOBAL PARTITION BY HASH records the affected table"
     },
     {
       "id": "drop_view",
@@ -670,6 +905,28 @@
       ],
       "columnLineage": [],
       "description": "Oracle DROP MATERIALIZED VIEW records the affected materialized view"
+    },
+    {
+      "id": "drop_materialized_view_preserve_table",
+      "file": "cases/drop_materialized_view_preserve_table.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.mv_old_users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle DROP MATERIALIZED VIEW PRESERVE TABLE records the affected materialized view"
+    },
+    {
+      "id": "drop_materialized_view_purge",
+      "file": "cases/drop_materialized_view_purge.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.mv_old_users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle DROP MATERIALIZED VIEW PURGE records the affected materialized view"
     },
     {
       "id": "fetch_first_pagination",
@@ -704,6 +961,36 @@
         }
       ],
       "description": "Oracle OFFSET/FETCH pagination keeps projection and ordering column lineage"
+    },
+    {
+      "id": "fetch_with_ties",
+      "file": "cases/fetch_with_ties.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.orders.amount"}
+      ],
+      "description": "Oracle FETCH FIRST ROWS WITH TIES keeps query lineage and ordering usage"
+    },
+    {
+      "id": "fetch_percent_only",
+      "file": "cases/fetch_percent_only.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.orders.amount"}
+      ],
+      "description": "Oracle FETCH FIRST PERCENT ROWS ONLY keeps query lineage and ordering usage"
     },
     {
       "id": "create_view_expression_projection",
@@ -806,6 +1093,70 @@
         }
       ],
       "description": "Oracle hierarchical query table lineage with START WITH and CONNECT BY clauses"
+    },
+    {
+      "id": "hierarchical_query_nocycle",
+      "file": "cases/hierarchical_query_nocycle.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.org_units"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.org_units.id"
+          ]
+        },
+        {
+          "target": "parent_id",
+          "sources": [
+            "app.org_units.parent_id"
+          ]
+        }
+      ],
+      "description": "Oracle CONNECT BY NOCYCLE keeps table and projection lineage"
+    },
+    {
+      "id": "legacy_outer_join_marker",
+      "file": "cases/legacy_outer_join_marker.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.user_profile"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.users.id"]},
+        {"target": "name", "sources": ["ods.user_profile.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.id"},
+        {"type": "WHERE", "column": "ods.user_profile.user_id"}
+      ],
+      "description": "Oracle legacy outer join marker (+) keeps relation and predicate column lineage"
+    },
+    {
+      "id": "hierarchical_connect_by_root",
+      "file": "cases/hierarchical_connect_by_root.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.org_units"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "root_name",
+          "sources": [
+            "app.org_units.name"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "app.org_units.id"
+          ]
+        }
+      ],
+      "description": "Oracle CONNECT_BY_ROOT expression maps to the underlying source column"
     },
     {
       "id": "update_set",
@@ -1228,6 +1579,17 @@
       "description": "Oracle DROP TABLE affected table lineage"
     },
     {
+      "id": "drop_table_cascade_purge",
+      "file": "cases/drop_table_cascade_purge.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users_old"
+      ],
+      "columnLineage": [],
+      "description": "Oracle DROP TABLE CASCADE CONSTRAINTS PURGE keeps affected table lineage"
+    },
+    {
       "id": "truncate_table",
       "file": "cases/truncate_table.sql",
       "statementType": "TRUNCATE_TABLE",
@@ -1237,6 +1599,28 @@
       ],
       "columnLineage": [],
       "description": "Oracle TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table_drop_storage",
+      "file": "cases/truncate_table_drop_storage.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.users"
+      ],
+      "columnLineage": [],
+      "description": "Oracle TRUNCATE TABLE DROP STORAGE keeps affected table lineage"
+    },
+    {
+      "id": "truncate_table_reuse_storage",
+      "file": "cases/truncate_table_reuse_storage.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ads.user_stage"
+      ],
+      "columnLineage": [],
+      "description": "Oracle TRUNCATE TABLE REUSE STORAGE keeps affected table lineage"
     },
     {
       "id": "rename_table",
@@ -1261,6 +1645,39 @@
       ],
       "columnLineage": [],
       "description": "Oracle ALTER TABLE ADD column affected table lineage"
+    },
+    {
+      "id": "alter_table_add_partition",
+      "file": "cases/alter_table_add_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_part"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE ADD PARTITION records the affected table"
+    },
+    {
+      "id": "alter_table_drop_partition",
+      "file": "cases/alter_table_drop_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_part"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE DROP PARTITION records the affected table"
+    },
+    {
+      "id": "alter_table_truncate_partition",
+      "file": "cases/alter_table_truncate_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_part"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE TRUNCATE PARTITION records the affected table"
     },
     {
       "id": "comment_table",
@@ -1354,6 +1771,26 @@
         }
       ],
       "description": "Oracle EXCEPT column sources merged by projection position"
+    },
+    {
+      "id": "minus_column_projection",
+      "file": "cases/minus_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users_a",
+        "ods.deleted_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users_a.id",
+            "ods.deleted_users.user_id"
+          ]
+        }
+      ],
+      "description": "Oracle MINUS column sources merged by projection position"
     },
     {
       "id": "merge_into",
@@ -1453,6 +1890,55 @@
         }
       ],
       "description": "Oracle MERGE USING subquery resolves update and insert value lineage to the underlying source table"
+    },
+    {
+      "id": "merge_update_delete_where",
+      "file": "cases/merge_update_delete_where.sql",
+      "statementType": "MERGE",
+      "inputTables": ["ads.user_summary", "ods.users_delta"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {"target": "ads.user_summary.user_name", "sources": ["ods.users_delta.name"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "ads.user_summary.user_id"},
+        {"type": "MERGE_ON", "column": "ods.users_delta.id"},
+        {"type": "MERGE_WHEN", "column": "ods.users_delta.is_deleted"}
+      ],
+      "description": "Oracle MERGE matched UPDATE with DELETE WHERE keeps assignment and delete-condition lineage"
+    },
+    {
+      "id": "merge_update_where",
+      "file": "cases/merge_update_where.sql",
+      "statementType": "MERGE",
+      "inputTables": ["ads.user_summary", "ods.users_delta"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {"target": "ads.user_summary.user_name", "sources": ["ods.users_delta.name"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "ads.user_summary.user_id"},
+        {"type": "MERGE_ON", "column": "ods.users_delta.id"},
+        {"type": "MERGE_WHEN", "column": "ods.users_delta.status"}
+      ],
+      "description": "Oracle MERGE matched UPDATE WHERE keeps assignment lineage and update-condition usage"
+    },
+    {
+      "id": "merge_insert_where",
+      "file": "cases/merge_insert_where.sql",
+      "statementType": "MERGE",
+      "inputTables": ["ads.user_summary", "ods.users_delta"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {"target": "ads.user_summary.user_id", "sources": ["ods.users_delta.id"]},
+        {"target": "ads.user_summary.user_name", "sources": ["ods.users_delta.name"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "ads.user_summary.user_id"},
+        {"type": "MERGE_ON", "column": "ods.users_delta.id"},
+        {"type": "MERGE_WHEN", "column": "ods.users_delta.status"}
+      ],
+      "description": "Oracle MERGE not-matched INSERT WHERE keeps insert value lineage and WHEN predicate usage"
     },
     {
       "id": "update_with_subquery",
@@ -2143,6 +2629,42 @@
       "description": "Oracle INSERT FIRST multi-table insert output tables and target column lineage"
     },
     {
+      "id": "insert_all_when",
+      "file": "cases/insert_all_when.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.high_value_orders", "mart.normal_orders"],
+      "columnLineage": [
+        {"target": "mart.high_value_orders.user_id", "sources": ["ods.orders.user_id"]},
+        {"target": "mart.high_value_orders.order_amount", "sources": ["ods.orders.amount"]},
+        {"target": "mart.normal_orders.user_id", "sources": ["ods.orders.user_id"]},
+        {"target": "mart.normal_orders.order_amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"},
+        {"type": "MERGE_WHEN", "column": "ods.orders.amount"}
+      ],
+      "description": "Oracle INSERT ALL conditional multi-table insert keeps output table lineage and WHEN predicate usage"
+    },
+    {
+      "id": "insert_first_when",
+      "file": "cases/insert_first_when.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.high_value_orders", "mart.normal_orders"],
+      "columnLineage": [
+        {"target": "mart.high_value_orders.user_id", "sources": ["ods.orders.user_id"]},
+        {"target": "mart.high_value_orders.order_amount", "sources": ["ods.orders.amount"]},
+        {"target": "mart.normal_orders.user_id", "sources": ["ods.orders.user_id"]},
+        {"target": "mart.normal_orders.order_amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"},
+        {"type": "MERGE_WHEN", "column": "ods.orders.amount"}
+      ],
+      "description": "Oracle INSERT FIRST conditional multi-table insert keeps output table lineage and WHEN predicate usage"
+    },
+    {
       "id": "analyze_table",
       "file": "cases/analyze_table.sql",
       "statementType": "READ_METADATA",
@@ -2154,6 +2676,224 @@
       "description": "Oracle ANALYZE TABLE records the inspected table without write lineage"
     },
     {
+      "id": "analyze_table_all_columns",
+      "file": "cases/analyze_table_all_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ANALYZE TABLE COMPUTE STATISTICS FOR ALL COLUMNS records the inspected table"
+    },
+    {
+      "id": "analyze_table_columns_sample",
+      "file": "cases/analyze_table_columns_sample.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ANALYZE TABLE ESTIMATE STATISTICS FOR COLUMNS with SAMPLE records the inspected table"
+    },
+    {
+      "id": "analyze_table_delete_statistics",
+      "file": "cases/analyze_table_delete_statistics.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ANALYZE TABLE DELETE STATISTICS records the inspected table"
+    },
+    {
+      "id": "analyze_index_validate_structure",
+      "file": "cases/analyze_index_validate_structure.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.idx_users_name"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ANALYZE INDEX VALIDATE STRUCTURE records the inspected index object"
+    },
+    {
+      "id": "describe_table",
+      "file": "cases/describe_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "hr.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DESCRIBE TABLE records the inspected table"
+    },
+    {
+      "id": "describe_column",
+      "file": "cases/describe_column.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "hr.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DESCRIBE table column records the inspected table"
+    },
+    {
+      "id": "explain_plan_select",
+      "file": "cases/explain_plan_select.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "Oracle EXPLAIN PLAN FOR SELECT preserves wrapped query lineage as metadata read"
+    },
+    {
+      "id": "explain_plan_insert_select",
+      "file": "cases/explain_plan_insert_select.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "Oracle EXPLAIN PLAN FOR INSERT SELECT preserves wrapped write lineage as metadata read"
+    },
+    {
+      "id": "explain_plan_update",
+      "file": "cases/explain_plan_update.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ads.user_summary.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_score",
+          "sources": [
+            "ads.user_summary.order_count",
+            "ads.user_summary.bonus_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.dt"
+        }
+      ],
+      "description": "Oracle EXPLAIN PLAN FOR UPDATE preserves wrapped update lineage as metadata read"
+    },
+    {
+      "id": "explain_plan_delete",
+      "file": "cases/explain_plan_delete.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [],
+      "description": "Oracle EXPLAIN PLAN FOR DELETE preserves wrapped delete table lineage as metadata read"
+    },
+    {
+      "id": "explain_plan_merge",
+      "file": "cases/explain_plan_merge.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_score",
+          "sources": [
+            "ods.users.order_count",
+            "ads.user_summary.bonus_count"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.order_score",
+          "sources": [
+            "ods.users.order_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "Oracle EXPLAIN PLAN FOR MERGE preserves wrapped merge lineage as metadata read"
+    },
+    {
       "id": "create_table_schema",
       "file": "cases/create_table_schema.sql",
       "statementType": "CREATE_TABLE",
@@ -2163,6 +2903,39 @@
       ],
       "columnLineage": [],
       "description": "Oracle CREATE TABLE schema DDL records the created table"
+    },
+    {
+      "id": "create_external_table",
+      "file": "cases/create_external_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ext.order_payloads"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE TABLE ORGANIZATION EXTERNAL records the created external table"
+    },
+    {
+      "id": "create_table_range_partition",
+      "file": "cases/create_table_range_partition.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_part"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE TABLE PARTITION BY RANGE records the created table"
+    },
+    {
+      "id": "create_table_hash_partition",
+      "file": "cases/create_table_hash_partition.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.order_hash"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE TABLE PARTITION BY HASH records the created table"
     },
     {
       "id": "alter_session_current_schema",
@@ -2199,6 +2972,747 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Oracle DROP PROCEDURE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "create_trigger_before_insert",
+      "file": "cases/create_trigger_before_insert.sql",
+      "statementType": "CREATE_TRIGGER",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Oracle CREATE TRIGGER records the trigger table as affected table"
+    },
+    {
+      "id": "drop_trigger",
+      "file": "cases/drop_trigger.sql",
+      "statementType": "DROP_TRIGGER",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DROP TRIGGER is classified as trigger lifecycle DDL"
+    },
+    {
+      "id": "rownum_filter",
+      "file": "cases/rownum_filter.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "description": "Oracle ROWNUM filter does not create a physical source column"
+    },
+    {
+      "id": "rowid_projection",
+      "file": "cases/rowid_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "rid", "sources": []},
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"}
+      ],
+      "description": "Oracle ROWID projection is accepted without inventing a table-column source"
+    },
+    {
+      "id": "ora_rowscn_projection",
+      "file": "cases/ora_rowscn_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "row_scn", "sources": []},
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "description": "Oracle ORA_ROWSCN projection is accepted without inventing a table-column source"
+    },
+    {
+      "id": "hierarchical_level",
+      "file": "cases/hierarchical_level.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.org_units"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "depth", "sources": []},
+        {"target": "id", "sources": ["app.org_units.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.org_units.parent_id"},
+        {"type": "WHERE", "column": "app.org_units.id"}
+      ],
+      "description": "Oracle hierarchical LEVEL pseudocolumn is accepted without physical column lineage"
+    },
+    {
+      "id": "pivot_table_source",
+      "file": "cases/pivot_table_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle PIVOT relation keeps the underlying source table lineage"
+    },
+    {
+      "id": "unpivot_table_source",
+      "file": "cases/unpivot_table_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.monthly"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": []},
+        {"target": "amount", "sources": ["sales.monthly.jan_amount", "sales.monthly.feb_amount"]}
+      ],
+      "description": "Oracle UNPIVOT relation keeps the underlying source table lineage"
+    },
+    {
+      "id": "pivot_generated_column_lineage",
+      "file": "cases/pivot_generated_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "north_amt", "sources": ["sales.orders.amount"]},
+        {"target": "south_amt", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"}
+      ],
+      "description": "Oracle PIVOT generated aggregate columns map back to aggregate input columns"
+    },
+    {
+      "id": "unpivot_multi_value_column_lineage",
+      "file": "cases/unpivot_multi_value_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.monthly"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "metric", "sources": []},
+        {"target": "current_value", "sources": ["sales.monthly.jan_amount", "sales.monthly.feb_amount"]},
+        {"target": "previous_value", "sources": ["sales.monthly.jan_prev_amount", "sales.monthly.feb_prev_amount"]}
+      ],
+      "description": "Oracle multi-value UNPIVOT generated columns map back to positional input columns"
+    },
+    {
+      "id": "pivot_multi_column_generated_lineage",
+      "file": "cases/pivot_multi_column_generated_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "north_app_total", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.channel"}
+      ],
+      "description": "Oracle multi-column PIVOT generated aggregate column maps back to aggregate input columns"
+    },
+    {
+      "id": "sample_table_source",
+      "file": "cases/sample_table_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id"]},
+        {"target": "amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.status"}
+      ],
+      "description": "Oracle SAMPLE table clause keeps source table, projection, and predicate lineage"
+    },
+    {
+      "id": "sample_block_seed_table_source",
+      "file": "cases/sample_block_seed_table_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.status"}
+      ],
+      "description": "Oracle SAMPLE BLOCK with SEED keeps source table, projection, and predicate lineage"
+    },
+    {
+      "id": "partition_table_source",
+      "file": "cases/partition_table_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id"]},
+        {"target": "amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.status"}
+      ],
+      "description": "Oracle PARTITION table extension keeps source table, projection, and predicate lineage"
+    },
+    {
+      "id": "subpartition_table_source",
+      "file": "cases/subpartition_table_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.status"}
+      ],
+      "description": "Oracle SUBPARTITION table extension keeps source table, projection, and predicate lineage"
+    },
+    {
+      "id": "ctas_nologging_parallel",
+      "file": "cases/ctas_nologging_parallel.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.fast_orders"],
+      "columnLineage": [
+        {"target": "mart.fast_orders.id", "sources": ["ods.orders.id"]},
+        {"target": "mart.fast_orders.amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.dt"}
+      ],
+      "description": "Oracle CTAS with NOLOGGING and PARALLEL table properties keeps source-to-target lineage"
+    },
+    {
+      "id": "ctas_compress",
+      "file": "cases/ctas_compress.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.compressed_orders"],
+      "columnLineage": [
+        {"target": "mart.compressed_orders.id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"}
+      ],
+      "description": "Oracle CTAS with COMPRESS table property keeps source-to-target lineage"
+    },
+    {
+      "id": "ctas_model_measure_alias",
+      "file": "cases/ctas_model_measure_alias.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["mart.sales_forecast"],
+      "outputTables": ["mart.forecast_out"],
+      "columnLineage": [
+        {"target": "mart.forecast_out.product_id", "sources": ["mart.sales_forecast.product_id"]},
+        {"target": "mart.forecast_out.projected_sales", "sources": ["mart.sales_forecast.sales_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.product_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.year_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.sales_amount"}
+      ],
+      "description": "Oracle CTAS over MODEL measure alias retargets generated projection lineage to the created table"
+    },
+    {
+      "id": "create_global_temporary_table",
+      "file": "cases/create_global_temporary_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["tmp.session_orders"],
+      "columnLineage": [],
+      "description": "Oracle CREATE GLOBAL TEMPORARY TABLE with ON COMMIT PRESERVE ROWS records the created table"
+    },
+    {
+      "id": "create_global_temporary_table_as_select",
+      "file": "cases/create_global_temporary_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["tmp.session_orders"],
+      "columnLineage": [
+        {"target": "tmp.session_orders.id", "sources": ["ods.orders.id"]},
+        {"target": "tmp.session_orders.amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.dt"}
+      ],
+      "description": "Oracle CREATE GLOBAL TEMPORARY TABLE AS SELECT keeps source-to-target lineage"
+    },
+    {
+      "id": "create_private_temporary_table",
+      "file": "cases/create_private_temporary_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["ora$ptt_session_orders"],
+      "columnLineage": [],
+      "description": "Oracle CREATE PRIVATE TEMPORARY TABLE with ON COMMIT DROP DEFINITION records the created table"
+    },
+    {
+      "id": "create_private_temporary_table_as_select",
+      "file": "cases/create_private_temporary_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["ora$ptt_session_orders"],
+      "columnLineage": [
+        {"target": "ora$ptt_session_orders.id", "sources": ["ods.orders.id"]},
+        {"target": "ora$ptt_session_orders.amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.dt"}
+      ],
+      "description": "Oracle CREATE PRIVATE TEMPORARY TABLE AS SELECT keeps source-to-target lineage"
+    },
+    {
+      "id": "select_for_update_skip_locked",
+      "file": "cases/select_for_update_skip_locked.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "status", "sources": ["ods.orders.status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"}
+      ],
+      "description": "Oracle SELECT FOR UPDATE SKIP LOCKED keeps table and projected column lineage"
+    },
+    {
+      "id": "select_for_update_wait",
+      "file": "cases/select_for_update_wait.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"}
+      ],
+      "description": "Oracle SELECT FOR UPDATE WAIT keeps table, projection, and predicate lineage"
+    },
+    {
+      "id": "lock_table_share_mode",
+      "file": "cases/lock_table_share_mode.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle LOCK TABLE IN SHARE MODE reports the locked table as metadata input"
+    },
+    {
+      "id": "lock_table_row_exclusive_wait",
+      "file": "cases/lock_table_row_exclusive_wait.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders", "mart.order_summary"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle LOCK TABLE IN ROW EXCLUSIVE MODE supports multiple locked tables"
+    },
+    {
+      "id": "lock_table_share_row_exclusive",
+      "file": "cases/lock_table_share_row_exclusive.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle LOCK TABLE IN SHARE ROW EXCLUSIVE MODE reports the locked table as metadata input"
+    },
+    {
+      "id": "lock_table_exclusive_nowait",
+      "file": "cases/lock_table_exclusive_nowait.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle LOCK TABLE IN EXCLUSIVE MODE NOWAIT reports the locked table as metadata input"
+    },
+    {
+      "id": "grant_select_on_table",
+      "file": "cases/grant_select_on_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["ods.orders"],
+      "columnLineage": [],
+      "description": "Oracle GRANT object privileges records the affected table"
+    },
+    {
+      "id": "revoke_update_on_table",
+      "file": "cases/revoke_update_on_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["ods.orders"],
+      "columnLineage": [],
+      "description": "Oracle REVOKE object privileges records the affected table"
+    },
+    {
+      "id": "create_package",
+      "file": "cases/create_package.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE PACKAGE specification is recognized as routine lifecycle DDL"
+    },
+    {
+      "id": "create_package_body",
+      "file": "cases/create_package_body.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE PACKAGE BODY is recognized as routine lifecycle DDL without inferring package-body lineage"
+    },
+    {
+      "id": "anonymous_begin_block",
+      "file": "cases/anonymous_begin_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle anonymous BEGIN block is accepted as control syntax"
+    },
+    {
+      "id": "anonymous_declare_block",
+      "file": "cases/anonymous_declare_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle anonymous DECLARE/BEGIN block is accepted as control syntax"
+    },
+    {
+      "id": "commit_statement",
+      "file": "cases/commit_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle COMMIT transaction control is recognized without lineage"
+    },
+    {
+      "id": "rollback_statement",
+      "file": "cases/rollback_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ROLLBACK transaction control is recognized without lineage"
+    },
+    {
+      "id": "savepoint_statement",
+      "file": "cases/savepoint_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle SAVEPOINT transaction control is recognized without lineage"
+    },
+    {
+      "id": "alter_table_modify_column",
+      "file": "cases/alter_table_modify_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE MODIFY COLUMN records the affected table"
+    },
+    {
+      "id": "alter_table_drop_column",
+      "file": "cases/alter_table_drop_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE DROP COLUMN records the affected table"
+    },
+    {
+      "id": "alter_table_rename_column",
+      "file": "cases/alter_table_rename_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE RENAME COLUMN records the affected table"
+    },
+    {
+      "id": "table_function_relation",
+      "file": "cases/table_function_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.split_tags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "value", "sources": ["app.split_tags.value"]}
+      ],
+      "description": "Oracle TABLE(function()) relation is treated as a source relation"
+    },
+    {
+      "id": "json_table_relation",
+      "file": "cases/json_table_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events", "json_table"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.events.event_id"]},
+        {"target": "user_id", "sources": ["json_table.user_id"]},
+        {"target": "amount", "sources": ["json_table.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.payload"},
+        {"type": "JOIN_ON", "column": "json_table.user_id"},
+        {"type": "JOIN_ON", "column": "ods.events.user_id"}
+      ],
+      "description": "Oracle JSON_TABLE relation keeps base table, JSON table-valued source, and correlated payload usage"
+    },
+    {
+      "id": "xml_table_relation",
+      "file": "cases/xml_table_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.order_payloads", "xmltable"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["xmltable.order_id"]},
+        {"target": "amount", "sources": ["xmltable.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.order_payloads.payload"},
+        {"type": "WHERE", "column": "ods.order_payloads.dt"}
+      ],
+      "description": "Oracle XMLTABLE relation keeps base table, XML table-valued source, and PASSING column usage"
+    },
+    {
+      "id": "lateral_inline_view",
+      "file": "cases/lateral_inline_view.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.users.id"]},
+        {"target": "latest_amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.user_id"},
+        {"type": "WHERE", "column": "ods.users.id"},
+        {"type": "WHERE", "column": "ods.users.status"}
+      ],
+      "description": "Oracle LATERAL inline view keeps correlated subquery source and projection lineage"
+    },
+    {
+      "id": "join_table_function_relation",
+      "file": "cases/join_table_function_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "app.split_tags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.users.id"]},
+        {"target": "value", "sources": ["app.split_tags.value"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.users.tags"},
+        {"type": "WHERE", "column": "ods.users.active"}
+      ],
+      "description": "Oracle TABLE(function(column)) relation keeps function source and correlated argument usage"
+    },
+    {
+      "id": "cross_apply_table_function",
+      "file": "cases/cross_apply_table_function.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "app.split_tags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.users.id"]},
+        {"target": "value", "sources": ["app.split_tags.value"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.users.tags"},
+        {"type": "WHERE", "column": "ods.users.active"}
+      ],
+      "description": "Oracle CROSS APPLY TABLE(function(column)) keeps function source and correlated argument usage"
+    },
+    {
+      "id": "outer_apply_table_function",
+      "file": "cases/outer_apply_table_function.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users", "app.split_tags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.users.id"]},
+        {"target": "value", "sources": ["app.split_tags.value"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.users.tags"},
+        {"type": "WHERE", "column": "ods.users.active"}
+      ],
+      "description": "Oracle OUTER APPLY TABLE(function(column)) keeps function source and correlated argument usage"
+    },
+    {
+      "id": "alter_materialized_view_refresh_fast",
+      "file": "cases/alter_materialized_view_refresh_fast.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.mv_user_orders"],
+      "columnLineage": [],
+      "description": "Oracle ALTER MATERIALIZED VIEW REFRESH records the affected materialized view"
+    },
+    {
+      "id": "alter_materialized_view_compile",
+      "file": "cases/alter_materialized_view_compile.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.mv_user_orders"],
+      "columnLineage": [],
+      "description": "Oracle ALTER MATERIALIZED VIEW COMPILE records the affected materialized view"
+    },
+    {
+      "id": "create_synonym",
+      "file": "cases/create_synonym.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["app.orders_syn"],
+      "columnLineage": [],
+      "description": "Oracle CREATE SYNONYM records synonym object and referenced table"
+    },
+    {
+      "id": "create_public_synonym",
+      "file": "cases/create_public_synonym.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["orders_syn"],
+      "columnLineage": [],
+      "description": "Oracle CREATE PUBLIC SYNONYM records synonym object and referenced table"
+    },
+    {
+      "id": "create_synonym_for_dblink",
+      "file": "cases/create_synonym_for_dblink.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["app.remote_orders_syn"],
+      "columnLineage": [],
+      "description": "Oracle CREATE SYNONYM FOR remote table over DBLink records synonym object and base table"
+    },
+    {
+      "id": "drop_synonym",
+      "file": "cases/drop_synonym.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": ["app.orders_syn"],
+      "columnLineage": [],
+      "description": "Oracle DROP SYNONYM records the affected synonym object"
+    },
+    {
+      "id": "drop_public_synonym",
+      "file": "cases/drop_public_synonym.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": ["orders_syn"],
+      "columnLineage": [],
+      "description": "Oracle DROP PUBLIC SYNONYM records the affected synonym object"
+    },
+    {
+      "id": "match_recognize_basic",
+      "file": "cases/match_recognize_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.user_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["ods.user_events.user_id"]},
+        {"target": "first_amount", "sources": ["ods.user_events.amount"]},
+        {"target": "last_amount", "sources": ["ods.user_events.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.user_events.user_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.user_events.event_time"},
+        {"type": "TABLE_MODEL", "column": "ods.user_events.amount"},
+        {"type": "TABLE_MODEL", "column": "ods.user_events.event_type"}
+      ],
+      "description": "Oracle MATCH_RECOGNIZE keeps base table lineage and pattern partition/order/measure/define column usage"
+    },
+    {
+      "id": "match_recognize_quantifier",
+      "file": "cases/match_recognize_quantifier.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.user_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["ods.user_events.user_id"]},
+        {"target": "high_amount", "sources": ["ods.user_events.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.user_events.user_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.user_events.event_time"},
+        {"type": "TABLE_MODEL", "column": "ods.user_events.amount"}
+      ],
+      "description": "Oracle MATCH_RECOGNIZE supports plus and range quantifiers with SKIP TO NEXT ROW"
+    },
+    {
+      "id": "model_clause_basic",
+      "file": "cases/model_clause_basic.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.sales_forecast"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "product_id", "sources": ["mart.sales_forecast.product_id"]},
+        {"target": "year_id", "sources": ["mart.sales_forecast.year_id"]},
+        {"target": "sales_amount", "sources": ["mart.sales_forecast.sales_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.product_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.year_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.sales_amount"}
+      ],
+      "description": "Oracle MODEL clause keeps base table lineage and model partition/dimension/measure usages"
+    },
+    {
+      "id": "model_measure_alias_lineage",
+      "file": "cases/model_measure_alias_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.sales_forecast"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "product_id", "sources": ["mart.sales_forecast.product_id"]},
+        {"target": "projected_sales", "sources": ["mart.sales_forecast.sales_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.product_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.year_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.sales_amount"}
+      ],
+      "description": "Oracle MODEL measures alias propagates generated projection lineage to the base measure column"
+    },
+    {
+      "id": "model_ignore_nav_alias_lineage",
+      "file": "cases/model_ignore_nav_alias_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.sales_forecast"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "product_id", "sources": ["mart.sales_forecast.product_id"]},
+        {"target": "projected_sales", "sources": ["mart.sales_forecast.sales_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.product_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.year_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.sales_amount"}
+      ],
+      "description": "Oracle MODEL IGNORE NAV preserves measure alias lineage"
+    },
+    {
+      "id": "model_keep_nav_alias_lineage",
+      "file": "cases/model_keep_nav_alias_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.sales_forecast"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "product_id", "sources": ["mart.sales_forecast.product_id"]},
+        {"target": "projected_sales", "sources": ["mart.sales_forecast.sales_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.product_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.year_id"},
+        {"type": "TABLE_MODEL", "column": "mart.sales_forecast.sales_amount"}
+      ],
+      "description": "Oracle MODEL KEEP NAV preserves measure alias lineage"
     }
   ]
 }

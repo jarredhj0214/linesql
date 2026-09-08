@@ -1,0 +1,2 @@
+SELECT JSON_VALUE(payload, '$.vehicle.vin' RETURNING CHAR(32) DEFAULT 'UNKNOWN' ON EMPTY NULL ON ERROR) AS vin
+FROM app.events;

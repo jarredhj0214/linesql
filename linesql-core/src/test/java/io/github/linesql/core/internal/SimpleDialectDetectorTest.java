@@ -72,12 +72,26 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.STARROCKS, "create routine load mart.job on ods.events from kafka (\"kafka_topic\" = \"events\")");
         assertFirst(SqlDialect.STARROCKS, "load label mart.job (data infile (\"s3://bucket/*.csv\") into table ods.events)");
         assertFirst(SqlDialect.STARROCKS, "refresh materialized view mart.mv_events with sync mode");
+        assertFirst(SqlDialect.STARROCKS, "show proc '/dbs/crs_starrocks'");
     }
 
     @Test
     public void detectsOracleAnchors() {
         assertFirst(SqlDialect.ORACLE, "select id from dual");
         assertFirst(SqlDialect.ORACLE, "select id from org start with parent_id is null connect by prior id = parent_id");
+        assertFirst(SqlDialect.ORACLE, "select id from ods.orders as of timestamp to_timestamp('2026-01-01', 'yyyy-mm-dd')");
+        assertFirst(SqlDialect.ORACLE, "select id from ods.orders sample block (5) seed (123)");
+        assertFirst(SqlDialect.ORACLE, "select id from ods.orders partition (p202609)");
+        assertFirst(SqlDialect.ORACLE, "create table mart.t nologging parallel 4 as select id from ods.s");
+        assertFirst(SqlDialect.ORACLE, "create global temporary table tmp.t (id number) on commit preserve rows");
+        assertFirst(SqlDialect.ORACLE, "create private temporary table ora$ptt_t (id number) on commit drop definition");
+        assertFirst(SqlDialect.ORACLE, "drop table mart.t cascade constraints purge");
+        assertFirst(SqlDialect.ORACLE, "truncate table mart.t reuse storage");
+        assertFirst(SqlDialect.ORACLE, "create sequence ods.seq_order_id start with 1 increment by 1");
+        assertFirst(SqlDialect.ORACLE, "create public synonym orders_syn for ods.orders");
+        assertFirst(SqlDialect.ORACLE, "create database link remote_dw connect to dw_user identified by 'secret' using 'remote_service'");
+        assertFirst(SqlDialect.ORACLE, "create or replace trigger mart.trg before insert on mart.t for each row begin null; end");
+        assertFirst(SqlDialect.ORACLE, "update ods.orders set status = 'DONE' where id = 1 returning status into v_status");
     }
 
     @Test
@@ -97,6 +111,31 @@ public class SimpleDialectDetectorTest {
     @Test
     public void detectsOceanBaseAnchors() {
         assertFirst(SqlDialect.OCEANBASE, "select id from oceanbase.__all_virtual_table");
+        assertFirst(SqlDialect.OCEANBASE, "select /*+ read_consistency(weak) */ id from app.users");
+        assertFirst(SqlDialect.OCEANBASE, "select /*+ query_timeout(1000000) */ id from app.users");
+        assertFirst(SqlDialect.OCEANBASE, "alter proxyconfig set obproxy_read_consistency = 1");
+        assertFirst(SqlDialect.OCEANBASE, "create tenant tenant_a resource_pool_list = ('pool1')");
+        assertFirst(SqlDialect.OCEANBASE, "create resource pool pool1 unit = 'unit1'");
+        assertFirst(SqlDialect.OCEANBASE, "create tablegroup tg1 sharding = 'partition'");
+        assertFirst(SqlDialect.OCEANBASE, "alter system add server '127.0.0.1:2882' zone 'zone1'");
+        assertFirst(SqlDialect.OCEANBASE, "alter system set memory_limit = '10G' tenant = tenant_a");
+        assertFirst(SqlDialect.OCEANBASE, "alter system reset enable_sql_audit");
+        assertFirst(SqlDialect.OCEANBASE, "alter system major freeze tenant = all_user");
+        assertFirst(SqlDialect.OCEANBASE, "alter system minor freeze");
+        assertFirst(SqlDialect.OCEANBASE, "stop server '127.0.0.1:2882'");
+        assertFirst(SqlDialect.OCEANBASE, "show tenant");
+        assertFirst(SqlDialect.OCEANBASE, "show tenant status");
+        assertFirst(SqlDialect.OCEANBASE, "show create tenant tenant_a");
+        assertFirst(SqlDialect.OCEANBASE, "show resource pool like 'pool%'");
+        assertFirst(SqlDialect.OCEANBASE, "show tablegroups");
+        assertFirst(SqlDialect.OCEANBASE, "show recyclebin");
+        assertFirst(SqlDialect.OCEANBASE, "show parameters like 'memory_limit'");
+        assertFirst(SqlDialect.OCEANBASE, "purge recyclebin");
+        assertFirst(SqlDialect.OCEANBASE, "purge table app.orders");
+        assertFirst(SqlDialect.OCEANBASE, "flashback table app.orders to before drop rename to app.orders_restored");
+        assertFirst(SqlDialect.OCEANBASE, "flashback tenant tenant_a to before drop rename to tenant_b");
+        assertFirst(SqlDialect.OCEANBASE, "rename tenant tenant_a to tenant_b");
+        assertFirst(SqlDialect.OCEANBASE, "select id from app.orders as of snapshot 1582807800000000");
     }
 
     @Test

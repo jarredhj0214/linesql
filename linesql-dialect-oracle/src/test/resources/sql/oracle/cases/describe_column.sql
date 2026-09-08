@@ -1,0 +1,1 @@
+desc hr.employees salary;

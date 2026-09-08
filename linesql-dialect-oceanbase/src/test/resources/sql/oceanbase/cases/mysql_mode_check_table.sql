@@ -1,0 +1,1 @@
+CHECK TABLE mart.orders FOR UPGRADE QUICK;

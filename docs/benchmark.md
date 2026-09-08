@@ -10,16 +10,16 @@ The repository contains a case-backed regression corpus across bundled dialect m
 
 | Dialect | Cases | Column-lineage cases | Diagnostic cases |
 | --- | ---: | ---: | ---: |
-| Spark | 182 | 92 | 14 |
+| Spark | 187 | 97 | 14 |
 | Hive | 65 | 53 | 0 |
 | Flink | 296 | 157 | 0 |
-| StarRocks | 593 | 200 | 0 |
+| StarRocks | 595 | 200 | 0 |
 | MySQL | 505 | 272 | 0 |
-| Oracle | 81 | 61 | 0 |
-| SQL Server | 83 | 63 | 0 |
+| Oracle | 183 | 115 | 0 |
+| SQL Server | 160 | 105 | 0 |
 | PostgreSQL | 41 | 20 | 0 |
-| OceanBase | 10 | 7 | 0 |
-| **Total** | **1856** | **925** | **14** |
+| OceanBase | 395 | 137 | 0 |
+| **Total** | **2427** | **1156** | **14** |
 
 These numbers describe the public regression suite, not a claim of full SQL grammar coverage.
 
@@ -107,7 +107,7 @@ Avoid describing coverage as "complete" unless the statement is tied to a dialec
 
 Prefer precise claims:
 
-- "Spark `INSERT SELECT`, CTAS, view, CTE, set operations, common expressions, and clause usages are covered by regression cases."
+- "Spark `INSERT SELECT`, CTAS, view, CTE, set operations, common expressions, higher-order lambdas, nested fields, and clause usages are covered by regression cases."
 - "MySQL table lineage and common column lineage are active, with ongoing work on dialect-specific DDL and procedural syntax."
 - "Unknown or partially supported SQL returns diagnostics instead of silently pretending the lineage is complete."
 

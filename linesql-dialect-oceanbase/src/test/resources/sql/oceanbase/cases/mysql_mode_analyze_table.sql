@@ -1,0 +1,1 @@
+ANALYZE TABLE mart.orders UPDATE HISTOGRAM ON amount;

@@ -2480,31 +2480,49 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     private static List<SourceColumn> sourceColumns(ParseTree tree) {
         Set<SourceColumn> columns = new LinkedHashSet<>();
-        collectSourceColumns(tree, columns, true);
+        collectSourceColumns(tree, columns, true, new LinkedHashSet<String>());
         return new ArrayList<>(columns);
     }
 
     private static List<SourceColumn> sourceColumnsExcludingSubqueries(ParseTree tree) {
         Set<SourceColumn> columns = new LinkedHashSet<>();
-        collectSourceColumns(tree, columns, false);
+        collectSourceColumns(tree, columns, false, new LinkedHashSet<String>());
         return new ArrayList<>(columns);
     }
 
-    private static void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns, boolean includeSubqueries) {
+    private static void collectSourceColumns(ParseTree tree,
+                                             Set<SourceColumn> columns,
+                                             boolean includeSubqueries,
+                                             Set<String> lambdaParameters) {
         if (!includeSubqueries && tree instanceof SqlBaseParser.QueryContext) {
             return;
         }
+        if (tree instanceof SqlBaseParser.LambdaContext) {
+            SqlBaseParser.LambdaContext lambda = (SqlBaseParser.LambdaContext) tree;
+            Set<String> scopedParameters = new LinkedHashSet<>(lambdaParameters);
+            for (SqlBaseParser.IdentifierContext identifier : lambda.identifier()) {
+                scopedParameters.add(cleanIdentifier(identifier.getText()).toLowerCase(java.util.Locale.ROOT));
+            }
+            collectSourceColumns(lambda.expression(), columns, includeSubqueries, scopedParameters);
+            return;
+        }
         if (tree instanceof SqlBaseParser.ColumnReferenceContext) {
-            columns.add(new SourceColumn(null, cleanIdentifier(tree.getText())));
+            String column = cleanIdentifier(tree.getText());
+            if (!lambdaParameters.contains(column.toLowerCase(java.util.Locale.ROOT))) {
+                columns.add(new SourceColumn(null, column));
+            }
             return;
         }
         if (tree instanceof SqlBaseParser.DereferenceContext) {
             SqlBaseParser.DereferenceContext dereference = (SqlBaseParser.DereferenceContext) tree;
-            columns.add(new SourceColumn(null, String.join(".", splitIdentifier(dereference.getText()))));
+            List<String> parts = splitIdentifier(dereference.getText());
+            if (!parts.isEmpty() && !lambdaParameters.contains(parts.get(0).toLowerCase(java.util.Locale.ROOT))) {
+                columns.add(new SourceColumn(null, String.join(".", parts)));
+            }
             return;
         }
         for (int i = 0; i < tree.getChildCount(); i++) {
-            collectSourceColumns(tree.getChild(i), columns, includeSubqueries);
+            collectSourceColumns(tree.getChild(i), columns, includeSubqueries, lambdaParameters);
         }
     }
 

@@ -1,0 +1,1 @@
+ALTER SEQUENCE ods.seq_order_id INCREMENT BY 10 CACHE 200;

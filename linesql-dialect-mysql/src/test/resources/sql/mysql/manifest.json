@@ -6580,7 +6580,7 @@
     {
       "id": "lock_tables",
       "file": "cases/lock_tables.sql",
-      "statementType": "READ_METADATA",
+      "statementType": "CONTROL",
       "inputTables": [
         "app.users",
         "mart.user_summary"
@@ -8795,7 +8795,7 @@
     {
       "id": "lock_tables_alias_low_priority",
       "file": "cases/lock_tables_alias_low_priority.sql",
-      "statementType": "READ_METADATA",
+      "statementType": "CONTROL",
       "inputTables": [
         "app.users",
         "mart.user_summary"

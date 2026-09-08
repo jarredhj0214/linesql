@@ -1,0 +1,4 @@
+SELECT id, amount
+FROM ods.orders
+ORDER BY amount DESC
+OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY;

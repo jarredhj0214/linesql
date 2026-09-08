@@ -166,11 +166,11 @@ Case coverage and benchmark methodology are tracked in [Benchmark and Coverage](
 | MySQL | Active parser | Yes | Broad SELECT, DML, DDL, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | Hive | Active parser | Yes | Common SELECT, DML, DDL | Direct mappings and common expressions | Common predicate and clause usages |
 | Flink | Active parser | Yes | SELECT, DML, default/Hive-compatible DDL, connector/CDC DDL, materialized table, SQL Client utility, temporal join, window TVF, and MATCH_RECOGNIZE coverage | Direct mappings, common expressions, TVF generated columns, pattern measures | Common predicate, grouping, window descriptor, temporal join, pattern, and clause usages |
-| StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, lifecycle, and vertical-output metadata statement coverage | Direct mappings and common expressions | Predicate, clause, metadata/statistics, index, and table-model usages |
-| Oracle | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
-| SQL Server | Active parser | Yes | Common SELECT, DML, DDL, and routine lifecycle coverage | Direct mappings and common expressions | Common predicate and clause usages |
+| StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, lifecycle, proc-path, and vertical-output metadata statement coverage | Direct mappings and common expressions | Predicate, clause, metadata/statistics, index, and table-model usages |
+| Oracle | Active parser | Yes | Common SELECT, TABLE(function)/JSON_TABLE/XMLTABLE sources, MATCH_RECOGNIZE, DML, DDL, ALTER TABLE maintenance, locking read/control, synonym object references, table privilege grants, routine/package lifecycle, and PL/SQL block envelope coverage | Direct mappings, common expressions, and MATCH_RECOGNIZE measures | Common predicate, clause, window, and pattern usages |
+| SQL Server | Active parser | Yes | Common SELECT, temporal-table reads, DML, table variables, table-valued/external query functions, DML OUTPUT capture, PIVOT/UNPIVOT relations, transaction control, privilege DDL, synonym object references, routine lifecycle, trigger lifecycle, and index option coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | PostgreSQL | Baseline parser | Yes | SELECT, DML, CTAS, VIEW, `ON CONFLICT`, `RETURNING`, `MERGE`, schema/routine DDL | Direct mappings and common expressions | Basic predicate and merge/clause usages |
-| OceanBase | Compatibility baseline | Yes | MySQL and Oracle compatibility-mode baseline | Direct mappings through compatibility modes | Basic compatibility-mode usages |
+| OceanBase | Compatibility-mode parser | Yes | MySQL-mode and Oracle-mode SELECT, DML, DDL, constraints, DBLink, sequence, synonym, package/block envelopes, flashback query, OUTFILE export, locking read, transaction control, EXPLAIN, outline, partition, set-operation, CTE, aggregate, window, hint, MERGE, resource, tenant, tablegroup, cluster, and proxy-control coverage | Direct mappings and common expressions through compatibility modes | Predicate, join, merge, DBLink, flashback, and compatibility-mode clause usages |
 
 Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to Spark; callers can pass an explicit dialect when the execution engine is known.
 
@@ -179,8 +179,8 @@ Current regression corpus:
 | Metric | Current value |
 | --- | ---: |
 | Dialects | 9 |
-| SQL cases | 1856 |
-| Column-lineage cases | 925 |
+| SQL cases | 2427 |
+| Column-lineage cases | 1156 |
 | Diagnostic cases | 14 |
 
 The corpus is intentionally transparent: SQL case files and manifest expectations live under each dialect module, so contributors can inspect exactly what a release claims to support.
@@ -199,7 +199,7 @@ The corpus is intentionally transparent: SQL case files and manifest expectation
 | `linesql-dialect-oracle` | Oracle parser module |
 | `linesql-dialect-sqlserver` | SQL Server parser module |
 | `linesql-dialect-postgresql` | PostgreSQL baseline parser module |
-| `linesql-dialect-oceanbase` | OceanBase compatibility-mode parser module |
+| `linesql-dialect-oceanbase` | OceanBase MySQL/Oracle compatibility-mode parser module |
 | `linesql-cli` | Command-line JSON output |
 
 ## Installation
@@ -284,6 +284,23 @@ LineageResult result = LineSql.parse(
     "select id from ods.users",
     ParseOptions.builder()
         .dialectHints(Arrays.asList(SqlDialect.SPARK, SqlDialect.HIVE))
+        .build()
+);
+```
+
+OceanBase compatibility mode can be left to inference or set explicitly:
+
+```java
+import io.github.linesql.core.LineSql;
+import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseOptions;
+import io.github.linesql.core.model.SqlDialect;
+
+LineageResult result = LineSql.parse(
+    "select id from dual",
+    ParseOptions.builder()
+        .dialectHints(java.util.Collections.singletonList(SqlDialect.OCEANBASE))
+        .dialectOption("oceanbase.compatibilityMode", "oracle")
         .build()
 );
 ```

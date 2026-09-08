@@ -1,0 +1,3 @@
+SELECT id, status
+FROM app.orders AS OF SNAPSHOT 1582807800000000
+WHERE status = 'PAID';

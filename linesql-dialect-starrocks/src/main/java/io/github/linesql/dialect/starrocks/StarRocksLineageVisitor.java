@@ -1407,7 +1407,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitShowStatement(StarRocksParser.ShowStatementContext ctx) {
         TableRef metadataTable = null;
-        if (ctx.multipartIdentifier() != null) {
+        if (ctx.PROC() != null && !ctx.string().isEmpty()) {
+            metadataTable = showProcMetadataRef(ctx.string(0).getText());
+            if (metadataTable != null) {
+                inputTables.add(metadataTable);
+                result.setInputTables(new ArrayList<>(inputTables));
+            }
+        } else if (ctx.multipartIdentifier() != null) {
             metadataTable = showMetadataTable(ctx);
             inputTables.add(metadataTable);
             result.setInputTables(new ArrayList<>(inputTables));
@@ -3253,6 +3259,31 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         String schema = cleanIdentifier(ctx.identifier());
         String catalog = context == null ? null : context.getDefaultCatalog();
         return new TableRef(catalog, schema, parts.get(0));
+    }
+
+    private TableRef showProcMetadataRef(String text) {
+        String path = stringLiteralValue(text);
+        if (path == null) {
+            return null;
+        }
+        String normalized = path.trim();
+        if (!normalized.startsWith("/dbs/")) {
+            return null;
+        }
+        List<String> parts = new ArrayList<>();
+        for (String part : normalized.substring("/dbs/".length()).split("/")) {
+            if (!part.trim().isEmpty()) {
+                parts.add(cleanIdentifier(part.trim()));
+            }
+        }
+        if (parts.isEmpty()) {
+            return null;
+        }
+        String catalog = context == null ? null : context.getDefaultCatalog();
+        if (parts.size() == 1) {
+            return new TableRef(catalog, null, parts.get(0));
+        }
+        return new TableRef(catalog, parts.get(0), parts.get(1));
     }
 
     private static String relationKey(TableRef table) {

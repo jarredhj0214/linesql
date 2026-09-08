@@ -1,0 +1,1 @@
+DROP DATABASE LINK remote_dw;

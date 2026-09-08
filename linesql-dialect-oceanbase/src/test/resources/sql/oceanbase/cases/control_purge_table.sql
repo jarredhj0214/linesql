@@ -1,0 +1,1 @@
+purge table app.orders;

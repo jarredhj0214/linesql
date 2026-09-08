@@ -12,6 +12,7 @@ import io.github.linesql.dialect.sqlserver.antlr.SqlServerParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -60,6 +61,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
+        addOutputIntoTable(ctx.outputClause());
         if (ctx.columnList != null) {
             for (SqlServerParser.IdentifierContext id : ctx.columnList.identifier()) {
                 insertTargetColumns.add(cleanIdentifier(id));
@@ -88,19 +90,30 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        TableRef target = tableRef(ctx.multipartIdentifier());
-        currentDmlTarget = target;
-        outputTables.add(target);
-        inputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        TableRef declaredTarget = tableRef(ctx.multipartIdentifier());
+        TableRef target = declaredTarget;
+        inputTables.add(declaredTarget);
+        tableAliases.put(declaredTarget.getName().toLowerCase(Locale.ROOT), declaredTarget);
         String alias = tableAlias(ctx.tableAlias());
         if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), declaredTarget);
         }
 
         // Visit FROM clause if present (SQL Server UPDATE ... FROM syntax)
         if (ctx.fromClause() != null) {
             visitRelationListForInputs(ctx.fromClause().relationList());
+            target = resolveUpdateTarget(declaredTarget);
+            if (!target.equals(declaredTarget)) {
+                inputTables.remove(declaredTarget);
+            }
+        }
+        currentDmlTarget = target;
+        inputTables.add(target);
+        outputTables.add(target);
+        addOutputIntoTable(ctx.outputClause());
+        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        if (alias != null) {
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
         }
 
         if (ctx.whereClause() != null) {
@@ -128,6 +141,14 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return null;
     }
 
+    private TableRef resolveUpdateTarget(TableRef declaredTarget) {
+        if (declaredTarget == null || declaredTarget.getSchema() != null || declaredTarget.getCatalog() != null) {
+            return declaredTarget;
+        }
+        TableRef aliasTarget = tableAliases.get(declaredTarget.getName().toLowerCase(Locale.ROOT));
+        return aliasTarget == null ? declaredTarget : aliasTarget;
+    }
+
     @Override
     public Void visitDeleteStmt(SqlServerParser.DeleteStmtContext ctx) {
         result.setStatementType(StatementType.DELETE);
@@ -143,6 +164,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
+        addOutputIntoTable(ctx.outputClause());
         tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
         String alias = tableAlias(ctx.tableAlias());
         if (alias != null) {
@@ -171,6 +193,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (target != null) {
             outputTables.add(target);
         }
+        addOutputIntoTable(ctx.outputClause());
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
@@ -187,6 +210,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitMergeStatement(SqlServerParser.MergeStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier(0));
         inputTables.add(target);
         outputTables.add(target);
@@ -198,11 +224,15 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
         if (ctx.multipartIdentifier().size() > 1) {
             TableRef source = tableRef(ctx.multipartIdentifier(1));
-            inputTables.add(source);
-            tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
-            String sourceAlias = tableAlias(ctx.tableAlias(1));
-            if (sourceAlias != null) {
-                tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
+            if (isCteReference(source)) {
+                addDerivedReference(source.getName(), ctx.tableAlias(1));
+            } else {
+                inputTables.add(source);
+                tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
+                String sourceAlias = tableAlias(ctx.tableAlias(1));
+                if (sourceAlias != null) {
+                    tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
+                }
             }
         }
         if (ctx.query() != null) {
@@ -216,6 +246,15 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
         List<ColumnLineage> lineages = new ArrayList<>();
         for (SqlServerParser.MergeClauseContext clause : ctx.mergeClause()) {
+            if (clause.matchedCondition != null) {
+                addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(clause.matchedCondition));
+            }
+            if (clause.bySourceCondition != null) {
+                addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(clause.bySourceCondition));
+            }
+            if (clause.notMatchedCondition != null) {
+                addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(clause.notMatchedCondition));
+            }
             if (clause.mergeMatchedAction() != null) {
                 SqlServerParser.MergeMatchedActionContext action = clause.mergeMatchedAction();
                 lineages.addAll(readAssignments(action.assignmentList(), target));
@@ -230,11 +269,84 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                     addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.whereClause().expression()));
                 }
             }
+            if (clause.mergeMatchedBySourceAction() != null) {
+                SqlServerParser.MergeMatchedBySourceActionContext action = clause.mergeMatchedBySourceAction();
+                if (action.assignmentList() != null) {
+                    lineages.addAll(readAssignments(action.assignmentList(), target));
+                }
+                if (action.whereClause() != null) {
+                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.whereClause().expression()));
+                }
+            }
         }
+        addOutputIntoTable(ctx.outputClause());
         result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    @Override
+    public Void visitCreateStatisticsStmt(SqlServerParser.CreateStatisticsStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateStatisticsStatement(SqlServerParser.CreateStatisticsStatementContext ctx) {
+        List<SqlServerParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            TableRef table = tableRef(identifiers.get(1));
+            outputTables.add(table);
+            currentDmlTarget = table;
+            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+            addMetadataColumnUsages(table, ctx.identifierList());
+            if (ctx.whereClause() != null) {
+                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+            }
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitUpdateStatisticsStmt(SqlServerParser.UpdateStatisticsStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitUpdateStatisticsStatement(SqlServerParser.UpdateStatisticsStatementContext ctx) {
+        inputTables.add(tableRef(ctx.tableName));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropStatisticsStmt(SqlServerParser.DropStatisticsStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropStatisticsStatement(SqlServerParser.DropStatisticsStatementContext ctx) {
+        List<String> parts = identifierParts(ctx.multipartIdentifier());
+        if (parts.size() > 1) {
+            outputTables.add(LineageModelUtils.tableRefFromParts(parts.subList(0, parts.size() - 1)));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    private void addMetadataColumnUsages(TableRef table, SqlServerParser.IdentifierListContext identifierList) {
+        if (identifierList == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : identifierNames(identifierList)) {
+            refs.add(new ColumnRef(table, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.READ_METADATA, refs);
     }
 
     private void visitRelationListForInputs(SqlServerParser.RelationListContext ctx) {
@@ -246,6 +358,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                     collectJoinColumnUsages(join.joinCriteria());
                 }
             }
+        }
+    }
+
+    private void addOutputIntoTable(SqlServerParser.OutputClauseContext outputClause) {
+        if (outputClause != null && outputClause.multipartIdentifier() != null) {
+            outputTables.add(tableRef(outputClause.multipartIdentifier()));
         }
     }
 
@@ -332,8 +450,40 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateSynonymStmt(SqlServerParser.CreateSynonymStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateSynonymStatement(SqlServerParser.CreateSynonymStatementContext ctx) {
+        List<SqlServerParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        outputTables.add(tableRef(identifiers.get(0)));
+        inputTables.add(tableRef(identifiers.get(1)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitCreateProcedureStmt(SqlServerParser.CreateProcedureStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateTriggerStmt(SqlServerParser.CreateTriggerStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_TRIGGER);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateTriggerStatement(SqlServerParser.CreateTriggerStatementContext ctx) {
+        List<SqlServerParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            outputTables.add(tableRef(identifiers.get(1)));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
@@ -363,6 +513,19 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             result.setStatementType(StatementType.CREATE_TABLE);
         }
         result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDeclareTableVariableStmt(SqlServerParser.DeclareTableVariableStmtContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDeclareTableVariableStatement(SqlServerParser.DeclareTableVariableStatementContext ctx) {
+        result.setStatementType(StatementType.CREATE_TABLE);
+        outputTables.add(LineageModelUtils.tableRefFromParts(Collections.singletonList(cleanIdentifier(ctx.identifier()))));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -398,7 +561,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropTableStatement(SqlServerParser.DropTableStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        for (SqlServerParser.MultipartIdentifierContext id : ctx.multipartIdentifier()) {
+            outputTables.add(tableRef(id));
+        }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -411,7 +576,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropViewStatement(SqlServerParser.DropViewStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        for (SqlServerParser.MultipartIdentifierContext id : ctx.multipartIdentifier()) {
+            outputTables.add(tableRef(id));
+        }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -423,8 +590,27 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDropSynonymStmt(SqlServerParser.DropSynonymStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropSynonymStatement(SqlServerParser.DropSynonymStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitDropProcedureStmt(SqlServerParser.DropProcedureStmtContext ctx) {
         result.setStatementType(StatementType.DROP_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitDropTriggerStmt(SqlServerParser.DropTriggerStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_TRIGGER);
         return null;
     }
 
@@ -481,6 +667,44 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     @Override
     public Void visitSetStmt(SqlServerParser.SetStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitExecuteStmt(SqlServerParser.ExecuteStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitTransactionStmt(SqlServerParser.TransactionStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitGrantStmt(SqlServerParser.GrantStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitGrantStatement(SqlServerParser.GrantStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRevokeStmt(SqlServerParser.RevokeStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRevokeStatement(SqlServerParser.RevokeStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
@@ -567,6 +791,25 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             return null;
         }
         addInputTable(table, ctx.tableAlias(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitTemporalTableName(SqlServerParser.TemporalTableNameContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        addInputTable(table, ctx.tableAlias(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitTableValuedFunction(SqlServerParser.TableValuedFunctionContext ctx) {
+        TableRef function = tableRef(ctx.multipartIdentifier());
+        addInputTable(function, ctx.tableAlias(), true);
+        if (ctx.expressionList() != null) {
+            for (SqlServerParser.ExpressionContext expression : ctx.expressionList().expression()) {
+                addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(expression));
+            }
+        }
         return null;
     }
 
@@ -732,6 +975,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         LineageResult relationResult = new LineageResult();
         SqlServerLineageVisitor relationVisitor = new SqlServerLineageVisitor(relationResult);
         relationVisitor.cteNames.addAll(cteNames);
+        relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
         relationVisitor.visit(query);
@@ -1242,7 +1486,10 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
         if (tree instanceof SqlServerParser.ColumnReferenceContext) {
             SqlServerParser.ColumnReferenceContext colRef = (SqlServerParser.ColumnReferenceContext) tree;
-            columns.add(new SourceColumn(null, cleanIdentifier(colRef.identifier())));
+            String column = cleanIdentifier(colRef.identifier());
+            if (!column.startsWith("@")) {
+                columns.add(new SourceColumn(null, column));
+            }
             return;
         }
         if (tree instanceof SqlServerParser.DereferenceContext) {

@@ -57,6 +57,60 @@ public class OceanBaseDialectParserTest {
         }
     }
 
+    @Test
+    public void reportsInferredCompatibilityModeWithoutChangingPublicDialect() {
+        LineageResult mysqlMode = parser.parse(
+                "select /*+ read_consistency(weak) */ id from app.users",
+                ParseOptions.defaults(),
+                new ParseContext());
+        LineageResult oracleMode = parser.parse(
+                "select id as org_id from app.org_units start with parent_id is null connect by prior id = parent_id",
+                ParseOptions.defaults(),
+                new ParseContext());
+
+        assertEquals(SqlDialect.OCEANBASE, mysqlMode.getDialect());
+        assertEquals(SqlDialect.OCEANBASE, oracleMode.getDialect());
+        assertTrue(mysqlMode.getDiagnostics().stream()
+                .anyMatch(diagnostic -> diagnostic.getMessage().contains("MySQL compatibility mode")));
+        assertTrue(oracleMode.getDiagnostics().stream()
+                .anyMatch(diagnostic -> diagnostic.getMessage().contains("Oracle compatibility mode")));
+    }
+
+    @Test
+    public void acceptsExplicitCompatibilityModeOption() {
+        ParseOptions oracleOptions = ParseOptions.builder()
+                .dialectOption(OceanBaseDialectParser.COMPATIBILITY_MODE_OPTION, "oracle")
+                .build();
+        ParseOptions mysqlOptions = ParseOptions.builder()
+                .dialectOption(OceanBaseDialectParser.COMPATIBILITY_MODE_OPTION, "mysql")
+                .build();
+
+        LineageResult oracleMode = parser.parse("select id from dual", oracleOptions, new ParseContext());
+        LineageResult mysqlMode = parser.parse("select id from app.users", mysqlOptions, new ParseContext());
+
+        assertEquals(SqlDialect.OCEANBASE, oracleMode.getDialect());
+        assertEquals(SqlDialect.OCEANBASE, mysqlMode.getDialect());
+        assertTrue(oracleMode.getDiagnostics().stream()
+                .anyMatch(diagnostic -> "OCEANBASE_COMPATIBILITY_MODE_EXPLICIT".equals(diagnostic.getCode())
+                        && diagnostic.getMessage().contains("Oracle compatibility mode")));
+        assertTrue(mysqlMode.getDiagnostics().stream()
+                .anyMatch(diagnostic -> "OCEANBASE_COMPATIBILITY_MODE_EXPLICIT".equals(diagnostic.getCode())
+                        && diagnostic.getMessage().contains("MySQL compatibility mode")));
+    }
+
+    @Test
+    public void explicitOracleCompatibilityModePreservesDescribeTableReference() {
+        ParseOptions options = ParseOptions.builder()
+                .dialectOption(OceanBaseDialectParser.COMPATIBILITY_MODE_OPTION, "oracle")
+                .build();
+
+        LineageResult result = parser.parse("desc hr.employees salary", options, new ParseContext());
+
+        assertEquals(SqlDialect.OCEANBASE, result.getDialect());
+        assertEquals(StatementType.READ_METADATA, result.getStatementType());
+        assertTables("explicit_oracle_describe", tableArray("hr.employees"), tableNames(result.getInputTables()));
+    }
+
     private static String resource(String path) throws IOException {
         try (InputStream input = OceanBaseDialectParserTest.class.getResourceAsStream(path)) {
             if (input == null) {
@@ -89,6 +143,10 @@ public class OceanBaseDialectParserTest {
         List<String> expected = new ArrayList<>();
         expectedNode.forEach(node -> expected.add(node.asText()));
         assertEquals(caseId, expected, actual);
+    }
+
+    private static JsonNode tableArray(String tableName) {
+        return new ObjectMapper().createArrayNode().add(tableName);
     }
 
     private static void assertColumnLineage(String caseId, JsonNode expectedNode, LineageResult result) {

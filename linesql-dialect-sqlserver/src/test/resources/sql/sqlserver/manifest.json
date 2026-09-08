@@ -26,6 +26,24 @@
       "description": "SQL Server basic SELECT table and column lineage"
     },
     {
+      "id": "select_local_temp_table",
+      "file": "cases/select_local_temp_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "#active_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "#active_users.id"
+          ]
+        }
+      ],
+      "description": "SQL Server local temporary table names are parsed as table references"
+    },
+    {
       "id": "join_projection",
       "file": "cases/join_projection.sql",
       "statementType": "SELECT",
@@ -49,6 +67,267 @@
         }
       ],
       "description": "SQL Server JOIN table lineage and alias-qualified column lineage"
+    },
+    {
+      "id": "cross_apply_subquery",
+      "file": "cases/cross_apply_subquery.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users",
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "last_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.orders.created_at"
+        }
+      ],
+      "description": "SQL Server CROSS APPLY subquery propagates table and derived column lineage"
+    },
+    {
+      "id": "outer_apply_subquery",
+      "file": "cases/outer_apply_subquery.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users",
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "last_status",
+          "sources": [
+            "dbo.orders.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.orders.created_at"
+        }
+      ],
+      "description": "SQL Server OUTER APPLY subquery propagates table and derived column lineage"
+    },
+    {
+      "id": "select_table_valued_function",
+      "file": "cases/select_table_valued_function.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.split_tags"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "value",
+          "sources": [
+            "dbo.split_tags.value"
+          ]
+        }
+      ],
+      "description": "SQL Server table-valued function in FROM is treated as a source relation"
+    },
+    {
+      "id": "openquery_relation",
+      "file": "cases/openquery_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "openquery"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "openquery.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "openquery.amount"
+          ]
+        }
+      ],
+      "description": "SQL Server OPENQUERY relation is retained as an external table-valued source"
+    },
+    {
+      "id": "openrowset_relation",
+      "file": "cases/openrowset_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "openrowset"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "openrowset.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "openrowset.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "openrowset.amount"
+        }
+      ],
+      "description": "SQL Server OPENROWSET relation is retained as an external table-valued source"
+    },
+    {
+      "id": "cross_apply_table_valued_function",
+      "file": "cases/cross_apply_table_valued_function.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users",
+        "dbo.split_tags"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "value",
+          "sources": [
+            "dbo.split_tags.value"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.tags"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.active"
+        }
+      ],
+      "description": "SQL Server CROSS APPLY table-valued function keeps function source and correlated argument usage"
+    },
+    {
+      "id": "outer_apply_table_valued_function",
+      "file": "cases/outer_apply_table_valued_function.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users",
+        "dbo.split_tags"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "value",
+          "sources": [
+            "dbo.split_tags.value"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.tags"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.active"
+        }
+      ],
+      "description": "SQL Server OUTER APPLY table-valued function keeps function source and correlated argument usage"
+    },
+    {
+      "id": "cross_apply_openjson_with_schema",
+      "file": "cases/cross_apply_openjson_with_schema.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.events",
+        "openjson"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "dbo.events.event_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "openjson.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "openjson.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.events.payload"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.events.dt"
+        }
+      ],
+      "description": "SQL Server CROSS APPLY OPENJSON WITH schema keeps source table, JSON function relation, and correlated payload usage"
     },
     {
       "id": "clause_column_usage",
@@ -598,6 +877,38 @@
       "description": "SQL Server CREATE VIEW AS SELECT table and column lineage"
     },
     {
+      "id": "create_view_with_schemabinding",
+      "file": "cases/create_view_with_schemabinding.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [
+        "dbo.v_active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.v_active_users.id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "dbo.v_active_users.name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server CREATE VIEW WITH SCHEMABINDING keeps view target and query lineage"
+    },
+    {
       "id": "create_or_alter_view",
       "file": "cases/create_or_alter_view.sql",
       "statementType": "CREATE_VIEW",
@@ -732,6 +1043,180 @@
       "description": "SQL Server SELECT TOP and WITH (NOLOCK) table hint lineage"
     },
     {
+      "id": "table_hint_index",
+      "file": "cases/table_hint_index.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server table hints with parameterized INDEX option keep table and predicate lineage"
+    },
+    {
+      "id": "select_for_system_time_as_of",
+      "file": "cases/select_for_system_time_as_of.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server temporal table FOR SYSTEM_TIME AS OF keeps source table and projection lineage"
+    },
+    {
+      "id": "select_for_system_time_between",
+      "file": "cases/select_for_system_time_between.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server temporal table FOR SYSTEM_TIME BETWEEN keeps source table and projection lineage"
+    },
+    {
+      "id": "select_for_system_time_all",
+      "file": "cases/select_for_system_time_all.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server temporal table FOR SYSTEM_TIME ALL keeps source table and projection lineage"
+    },
+    {
+      "id": "select_for_system_time_from_to",
+      "file": "cases/select_for_system_time_from_to.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server temporal table FOR SYSTEM_TIME FROM TO keeps source table and projection lineage"
+    },
+    {
+      "id": "select_for_system_time_contained_in",
+      "file": "cases/select_for_system_time_contained_in.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server temporal table FOR SYSTEM_TIME CONTAINED IN keeps source table and projection lineage"
+    },
+    {
       "id": "top_parenthesized",
       "file": "cases/top_parenthesized.sql",
       "statementType": "SELECT",
@@ -748,6 +1233,120 @@
         }
       ],
       "description": "SQL Server SELECT TOP with parenthesized row count"
+    },
+    {
+      "id": "top_percent_with_ties",
+      "file": "cases/top_percent_with_ties.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.user_scores"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.user_scores.id"
+          ]
+        },
+        {
+          "target": "score",
+          "sources": [
+            "dbo.user_scores.score"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.user_scores.score"
+        }
+      ],
+      "description": "SQL Server SELECT TOP PERCENT WITH TIES keeps projection and ORDER BY lineage"
+    },
+    {
+      "id": "offset_fetch_pagination",
+      "file": "cases/offset_fetch_pagination.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.users.created_at"
+        }
+      ],
+      "description": "SQL Server OFFSET FETCH pagination preserves projected and ordering columns"
+    },
+    {
+      "id": "select_option_recompile_maxdop",
+      "file": "cases/select_option_recompile_maxdop.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server OPTION(RECOMPILE, MAXDOP) query hint keeps base SELECT lineage"
+    },
+    {
+      "id": "select_option_optimize_for",
+      "file": "cases/select_option_optimize_for.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.region"
+        }
+      ],
+      "description": "SQL Server OPTION(OPTIMIZE FOR) query hint keeps base SELECT lineage"
     },
     {
       "id": "update_from",
@@ -769,6 +1368,76 @@
         }
       ],
       "description": "SQL Server UPDATE FROM table lineage and deterministic assignment column lineage"
+    },
+    {
+      "id": "update_alias_target_from_join",
+      "file": "cases/update_alias_target_from_join.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "dbo.users",
+        "dbo.orders"
+      ],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.users.total_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.status"
+        }
+      ],
+      "description": "SQL Server UPDATE alias target resolves the output table from the FROM relation alias"
+    },
+    {
+      "id": "update_top_alias_target_from_join",
+      "file": "cases/update_top_alias_target_from_join.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "dbo.users",
+        "dbo.orders"
+      ],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.users.total_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.status"
+        }
+      ],
+      "description": "SQL Server UPDATE TOP alias target resolves the affected table through the FROM alias"
     },
     {
       "id": "update_expression_assignment",
@@ -809,6 +1478,32 @@
       "description": "SQLSERVER UPDATE SET expression assignment column lineage"
     },
     {
+      "id": "update_top",
+      "file": "cases/update_top.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.retry_count",
+          "sources": [
+            "ads.user_summary.retry_count"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.status"
+        }
+      ],
+      "description": "SQL Server UPDATE TOP keeps target table, assignment lineage, and predicate usage"
+    },
+    {
       "id": "update_from_derived_assignment",
       "file": "cases/update_from_derived_assignment.sql",
       "statementType": "UPDATE",
@@ -847,6 +1542,129 @@
       "description": "SQL Server UPDATE FROM derived query resolves assignment and WHERE predicate lineage to base tables"
     },
     {
+      "id": "update_output_into",
+      "file": "cases/update_output_into.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.user_summary_changes"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.dt"
+        }
+      ],
+      "description": "SQL Server UPDATE OUTPUT INTO records audit output table while preserving update lineage"
+    },
+    {
+      "id": "update_output_wildcard_into",
+      "file": "cases/update_output_wildcard_into.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.user_summary_changes"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.users.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.dt"
+        }
+      ],
+      "description": "SQL Server UPDATE OUTPUT inserted/deleted wildcard INTO keeps audit output table and update lineage"
+    },
+    {
+      "id": "update_output_table_variable",
+      "file": "cases/update_output_table_variable.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "@changed_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "SQL Server UPDATE OUTPUT INTO table variable records audit output while preserving update lineage"
+    },
+    {
+      "id": "delete_top",
+      "file": "cases/delete_top.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ods.user_events"
+      ],
+      "outputTables": [
+        "ods.user_events"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.user_events.created_at"
+        }
+      ],
+      "description": "SQL Server DELETE TOP keeps affected table and predicate usage"
+    },
+    {
       "id": "delete_from_join",
       "file": "cases/delete_from_join.sql",
       "statementType": "DELETE",
@@ -869,6 +1687,115 @@
           "column": "ods.users.id"
         }
       ]
+    },
+    {
+      "id": "delete_alias_output_from_join",
+      "file": "cases/delete_alias_output_from_join.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "dbo.users",
+        "dbo.user_blacklist"
+      ],
+      "outputTables": [
+        "dbo.users",
+        "audit.deleted_users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.user_blacklist.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.user_blacklist.reason"
+        }
+      ],
+      "description": "SQL Server DELETE alias with OUTPUT INTO resolves affected table and audit output table"
+    },
+    {
+      "id": "delete_output_into",
+      "file": "cases/delete_output_into.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.deleted_users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.dt"
+        }
+      ],
+      "description": "SQL Server DELETE OUTPUT INTO records the audit output table and target predicate usage"
+    },
+    {
+      "id": "delete_output_wildcard_into",
+      "file": "cases/delete_output_wildcard_into.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.deleted_users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.dt"
+        }
+      ],
+      "description": "SQL Server DELETE OUTPUT deleted wildcard INTO keeps audit output table and predicate usage"
+    },
+    {
+      "id": "delete_output_table_variable",
+      "file": "cases/delete_output_table_variable.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "@deleted_users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ads.user_summary.dt"
+        }
+      ],
+      "description": "SQL Server DELETE OUTPUT INTO table variable records the audit table variable and predicate usage"
+    },
+    {
+      "id": "delete_output_temp_table",
+      "file": "cases/delete_output_temp_table.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "dbo.expired_sessions"
+      ],
+      "outputTables": [
+        "dbo.expired_sessions",
+        "#deleted_sessions"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.expired_sessions.expires_at"
+        }
+      ],
+      "description": "SQL Server DELETE OUTPUT INTO local temporary table records both deleted and temporary output tables"
     },
     {
       "id": "delete_from_join_derived",
@@ -951,6 +1878,84 @@
       "description": "SQL Server MERGE target/source table lineage with update assignments, insert values, and ON predicate column usage"
     },
     {
+      "id": "merge_matched_and_update",
+      "file": "cases/merge_matched_and_update.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        },
+        {
+          "type": "MERGE_WHEN",
+          "column": "ods.users_delta.status"
+        }
+      ],
+      "description": "SQL Server MERGE WHEN MATCHED AND condition records assignment lineage and WHEN predicate usage"
+    },
+    {
+      "id": "merge_target_holdlock",
+      "file": "cases/merge_target_holdlock.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users_delta.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        }
+      ],
+      "description": "SQL Server MERGE target WITH (HOLDLOCK) keeps target/source lineage and merge column lineage"
+    },
+    {
       "id": "merge_using_subquery",
       "file": "cases/merge_using_subquery.sql",
       "statementType": "MERGE",
@@ -992,6 +1997,162 @@
         }
       ],
       "description": "SQL Server MERGE USING subquery resolves update and insert value lineage to the underlying source table"
+    },
+    {
+      "id": "merge_with_cte_source",
+      "file": "cases/merge_with_cte_source.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ods.users_delta",
+        "ads.user_summary"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users_delta.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users_delta.status"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        }
+      ],
+      "description": "SQL Server CTE-backed MERGE source resolves source table, CTE filter, and merge column lineage"
+    },
+    {
+      "id": "merge_not_matched_by_source_delete",
+      "file": "cases/merge_not_matched_by_source_delete.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        }
+      ],
+      "description": "SQL Server MERGE WHEN NOT MATCHED BY SOURCE DELETE keeps target/source tables and ON predicate usage"
+    },
+    {
+      "id": "merge_not_matched_by_target_and_insert",
+      "file": "cases/merge_not_matched_by_target_and_insert.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users_delta.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        },
+        {
+          "type": "MERGE_WHEN",
+          "column": "ods.users_delta.status"
+        }
+      ],
+      "description": "SQL Server MERGE WHEN NOT MATCHED BY TARGET AND INSERT keeps insert values lineage"
+    },
+    {
+      "id": "merge_output_into",
+      "file": "cases/merge_output_into.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.user_summary_merge"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users_delta.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        }
+      ],
+      "description": "SQL Server MERGE OUTPUT INTO records audit output table while preserving merge lineage"
     },
     {
       "id": "cte_column_projection",
@@ -1066,6 +2227,118 @@
         }
       ],
       "description": "SQL Server INSERT target column list mapping over single CTE direct column propagation"
+    },
+    {
+      "id": "insert_output_into",
+      "file": "cases/insert_output_into.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.loaded_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server INSERT OUTPUT INTO records the audit output table while preserving insert lineage"
+    },
+    {
+      "id": "insert_output_wildcard_into",
+      "file": "cases/insert_output_wildcard_into.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.loaded_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server INSERT OUTPUT inserted wildcard INTO records audit output table while preserving insert lineage"
+    },
+    {
+      "id": "insert_output_table_variable",
+      "file": "cases/insert_output_table_variable.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "@loaded_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "SQL Server INSERT OUTPUT INTO table variable records audit output while preserving insert lineage"
+    },
+    {
+      "id": "insert_exec_procedure",
+      "file": "cases/insert_exec_procedure.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "audit.proc_result"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server INSERT EXEC records the insert target without inferring procedure internals"
+    },
+    {
+      "id": "insert_global_temp_table",
+      "file": "cases/insert_global_temp_table.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [
+        "##loaded_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "##loaded_users.user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        }
+      ],
+      "description": "SQL Server INSERT INTO supports global temporary table targets"
     },
     {
       "id": "create_view_with_cte",
@@ -1348,6 +2621,18 @@
       "description": "SQL Server DROP TABLE affected table lineage"
     },
     {
+      "id": "drop_multiple_tables",
+      "file": "cases/drop_multiple_tables.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.tmp_orders",
+        "dbo.tmp_users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP TABLE supports multiple affected tables"
+    },
+    {
       "id": "truncate_table",
       "file": "cases/truncate_table.sql",
       "statementType": "TRUNCATE_TABLE",
@@ -1357,6 +2642,17 @@
       ],
       "columnLineage": [],
       "description": "SQL Server TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table_partitions",
+      "file": "cases/truncate_table_partitions.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.user_events"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server TRUNCATE TABLE WITH PARTITIONS records the affected table"
     },
     {
       "id": "alter_table_add_column",
@@ -2039,6 +3335,66 @@
       "description": "SQL Server window function projection column lineage and window clause usages"
     },
     {
+      "id": "select_for_json_path",
+      "file": "cases/select_for_json_path.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server SELECT FOR JSON PATH keeps table and projection lineage"
+    },
+    {
+      "id": "select_for_xml_path",
+      "file": "cases/select_for_xml_path.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.users.id"
+        }
+      ],
+      "description": "SQL Server SELECT FOR XML PATH keeps table and projection lineage"
+    },
+    {
       "id": "with_insert_select",
       "file": "cases/with_insert_select.sql",
       "statementType": "INSERT",
@@ -2108,6 +3464,46 @@
         }
       ],
       "description": "SQL Server WITH before UPDATE FROM propagates CTE columns into assignment lineage"
+    },
+    {
+      "id": "with_update_output_from_cte",
+      "file": "cases/with_update_output_from_cte.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "dbo.orders",
+        "dbo.users"
+      ],
+      "outputTables": [
+        "dbo.users",
+        "audit.user_change_log"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.users.total_amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.status"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server WITH UPDATE FROM plus OUTPUT INTO keeps CTE assignment lineage and audit output table"
     },
     {
       "id": "with_delete_join",
@@ -2189,6 +3585,70 @@
       "description": "SQL Server SELECT INTO records the created table plus projection and predicate lineage"
     },
     {
+      "id": "select_into_temp_table",
+      "file": "cases/select_into_temp_table.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [
+        "#active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "#active_users.user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "#active_users.name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server SELECT INTO local temporary table keeps target and source column lineage"
+    },
+    {
+      "id": "with_select_into_temp_table",
+      "file": "cases/with_select_into_temp_table.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [
+        "#active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "#active_users.user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "#active_users.name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server WITH SELECT INTO local temporary table propagates CTE source column lineage"
+    },
+    {
       "id": "create_filtered_index",
       "file": "cases/create_filtered_index.sql",
       "statementType": "ALTER_TABLE",
@@ -2206,6 +3666,51 @@
       "description": "SQL Server CREATE INDEX records the affected table and filtered-index predicate columns"
     },
     {
+      "id": "create_index_with_options",
+      "file": "cases/create_index_with_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE INDEX WITH options records the affected table"
+    },
+    {
+      "id": "create_statistics_filtered",
+      "file": "cases/create_statistics_filtered.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "dbo.users.name"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server CREATE STATISTICS records affected table, statistic columns, and filtered predicate columns"
+    },
+    {
+      "id": "create_synonym",
+      "file": "cases/create_synonym.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "dbo.orders_syn"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE SYNONYM records synonym object and referenced table"
+    },
+    {
       "id": "drop_view",
       "file": "cases/drop_view.sql",
       "statementType": "DROP_VIEW",
@@ -2215,6 +3720,18 @@
       ],
       "columnLineage": [],
       "description": "SQL Server DROP VIEW records the affected view"
+    },
+    {
+      "id": "drop_multiple_views",
+      "file": "cases/drop_multiple_views.sql",
+      "statementType": "DROP_VIEW",
+      "inputTables": [],
+      "outputTables": [
+        "mart.v_orders",
+        "mart.v_users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP VIEW supports multiple affected views"
     },
     {
       "id": "drop_index",
@@ -2228,6 +3745,50 @@
       "description": "SQL Server DROP INDEX ON table records the affected table"
     },
     {
+      "id": "drop_index_if_exists",
+      "file": "cases/drop_index_if_exists.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP INDEX IF EXISTS ON table records the affected table"
+    },
+    {
+      "id": "drop_index_with_options",
+      "file": "cases/drop_index_with_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP INDEX WITH options records the affected table"
+    },
+    {
+      "id": "drop_synonym_if_exists",
+      "file": "cases/drop_synonym_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders_syn"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP SYNONYM IF EXISTS records the affected synonym object"
+    },
+    {
+      "id": "drop_statistics",
+      "file": "cases/drop_statistics.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP STATISTICS records the affected table prefix"
+    },
+    {
       "id": "alter_index_rebuild",
       "file": "cases/alter_index_rebuild.sql",
       "statementType": "ALTER_TABLE",
@@ -2239,6 +3800,17 @@
       "description": "SQL Server ALTER INDEX ON table records the maintained table"
     },
     {
+      "id": "update_statistics_fullscan",
+      "file": "cases/update_statistics_fullscan.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server UPDATE STATISTICS records the inspected table"
+    },
+    {
       "id": "create_table_schema",
       "file": "cases/create_table_schema.sql",
       "statementType": "CREATE_TABLE",
@@ -2248,6 +3820,50 @@
       ],
       "columnLineage": [],
       "description": "SQL Server CREATE TABLE schema DDL records the created table"
+    },
+    {
+      "id": "create_external_table",
+      "file": "cases/create_external_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ext.order_payloads"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE EXTERNAL TABLE records the created external table"
+    },
+    {
+      "id": "create_table_identity_column",
+      "file": "cases/create_table_identity_column.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users_identity"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE TABLE accepts IDENTITY column definitions"
+    },
+    {
+      "id": "create_table_computed_column",
+      "file": "cases/create_table_computed_column.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users_computed"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE TABLE accepts computed column definitions"
+    },
+    {
+      "id": "create_local_temp_table",
+      "file": "cases/create_local_temp_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "#active_users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE TABLE supports local temporary table names"
     },
     {
       "id": "use_database",
@@ -2286,6 +3902,17 @@
       "description": "SQL Server CREATE OR ALTER PROCEDURE is classified as routine lifecycle DDL without table lineage"
     },
     {
+      "id": "create_or_alter_trigger",
+      "file": "cases/create_or_alter_trigger.sql",
+      "statementType": "CREATE_TRIGGER",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE OR ALTER TRIGGER records the affected trigger table"
+    },
+    {
       "id": "drop_procedure",
       "file": "cases/drop_procedure.sql",
       "statementType": "DROP_ROUTINE",
@@ -2295,6 +3922,15 @@
       "description": "SQL Server DROP PROCEDURE is classified as routine lifecycle DDL without table lineage"
     },
     {
+      "id": "drop_trigger_if_exists",
+      "file": "cases/drop_trigger_if_exists.sql",
+      "statementType": "DROP_TRIGGER",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DROP TRIGGER IF EXISTS is classified as trigger lifecycle DDL"
+    },
+    {
       "id": "set_nocount",
       "file": "cases/set_nocount.sql",
       "statementType": "CONTROL",
@@ -2302,6 +3938,142 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "SQL Server SET NOCOUNT is classified as session control"
+    },
+    {
+      "id": "execute_procedure",
+      "file": "cases/execute_procedure.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server EXEC procedure call is recognized as control without inferring procedure-body lineage"
+    },
+    {
+      "id": "grant_select_on_object",
+      "file": "cases/grant_select_on_object.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server GRANT object privileges records the affected table"
+    },
+    {
+      "id": "revoke_update_on_table",
+      "file": "cases/revoke_update_on_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server REVOKE object privileges records the affected table"
+    },
+    {
+      "id": "begin_transaction",
+      "file": "cases/begin_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server BEGIN TRANSACTION is recognized as transaction control"
+    },
+    {
+      "id": "commit_transaction",
+      "file": "cases/commit_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server COMMIT TRANSACTION is recognized as transaction control"
+    },
+    {
+      "id": "rollback_transaction",
+      "file": "cases/rollback_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server ROLLBACK TRANSACTION is recognized as transaction control"
+    },
+    {
+      "id": "save_transaction",
+      "file": "cases/save_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server SAVE TRANSACTION is recognized as transaction control"
+    },
+    {
+      "id": "pivot_source_table",
+      "file": "cases/pivot_source_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.sales"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server PIVOT relation operator keeps source table lineage"
+    },
+    {
+      "id": "unpivot_source_table",
+      "file": "cases/unpivot_source_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "mart.monthly_sales"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server UNPIVOT relation operator keeps source table lineage"
+    },
+    {
+      "id": "select_table_variable",
+      "file": "cases/select_table_variable.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "@active_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["@active_users.id"]},
+        {"target": "name", "sources": ["@active_users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "@active_users.status"}
+      ],
+      "description": "SQL Server SELECT can preserve table-variable source lineage"
+    },
+    {
+      "id": "declare_table_variable",
+      "file": "cases/declare_table_variable.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "@active_users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DECLARE table variable records the created script-local table variable"
+    },
+    {
+      "id": "insert_table_variable",
+      "file": "cases/insert_table_variable.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "@active_users"
+      ],
+      "columnLineage": [
+        {"target": "@active_users.id", "sources": ["ods.users.id"]},
+        {"target": "@active_users.name", "sources": ["ods.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.status"}
+      ],
+      "description": "SQL Server INSERT into table variable keeps source-to-target column lineage"
     }
   ]
 }

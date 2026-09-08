@@ -63,6 +63,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 TableRef target = tableRef(clause.multipartIdentifier());
                 outputTables.add(target);
                 lineages.addAll(readMultiTableInsertValues(clause, target));
+                if (clause.condition != null) {
+                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(clause.condition));
+                }
             }
             suppressColumnLineage = true;
             result.setColumnLineage(lineages);
@@ -187,8 +190,11 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             if (clause.mergeMatchedAction() != null) {
                 OracleParser.MergeMatchedActionContext action = clause.mergeMatchedAction();
                 lineages.addAll(readAssignments(action.assignmentList(), target));
-                if (action.whereClause() != null) {
-                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.whereClause().expression()));
+                if (action.updateWhere != null) {
+                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.updateWhere.expression()));
+                }
+                if (action.deleteWhere != null) {
+                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.deleteWhere.expression()));
                 }
             }
             if (clause.mergeNotMatchedAction() != null) {
@@ -222,8 +228,42 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterIndexStmt(OracleParser.AlterIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return null;
+    }
+
+    @Override
+    public Void visitDropIndexStmt(OracleParser.DropIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return null;
+    }
+
+    @Override
     public Void visitCreateRoutineStmt(OracleParser.CreateRoutineStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitAnonymousBlockStmt(OracleParser.AnonymousBlockStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateTriggerStmt(OracleParser.CreateTriggerStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_TRIGGER);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateTriggerStatement(OracleParser.CreateTriggerStatementContext ctx) {
+        List<OracleParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
+        if (identifiers.size() > 1) {
+            outputTables.add(tableRef(identifiers.get(1)));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
@@ -313,6 +353,27 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDropTriggerStmt(OracleParser.DropTriggerStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_TRIGGER);
+        return null;
+    }
+
+    @Override
+    public Void visitOracleSchemaObjectControlStmt(OracleParser.OracleSchemaObjectControlStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        List<OracleParser.MultipartIdentifierContext> identifiers = ctx.oracleSchemaObjectControlStatement().multipartIdentifier();
+        if (ctx.oracleSchemaObjectControlStatement().SYNONYM() != null && !identifiers.isEmpty()) {
+            outputTables.add(tableRef(identifiers.get(0)));
+            if (ctx.oracleSchemaObjectControlStatement().CREATE() != null && identifiers.size() > 1) {
+                inputTables.add(tableRef(identifiers.get(1)));
+            }
+            result.setInputTables(new ArrayList<>(inputTables));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+        return null;
+    }
+
+    @Override
     public Void visitTruncateTableStmt(OracleParser.TruncateTableStmtContext ctx) {
         result.setStatementType(StatementType.TRUNCATE_TABLE);
         return visitChildren(ctx);
@@ -326,8 +387,63 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitLockTableStmt(OracleParser.LockTableStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLockTableStatement(OracleParser.LockTableStatementContext ctx) {
+        for (OracleParser.MultipartIdentifierContext id : ctx.multipartIdentifier()) {
+            inputTables.add(tableRef(id));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitGrantStmt(OracleParser.GrantStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitGrantStatement(OracleParser.GrantStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRevokeStmt(OracleParser.RevokeStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRevokeStatement(OracleParser.RevokeStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitTransactionStmt(OracleParser.TransactionStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitAlterSessionStmt(OracleParser.AlterSessionStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterMaterializedViewStmt(OracleParser.AlterMaterializedViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        outputTables.add(tableRef(ctx.alterMaterializedViewStatement().multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
@@ -384,6 +500,8 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     @Override
     public Void visitDescribeStmt(OracleParser.DescribeStmtContext ctx) {
         result.setStatementType(StatementType.READ_METADATA);
+        inputTables.add(tableRef(ctx.describeStatement().multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
@@ -416,7 +534,34 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAnalyzeIndexStmt(OracleParser.AnalyzeIndexStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitExplainPlanStmt(OracleParser.ExplainPlanStmtContext ctx) {
+        visit(ctx.explainPlanStatement());
+        result.setStatementType(StatementType.READ_METADATA);
+        return null;
+    }
+
+    @Override
+    public Void visitExplainPlanStatement(OracleParser.ExplainPlanStatementContext ctx) {
+        visit(ctx.statement());
+        result.setStatementType(StatementType.READ_METADATA);
+        return null;
+    }
+
+    @Override
     public Void visitAnalyzeTableStatement(OracleParser.AnalyzeTableStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAnalyzeIndexStatement(OracleParser.AnalyzeIndexStatementContext ctx) {
         inputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
@@ -466,6 +611,24 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitTableFunctionRelation(OracleParser.TableFunctionRelationContext ctx) {
+        TableRef function = tableRef(ctx.qualifiedName());
+        addInputTable(function, ctx.tableAlias(), true);
+        if (ctx.expressionList() != null) {
+            for (OracleParser.ExpressionContext expression : ctx.expressionList().expression()) {
+                addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(expression));
+            }
+        }
+        if (ctx.jsonTableArgumentList() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.jsonTableArgumentList().expression()));
+        }
+        if (ctx.xmlTableArgumentList() != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.xmlTableArgumentList().expression()));
+        }
+        return null;
+    }
+
+    @Override
     public Void visitAliasedQuery(OracleParser.AliasedQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
@@ -475,16 +638,286 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitLateralQuery(OracleParser.LateralQueryContext ctx) {
+        String alias = tableAlias(ctx.tableAlias());
+        String relationName = alias == null ? "$lateral" + derivedColumnLineage.size() : alias;
+        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), new ArrayList<>(), true);
+        addDerivedReference(relationName, ctx.tableAlias());
+        return null;
+    }
+
+    @Override
     public Void visitRelation(OracleParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        registerPivotDerivedRelation(ctx.relationPrimary(), ctx.pivotClause());
+        registerUnpivotDerivedRelation(ctx.relationPrimary(), ctx.pivotClause());
+        if (ctx.matchRecognizeClause() != null) {
+            visit(ctx.matchRecognizeClause());
+            registerMatchRecognizeDerivedRelation(ctx.relationPrimary(), ctx.matchRecognizeClause());
+        }
         for (OracleParser.JoinRelationContext join : ctx.joinRelation()) {
             visit(join.relationPrimary());
+            registerPivotDerivedRelation(join.relationPrimary(), join.pivotClause());
+            registerUnpivotDerivedRelation(join.relationPrimary(), join.pivotClause());
+            if (join.matchRecognizeClause() != null) {
+                visit(join.matchRecognizeClause());
+                registerMatchRecognizeDerivedRelation(join.relationPrimary(), join.matchRecognizeClause());
+            }
             if (join.joinCriteria() != null) {
                 collectJoinColumnUsages(join.joinCriteria(), relationStart);
             }
         }
         return null;
+    }
+
+    private void registerMatchRecognizeDerivedRelation(
+            OracleParser.RelationPrimaryContext relationPrimary,
+            OracleParser.MatchRecognizeClauseContext matchRecognize) {
+        if (matchRecognize == null || visibleRelations.isEmpty()) {
+            return;
+        }
+        VisibleRelation baseRelation = visibleRelations.get(visibleRelations.size() - 1);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        if (baseRelation.table != null) {
+            List<ColumnRef> wildcard = new ArrayList<>();
+            wildcard.add(new ColumnRef(baseRelation.table, "*"));
+            columns.put("*", wildcard);
+        }
+        for (OracleParser.MatchRecognizeOptionContext option : matchRecognize.matchRecognizeOption()) {
+            for (OracleParser.MatchMeasureContext measure : option.matchMeasure()) {
+                List<ColumnRef> refs = columnRefs(sourceColumns(measure.expression()));
+                if (refs != null && !refs.isEmpty()) {
+                    columns.put(cleanIdentifier(measure.identifier()), refs);
+                }
+            }
+        }
+        if (columns.isEmpty()) {
+            return;
+        }
+        String derivedName = "$match_recognize" + derivedColumnLineage.size();
+        replaceVisibleRelationWithDerived(relationPrimary, columns, derivedName);
+        String alias = tableAlias(matchRecognize.tableAlias());
+        if (alias != null) {
+            derivedAliases.put(alias.toLowerCase(Locale.ROOT), derivedName);
+        }
+    }
+
+    private void registerPivotDerivedRelation(
+            OracleParser.RelationPrimaryContext relationPrimary,
+            List<OracleParser.PivotClauseContext> pivotClauses) {
+        if (pivotClauses == null || pivotClauses.isEmpty() || visibleRelations.isEmpty()) {
+            return;
+        }
+        OracleParser.PivotClauseContext pivot = null;
+        for (OracleParser.PivotClauseContext clause : pivotClauses) {
+            if (clause.PIVOT() != null) {
+                pivot = clause;
+            }
+        }
+        if (pivot == null) {
+            return;
+        }
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (OracleParser.PivotAggregationContext aggregate : pivot.pivotAggregation()) {
+            List<ColumnRef> refs = columnRefs(sourceColumns(aggregate.expression()));
+            if (refs == null || refs.isEmpty()) {
+                continue;
+            }
+            String aggregateName = pivotAggregateName(aggregate);
+            for (OracleParser.PivotInItemContext item : pivot.pivotInItem()) {
+                String valueName = pivotValueName(item);
+                if (valueName.isEmpty()) {
+                    continue;
+                }
+                columns.put(valueName, refs);
+                columns.put(valueName + "_" + aggregateName, refs);
+                columns.put(aggregateName + "_" + valueName, refs);
+            }
+        }
+        addColumnUsages(ColumnUsageType.GROUP_BY, pivotForSourceColumns(pivot.pivotForExpression()));
+        if (columns.isEmpty()) {
+            return;
+        }
+        replaceVisibleRelationWithDerived(relationPrimary, columns, "$pivot" + derivedColumnLineage.size());
+    }
+
+    private void registerUnpivotDerivedRelation(
+            OracleParser.RelationPrimaryContext relationPrimary,
+            List<OracleParser.PivotClauseContext> pivotClauses) {
+        if (pivotClauses == null || pivotClauses.isEmpty() || visibleRelations.isEmpty()) {
+            return;
+        }
+        OracleParser.PivotClauseContext unpivot = null;
+        for (OracleParser.PivotClauseContext clause : pivotClauses) {
+            if (clause.UNPIVOT() != null) {
+                unpivot = clause;
+            }
+        }
+        if (unpivot == null) {
+            return;
+        }
+        VisibleRelation baseRelation = visibleRelations.get(visibleRelations.size() - 1);
+
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        List<String> valueColumns = unpivotValueColumnNames(unpivot.unpivotValueColumns());
+        List<List<String>> sourceGroups = unpivotSourceGroups(unpivot.unpivotInItem());
+        for (int i = 0; i < valueColumns.size(); i++) {
+            List<ColumnRef> refs = new ArrayList<>();
+            for (List<String> sourceGroup : sourceGroups) {
+                if (i < sourceGroup.size()) {
+                    refs.addAll(columnRefsForVisibleRelation(baseRelation, sourceGroup.get(i)));
+                }
+            }
+            columns.put(valueColumns.get(i), refs);
+        }
+        columns.put(cleanIdentifier(unpivot.identifier()), new ArrayList<ColumnRef>());
+
+        replaceVisibleRelationWithDerived(relationPrimary, columns, "$unpivot" + derivedColumnLineage.size());
+        refreshColumnLineage();
+    }
+
+    private void replaceVisibleRelationWithDerived(
+            OracleParser.RelationPrimaryContext relationPrimary,
+            Map<String, List<ColumnRef>> columns,
+            String derivedName) {
+        VisibleRelation baseRelation = visibleRelations.get(visibleRelations.size() - 1);
+        if (baseRelation.derivedName != null) {
+            derivedReferences.remove(baseRelation.derivedName);
+            removeDerivedAliasValues(baseRelation.derivedName);
+        }
+        derivedColumnLineage.put(derivedName, columns);
+        visibleRelations.set(visibleRelations.size() - 1, VisibleRelation.derived(derivedName));
+        derivedReferences.add(derivedName);
+        derivedAliases.put(derivedName, derivedName);
+        String alias = relationPrimary == null ? null : relationAlias(relationPrimary);
+        if (alias != null) {
+            derivedAliases.put(alias.toLowerCase(Locale.ROOT), derivedName);
+        }
+        refreshColumnLineage();
+    }
+
+    private void removeDerivedAliasValues(String derivedName) {
+        List<String> aliases = new ArrayList<>();
+        for (Map.Entry<String, String> entry : derivedAliases.entrySet()) {
+            if (derivedName.equals(entry.getValue())) {
+                aliases.add(entry.getKey());
+            }
+        }
+        for (String alias : aliases) {
+            derivedAliases.remove(alias);
+        }
+    }
+
+    private List<ColumnRef> columnRefsForVisibleRelation(VisibleRelation relation, String columnName) {
+        if (relation.table != null) {
+            List<ColumnRef> refs = new ArrayList<>();
+            refs.add(new ColumnRef(relation.table, columnName));
+            return refs;
+        }
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation.derivedName);
+        if (columns == null) {
+            return new ArrayList<>();
+        }
+        List<ColumnRef> refs = columns.get(columnName);
+        if (refs != null) {
+            return refs;
+        }
+        List<ColumnRef> wildcard = columns.get("*");
+        if (wildcard != null && wildcard.size() == 1 && wildcard.get(0).getTable() != null) {
+            List<ColumnRef> fallback = new ArrayList<>();
+            fallback.add(new ColumnRef(wildcard.get(0).getTable(), columnName));
+            return fallback;
+        }
+        return new ArrayList<>();
+    }
+
+    private static String pivotAggregateName(OracleParser.PivotAggregationContext ctx) {
+        if (ctx.identifier() != null) {
+            return cleanIdentifier(ctx.identifier());
+        }
+        return cleanIdentifier(ctx.functionName().getText());
+    }
+
+    private static List<SourceColumn> pivotForSourceColumns(OracleParser.PivotForExpressionContext ctx) {
+        List<SourceColumn> columns = new ArrayList<>();
+        if (ctx.identifierList() != null) {
+            for (String name : identifierNames(ctx.identifierList())) {
+                columns.add(new SourceColumn(null, name));
+            }
+        } else if (ctx.identifier() != null) {
+            columns.add(new SourceColumn(null, cleanIdentifier(ctx.identifier())));
+        }
+        return columns;
+    }
+
+    private static String pivotValueName(OracleParser.PivotInItemContext ctx) {
+        if (ctx.identifier() != null) {
+            return cleanIdentifier(ctx.identifier());
+        }
+        if (ctx.expressionList() != null) {
+            List<String> parts = new ArrayList<>();
+            for (OracleParser.ExpressionContext expression : ctx.expressionList().expression()) {
+                String part = cleanPivotGeneratedColumnPart(expression.getText());
+                if (!part.isEmpty()) {
+                    parts.add(part);
+                }
+            }
+            return String.join("_", parts);
+        }
+        return cleanPivotGeneratedColumnPart(ctx.expression().getText());
+    }
+
+    private static String cleanPivotGeneratedColumnPart(String text) {
+        String literal = stringLiteralValue(text);
+        String value = literal == null ? text : literal;
+        return cleanIdentifier(value).replaceAll("[^A-Za-z0-9_]+", "_").replaceAll("^_+|_+$", "");
+    }
+
+    private static String stringLiteralValue(String text) {
+        if (text == null) {
+            return null;
+        }
+        String value = text.trim();
+        if (value.length() < 2 || !value.startsWith("'") || !value.endsWith("'")) {
+            return null;
+        }
+        return value.substring(1, value.length() - 1).replace("''", "'");
+    }
+
+    private static List<String> unpivotValueColumnNames(OracleParser.UnpivotValueColumnsContext ctx) {
+        if (ctx.identifierList() != null) {
+            return identifierNames(ctx.identifierList());
+        }
+        List<String> names = new ArrayList<>();
+        names.add(cleanIdentifier(ctx.identifier()));
+        return names;
+    }
+
+    private static List<List<String>> unpivotSourceGroups(List<OracleParser.UnpivotInItemContext> items) {
+        List<List<String>> groups = new ArrayList<>();
+        for (OracleParser.UnpivotInItemContext item : items) {
+            if (item.identifierList() != null) {
+                groups.add(identifierNames(item.identifierList()));
+            } else if (!item.identifier().isEmpty()) {
+                List<String> group = new ArrayList<>();
+                group.add(cleanIdentifier(item.identifier(0)));
+                groups.add(group);
+            }
+        }
+        return groups;
+    }
+
+    private static String relationAlias(OracleParser.RelationPrimaryContext ctx) {
+        OracleParser.TableAliasContext aliasCtx = null;
+        if (ctx instanceof OracleParser.TableNameContext) {
+            aliasCtx = ((OracleParser.TableNameContext) ctx).tableAlias();
+        } else if (ctx instanceof OracleParser.AliasedQueryContext) {
+            aliasCtx = ((OracleParser.AliasedQueryContext) ctx).tableAlias();
+        } else if (ctx instanceof OracleParser.AliasedRelationContext) {
+            aliasCtx = ((OracleParser.AliasedRelationContext) ctx).tableAlias();
+        }
+        return tableAlias(aliasCtx);
     }
 
     @Override
@@ -517,6 +950,18 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitStartWithClause(OracleParser.StartWithClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitConnectByClause(OracleParser.ConnectByClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitGroupByClause(OracleParser.GroupByClauseContext ctx) {
         for (OracleParser.ExpressionContext expression : ctx.expression()) {
             addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
@@ -527,6 +972,75 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     @Override
     public Void visitHavingClause(OracleParser.HavingClauseContext ctx) {
         addColumnUsages(ColumnUsageType.HAVING, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitModelClause(OracleParser.ModelClauseContext ctx) {
+        visitChildren(ctx);
+        registerModelDerivedRelation(ctx);
+        return null;
+    }
+
+    @Override
+    public Void visitMatchRecognizeOption(OracleParser.MatchRecognizeOptionContext ctx) {
+        if (ctx.PARTITION() != null && ctx.expressionList() != null) {
+            for (OracleParser.ExpressionContext expression : ctx.expressionList().expression()) {
+                addColumnUsages(ColumnUsageType.WINDOW_PARTITION_BY, sourceColumns(expression));
+            }
+        }
+        if (ctx.ORDER() != null) {
+            for (OracleParser.SortItemContext sortItem : ctx.sortItem()) {
+                addColumnUsages(ColumnUsageType.WINDOW_ORDER_BY, sourceColumns(sortItem.expression()));
+            }
+        }
+        for (OracleParser.MatchMeasureContext measure : ctx.matchMeasure()) {
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(measure.expression()));
+        }
+        for (OracleParser.MatchDefinitionContext definition : ctx.matchDefinition()) {
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(definition.expression()));
+        }
+        return visitChildren(ctx);
+    }
+
+    private void registerModelDerivedRelation(OracleParser.ModelClauseContext ctx) {
+        if (ctx == null || visibleRelations.isEmpty()) {
+            return;
+        }
+        VisibleRelation baseRelation = visibleRelations.get(visibleRelations.size() - 1);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        if (baseRelation.table != null) {
+            List<ColumnRef> wildcard = new ArrayList<>();
+            wildcard.add(new ColumnRef(baseRelation.table, "*"));
+            columns.put("*", wildcard);
+        }
+        for (OracleParser.ModelOptionContext option : ctx.modelOption()) {
+            for (OracleParser.ModelMeasureContext measure : option.modelMeasure()) {
+                if (measure.identifier() == null) {
+                    continue;
+                }
+                List<ColumnRef> refs = columnRefs(sourceColumns(measure.expression()));
+                if (refs != null && !refs.isEmpty()) {
+                    columns.put(cleanIdentifier(measure.identifier()), refs);
+                }
+            }
+        }
+        if (columns.isEmpty()) {
+            return;
+        }
+        replaceVisibleRelationWithDerived(null, columns, "$model" + derivedColumnLineage.size());
+    }
+
+    @Override
+    public Void visitModelOption(OracleParser.ModelOptionContext ctx) {
+        if (ctx.expressionList() != null) {
+            for (OracleParser.ExpressionContext expression : ctx.expressionList().expression()) {
+                addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(expression));
+            }
+        }
+        for (OracleParser.ModelMeasureContext measure : ctx.modelMeasure()) {
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(measure.expression()));
+        }
         return visitChildren(ctx);
     }
 
@@ -626,11 +1140,25 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private void registerDerivedRelation(String name, OracleParser.QueryContext query, List<String> columnAliases) {
+        registerDerivedRelation(name, query, columnAliases, false);
+    }
+
+    private void registerDerivedRelation(
+            String name,
+            OracleParser.QueryContext query,
+            List<String> columnAliases,
+            boolean inheritOuterScope) {
         LineageResult relationResult = new LineageResult();
         OracleLineageVisitor relationVisitor = new OracleLineageVisitor(relationResult);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
+        if (inheritOuterScope) {
+            relationVisitor.inputTables.addAll(inputTables);
+            relationVisitor.tableAliases.putAll(tableAliases);
+            relationVisitor.visibleRelations.addAll(visibleRelations);
+            relationVisitor.visibleRelationCount = visibleRelationCount;
+        }
         relationVisitor.visit(query);
         relationVisitor.refreshColumnLineage();
 
@@ -1008,12 +1536,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             OracleParser.ScalarSubqueryContext subquery = (OracleParser.ScalarSubqueryContext) tree;
             LineageResult subResult = lineageForQuery(subquery.query());
             inputTables.addAll(subResult.getInputTables());
+            LineageModelUtils.mergeColumnUsages(result, subResult);
             return;
         }
         if (tree instanceof OracleParser.ExistsExprContext) {
             OracleParser.ExistsExprContext exists = (OracleParser.ExistsExprContext) tree;
             LineageResult subResult = lineageForQuery(exists.query());
             inputTables.addAll(subResult.getInputTables());
+            LineageModelUtils.mergeColumnUsages(result, subResult);
             return;
         }
         if (tree instanceof OracleParser.PredicateContext) {
@@ -1021,6 +1551,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             if (predicate.query() != null) {
                 LineageResult subResult = lineageForQuery(predicate.query());
                 inputTables.addAll(subResult.getInputTables());
+                LineageModelUtils.mergeColumnUsages(result, subResult);
             }
         }
         for (int i = 0; i < tree.getChildCount(); i++) {
@@ -1053,6 +1584,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         LineageResult queryResult = new LineageResult();
         OracleLineageVisitor queryVisitor = new OracleLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
+        queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
@@ -1174,7 +1706,10 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
         if (tree instanceof OracleParser.ColumnReferenceContext) {
             OracleParser.ColumnReferenceContext colRef = (OracleParser.ColumnReferenceContext) tree;
-            columns.add(new SourceColumn(null, cleanIdentifier(colRef.identifier())));
+            String column = cleanIdentifier(colRef.identifier());
+            if (!isOraclePseudocolumn(column)) {
+                columns.add(new SourceColumn(null, column));
+            }
             return;
         }
         if (tree instanceof OracleParser.DereferenceContext) {
@@ -1183,9 +1718,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             if (parts.size() >= 2) {
                 String qualifier = parts.get(parts.size() - 2);
                 String name = parts.get(parts.size() - 1);
-                columns.add(new SourceColumn(qualifier, name));
+                if (!isOraclePseudocolumn(name)) {
+                    columns.add(new SourceColumn(qualifier, name));
+                }
             } else if (parts.size() == 1) {
-                columns.add(new SourceColumn(null, parts.get(0)));
+                String column = parts.get(0);
+                if (!isOraclePseudocolumn(column)) {
+                    columns.add(new SourceColumn(null, column));
+                }
             }
             return;
         }
@@ -1239,10 +1779,28 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         }
     }
 
+    private static boolean isOraclePseudocolumn(String column) {
+        String normalized = column.toLowerCase(Locale.ROOT);
+        return "rownum".equals(normalized)
+                || "rowid".equals(normalized)
+                || "ora_rowscn".equals(normalized)
+                || "level".equals(normalized)
+                || "connect_by_isleaf".equals(normalized)
+                || "connect_by_iscycle".equals(normalized);
+    }
+
     // ============ Utility ============
 
     private static TableRef tableRef(OracleParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
+        return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private static TableRef tableRef(OracleParser.QualifiedNameContext ctx) {
+        List<String> parts = new ArrayList<>();
+        for (OracleParser.IdentifierContext id : ctx.identifier()) {
+            parts.add(cleanIdentifier(id));
+        }
         return LineageModelUtils.tableRefFromParts(parts);
     }
 
