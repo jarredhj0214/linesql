@@ -393,9 +393,27 @@
       "outputTables": ["mart.users"],
       "columnLineage": [],
       "columnUsages": [
+        {"type": "INDEX", "column": "mart.users.name"},
+        {"type": "INDEX", "column": "mart.users.created_at"},
         {"type": "WHERE", "column": "mart.users.status"}
       ],
       "description": "PostgreSQL CREATE INDEX records the affected table and partial-index predicate columns"
+    },
+    {
+      "id": "create_index_include_partial",
+      "file": "cases/create_index_include_partial.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.users.name"},
+        {"type": "INDEX", "column": "mart.users.created_at"},
+        {"type": "INDEX", "column": "mart.users.email"},
+        {"type": "INDEX", "column": "mart.users.last_login_at"},
+        {"type": "WHERE", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL CREATE INDEX with expression keys, INCLUDE columns, and partial predicate columns"
     },
     {
       "id": "refresh_materialized_view",
@@ -413,7 +431,11 @@
       "inputTables": ["mart.users"],
       "outputTables": [],
       "columnLineage": [],
-      "description": "PostgreSQL ANALYZE records the inspected table without inventing write lineage"
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL ANALYZE records the inspected table and selected statistic columns without inventing write lineage"
     },
     {
       "id": "vacuum_table",
@@ -422,7 +444,11 @@
       "inputTables": [],
       "outputTables": ["mart.users"],
       "columnLineage": [],
-      "description": "PostgreSQL VACUUM records the maintained table as an affected table"
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL VACUUM records the maintained table and selected columns as metadata usage"
     },
     {
       "id": "reindex_table",

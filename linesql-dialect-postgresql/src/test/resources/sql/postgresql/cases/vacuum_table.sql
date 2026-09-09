@@ -1,1 +1,1 @@
-vacuum (full, analyze) mart.users;
+vacuum (full, analyze) mart.users(id, status);

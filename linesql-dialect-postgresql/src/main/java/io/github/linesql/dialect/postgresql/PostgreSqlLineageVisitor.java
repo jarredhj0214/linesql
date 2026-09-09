@@ -285,12 +285,29 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             outputTables.add(table);
             currentDmlTarget = table;
             tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+            addColumnUsages(ColumnUsageType.INDEX, sourceColumns(ctx.indexElementList()));
+            if (ctx.includeColumns != null) {
+                addIdentifierListUsages(table, ctx.includeColumns, ColumnUsageType.INDEX);
+            }
             if (ctx.expression() != null) {
                 addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
             }
         }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void addIdentifierListUsages(TableRef table,
+                                        PostgreSqlParser.IdentifierListContext ctx,
+                                        ColumnUsageType type) {
+        if (ctx == null) {
+            return;
+        }
+        List<ColumnRef> columns = new ArrayList<>();
+        for (PostgreSqlParser.IdentifierContext identifier : ctx.identifier()) {
+            columns.add(new ColumnRef(table, cleanIdentifier(identifier)));
+        }
+        LineageModelUtils.addColumnUsages(result, type, columns);
     }
 
     @Override
@@ -595,7 +612,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitVacuumStatement(PostgreSqlParser.VacuumStatementContext ctx) {
         if (ctx.multipartIdentifier() != null) {
-            outputTables.add(tableRef(ctx.multipartIdentifier()));
+            TableRef table = tableRef(ctx.multipartIdentifier());
+            outputTables.add(table);
+            addIdentifierListUsages(table, ctx.identifierList(), ColumnUsageType.READ_METADATA);
         }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -610,7 +629,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitAnalyzeStatement(PostgreSqlParser.AnalyzeStatementContext ctx) {
         if (ctx.multipartIdentifier() != null) {
-            inputTables.add(tableRef(ctx.multipartIdentifier()));
+            TableRef table = tableRef(ctx.multipartIdentifier());
+            inputTables.add(table);
+            addIdentifierListUsages(table, ctx.identifierList(), ColumnUsageType.READ_METADATA);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
