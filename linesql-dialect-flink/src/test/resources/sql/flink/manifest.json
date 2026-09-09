@@ -6259,6 +6259,125 @@
         }
       ],
       "description": "Flink qualified star projection records alias-scoped wildcard lineage"
+    },
+    {
+      "id": "set_empty",
+      "file": "cases/set_empty.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SET without arguments lists session configuration and is accepted as control"
+    },
+    {
+      "id": "reset_all",
+      "file": "cases/reset_all.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink RESET without arguments resets all session configuration and is accepted as control"
+    },
+    {
+      "id": "show_databases_not_ilike",
+      "file": "cases/show_databases_not_ilike.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW DATABASES with catalog and NOT ILIKE filter"
+    },
+    {
+      "id": "show_views_not_like",
+      "file": "cases/show_views_not_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW VIEWS with database and NOT LIKE filter"
+    },
+    {
+      "id": "show_columns_not_like",
+      "file": "cases/show_columns_not_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "prod_catalog.dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW COLUMNS with table and NOT LIKE filter"
+    },
+    {
+      "id": "show_materialized_tables_like",
+      "file": "cases/show_materialized_tables_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW MATERIALIZED TABLES with database and LIKE filter"
+    },
+    {
+      "id": "show_functions_not_ilike",
+      "file": "cases/show_functions_not_ilike.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW FUNCTIONS with database and NOT ILIKE filter"
+    },
+    {
+      "id": "stop_job_with_savepoint",
+      "file": "cases/stop_job_with_savepoint.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink STOP JOB WITH SAVEPOINT utility statement"
+    },
+    {
+      "id": "stop_job_with_drain",
+      "file": "cases/stop_job_with_drain.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink STOP JOB WITH DRAIN utility statement"
+    },
+    {
+      "id": "help_statement",
+      "file": "cases/help_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SQL Client HELP command is accepted as control"
+    },
+    {
+      "id": "quit_statement",
+      "file": "cases/quit_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SQL Client QUIT command is accepted as control"
+    },
+    {
+      "id": "exit_statement",
+      "file": "cases/exit_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SQL Client EXIT command is accepted as control"
+    },
+    {
+      "id": "clear_statement",
+      "file": "cases/clear_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SQL Client CLEAR command is accepted as control"
     }
   ]
 }
