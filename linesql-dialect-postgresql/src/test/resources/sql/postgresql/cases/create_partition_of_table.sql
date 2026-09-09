@@ -1,0 +1,2 @@
+CREATE TABLE mart.orders_y2026 PARTITION OF mart.orders
+FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');

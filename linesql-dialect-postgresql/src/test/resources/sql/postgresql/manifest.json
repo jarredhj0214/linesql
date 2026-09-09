@@ -486,6 +486,233 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL DROP FUNCTION is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "distinct_on_order_nulls",
+      "file": "cases/distinct_on_order_nulls.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "account_id", "sources": ["public.users.account_id"]},
+        {"target": "latest_email", "sources": ["public.users.email"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "public.users.status"},
+        {"type": "ORDER_BY", "column": "public.users.account_id"},
+        {"type": "ORDER_BY", "column": "public.users.updated_at"}
+      ],
+      "description": "PostgreSQL DISTINCT ON with ORDER BY NULLS LAST keeps projection and clause usage lineage"
+    },
+    {
+      "id": "aggregate_filter_within_group",
+      "file": "cases/aggregate_filter_within_group.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["sales.orders.user_id"]},
+        {"target": "paid_count", "sources": ["sales.orders.status"]},
+        {"target": "median_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.user_id"},
+        {"type": "ORDER_BY", "column": "sales.orders.user_id"},
+        {"type": "WHERE", "column": "sales.orders.status"},
+        {"type": "WINDOW_ORDER_BY", "column": "sales.orders.amount"}
+      ],
+      "description": "PostgreSQL aggregate FILTER and ordered-set aggregate WITHIN GROUP column lineage"
+    },
+    {
+      "id": "window_frame_projection",
+      "file": "cases/window_frame_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["sales.orders.user_id"]},
+        {"target": "rolling_amount", "sources": ["sales.orders.amount", "sales.orders.user_id", "sales.orders.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "sales.orders.user_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "sales.orders.created_at"}
+      ],
+      "description": "PostgreSQL analytic window frame keeps projection and window clause column usage"
+    },
+    {
+      "id": "json_array_operator_projection",
+      "file": "cases/json_array_operator_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "customer_name", "sources": ["app.events.payload"]},
+        {"target": "first_tag", "sources": ["app.events.tags"]},
+        {"target": "metric_slice", "sources": ["app.events.metrics"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.events.payload"},
+        {"type": "WHERE", "column": "app.events.attrs"}
+      ],
+      "description": "PostgreSQL JSON operators and array subscripts preserve base column lineage"
+    },
+    {
+      "id": "with_recursive_select",
+      "file": "cases/with_recursive_select.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.users.id"]},
+        {"target": "parent_id", "sources": ["public.users.parent_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "public.users.parent_id"}
+      ],
+      "description": "PostgreSQL WITH RECURSIVE keeps physical base-table lineage without treating the recursive CTE as a table"
+    },
+    {
+      "id": "update_only_from",
+      "file": "cases/update_only_from.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.users", "staging.users_status"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.status", "sources": ["staging.users_status.status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.id"},
+        {"type": "WHERE", "column": "staging.users_status.id"}
+      ],
+      "description": "PostgreSQL UPDATE ONLY ... FROM keeps target/source tables, assignment lineage, and predicate usage"
+    },
+    {
+      "id": "delete_only_using",
+      "file": "cases/delete_only_using.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.users", "staging.deleted_users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.id"},
+        {"type": "WHERE", "column": "staging.deleted_users.id"},
+        {"type": "WHERE", "column": "staging.deleted_users.reason"}
+      ],
+      "description": "PostgreSQL DELETE FROM ONLY ... USING keeps affected table and predicate source usage"
+    },
+    {
+      "id": "create_extension",
+      "file": "cases/create_extension.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE EXTENSION is accepted as a control statement"
+    },
+    {
+      "id": "drop_extension",
+      "file": "cases/drop_extension.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP EXTENSION is accepted as a control statement"
+    },
+    {
+      "id": "grant_table_privilege",
+      "file": "cases/grant_table_privilege.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL GRANT ON TABLE records the affected table object"
+    },
+    {
+      "id": "revoke_table_privilege",
+      "file": "cases/revoke_table_privilege.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL REVOKE ON TABLE records the affected table object"
+    },
+    {
+      "id": "create_unlogged_partitioned_table",
+      "file": "cases/create_unlogged_partitioned_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE UNLOGGED TABLE with PARTITION BY records the created table"
+    },
+    {
+      "id": "create_partition_of_table",
+      "file": "cases/create_partition_of_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.orders_y2026"],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE TABLE PARTITION OF records the child table and parent table relationship"
+    },
+    {
+      "id": "create_table_inherits",
+      "file": "cases/create_table_inherits.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": ["mart.base_event"],
+      "outputTables": ["mart.event_child"],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE TABLE INHERITS records inherited parent table lineage"
+    },
+    {
+      "id": "alter_table_attach_partition",
+      "file": "cases/alter_table_attach_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["mart.orders_y2026"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE ATTACH PARTITION records child table input and parent table affected lineage"
+    },
+    {
+      "id": "alter_table_detach_partition",
+      "file": "cases/alter_table_detach_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders", "mart.orders_y2025"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE DETACH PARTITION records parent and detached child as affected tables"
+    },
+    {
+      "id": "insert_overriding_system_select",
+      "file": "cases/insert_overriding_system_select.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "description": "PostgreSQL INSERT OVERRIDING SYSTEM VALUE keeps INSERT SELECT column lineage"
+    },
+    {
+      "id": "insert_on_conflict_constraint_where",
+      "file": "cases/insert_on_conflict_constraint_where.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+      ],
+      "description": "PostgreSQL ON CONFLICT ON CONSTRAINT with conflict WHERE remains parse-compatible while preserving insert lineage"
+    },
+    {
+      "id": "insert_default_values",
+      "file": "cases/insert_default_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["mart.audit_events"],
+      "columnLineage": [],
+      "description": "PostgreSQL INSERT DEFAULT VALUES records the target table without inventing column lineage"
     }
   ]
 }

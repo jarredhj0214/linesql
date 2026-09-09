@@ -300,7 +300,7 @@ SQL Server relation coverage includes regular table references, derived tables, 
 | Expression | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Predicate subquery | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Aggregation | PARTIAL | COVERED | COVERED | COVERED | P1 |
-| Window | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
+| Window | PARTIAL | COVERED | COVERED | COVERED | P1 |
 | Insert | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
 | Update | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Delete | PARTIAL | COVERED | N/A | COVERED | P0 |
@@ -316,12 +316,16 @@ SQL Server relation coverage includes regular table references, derived tables, 
 Initial PostgreSQL extension focus:
 
 - `INSERT ... ON CONFLICT ... DO UPDATE` baseline table/column lineage is covered by the PostgreSQL grammar.
+- `INSERT ... OVERRIDING SYSTEM/USER VALUE`, `INSERT ... DEFAULT VALUES`, and `ON CONFLICT ON CONSTRAINT ... WHERE ...` are covered for PostgreSQL INSERT compatibility.
 - `RETURNING` on `INSERT`, `UPDATE`, and `DELETE` is accepted by the PostgreSQL grammar for write lineage; returned-row lineage is not modeled yet.
-- data-modifying CTEs
+- data-modifying CTEs and baseline `WITH RECURSIVE` SELECT lineage
 - `UPDATE ... FROM` baseline assignment lineage is covered.
-- `DELETE ... USING`
+- `UPDATE ONLY`, `DELETE ... USING`, and `DELETE FROM ONLY ... USING`
+- `CREATE EXTENSION`, `DROP EXTENSION`, and table privilege `GRANT`/`REVOKE` statements are accepted for production-script compatibility.
+- `UNLOGGED` tables, `PARTITION BY`, `PARTITION OF`, `INHERITS`, and `ALTER TABLE ... ATTACH/DETACH PARTITION` parent-child relationships are covered for table-level DDL lineage.
 - `CREATE TABLE ... AS` baseline table/column lineage is covered.
 - PostgreSQL cast operator `::`, `ILIKE`, and double-quoted identifiers are covered for baseline SELECT lineage.
+- PostgreSQL `DISTINCT ON`, `ORDER BY ... NULLS FIRST/LAST`, aggregate `FILTER`, ordered-set aggregates with `WITHIN GROUP`, analytic window frames, JSON operators, and array subscripts are covered for baseline SELECT lineage.
 - PostgreSQL `MERGE` baseline target/source table lineage, update assignment lineage, insert value lineage, and merge predicate usages are covered.
 
 ### OceanBase

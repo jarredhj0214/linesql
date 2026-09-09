@@ -13,11 +13,13 @@ statement
     | deleteStatement                                                #deleteStmt
     | mergeStatement                                                 #mergeStmt
     | createIndexStatement                                           #createIndexStmt
+    | createExtensionStatement                                       #createExtensionStmt
     | createSchemaStatement                                          #createSchemaStmt
     | createFunctionStatement                                        #createFunctionStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
+    | dropExtensionStatement                                         #dropExtensionStmt
     | dropFunctionStatement                                          #dropFunctionStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
@@ -31,6 +33,8 @@ statement
     | vacuumStatement                                                #vacuumStmt
     | analyzeStatement                                               #analyzeStmt
     | reindexStatement                                               #reindexStmt
+    | grantStatement                                                 #grantStmt
+    | revokeStatement                                                #revokeStmt
     | setStatement                                                   #setStmt
     ;
 
@@ -41,7 +45,7 @@ query
     ;
 
 ctes
-    : WITH namedQuery (COMMA namedQuery)*
+    : WITH RECURSIVE? namedQuery (COMMA namedQuery)*
     ;
 
 namedQuery
@@ -70,7 +74,12 @@ querySpecification
     ;
 
 selectClause
-    : SELECT setQuantifier? selectItemList
+    : SELECT selectModifier? selectItemList
+    ;
+
+selectModifier
+    : setQuantifier
+    | DISTINCT ON LPAREN expressionList RPAREN
     ;
 
 setQuantifier
@@ -101,7 +110,7 @@ relation
     ;
 
 relationPrimary
-    : multipartIdentifier tableAlias                                 #tableName
+    : ONLY? multipartIdentifier tableAlias                           #tableName
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
@@ -147,7 +156,7 @@ queryOrganization
     ;
 
 sortItem
-    : expression (ASC | DESC)?
+    : expression (ASC | DESC)? (NULLS (FIRST | LAST))?
     ;
 
 // ============ Expressions ============
@@ -178,6 +187,7 @@ valueExpression
     | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
+    | left=valueExpression operator=(ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | CONTAINS | CONTAINED_BY | QUESTION | QUESTION_PIPE | QUESTION_AMP) right=valueExpression #postgresOperatorExpression
     | valueExpression COLON COLON dataType                            #postgresCast
     | left=valueExpression comparisonOperator right=valueExpression  #comparison
     ;
@@ -190,11 +200,12 @@ primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
-    | functionName LPAREN STAR RPAREN (OVER windowSpec)?             #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList functionSeparator? RPAREN (OVER windowSpec)?  #functionCall
-    | functionName LPAREN RPAREN (OVER windowSpec)?                  #functionCallEmpty
+    | functionName LPAREN STAR RPAREN aggregateSuffix?               #functionCallStar
+    | functionName LPAREN setQuantifier? expressionList functionSeparator? RPAREN aggregateSuffix?  #functionCall
+    | functionName LPAREN RPAREN aggregateSuffix?                    #functionCallEmpty
     | LPAREN query RPAREN                                            #scalarSubquery
     | LPAREN expression RPAREN                                       #parenthesizedExpression
+    | primaryExpression LBRACKET expression? (COLON expression?)? RBRACKET #subscriptExpression
     | primaryExpression DOT identifier                                #dereference
     | identifier                                                     #columnReference
     | number                                                         #numberLiteral
@@ -206,12 +217,41 @@ primaryExpression
     | DEFAULT                                                        #defaultLiteral
     ;
 
+aggregateSuffix
+    : withinGroupClause? filterClause? (OVER windowSpec)?
+    ;
+
+withinGroupClause
+    : WITHIN GROUP LPAREN ORDER BY sortItem (COMMA sortItem)* RPAREN
+    ;
+
+filterClause
+    : FILTER LPAREN WHERE expression RPAREN
+    ;
+
 whenClause
     : WHEN condition=expression THEN result=expression
     ;
 
 windowSpec
-    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? RPAREN
+    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    ;
+
+windowFrame
+    : (ROWS | RANGE | GROUPS) windowFrameExtent
+    ;
+
+windowFrameExtent
+    : windowFrameBound
+    | BETWEEN windowFrameBound AND windowFrameBound
+    ;
+
+windowFrameBound
+    : UNBOUNDED PRECEDING
+    | UNBOUNDED FOLLOWING
+    | CURRENT ROW
+    | expression PRECEDING
+    | expression FOLLOWING
     ;
 
 functionName
@@ -238,13 +278,23 @@ functionSeparator
 insertStatement
     : ctes? INSERT INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
-      (query | VALUES valuesClause (COMMA valuesClause)* | SET assignmentList)
+      (OVERRIDING (SYSTEM | USER) VALUE)?
+      (query | VALUES valuesClause (COMMA valuesClause)* | DEFAULT VALUES | SET assignmentList)
       onConflictClause?
       returningClause?
     ;
 
 onConflictClause
-    : ON CONFLICT (LPAREN identifierList RPAREN)? DO (NOTHING | UPDATE SET assignmentList)
+    : ON CONFLICT conflictTarget? conflictWhereClause? DO (NOTHING | UPDATE SET assignmentList conflictWhereClause?)
+    ;
+
+conflictTarget
+    : LPAREN identifierList RPAREN
+    | ON CONSTRAINT identifier
+    ;
+
+conflictWhereClause
+    : WHERE expression
     ;
 
 returningClause
@@ -256,11 +306,11 @@ valuesClause
     ;
 
 updateStatement
-    : ctes? UPDATE relation SET assignmentList fromClause? whereClause? returningClause?
+    : ctes? UPDATE ONLY? relation SET assignmentList fromClause? whereClause? returningClause?
     ;
 
 deleteStatement
-    : ctes? DELETE FROM multipartIdentifier tableAlias (USING relationList)? whereClause? returningClause?   #deleteFrom
+    : ctes? DELETE FROM ONLY? multipartIdentifier tableAlias (USING relationList)? whereClause? returningClause?   #deleteFrom
     | ctes? DELETE multipartIdentifier FROM relationList whereClause?                        #deleteAlias
     ;
 
@@ -309,6 +359,18 @@ createIndexStatement
       (WHERE expression)?
     ;
 
+createExtensionStatement
+    : CREATE EXTENSION (IF NOT EXISTS)? identifier (WITH? extensionOptionList)?
+    ;
+
+extensionOptionList
+    : extensionOption+
+    ;
+
+extensionOption
+    : identifier identifier?
+    ;
+
 createSchemaStatement
     : CREATE SCHEMA (IF NOT EXISTS)? identifier
     ;
@@ -337,12 +399,33 @@ indexElement
     ;
 
 createTableStatement
-    : CREATE TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
+    : CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier PARTITION OF partitionParent=multipartIdentifier partitionBound?
+    | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
+      inheritsClause?
+      partitionByClause?
       commentClause?
       tableOption*
       (AS query)?
-    | CREATE TEMPORARY? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
+    | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
+    ;
+
+inheritsClause
+    : INHERITS LPAREN multipartIdentifierList RPAREN
+    ;
+
+partitionByClause
+    : PARTITION BY identifier LPAREN expressionList RPAREN
+    ;
+
+partitionBound
+    : FOR VALUES partitionBoundKind
+    ;
+
+partitionBoundKind
+    : FROM LPAREN expressionList RPAREN TO LPAREN expressionList RPAREN
+    | IN LPAREN expressionList RPAREN
+    | WITH LPAREN expressionList RPAREN
     ;
 
 createViewStatement
@@ -355,15 +438,19 @@ createViewStatement
     ;
 
 dropTableStatement
-    : DROP TABLE (IF EXISTS)? multipartIdentifierList
+    : DROP TABLE (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
     ;
 
 dropViewStatement
-    : DROP MATERIALIZED? VIEW (IF EXISTS)? multipartIdentifierList
+    : DROP MATERIALIZED? VIEW (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
     ;
 
 dropSchemaStatement
-    : DROP SCHEMA (IF EXISTS)? identifier
+    : DROP SCHEMA (IF EXISTS)? identifier (CASCADE | RESTRICT)?
+    ;
+
+dropExtensionStatement
+    : DROP EXTENSION (IF EXISTS)? identifierList (CASCADE | RESTRICT)?
     ;
 
 dropFunctionStatement
@@ -379,7 +466,9 @@ truncateTableStatement
     ;
 
 alterTableStatement
-    : ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
+    : ALTER TABLE parent=multipartIdentifier ATTACH PARTITION child=multipartIdentifier partitionBound?  #alterTableAttachPartition
+    | ALTER TABLE parent=multipartIdentifier DETACH PARTITION child=multipartIdentifier                  #alterTableDetachPartition
+    | ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
     | ALTER TABLE multipartIdentifier ADD COLUMN? identifier dataType         #alterTableAddColumn
     | ALTER TABLE multipartIdentifier alterTableAction                        #alterTableOther
     ;
@@ -465,6 +554,14 @@ analyzeStatement
 
 reindexStatement
     : REINDEX (TABLE | INDEX) CONCURRENTLY? multipartIdentifier
+    ;
+
+grantStatement
+    : GRANT .+? ON TABLE? multipartIdentifier TO .+?
+    ;
+
+revokeStatement
+    : REVOKE .+? ON TABLE? multipartIdentifier FROM .+?
     ;
 
 setStatement
@@ -566,11 +663,11 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ASC | AUTO_INCREMENT | CAST | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
+    : ADD | ASC | AUTO_INCREMENT | CAST | CASCADE | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
     | ANALYZE | COLUMN | COMMENT | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
-    | ENGINE | EXCLUDING | EXISTS | EXTERNAL | FALSE | FORMAT | FUNCTION | HEADER | IF | ILIKE | INCLUDING | INDEX | INTERVAL | KEY | LANGUAGE | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL
-    | OFFSET | OVER | PARTITION | REPLACE | RENAME | SEPARATOR
-    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SET | SHOW | STDIN | STDOUT | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNIQUE | VACUUM | VALUES | VERBOSE | VIEW
+    | ATTACH | DETACH | ENGINE | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
+    | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PRECEDING | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | REVOKE | ROW | ROWS | SEPARATOR
+    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SET | SHOW | STDIN | STDOUT | SYSTEM | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
     ;
 
 number

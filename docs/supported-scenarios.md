@@ -72,13 +72,18 @@ Implemented PostgreSQL scenarios:
 | JOIN source tables and projections | `select u.id, o.amount from users u join orders o ...` | `join_projection` |
 | INSERT SELECT with RETURNING | `insert into mart.t select ... returning ...` | `insert_select_returning` |
 | INSERT SELECT with ON CONFLICT | `insert into mart.t select ... on conflict (...) do update ...` | `insert_on_conflict` |
+| PostgreSQL INSERT variants | `insert ... overriding system value select ...`, `insert ... on conflict on constraint ... do update ... where ...`, `insert ... default values` | `insert_overriding_system_select`, `insert_on_conflict_constraint_where`, `insert_default_values` |
 | WITH before INSERT SELECT | `with q as (...) insert into mart.t select ... from q` | `with_insert_select` |
+| WITH RECURSIVE SELECT | `with recursive q(...) as (...) select ... from q` | `with_recursive_select` |
 | COPY FROM target table and column list | `copy mart.t(c1, c2) from '/tmp/file.csv' with (...)` | `copy_from_csv` |
 | COPY table TO keeps exported column lineage | `copy mart.t(c1, c2) to '/tmp/file.csv' with (...)` | `copy_table_to_file` |
 | COPY query TO keeps exported query lineage | `copy (select ... from mart.s) to stdout with csv header` | `copy_query_to_stdout` |
 | CREATE TABLE schema DDL | `create table mart.t (...)` | `create_table_schema` |
+| PostgreSQL table inheritance and partition DDL | `create unlogged table ... partition by ...`, `create table child partition of parent ...`, `create table child (...) inherits(parent)`, `alter table parent attach/detach partition child ...` | `create_unlogged_partitioned_table`, `create_partition_of_table`, `create_table_inherits`, `alter_table_attach_partition`, `alter_table_detach_partition` |
 | Schema and session control | `create schema ...`, `drop schema ...`, `set search_path to ...` | `create_schema`, `drop_schema`, `set_search_path` |
 | Function lifecycle DDL | `create or replace function ... returns ... language ... as ...`, `drop function ...` | `create_function`, `drop_function` |
+| Extension lifecycle control | `create extension if not exists ...`, `drop extension if exists ... cascade` | `create_extension`, `drop_extension` |
+| Table privilege statements | `grant select on table mart.t to role`, `revoke update on table mart.t from role` | `grant_table_privilege`, `revoke_table_privilege` |
 | CREATE TABLE AS SELECT | `create table mart.t as select ... from public.s` | `create_table_as_select` |
 | CREATE TABLE LIKE INCLUDING source table | `create table mart.t (like mart.s including all)` | `create_table_like_including` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from public.s` | `create_view` |
@@ -99,12 +104,18 @@ Implemented PostgreSQL scenarios:
 | UPDATE FROM with RETURNING | `update mart.t set ... from staging.s where ... returning ...` | `update_from_returning` |
 | DELETE with subquery and RETURNING | `delete from mart.t where id in (...) returning ...` | `delete_using_returning` |
 | WITH before UPDATE FROM | `with q as (...) update mart.t set c = q.c from q where ...` | `with_update_from` |
+| UPDATE ONLY FROM | `update only mart.t set c = s.c from staging.s where ...` | `update_only_from` |
 | WITH before DELETE USING | `with q as (...) delete from mart.t using q where ...` | `with_delete_using` |
+| DELETE FROM ONLY USING | `delete from only mart.t using staging.s where ...` | `delete_only_using` |
 | MERGE target and source tables | `merge into mart.t using staging.s on ... when matched then update ...` | `merge_into` |
 | MERGE source subquery tables | `merge into mart.t using (select ... from staging.s) q on ...` | `merge_using_subquery` |
 | WITH before MERGE | `with q as (...) merge into mart.t using q on ...` | `with_merge` |
 | JOIN, WHERE, GROUP BY, HAVING, ORDER BY usages | `select ... from u join o ... where ... group by ...` | `clause_column_usage` |
 | PostgreSQL cast operator and ILIKE usage | `select id::text ... where email ilike ...` | `postgres_cast_ilike` |
+| DISTINCT ON and null ordering | `select distinct on (k) ... order by k, ts desc nulls last` | `distinct_on_order_nulls` |
+| Aggregate FILTER and ordered-set aggregate | `count(*) filter (where status = ...)`, `percentile_cont(...) within group (order by c)` | `aggregate_filter_within_group` |
+| Window frame projection and usage | `sum(v) over(partition by k order by ts rows between ... and current row)` | `window_frame_projection` |
+| JSON operators and array subscripts | `payload ->> 'name'`, `payload ? 'name'`, `attrs @> ...`, `tags[1]`, `metrics[1:2]` | `json_array_operator_projection` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 
 Known PostgreSQL gaps:
@@ -114,7 +125,7 @@ Known PostgreSQL gaps:
 | Full PostgreSQL grammar | A dedicated lightweight ANTLR grammar exists for baseline cases; broad PostgreSQL syntax is still being expanded. |
 | RETURNING row lineage | Write lineage is preserved, but returned-row lineage is not modeled as a separate output stream yet. |
 | Full ON CONFLICT action lineage | Source-to-target insert lineage is preserved; conflict update action lineage is not fully expanded yet. |
-| PostgreSQL-specific DDL, arrays, and JSON operators | Planned for grammar-driven follow-up work. Basic `MERGE` table and column lineage is covered. |
+| Broader PostgreSQL-specific DDL | Core table/view/index/comment/maintenance DDL is covered; advanced storage, partition, policy, publication/subscription, and procedural bodies are still being expanded. |
 
 ## OceanBase
 

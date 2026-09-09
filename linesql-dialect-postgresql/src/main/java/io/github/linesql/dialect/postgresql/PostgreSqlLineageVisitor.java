@@ -294,6 +294,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateExtensionStmt(PostgreSqlParser.CreateExtensionStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitCreateSchemaStmt(PostgreSqlParser.CreateSchemaStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_SCHEMA);
         return null;
@@ -322,6 +328,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         TableRef target = tableRef(ctx.multipartIdentifier(0));
         outputTables.add(target);
+        if (ctx.partitionParent != null) {
+            inputTables.add(tableRef(ctx.partitionParent));
+        }
+        if (ctx.inheritsClause() != null) {
+            for (PostgreSqlParser.MultipartIdentifierContext inherited :
+                    ctx.inheritsClause().multipartIdentifierList().multipartIdentifier()) {
+                inputTables.add(tableRef(inherited));
+            }
+        }
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
             visit(ctx.query());
@@ -398,6 +413,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDropExtensionStmt(PostgreSqlParser.DropExtensionStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitDropFunctionStmt(PostgreSqlParser.DropFunctionStmtContext ctx) {
         result.setStatementType(StatementType.DROP_ROUTINE);
         return null;
@@ -433,6 +454,25 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     public Void visitAlterTableStmt(PostgreSqlParser.AlterTableStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterTableAttachPartition(PostgreSqlParser.AlterTableAttachPartitionContext ctx) {
+        TableRef parent = tableRef(ctx.parent);
+        TableRef child = tableRef(ctx.child);
+        inputTables.add(child);
+        outputTables.add(parent);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableDetachPartition(PostgreSqlParser.AlterTableDetachPartitionContext ctx) {
+        outputTables.add(tableRef(ctx.parent));
+        outputTables.add(tableRef(ctx.child));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
     }
 
     @Override
@@ -592,6 +632,32 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitGrantStmt(PostgreSqlParser.GrantStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitGrantStatement(PostgreSqlParser.GrantStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRevokeStmt(PostgreSqlParser.RevokeStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRevokeStatement(PostgreSqlParser.RevokeStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitSetStmt(PostgreSqlParser.SetStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;
@@ -711,6 +777,24 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                     ColumnUsageType.WINDOW_ORDER_BY,
                     sourceColumns(sortItem.expression())));
         }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitWithinGroupClause(PostgreSqlParser.WithinGroupClauseContext ctx) {
+        for (PostgreSqlParser.SortItemContext sortItem : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(
+                    ColumnUsageType.WINDOW_ORDER_BY,
+                    sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitFilterClause(PostgreSqlParser.FilterClauseContext ctx) {
+        pendingColumnUsages.add(new PendingColumnUsage(
+                ColumnUsageType.WHERE,
+                sourceColumns(ctx.expression())));
         return visitChildren(ctx);
     }
 
