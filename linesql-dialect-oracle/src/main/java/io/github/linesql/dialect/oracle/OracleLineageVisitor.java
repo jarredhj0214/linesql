@@ -221,10 +221,30 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     public Void visitCreateIndexStatement(OracleParser.CreateIndexStatementContext ctx) {
         List<OracleParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
         if (identifiers.size() > 1) {
-            outputTables.add(tableRef(identifiers.get(1)));
+            TableRef table = tableRef(identifiers.get(1));
+            outputTables.add(table);
+            currentDmlTarget = table;
+            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+            addColumnUsages(ColumnUsageType.INDEX, sourceColumns(ctx.indexElementList()));
+            for (OracleParser.OracleIndexOptionContext option : ctx.oracleIndexOption()) {
+                if (option.oraclePartitionClause() != null) {
+                    addIndexColumnUsages(table, option.oraclePartitionClause().identifierList());
+                }
+            }
         }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void addIndexColumnUsages(TableRef table, OracleParser.IdentifierListContext identifierList) {
+        if (identifierList == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : identifierNames(identifierList)) {
+            refs.add(new ColumnRef(table, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.INDEX, refs);
     }
 
     @Override

@@ -954,7 +954,13 @@
         "mart.users"
       ],
       "columnLineage": [],
-      "description": "Oracle CREATE BITMAP INDEX records the affected table"
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "mart.users.status"
+        }
+      ],
+      "description": "Oracle CREATE BITMAP INDEX records the affected table and index columns"
     },
     {
       "id": "create_index_local",
@@ -965,7 +971,13 @@
         "mart.orders"
       ],
       "columnLineage": [],
-      "description": "Oracle CREATE INDEX LOCAL records the affected table"
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "mart.orders.dt"
+        }
+      ],
+      "description": "Oracle CREATE INDEX LOCAL records the affected table and index columns"
     },
     {
       "id": "create_index_global_hash_partition",
@@ -976,7 +988,13 @@
         "mart.orders"
       ],
       "columnLineage": [],
-      "description": "Oracle CREATE UNIQUE INDEX GLOBAL PARTITION BY HASH records the affected table"
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "mart.orders.id"
+        }
+      ],
+      "description": "Oracle CREATE UNIQUE INDEX GLOBAL PARTITION BY HASH records affected table and index columns"
     },
     {
       "id": "drop_view",
