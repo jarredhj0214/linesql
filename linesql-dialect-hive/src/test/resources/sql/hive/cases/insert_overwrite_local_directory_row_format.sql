@@ -1,0 +1,4 @@
+INSERT OVERWRITE LOCAL DIRECTORY '/tmp/order_export'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT o.user_id, o.amount
+FROM dwd.orders o;

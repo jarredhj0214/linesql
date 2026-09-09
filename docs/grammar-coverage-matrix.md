@@ -200,10 +200,12 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | Create table | PARTIAL | COVERED | N/A | N/A | P1 |
 | CTAS | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
 | Create view | PARTIAL | COVERED | COVERED | PARTIAL | P1 |
-| Schema and routine DDL | PLANNED | PLANNED | N/A | N/A | P1 |
+| Schema and routine DDL | PARTIAL | COVERED | N/A | N/A | P1 |
 | Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | Hive extensions | PARTIAL | COVERED | N/A | N/A | P1 |
+
+Hive script coverage includes database lifecycle statements, `USE` schema switching, `MSCK REPAIR TABLE`, `ANALYZE TABLE ... COMPUTE STATISTICS`, `DROP TABLE ... PURGE`, `INSERT OVERWRITE [LOCAL] DIRECTORY` export queries, and Hive query organization forms including `SORT BY`, `DISTRIBUTE BY`, `CLUSTER BY`, and `LIMIT offset, rows`.
 
 ### Flink
 

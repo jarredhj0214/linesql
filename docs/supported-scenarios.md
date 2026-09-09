@@ -639,6 +639,7 @@ Implemented Oracle column-level lineage scenarios:
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
 | GROUP BY ROLLUP, CUBE, GROUPING SETS, and GROUPING_ID | `group by rollup(region, product)`, `grouping_id(region, product)`, `group by cube(region, product)`, `group by grouping sets ((region, product), (region), ())` | `group_by_rollup_projection`, `group_by_cube_projection`, `group_by_grouping_sets_projection`, `grouping_id_projection` |
 | Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
+| Hive query organization usages | `sort by c`, `distribute by k sort by ts`, `cluster by k`, `limit offset, rows` | `sort_by_column_usage`, `distribute_sort_by_column_usage`, `cluster_by_column_usage`, `limit_offset_rows` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
 | CTE column alias list propagation | `with q(c1, c2) as (select a, b from ods.s) select c1 from q` | `cte_column_aliases` |
@@ -1210,6 +1211,7 @@ Implemented Hive table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT OVERWRITE TABLE target and source | `insert overwrite table ads.t select ... from ods.s` | `insert_overwrite` |
+| INSERT OVERWRITE DIRECTORY export source | `insert overwrite directory '/path' stored as parquet select ... from ods.s`, `insert overwrite local directory ... row format ...`, `stored as inputformat ... outputformat ...` | `insert_overwrite_directory`, `insert_overwrite_local_directory_row_format`, `insert_overwrite_directory_input_output_format` |
 | INSERT INTO VALUES target lineage | `insert into table ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
@@ -1226,10 +1228,13 @@ Implemented Hive table-level lineage scenarios:
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | LOAD DATA target table lineage | `load data inpath '...' into table ads.t` | `load_data` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
+| DROP TABLE PURGE affected table | `drop table if exists mart.t purge` | `drop_table_purge` |
 | TRUNCATE TABLE affected table | `truncate table ads.t partition (...)` | `truncate_table` |
 | ALTER TABLE RENAME TO old and new tables | `alter table mart.old rename to mart.new` | `rename_table` |
 | ALTER TABLE column maintenance | `alter table mart.t add columns (...)` | `alter_table_add_columns` |
 | DESCRIBE TABLE metadata read | `describe table mart.t` | `describe_table` |
+| Hive database lifecycle and schema switch | `create database if not exists db comment ... location ... tblproperties (...)`, `drop database if exists db cascade`, `use db` | `create_database_location`, `drop_database_cascade`, `use_database` |
+| Hive table repair and statistics metadata | `msck repair table t sync partitions`, `analyze table t partition(...) compute statistics noscan` | `msck_repair_table`, `analyze_table_statistics` |
 
 Implemented Hive column-level lineage scenarios:
 
@@ -1239,6 +1244,7 @@ Implemented Hive column-level lineage scenarios:
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | INSERT SELECT target mapping | `insert overwrite table ads.t select a as c1 from ods.s` | `insert_overwrite` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| Directory export column lineage | `insert overwrite directory ... select c1, c2 from ods.s` | `insert_overwrite_directory`, `insert_overwrite_local_directory_row_format`, `insert_overwrite_directory_input_output_format` |
 | INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
 | INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |
 | INSERT over EXCEPT target column lineage | `insert into t(c1) select a from s1 except select b from s2` | `insert_except_column_lineage` |
@@ -1294,6 +1300,7 @@ Implemented Hive clause-level column usage scenarios:
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from dwd.s2 where ...` | `set_operation_clause_column_usage` |
 | EXISTS subquery predicate column usage | `where exists (select 1 from ods.orders o where o.user_id = u.id)` | `exists_subquery_column_usage` |
 | UPDATE/DELETE WHERE subquery predicate columns | `update/delete ads.t where id in (select user_id from ods.s)` | `update_with_subquery`, `delete_with_subquery` |
+| SORT/DISTRIBUTE/CLUSTER BY source columns | `sort by c`, `distribute by k sort by ts`, `cluster by k` | `sort_by_column_usage`, `distribute_sort_by_column_usage`, `cluster_by_column_usage` |
 
 Current Hive diagnostics:
 

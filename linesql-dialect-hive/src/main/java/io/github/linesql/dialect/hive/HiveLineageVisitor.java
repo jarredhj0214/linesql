@@ -54,6 +54,20 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitInsertDirectoryStmt(HiveParser.InsertDirectoryStmtContext ctx) {
+        result.setStatementType(StatementType.INSERT);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitInsertDirectoryStatement(HiveParser.InsertDirectoryStatementContext ctx) {
+        visit(ctx.query());
+        refreshColumnLineage();
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
     public Void visitInsertStatement(HiveParser.InsertStatementContext ctx) {
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
@@ -232,6 +246,24 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateDatabaseStmt(HiveParser.CreateDatabaseStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitDropDatabaseStmt(HiveParser.DropDatabaseStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitUseStmt(HiveParser.UseStmtContext ctx) {
+        result.setStatementType(StatementType.USE_SCHEMA);
+        return null;
+    }
+
+    @Override
     public Void visitShowStmt(HiveParser.ShowStmtContext ctx) {
         result.setStatementType(StatementType.READ_METADATA);
         return null;
@@ -272,6 +304,32 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     public Void visitLoadDataStatement(HiveParser.LoadDataStatementContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRepairTableStmt(HiveParser.RepairTableStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRepairTableStatement(HiveParser.RepairTableStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAnalyzeTableStmt(HiveParser.AnalyzeTableStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAnalyzeTableStatement(HiveParser.AnalyzeTableStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
@@ -403,6 +461,14 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     public Void visitQueryOrganization(HiveParser.QueryOrganizationContext ctx) {
         for (HiveParser.SortItemContext sortItem : ctx.sortItem()) {
             addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+        }
+        for (HiveParser.ExpressionContext expression : ctx.distributeByExpressions) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+        }
+        for (HiveParser.ExpressionContext expression : ctx.clusterByExpressions) {
+            List<SourceColumn> sourceColumns = sourceColumns(expression);
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns);
+            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns);
         }
         return visitChildren(ctx);
     }

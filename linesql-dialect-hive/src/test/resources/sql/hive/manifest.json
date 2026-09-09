@@ -1817,6 +1817,272 @@
       ],
       "columnLineage": [],
       "description": "Hive LOAD DATA INPATH into table lineage"
+    },
+    {
+      "id": "create_database_location",
+      "file": "cases/create_database_location.sql",
+      "statementType": "CREATE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive CREATE DATABASE with COMMENT, LOCATION, and TBLPROPERTIES is classified as schema lifecycle DDL"
+    },
+    {
+      "id": "drop_database_cascade",
+      "file": "cases/drop_database_cascade.sql",
+      "statementType": "DROP_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive DROP DATABASE CASCADE is classified as schema lifecycle DDL"
+    },
+    {
+      "id": "use_database",
+      "file": "cases/use_database.sql",
+      "statementType": "USE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive USE database is classified as a schema switch"
+    },
+    {
+      "id": "msck_repair_table",
+      "file": "cases/msck_repair_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive MSCK REPAIR TABLE records the repaired table as an affected table"
+    },
+    {
+      "id": "analyze_table_statistics",
+      "file": "cases/analyze_table_statistics.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive ANALYZE TABLE COMPUTE STATISTICS records the inspected table"
+    },
+    {
+      "id": "drop_table_purge",
+      "file": "cases/drop_table_purge.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.old_orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive DROP TABLE PURGE records the dropped table"
+    },
+    {
+      "id": "insert_overwrite_directory",
+      "file": "cases/insert_overwrite_directory.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Hive INSERT OVERWRITE DIRECTORY keeps exported query table, projection, and predicate lineage"
+    },
+    {
+      "id": "insert_overwrite_local_directory_row_format",
+      "file": "cases/insert_overwrite_local_directory_row_format.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "description": "Hive INSERT OVERWRITE LOCAL DIRECTORY with ROW FORMAT keeps exported column lineage"
+    },
+    {
+      "id": "insert_overwrite_directory_input_output_format",
+      "file": "cases/insert_overwrite_directory_input_output_format.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.raw_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.raw_events.id"
+          ]
+        },
+        {
+          "target": "payload",
+          "sources": [
+            "ods.raw_events.payload"
+          ]
+        }
+      ],
+      "description": "Hive INSERT OVERWRITE DIRECTORY with INPUTFORMAT and OUTPUTFORMAT keeps exported column lineage"
+    },
+    {
+      "id": "sort_by_column_usage",
+      "file": "cases/sort_by_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.amount"
+        }
+      ],
+      "description": "Hive SORT BY records sorting column usage"
+    },
+    {
+      "id": "distribute_sort_by_column_usage",
+      "file": "cases/distribute_sort_by_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.amount"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Hive DISTRIBUTE BY and SORT BY record distribution and sorting column usages"
+    },
+    {
+      "id": "cluster_by_column_usage",
+      "file": "cases/cluster_by_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Hive CLUSTER BY records both distribution and ordering column usages in the existing usage model"
+    },
+    {
+      "id": "limit_offset_rows",
+      "file": "cases/limit_offset_rows.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.users.id"
+        }
+      ],
+      "description": "Hive LIMIT offset,row-count form remains compatible while preserving ORDER BY usage"
     }
   ]
 }

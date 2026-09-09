@@ -8,6 +8,7 @@ singleStatement
 
 statement
     : query                                                          #statementDefault
+    | insertDirectoryStatement                                       #insertDirectoryStmt
     | insertStatement                                                #insertStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
@@ -16,10 +17,15 @@ statement
     | dropTableStatement                                             #dropTableStmt
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
+    | createDatabaseStatement                                        #createDatabaseStmt
+    | dropDatabaseStatement                                          #dropDatabaseStmt
+    | useStatement                                                   #useStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
     | loadDataStatement                                              #loadDataStmt
+    | repairTableStatement                                           #repairTableStmt
+    | analyzeTableStatement                                          #analyzeTableStmt
     ;
 
 // ============ Query ============
@@ -134,7 +140,10 @@ havingClause
 
 queryOrganization
     : (ORDER BY sortItem (COMMA sortItem)*)?
-      (LIMIT expression)?
+      (DISTRIBUTE BY distributeByExpressions+=expression (COMMA distributeByExpressions+=expression)*)?
+      (SORT BY sortByItems+=sortItem (COMMA sortByItems+=sortItem)*)?
+      (CLUSTER BY clusterByExpressions+=expression (COMMA clusterByExpressions+=expression)*)?
+      (LIMIT expression (COMMA expression)?)?
       (OFFSET expression)?
     ;
 
@@ -228,6 +237,28 @@ insertStatement
       (query | VALUES valuesClause (COMMA valuesClause)*)
     ;
 
+insertDirectoryStatement
+    : INSERT OVERWRITE LOCAL? DIRECTORY string directoryFormat? query
+    ;
+
+directoryFormat
+    : STORED AS identifier
+    | ROW FORMAT directoryRowFormat
+    | STORED AS INPUTFORMAT string OUTPUTFORMAT string
+    ;
+
+directoryRowFormat
+    : identifier
+    | DELIMITED directoryDelimitedOption*
+    ;
+
+directoryDelimitedOption
+    : FIELDS TERMINATED BY string
+    | COLLECTION ITEMS TERMINATED BY string
+    | MAP KEYS TERMINATED BY string
+    | LINES TERMINATED BY string
+    ;
+
 valuesClause
     : LPAREN expressionList RPAREN
     ;
@@ -269,8 +300,26 @@ createViewStatement
       AS query
     ;
 
+createDatabaseStatement
+    : CREATE (DATABASE | SCHEMA) (IF NOT EXISTS)? identifier databaseProperty*
+    ;
+
+databaseProperty
+    : COMMENT string
+    | LOCATION string
+    | TBLPROPERTIES LPAREN propertyList RPAREN
+    ;
+
+dropDatabaseStatement
+    : DROP (DATABASE | SCHEMA) (IF EXISTS)? identifier (CASCADE | RESTRICT)?
+    ;
+
+useStatement
+    : USE identifier
+    ;
+
 dropTableStatement
-    : DROP TABLE (IF EXISTS)? multipartIdentifier
+    : DROP TABLE (IF EXISTS)? multipartIdentifier PURGE?
     ;
 
 truncateTableStatement
@@ -308,6 +357,14 @@ commentStatement
 loadDataStatement
     : LOAD DATA LOCAL? INPATH string (OVERWRITE)? INTO TABLE multipartIdentifier
       (PARTITION partitionSpec)?
+    ;
+
+repairTableStatement
+    : MSCK? REPAIR TABLE multipartIdentifier (SYNC? PARTITIONS?)?
+    ;
+
+analyzeTableStatement
+    : ANALYZE TABLE multipartIdentifier (PARTITION partitionSpec)? COMPUTE STATISTICS NOSCAN?
     ;
 
 // ============ DDL Helpers ============
@@ -379,12 +436,12 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ASC | CAST | COLUMN | COLUMNS | COMMENT | DATA | DEFAULT
-    | DESCRIBE | DESC | END | EXISTS | EXTERNAL | FALSE | FORMAT
-    | IF | INTERVAL | LATERAL | LIKE | LIMIT | LOAD | LOCAL | LOCATION | NULL
-    | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | RENAME
-    | REPLACE | ROW | SET | SHOW | STORED | TABLE | TBLPROPERTIES
-    | TEMPORARY | TO | TRUE | TRUNCATE | VALUES | VIEW
+    : ADD | ANALYZE | ASC | CASCADE | CAST | CLUSTER | COLLECTION | COLUMN | COLUMNS | COMMENT | COMPUTE | DATA | DATABASE | DATABASES | DEFAULT
+    | DELIMITED | DESCRIBE | DESC | DIRECTORY | DISTRIBUTE | END | EXISTS | EXTERNAL | FALSE | FIELDS | FORMAT
+    | IF | INPUTFORMAT | INTERVAL | ITEMS | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | MAP | NULL
+    | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PURGE | RENAME
+    | OUTPUTFORMAT | REPAIR | REPLACE | RESTRICT | ROW | SCHEMA | SCHEMAS | SERDEPROPERTIES | SET | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TBLPROPERTIES
+    | TEMPORARY | TERMINATED | TO | TRUE | TRUNCATE | USE | VALUES | VIEW
     ;
 
 number
