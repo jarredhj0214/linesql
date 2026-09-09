@@ -2375,7 +2375,10 @@
       "inputTables": [],
       "outputTables": ["mart.orders"],
       "columnLineage": [],
-      "description": "OceanBase Oracle mode CREATE INDEX records the affected table"
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.orders.amount"}
+      ],
+      "description": "OceanBase Oracle mode CREATE INDEX records the affected table and index columns"
     },
     {
       "id": "oracle_mode_create_trigger_before_insert",
@@ -2402,7 +2405,10 @@
       "inputTables": [],
       "outputTables": ["mart.orders"],
       "columnLineage": [],
-      "description": "OceanBase Oracle mode CREATE UNIQUE INDEX records the affected table"
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.orders.order_id"}
+      ],
+      "description": "OceanBase Oracle mode CREATE UNIQUE INDEX records the affected table and index columns"
     },
     {
       "id": "oracle_mode_create_bitmap_index",
@@ -2411,7 +2417,10 @@
       "inputTables": [],
       "outputTables": ["mart.orders"],
       "columnLineage": [],
-      "description": "OceanBase Oracle mode CREATE BITMAP INDEX records the affected table"
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.orders.status"}
+      ],
+      "description": "OceanBase Oracle mode CREATE BITMAP INDEX records the affected table and index columns"
     },
     {
       "id": "oracle_mode_create_index_local",
@@ -2420,7 +2429,10 @@
       "inputTables": [],
       "outputTables": ["mart.orders"],
       "columnLineage": [],
-      "description": "OceanBase Oracle mode CREATE INDEX LOCAL records the affected table"
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.orders.dt"}
+      ],
+      "description": "OceanBase Oracle mode CREATE INDEX LOCAL records the affected table and index columns"
     },
     {
       "id": "oracle_mode_create_index_global_hash_partition",
@@ -2429,7 +2441,10 @@
       "inputTables": [],
       "outputTables": ["mart.orders"],
       "columnLineage": [],
-      "description": "OceanBase Oracle mode CREATE UNIQUE INDEX GLOBAL PARTITION BY HASH records the affected table"
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.orders.id"}
+      ],
+      "description": "OceanBase Oracle mode CREATE UNIQUE INDEX GLOBAL PARTITION BY HASH records affected table and index columns"
     },
     {
       "id": "oracle_mode_drop_index",
