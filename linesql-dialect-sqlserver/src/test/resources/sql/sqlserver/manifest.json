@@ -3955,6 +3955,18 @@
       "columnLineage": [],
       "columnUsages": [
         {
+          "type": "INDEX",
+          "column": "dbo.users.name"
+        },
+        {
+          "type": "INDEX",
+          "column": "dbo.users.created_at"
+        },
+        {
+          "type": "INDEX",
+          "column": "dbo.users.email"
+        },
+        {
           "type": "WHERE",
           "column": "dbo.users.status"
         }
@@ -3970,7 +3982,13 @@
         "dbo.users"
       ],
       "columnLineage": [],
-      "description": "SQL Server CREATE INDEX WITH options records the affected table"
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server CREATE INDEX WITH options records the affected table and index columns"
     },
     {
       "id": "create_statistics_filtered",

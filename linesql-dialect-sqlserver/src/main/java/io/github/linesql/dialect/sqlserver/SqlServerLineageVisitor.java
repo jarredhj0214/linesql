@@ -349,6 +349,17 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         LineageModelUtils.addColumnUsages(result, ColumnUsageType.READ_METADATA, refs);
     }
 
+    private void addIndexColumnUsages(TableRef table, SqlServerParser.IdentifierListContext identifierList) {
+        if (identifierList == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : identifierNames(identifierList)) {
+            refs.add(new ColumnRef(table, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.INDEX, refs);
+    }
+
     private void visitRelationListForInputs(SqlServerParser.RelationListContext ctx) {
         for (SqlServerParser.RelationContext relation : ctx.relation()) {
             visitRelationPrimaryForDml(relation.relationPrimary());
@@ -406,6 +417,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             outputTables.add(table);
             currentDmlTarget = table;
             tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+            addColumnUsages(ColumnUsageType.INDEX, sourceColumns(ctx.indexElementList()));
+            addIndexColumnUsages(table, ctx.identifierList());
             if (ctx.whereClause() != null) {
                 addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
             }
