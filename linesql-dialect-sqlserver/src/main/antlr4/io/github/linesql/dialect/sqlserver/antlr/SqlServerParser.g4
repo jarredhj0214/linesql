@@ -24,6 +24,7 @@ statement
     | createTriggerStatement                                         #createTriggerStmt
     | createTableStatement                                           #createTableStmt
     | declareTableVariableStatement                                  #declareTableVariableStmt
+    | declareScalarVariableStatement                                 #declareScalarVariableStmt
     | createViewStatement                                            #createViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
     | dropSynonymStatement                                           #dropSynonymStmt
@@ -143,6 +144,7 @@ relationPrimary
     : multipartIdentifier FOR SYSTEM_TIME temporalTablePeriod tableHint? tableAlias #temporalTableName
     | multipartIdentifier LPAREN expressionList? RPAREN tableFunctionSchema? tableAlias #tableValuedFunction
     | multipartIdentifier tableHint? tableAlias                      #tableName
+    | LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     ;
@@ -214,7 +216,7 @@ pivotInItem
     ;
 
 tableAlias
-    : (AS? strictIdentifier)?
+    : (AS? strictIdentifier (LPAREN identifierList RPAREN)?)?
     ;
 
 whereClause
@@ -222,7 +224,23 @@ whereClause
     ;
 
 groupByClause
-    : GROUP BY expression (COMMA expression)*
+    : GROUP BY groupByItem (COMMA groupByItem)* legacyGroupByModifier?
+    ;
+
+legacyGroupByModifier
+    : WITH (ROLLUP | CUBE)
+    ;
+
+groupByItem
+    : expression
+    | ROLLUP LPAREN expressionList RPAREN
+    | CUBE LPAREN expressionList RPAREN
+    | GROUPING SETS LPAREN groupingSet (COMMA groupingSet)* RPAREN
+    ;
+
+groupingSet
+    : LPAREN expressionList? RPAREN
+    | expression
     ;
 
 havingClause
@@ -278,6 +296,7 @@ predicate
 valueExpression
     : primaryExpression                                              #valueExpressionDefault
     | operator=(MINUS | PLUS) valueExpression                        #unaryExpression
+    | valueExpression COLLATE identifier                             #collateExpression
     | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
@@ -292,9 +311,12 @@ primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
-    | functionName LPAREN STAR RPAREN (OVER windowSpec)?             #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList RPAREN (OVER windowSpec)?  #functionCall
-    | functionName LPAREN RPAREN (OVER windowSpec)?                  #functionCallEmpty
+    | TRY_CAST LPAREN expression AS dataType RPAREN                  #tryCastExpr
+    | CONVERT LPAREN dataType COMMA expression (COMMA expression)? RPAREN #convertExpr
+    | TRY_CONVERT LPAREN dataType COMMA expression (COMMA expression)? RPAREN #tryConvertExpr
+    | functionName LPAREN STAR RPAREN withinGroupClause? (OVER windowSpec)?             #functionCallStar
+    | functionName LPAREN setQuantifier? expressionList RPAREN withinGroupClause? (OVER windowSpec)?  #functionCall
+    | functionName LPAREN RPAREN withinGroupClause? (OVER windowSpec)?                  #functionCallEmpty
     | LPAREN query RPAREN                                            #scalarSubquery
     | LPAREN expression RPAREN                                       #parenthesizedExpression
     | primaryExpression DOT identifier                                #dereference
@@ -314,6 +336,10 @@ whenClause
 
 windowSpec
     : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? RPAREN
+    ;
+
+withinGroupClause
+    : WITHIN GROUP LPAREN ORDER BY sortItem (COMMA sortItem)* RPAREN
     ;
 
 functionName
@@ -512,6 +538,14 @@ declareTableVariableStatement
     : DECLARE identifier TABLE LPAREN tableElementList RPAREN
     ;
 
+declareScalarVariableStatement
+    : DECLARE scalarVariableDeclaration (COMMA scalarVariableDeclaration)*
+    ;
+
+scalarVariableDeclaration
+    : identifier AS? dataType (EQ expression)?
+    ;
+
 createSchemaStatement
     : CREATE SCHEMA identifier
     ;
@@ -696,12 +730,13 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | APPLY | ASC | CAST | COLUMN | COMMENT | CONTAINED | DEFAULT
+    : ADD | APPLY | ASC | CAST | COLLATE | COLUMN | COMMENT | CONTAINED | DEFAULT
     | BEGIN | CLUSTERED | COMMIT | DECLARE | DESCRIBE | DESC | DISABLE | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
     | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
-    | FETCH | FIRST | FOR | GRANT | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROW | ROWS
-    | AFTER | PERSISTED | PRIMARY | PROCEDURE | REBUILD | RECOMPILE | REORGANIZE | ROLLBACK | SAVE | SCHEMA | SET | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | TIES | TO | TOP | TRAN | TRANSACTION | TRIGGER | TRUE | TRUNCATE | USE | VALUES | VIEW
-    | UNIQUE | XML
+    | FETCH | FIRST | FOR | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
+    | AFTER | CUBE | PERSISTED | PRIMARY | PROCEDURE | REBUILD | RECOMPILE | REORGANIZE | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | TIES | TO | TOP | TRAN | TRANSACTION | TRIGGER | TRUE | TRY_CAST | TRY_CONVERT | TRUNCATE | USE | VALUES | VIEW
+    | CONVERT
+    | UNIQUE | WITHIN | XML
     ;
 
 number

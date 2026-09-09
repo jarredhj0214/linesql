@@ -934,6 +934,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitSelectIntoClause(OracleParser.SelectIntoClauseContext ctx) {
+        for (OracleParser.IdentifierContext id : ctx.identifierList().identifier()) {
+            insertTargetColumns.add(cleanIdentifier(id));
+        }
+        refreshColumnLineage();
+        return null;
+    }
+
+    @Override
     public Void visitWhereClause(OracleParser.WhereClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
         return visitChildren(ctx);
@@ -963,8 +972,8 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitGroupByClause(OracleParser.GroupByClauseContext ctx) {
-        for (OracleParser.ExpressionContext expression : ctx.expression()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+        for (OracleParser.GroupByItemContext item : ctx.groupByItem()) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(item));
         }
         return visitChildren(ctx);
     }
@@ -1057,6 +1066,36 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             pendingColumnUsages.add(new PendingColumnUsage(
                     ColumnUsageType.WINDOW_ORDER_BY,
                     sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitKeepClause(OracleParser.KeepClauseContext ctx) {
+        for (OracleParser.SortItemContext sortItem : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(
+                    ColumnUsageType.WINDOW_ORDER_BY,
+                    sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitWithinGroupClause(OracleParser.WithinGroupClauseContext ctx) {
+        for (OracleParser.SortItemContext sortItem : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(
+                    ColumnUsageType.WINDOW_ORDER_BY,
+                    sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitWindowFrameBound(OracleParser.WindowFrameBoundContext ctx) {
+        if (ctx.expression() != null) {
+            pendingColumnUsages.add(new PendingColumnUsage(
+                    ColumnUsageType.WINDOW_ORDER_BY,
+                    sourceColumns(ctx.expression())));
         }
         return visitChildren(ctx);
     }

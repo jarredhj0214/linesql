@@ -241,13 +241,17 @@ Implemented OceanBase scenarios:
 | Oracle mode INSERT RETURNING | `insert into ods.t (...) values (...) returning id into v_id` | `oracle_mode_insert_values_returning` |
 | Oracle mode INSERT ALL | `insert all into mart.a (...) values (...) into mart.b (...) values (...) select ...`, `when condition then into ... values (...)` | `oracle_mode_insert_all`, `oracle_mode_insert_all_when` |
 | Oracle mode INSERT FIRST | `insert first into mart.a (...) values (...) into mart.b (...) values (...) select ...`, `when condition then into ... values (...)` | `oracle_mode_insert_first`, `oracle_mode_insert_first_when` |
+| Oracle mode SELECT BULK COLLECT INTO | `select ... bulk collect into vars from ...` | `oracle_mode_select_bulk_collect_into` |
+| Oracle mode date and timestamp literals | `where ts >= date '2026-09-01' and ts < timestamp '2026-09-02 00:00:00'` | `oracle_mode_date_timestamp_literal_predicate` |
+| Oracle mode DECODE/NVL2 expressions | `select decode(status, 'VIP', vip_score, base_score), nvl2(nickname, nickname, name) from t` | `oracle_mode_decode_nvl2_projection` |
 | Oracle mode UPDATE expression assignment | `update ads.t set c = upper(x), score = a + b where ...` | `oracle_mode_update_expression_assignment` |
 | Oracle mode UPDATE RETURNING | `update ods.t set c = ... where ... returning c into v_c` | `oracle_mode_update_returning` |
 | Oracle mode UPDATE WHERE EXISTS | `update ads.t set c = ... where exists (select ... from ods.s ...)` | `oracle_mode_update_where_exists` |
 | Oracle mode DELETE WHERE EXISTS | `delete from ads.t where exists (select ... from ods.s ...)` | `oracle_mode_delete_where_exists` |
 | Oracle mode DELETE RETURNING | `delete from ods.t where ... returning id into v_id` | `oracle_mode_delete_returning` |
 | Oracle mode MERGE USING subquery and conditional actions | `merge into ads.t using (select ... from ods.s) q on (...) ...`, `when matched then update ... where ...`, `when matched then update ... delete where ...`, `when not matched then insert ... where ...` | `oracle_mode_merge_using_subquery`, `oracle_mode_merge_update_where`, `oracle_mode_merge_update_delete_where`, `oracle_mode_merge_insert_where` |
-| Oracle mode window expressions | `row_number() over(partition by ... order by ...), sum(...) over(...)` | `oracle_mode_window_function_projection` |
+| Oracle mode GROUP BY ROLLUP, CUBE, GROUPING SETS, and GROUPING_ID | `group by rollup(region, product)`, `grouping_id(region, product)`, `group by cube(region, product)`, `group by grouping sets ((region, product), (region), ())` | `oracle_mode_group_by_rollup_projection`, `oracle_mode_group_by_cube_projection`, `oracle_mode_group_by_grouping_sets_projection`, `oracle_mode_grouping_id_projection` |
+| Oracle mode window and ordered aggregate expressions | `row_number() over(partition by ... order by ...)`, analytic window frames, `keep (dense_rank ... order by ...)`, `listagg(c, ',' on overflow truncate '...' with count) within group (order by ts)`, `percentile_cont(0.5) within group (order by c) over (...)` | `oracle_mode_window_function_projection`, `oracle_mode_window_frame_projection`, `oracle_mode_keep_dense_rank_projection`, `oracle_mode_listagg_within_group_projection`, `oracle_mode_listagg_overflow_projection`, `oracle_mode_percentile_cont_within_group_over` |
 | Oracle mode CREATE SEQUENCE | `create sequence ods.seq_order_id start with 1 increment by 1` | `oracle_mode_create_sequence` |
 | Oracle mode ALTER SEQUENCE | `alter sequence ods.seq_order_id increment by 10` | `oracle_mode_alter_sequence` |
 | Oracle mode DROP SEQUENCE | `drop sequence ods.seq_order_id` | `oracle_mode_drop_sequence` |
@@ -336,9 +340,10 @@ Implemented SQL Server table-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
-| Local/global temporary tables and table variables | `select ... from #t`, `create table #t (...)`, `insert into ##t select ...`, `declare @t table (...)`, `select ... from @t`, `insert into @t select ...` | `select_local_temp_table`, `create_local_temp_table`, `insert_global_temp_table`, `declare_table_variable`, `select_table_variable`, `insert_table_variable` |
+| Local/global temporary tables, table variables, and scalar variables | `select ... from #t`, `create table #t (...)`, `insert into ##t select ...`, `declare @t table (...)`, `declare @d date = ...`, `set @v = (select ... from t)`, `select ... from @t`, `insert into @t select ...` | `select_local_temp_table`, `create_local_temp_table`, `insert_global_temp_table`, `declare_table_variable`, `declare_scalar_variables`, `set_variable_scalar_subquery`, `select_table_variable`, `insert_table_variable` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | APPLY subquery and table-valued function sources | `cross apply (...) q`, `outer apply (...) q`, `from dbo.fn(...) f`, `cross/outer apply dbo.fn(t.c) f`, `from openquery(link, '...') q`, `from openrowset(provider, conn, query) r`, `cross apply openjson(t.payload) with (...) j` | `cross_apply_subquery`, `outer_apply_subquery`, `select_table_valued_function`, `cross_apply_table_valued_function`, `outer_apply_table_valued_function`, `openquery_relation`, `openrowset_relation`, `cross_apply_openjson_with_schema` |
+| VALUES derived tables | `from (values (...), (...)) as v(c1, c2)`, `cross apply (values (...)) as v(c)` | `values_derived_table`, `cross_apply_values_lineage` |
 | PIVOT/UNPIVOT source tables | `from (...) s pivot (...) p`, `from mart.t unpivot (...) u` | `pivot_source_table`, `unpivot_source_table` |
 | StarRocks SEMI/ANTI/ASOF joins | `left semi join ...`, `left anti join ...`, `asof join ... on ...` | `semi_anti_asof_join_column_usage` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
@@ -392,6 +397,8 @@ Implemented SQL Server column-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
+| SELECT INTO variables | `select id, name into v_id, v_name from app.users`, `select ... bulk collect into vars from ...` | `select_into_variables`, `select_bulk_collect_into` |
+| DATE and TIMESTAMP literals | `where ts >= date '2026-09-01' and ts < timestamp '2026-09-02 00:00:00'` | `date_timestamp_literal_predicate` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | APPLY subquery and table-valued function derived columns | `select q.c from t cross/outer apply (select ... from s) q`, `select f.c from dbo.fn(...) f`, `select q.c from openquery(link, '...') q`, `select r.c from openrowset(provider, conn, query) r`, `select j.c from openjson(t.payload) with (...) j` | `cross_apply_subquery`, `outer_apply_subquery`, `select_table_valued_function`, `cross_apply_table_valued_function`, `openquery_relation`, `openrowset_relation`, `cross_apply_openjson_with_schema` |
 | Backtick-qualified direct projections | ``select u.`department_id` from ods.users u`` | `backtick_qualified_direct_projection` |
@@ -421,7 +428,7 @@ Implemented SQL Server column-level lineage scenarios:
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
 | Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
 | StarRocks function expression lineage | `select ifnull(nickname, name), date_trunc('day', ts) from ods.s` | `starrocks_function_expression_projection` |
-| CAST, function, and arithmetic expression dependencies | `select cast(id as varchar), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| CAST, conversion, function, ordered aggregate, collation, and arithmetic expression dependencies | `select cast(id as varchar), try_cast(txt as decimal), convert(date, txt, 120), dateadd(day, 7, created_at), name collate Latin1_General_CI_AS, coalesce(name, nickname), iif(status='VIP', vip_score, base_score), choose(level_no, level1_name, level2_name), string_agg(name, ',') within group (order by ts), price * quantity from t` | `common_expression_projection`, `try_cast_projection`, `convert_try_convert_projection`, `datepart_function_projection`, `collate_expression_projection`, `iif_choose_projection`, `string_agg_within_group_projection` |
 | Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as varchar)) from t` | `nested_function_projection` |
 | Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
@@ -433,7 +440,8 @@ Implemented SQL Server column-level lineage scenarios:
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |
 | DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ...`, `count(distinct user_id, product_id) ...` | `distinct_aggregate_column_usage`, `count_distinct_multi_column` |
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
-| Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
+| GROUP BY ROLLUP, CUBE, GROUPING SETS, and GROUPING_ID | `group by rollup(region, product)`, `grouping_id(region, product)`, `group by cube(region, product)`, `group by grouping sets ((region, product), (region), ())`, `group by region, product with rollup` | `group_by_rollup_projection`, `group_by_cube_projection`, `group_by_grouping_sets_projection`, `group_by_with_rollup_projection`, `grouping_id_projection` |
+| Window function and ordered aggregate dependencies | `select row_number() over (partition by k order by ts), sum(v) over (...) from t`, window frames, `keep (dense_rank ... order by ...)`, `listagg(c, ',' on overflow truncate '...' with count) within group (order by ts)`, `percentile_cont(0.5) within group (order by c) over (...)` | `window_function_projection`, `window_frame_projection`, `keep_dense_rank_projection`, `listagg_within_group_projection`, `listagg_overflow_projection`, `percentile_cont_within_group_over` |
 | JSON/XML output query suffix | `select ... from dbo.t for json path`, `select ... from dbo.t for xml path(...)` | `select_for_json_path`, `select_for_xml_path` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |
@@ -607,7 +615,7 @@ Implemented Oracle column-level lineage scenarios:
 | Hierarchical query projection mapping | `select id as org_id from app.org start with ... connect by ...` | `hierarchical_query` |
 | CASE expression dependencies | `select case when status = 'A' then score else 0 end as c from t` | `case_expression` |
 | Multi-branch CASE expression dependencies | `select case when status = 'A' then score when status = 'P' then pending_score else default_score end from t` | `complex_case_expression` |
-| CAST, function, and arithmetic expression dependencies | `select cast(id as varchar), coalesce(name, nickname), price * quantity from t` | `common_expression_projection` |
+| CAST, function, and arithmetic expression dependencies | `select cast(id as varchar), coalesce(name, nickname), decode(status, 'VIP', vip_score, base_score), nvl2(nickname, nickname, name), price * quantity from t` | `common_expression_projection`, `decode_nvl2_projection` |
 | Nested function expression dependencies | `select coalesce(lower(name), upper(nickname), cast(id as varchar)) from t` | `nested_function_projection` |
 | Scalar subquery projection dependencies | `select (select max(amount) from orders) as max_amount from users` | `scalar_subquery_projection` |
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
@@ -618,6 +626,7 @@ Implemented Oracle column-level lineage scenarios:
 | DISTINCT aggregate dependencies and HAVING usage | `select count(distinct user_id) ... group by region having count(distinct order_id) > ...` | `distinct_aggregate_column_usage` |
 | HAVING projection alias usage | `select sum(amount) as total_amount from app.orders group by user_id having total_amount > ...` | `having_projection_alias_usage` |
 | GROUP BY expression column usage | `select lower(region), count(order_id) from t group by lower(region)` | `group_by_expression_column_usage` |
+| GROUP BY ROLLUP, CUBE, GROUPING SETS, and GROUPING_ID | `group by rollup(region, product)`, `grouping_id(region, product)`, `group by cube(region, product)`, `group by grouping sets ((region, product), (region), ())` | `group_by_rollup_projection`, `group_by_cube_projection`, `group_by_grouping_sets_projection`, `grouping_id_projection` |
 | Window function expression dependencies and window clause usages | `select row_number() over (partition by k order by ts), sum(v) over (...) from t` | `window_function_projection` |
 | Single CTE direct column propagation | `with q as (select id as user_id from ods.s) select q.user_id from q` | `cte_column_projection` |
 | Chained CTE direct column propagation | `with a as (...), b as (select c1 from a) select c1 from b` | `chained_cte_column_projection` |

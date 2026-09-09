@@ -72,6 +72,7 @@ public class OceanBaseDialectParser implements DialectParser {
                 || normalized.matches("(?s)^\\s*comment\\s+on\\s+(table|column)\\b.*")
                 || normalized.matches("(?s).*\\bmerge\\s+into\\b.*")
                 || normalized.matches("(?s)^\\s*insert\\s+(all|first)\\b.*")
+                || normalized.matches("(?s)^\\s*select\\b.+\\bbulk\\s+collect\\s+into\\b.*\\bfrom\\b.*")
                 || normalized.matches("(?s)^\\s*explain\\s+plan\\b.*")
                 || normalized.matches("(?s)^\\s*lock\\s+table\\b.*")
                 || normalized.matches("(?s)^\\s*analyze\\s+index\\b.*")
@@ -109,6 +110,10 @@ public class OceanBaseDialectParser implements DialectParser {
                 || normalized.matches("(?s).*\\breturning\\b.+\\binto\\b.*")
                 || normalized.matches("(?s).*\\bwith\\s+(read\\s+only|check\\s+option)\\b.*")
                 || normalized.matches("(?s).*\\bbequeath\\s+(definer|current_user)\\b.*")
+                || normalized.matches("(?s).*\\bkeep\\s*\\(\\s*dense_rank\\b.*")
+                || normalized.matches("(?s).*\\blistagg\\s*\\(.*\\bwithin\\s+group\\s*\\(.*")
+                || normalized.matches("(?s).*\\bpercentile_(cont|disc)\\s*\\(.*\\bwithin\\s+group\\s*\\(.*")
+                || normalized.matches("(?s).*\\bgroup\\s+by\\s+(rollup|cube|grouping\\s+sets)\\s*\\(.*")
                 || normalized.matches("(?s).*\\border\\s+by\\b.+\\bnulls\\s+(first|last)\\b.*")
                 || normalized.matches("(?s).*\\bfetch\\s+(first|next)\\b.+\\b(rows?|percent)\\b.*")
                 || normalized.matches("(?s).*\\b[a-z_][a-z0-9_$]*(\\.[a-z_][a-z0-9_$]*)?@[a-z_][a-z0-9_$]*\\b.*");

@@ -531,6 +531,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDeclareScalarVariableStmt(SqlServerParser.DeclareScalarVariableStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitCreateViewStmt(SqlServerParser.CreateViewStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_VIEW);
         return visitChildren(ctx);
@@ -667,6 +673,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     @Override
     public Void visitSetStmt(SqlServerParser.SetStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitSetStatement(SqlServerParser.SetStatementContext ctx) {
+        collectSubqueryInputs(ctx);
+        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
@@ -814,6 +827,15 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitValuesTable(SqlServerParser.ValuesTableContext ctx) {
+        String alias = tableAlias(ctx.tableAlias());
+        String relationName = alias == null ? "$values" + derivedColumnLineage.size() : alias;
+        registerValuesRelation(relationName.toLowerCase(Locale.ROOT), ctx.valuesClause(), tableColumnAliases(ctx.tableAlias()));
+        addDerivedReference(relationName, ctx.tableAlias());
+        return null;
+    }
+
+    @Override
     public Void visitAliasedQuery(SqlServerParser.AliasedQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
@@ -870,8 +892,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitGroupByClause(SqlServerParser.GroupByClauseContext ctx) {
-        for (SqlServerParser.ExpressionContext expression : ctx.expression()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+        for (SqlServerParser.GroupByItemContext item : ctx.groupByItem()) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(item));
         }
         return visitChildren(ctx);
     }
@@ -891,6 +913,16 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                         sourceColumns(expression)));
             }
         }
+        for (SqlServerParser.SortItemContext sortItem : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(
+                    ColumnUsageType.WINDOW_ORDER_BY,
+                    sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitWithinGroupClause(SqlServerParser.WithinGroupClauseContext ctx) {
         for (SqlServerParser.SortItemContext sortItem : ctx.sortItem()) {
             pendingColumnUsages.add(new PendingColumnUsage(
                     ColumnUsageType.WINDOW_ORDER_BY,
@@ -993,6 +1025,22 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             addInputTable(table, false);
         }
         LineageModelUtils.mergeColumnUsages(result, relationResult);
+    }
+
+    private void registerValuesRelation(
+            String name,
+            List<SqlServerParser.ValuesClauseContext> rows,
+            List<String> columnAliases) {
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        if (!rows.isEmpty()) {
+            List<SqlServerParser.ExpressionContext> expressions = rows.get(0).expressionList().expression();
+            for (int i = 0; i < expressions.size(); i++) {
+                String columnName = i < columnAliases.size() ? columnAliases.get(i) : "column" + (i + 1);
+                List<ColumnRef> refs = resolveSources(sourceColumns(expressions.get(i)));
+                columns.put(columnName, refs == null ? new ArrayList<>() : refs);
+            }
+        }
+        derivedColumnLineage.put(name, columns);
     }
 
     private LineageResult lineageForQueryTerm(SqlServerParser.QueryTermContext queryTerm) {
@@ -1509,6 +1557,24 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             addScalarSubquerySourceColumns(subquery.query(), columns);
             return;
         }
+        if (tree instanceof SqlServerParser.FunctionCallContext) {
+            SqlServerParser.FunctionCallContext function = (SqlServerParser.FunctionCallContext) tree;
+            if (isDatePartFunction(function) && function.expressionList() != null) {
+                List<SqlServerParser.ExpressionContext> args = function.expressionList().expression();
+                for (int i = 1; i < args.size(); i++) {
+                    collectSourceColumns(args.get(i), columns);
+                }
+                if (function.windowSpec() != null) {
+                    collectSourceColumns(function.windowSpec(), columns);
+                }
+                return;
+            }
+        }
+        if (tree instanceof SqlServerParser.CollateExpressionContext) {
+            SqlServerParser.CollateExpressionContext collate = (SqlServerParser.CollateExpressionContext) tree;
+            collectSourceColumns(collate.valueExpression(), columns);
+            return;
+        }
         if (tree instanceof SqlServerParser.ExistsExprContext) {
             SqlServerParser.ExistsExprContext exists = (SqlServerParser.ExistsExprContext) tree;
             LineageResult subResult = lineageForQuery(exists.query());
@@ -1545,6 +1611,17 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         for (int i = 0; i < tree.getChildCount(); i++) {
             collectSourceColumns(tree.getChild(i), columns);
         }
+    }
+
+    private static boolean isDatePartFunction(SqlServerParser.FunctionCallContext ctx) {
+        String name = cleanIdentifier(ctx.functionName().getText()).toLowerCase(Locale.ROOT);
+        return "dateadd".equals(name)
+                || "datediff".equals(name)
+                || "datediff_big".equals(name)
+                || "datename".equals(name)
+                || "datepart".equals(name)
+                || "datetrunc".equals(name)
+                || "date_bucket".equals(name);
     }
 
     private List<String> collectDereferenceParts(SqlServerParser.DereferenceContext ctx) {
@@ -1592,6 +1669,16 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         List<String> aliases = new ArrayList<>();
         if (ctx.columnAliases != null) {
             for (SqlServerParser.IdentifierContext id : ctx.columnAliases.identifier()) {
+                aliases.add(cleanIdentifier(id));
+            }
+        }
+        return aliases;
+    }
+
+    private static List<String> tableColumnAliases(SqlServerParser.TableAliasContext ctx) {
+        List<String> aliases = new ArrayList<>();
+        if (ctx != null && ctx.identifierList() != null) {
+            for (SqlServerParser.IdentifierContext id : ctx.identifierList().identifier()) {
                 aliases.add(cleanIdentifier(id));
             }
         }

@@ -179,8 +179,8 @@ Current regression corpus:
 | Metric | Current value |
 | --- | ---: |
 | Dialects | 9 |
-| SQL cases | 2427 |
-| Column-lineage cases | 1156 |
+| SQL cases | 2467 |
+| Column-lineage cases | 1194 |
 | Diagnostic cases | 14 |
 
 The corpus is intentionally transparent: SQL case files and manifest expectations live under each dialect module, so contributors can inspect exactly what a release claims to support.

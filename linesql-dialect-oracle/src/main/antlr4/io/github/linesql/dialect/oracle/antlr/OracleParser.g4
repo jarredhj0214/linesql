@@ -74,11 +74,15 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause fromClause? whereClause? startWithClause? connectByClause? groupByClause? havingClause? modelClause?
+    : selectClause selectIntoClause? fromClause? whereClause? startWithClause? connectByClause? groupByClause? havingClause? modelClause?
     ;
 
 selectClause
     : SELECT setQuantifier? selectItemList
+    ;
+
+selectIntoClause
+    : (BULK COLLECT)? INTO identifierList
     ;
 
 setQuantifier
@@ -291,7 +295,19 @@ connectByClause
     ;
 
 groupByClause
-    : GROUP BY expression (COMMA expression)*
+    : GROUP BY groupByItem (COMMA groupByItem)*
+    ;
+
+groupByItem
+    : expression
+    | ROLLUP LPAREN expressionList RPAREN
+    | CUBE LPAREN expressionList RPAREN
+    | GROUPING SETS LPAREN groupingSet (COMMA groupingSet)* RPAREN
+    ;
+
+groupingSet
+    : LPAREN expressionList? RPAREN
+    | expression
     ;
 
 havingClause
@@ -360,9 +376,11 @@ primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
-    | functionName LPAREN STAR RPAREN (OVER windowSpec)?             #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList RPAREN (OVER windowSpec)?  #functionCall
-    | functionName LPAREN RPAREN (OVER windowSpec)?                  #functionCallEmpty
+    | functionName LPAREN STAR RPAREN keepClause? withinGroupClause? (OVER windowSpec)? #functionCallStar
+    | functionName LPAREN setQuantifier? expressionList listaggOverflowClause? RPAREN keepClause? withinGroupClause? (OVER windowSpec)?  #functionCall
+    | functionName LPAREN RPAREN keepClause? withinGroupClause? (OVER windowSpec)?      #functionCallEmpty
+    | DATE string                                                    #dateLiteral
+    | TIMESTAMP string                                               #timestampLiteral
     | CONNECT_BY_ROOT primaryExpression                              #connectByRootExpression
     | LPAREN query RPAREN                                            #scalarSubquery
     | LPAREN expression RPAREN                                       #parenthesizedExpression
@@ -386,7 +404,36 @@ outerJoinMarker
     ;
 
 windowSpec
-    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? RPAREN
+    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    ;
+
+keepClause
+    : KEEP LPAREN identifier (FIRST | LAST) ORDER BY sortItem (COMMA sortItem)* RPAREN
+    ;
+
+withinGroupClause
+    : WITHIN GROUP LPAREN ORDER BY sortItem (COMMA sortItem)* RPAREN
+    ;
+
+listaggOverflowClause
+    : ON OVERFLOW (ERROR | TRUNCATE string? ((WITH | WITHOUT) identifier)?)
+    ;
+
+windowFrame
+    : (ROWS | RANGE) windowFrameExtent
+    ;
+
+windowFrameExtent
+    : windowFrameBound
+    | BETWEEN lower=windowFrameBound AND upper=windowFrameBound
+    ;
+
+windowFrameBound
+    : UNBOUNDED PRECEDING
+    | UNBOUNDED FOLLOWING
+    | CURRENT ROW
+    | expression PRECEDING
+    | expression FOLLOWING
     ;
 
 functionName
@@ -805,17 +852,18 @@ strictIdentifier
 
 nonReservedKeyword
     : ADD | ANALYZE | APPLY | ASC | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | DEFAULT
-    | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFINER | DEMAND | DESCRIBE | DESC | DUAL | END | EXISTS | EXPLAIN | EXTERNAL | FALSE
-    | CHECK | COMPLETE | FAST | FETCH | FIRST | FOR | FORCE | FUNCTION | GRANT | IF | IMMEDIATE | INDEX | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NULL
+    | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFINER | DEMAND | DESCRIBE | DESC | DUAL | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
+    | BULK | CHECK | COLLECT | COMPLETE | FAST | FETCH | FIRST | FOR | FORCE | FUNCTION | GRANT | IF | IMMEDIATE | INDEX | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NULL
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
     | KEY | NOCYCLE | NULLS | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PUBLIC | PURGE | READ | RENAME | REPLACE | REUSE | ROW | ROWS
-    | RETURN | REVOKE | ROLLBACK | SAVEPOINT | SEQUENCE | SESSION | SET | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
-    | TRUNCATE | VALUES | VIEW | ESTIMATE | LINK | NOWAIT | RETURNING | SCN | TIES | TIMESTAMP | UNIQUE | VALIDATE | WAIT
+    | CURRENT | UNBOUNDED | PRECEDING | FOLLOWING
+    | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
+    | TRUNCATE | VALUES | VIEW | DATE | ESTIMATE | LINK | NOWAIT | OVERFLOW | RETURNING | SCN | TIES | TIMESTAMP | UNIQUE | VALIDATE | WAIT | WITHIN | WITHOUT
     | SKIP_KEYWORD | LOCK | LOCKED | MODE | SHARE | EXCLUSIVE
     | PIVOT | UNPIVOT | MATCH_RECOGNIZE | MODEL | MEASURES | DIMENSION | RULES | UPSERT | UPDATED | IGNORE | KEEP | NAV
     | PATTERN | DEFINE | AFTER | MATCH | ONE | PER | PAST
     | INCLUDE | EXCLUDE | XML | SAMPLE | BLOCK | SEED | SUBPARTITION
-    | RANGE | HASH | LIST | LOCAL | LESS | THAN | MAXVALUE | PARTITIONS
+    | RANGE | HASH | LIST | LOCAL | LESS | THAN | MAXVALUE | PARTITIONS | GROUPING | CUBE
     | LOGGING | NOLOGGING | PARALLEL | NOPARALLEL | COMPRESS | NOCOMPRESS | ORGANIZATION | GLOBAL | COMMIT | PRESERVE | DEFINITION
     ;
 

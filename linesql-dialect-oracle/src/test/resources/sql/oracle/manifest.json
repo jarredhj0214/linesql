@@ -26,6 +26,100 @@
       "description": "Oracle basic SELECT table and column lineage"
     },
     {
+      "id": "select_into_variables",
+      "file": "cases/select_into_variables.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "v_id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "v_name",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "Oracle SELECT INTO variables keeps source table lineage and maps selected columns to variable targets"
+    },
+    {
+      "id": "select_bulk_collect_into",
+      "file": "cases/select_bulk_collect_into.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "v_ids",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "v_names",
+          "sources": [
+            "app.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.created_at"
+        }
+      ],
+      "description": "Oracle SELECT BULK COLLECT INTO variables maps selected source columns to collection variables"
+    },
+    {
+      "id": "date_timestamp_literal_predicate",
+      "file": "cases/date_timestamp_literal_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.events.id"
+          ]
+        },
+        {
+          "target": "created_at",
+          "sources": [
+            "app.events.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.created_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.updated_at"
+        }
+      ],
+      "description": "Oracle DATE and TIMESTAMP literals are accepted in predicates without inventing source columns"
+    },
+    {
       "id": "join_projection",
       "file": "cases/join_projection.sql",
       "statementType": "SELECT",
@@ -2082,6 +2176,33 @@
       "description": "Oracle nested function expression column lineage"
     },
     {
+      "id": "decode_nvl2_projection",
+      "file": "cases/decode_nvl2_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "score",
+          "sources": [
+            "app.users.status",
+            "app.users.vip_score",
+            "app.users.base_score"
+          ]
+        },
+        {
+          "target": "display_name",
+          "sources": [
+            "app.users.nickname",
+            "app.users.name"
+          ]
+        }
+      ],
+      "description": "Oracle DECODE and NVL2 expressions keep selector, test, and branch value dependencies"
+    },
+    {
       "id": "scalar_subquery_projection",
       "file": "cases/scalar_subquery_projection.sql",
       "statementType": "SELECT",
@@ -2317,6 +2438,75 @@
       "description": "Oracle GROUP BY aggregate expression column lineage"
     },
     {
+      "id": "group_by_rollup_projection",
+      "file": "cases/group_by_rollup_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "Oracle GROUP BY ROLLUP keeps grouping column usages and aggregate lineage"
+    },
+    {
+      "id": "group_by_grouping_sets_projection",
+      "file": "cases/group_by_grouping_sets_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "Oracle GROUPING SETS keeps grouping column usages and aggregate lineage"
+    },
+    {
+      "id": "group_by_cube_projection",
+      "file": "cases/group_by_cube_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "Oracle GROUP BY CUBE keeps grouping column usages and aggregate lineage"
+    },
+    {
+      "id": "grouping_id_projection",
+      "file": "cases/grouping_id_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "grouping_key", "sources": ["sales.orders.region", "sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "Oracle GROUPING_ID projection keeps grouping column dependencies"
+    },
+    {
       "id": "logical_not_group_column_usage",
       "file": "cases/logical_not_group_column_usage.sql",
       "statementType": "SELECT",
@@ -2537,6 +2727,182 @@
         }
       ],
       "description": "Oracle window function projection column lineage and window clause usages"
+    },
+    {
+      "id": "window_frame_projection",
+      "file": "cases/window_frame_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "customer_id",
+          "sources": [
+            "sales.orders.customer_id"
+          ]
+        },
+        {
+          "target": "running_amount",
+          "sources": [
+            "sales.orders.amount",
+            "sales.orders.customer_id",
+            "sales.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "sales.orders.customer_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "sales.orders.created_at"
+        }
+      ],
+      "description": "Oracle analytic window frame keeps partition and ordering lineage"
+    },
+    {
+      "id": "keep_dense_rank_projection",
+      "file": "cases/keep_dense_rank_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "customer_id",
+          "sources": [
+            "sales.orders.customer_id"
+          ]
+        },
+        {
+          "target": "latest_amount",
+          "sources": [
+            "sales.orders.amount",
+            "sales.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "sales.orders.customer_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "sales.orders.created_at"
+        }
+      ],
+      "description": "Oracle KEEP DENSE_RANK aggregate captures value and ordering dependencies"
+    },
+    {
+      "id": "listagg_within_group_projection",
+      "file": "cases/listagg_within_group_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "hr.department_employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "dept_id",
+          "sources": [
+            "hr.department_employees.dept_id"
+          ]
+        },
+        {
+          "target": "employee_names",
+          "sources": [
+            "hr.department_employees.emp_name",
+            "hr.department_employees.hire_date"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "hr.department_employees.dept_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "hr.department_employees.hire_date"
+        }
+      ],
+      "description": "Oracle LISTAGG WITHIN GROUP keeps aggregate value and ordering dependencies"
+    },
+    {
+      "id": "listagg_overflow_projection",
+      "file": "cases/listagg_overflow_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "hr.department_employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "dept_id",
+          "sources": [
+            "hr.department_employees.dept_id"
+          ]
+        },
+        {
+          "target": "employee_names",
+          "sources": [
+            "hr.department_employees.emp_name",
+            "hr.department_employees.hire_date"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "hr.department_employees.dept_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "hr.department_employees.hire_date"
+        }
+      ],
+      "description": "Oracle LISTAGG ON OVERFLOW syntax keeps aggregate value and ordering dependencies"
+    },
+    {
+      "id": "percentile_cont_within_group_over",
+      "file": "cases/percentile_cont_within_group_over.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "hr.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "department_id",
+          "sources": [
+            "hr.employees.department_id"
+          ]
+        },
+        {
+          "target": "median_salary",
+          "sources": [
+            "hr.employees.salary",
+            "hr.employees.department_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "hr.employees.salary"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "hr.employees.department_id"
+        }
+      ],
+      "description": "Oracle ordered-set aggregate with WITHIN GROUP and OVER keeps ordering and partition dependencies"
     },
     {
       "id": "insert_all",

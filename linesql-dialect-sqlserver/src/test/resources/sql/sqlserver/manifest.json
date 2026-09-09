@@ -330,6 +330,49 @@
       "description": "SQL Server CROSS APPLY OPENJSON WITH schema keeps source table, JSON function relation, and correlated payload usage"
     },
     {
+      "id": "values_derived_table",
+      "file": "cases/values_derived_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": []
+        },
+        {
+          "target": "name",
+          "sources": []
+        }
+      ],
+      "description": "SQL Server VALUES derived table with column aliases is parsed as a derived relation without physical inputs"
+    },
+    {
+      "id": "cross_apply_values_lineage",
+      "file": "cases/cross_apply_values_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.orders.id"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dbo.orders.amount",
+            "dbo.orders.tax"
+          ]
+        }
+      ],
+      "description": "SQL Server CROSS APPLY VALUES propagates expression lineage from the left input relation"
+    },
+    {
       "id": "clause_column_usage",
       "file": "cases/clause_column_usage.sql",
       "statementType": "SELECT",
@@ -2858,6 +2901,54 @@
       "description": "SQL Server CAST, function, and arithmetic expression column lineage"
     },
     {
+      "id": "try_cast_projection",
+      "file": "cases/try_cast_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "amount",
+          "sources": [
+            "dbo.orders.amount_text"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.created_text"
+        }
+      ],
+      "description": "SQL Server TRY_CAST expression keeps source column lineage and predicate usage"
+    },
+    {
+      "id": "convert_try_convert_projection",
+      "file": "cases/convert_try_convert_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "amount",
+          "sources": [
+            "dbo.orders.amount_text"
+          ]
+        },
+        {
+          "target": "created_date",
+          "sources": [
+            "dbo.orders.created_text"
+          ]
+        }
+      ],
+      "description": "SQL Server CONVERT and TRY_CONVERT expressions keep value source lineage without treating data types as columns"
+    },
+    {
       "id": "nested_function_projection",
       "file": "cases/nested_function_projection.sql",
       "statementType": "SELECT",
@@ -2876,6 +2967,125 @@
         }
       ],
       "description": "SQL Server nested function expression column lineage"
+    },
+    {
+      "id": "iif_choose_projection",
+      "file": "cases/iif_choose_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "score",
+          "sources": [
+            "dbo.users.status",
+            "dbo.users.vip_score",
+            "dbo.users.base_score"
+          ]
+        },
+        {
+          "target": "level_name",
+          "sources": [
+            "dbo.users.level_no",
+            "dbo.users.level1_name",
+            "dbo.users.level2_name",
+            "dbo.users.level3_name"
+          ]
+        }
+      ],
+      "description": "SQL Server IIF and CHOOSE expressions keep condition, index, and branch dependencies"
+    },
+    {
+      "id": "string_agg_within_group_projection",
+      "file": "cases/string_agg_within_group_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "customer_id",
+          "sources": [
+            "sales.orders.customer_id"
+          ]
+        },
+        {
+          "target": "product_names",
+          "sources": [
+            "sales.orders.product_name",
+            "sales.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "sales.orders.customer_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "sales.orders.created_at"
+        }
+      ],
+      "description": "SQL Server STRING_AGG WITHIN GROUP keeps aggregate value and ordering dependencies"
+    },
+    {
+      "id": "datepart_function_projection",
+      "file": "cases/datepart_function_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "next_week_at",
+          "sources": [
+            "sales.orders.created_at"
+          ]
+        },
+        {
+          "target": "active_months",
+          "sources": [
+            "sales.orders.start_at",
+            "sales.orders.end_at"
+          ]
+        },
+        {
+          "target": "created_year",
+          "sources": [
+            "sales.orders.created_at"
+          ]
+        }
+      ],
+      "description": "SQL Server datepart functions skip datepart keywords while preserving date argument lineage"
+    },
+    {
+      "id": "collate_expression_projection",
+      "file": "cases/collate_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "normalized_name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.name"
+        }
+      ],
+      "description": "SQL Server COLLATE expressions keep column lineage without treating collation names as columns"
     },
     {
       "id": "scalar_subquery_projection",
@@ -3111,6 +3321,92 @@
         }
       ],
       "description": "SQL Server GROUP BY aggregate expression column lineage"
+    },
+    {
+      "id": "group_by_rollup_projection",
+      "file": "cases/group_by_rollup_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "SQL Server GROUP BY ROLLUP keeps grouping column usages and aggregate lineage"
+    },
+    {
+      "id": "group_by_grouping_sets_projection",
+      "file": "cases/group_by_grouping_sets_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "SQL Server GROUPING SETS keeps grouping column usages and aggregate lineage"
+    },
+    {
+      "id": "group_by_cube_projection",
+      "file": "cases/group_by_cube_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "SQL Server GROUP BY CUBE keeps grouping column usages and aggregate lineage"
+    },
+    {
+      "id": "group_by_with_rollup_projection",
+      "file": "cases/group_by_with_rollup_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "SQL Server legacy GROUP BY WITH ROLLUP keeps grouping column usages and aggregate lineage"
+    },
+    {
+      "id": "grouping_id_projection",
+      "file": "cases/grouping_id_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "product", "sources": ["sales.orders.product"]},
+        {"target": "grouping_key", "sources": ["sales.orders.region", "sales.orders.product"]},
+        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.product"}
+      ],
+      "description": "SQL Server GROUPING_ID projection keeps grouping column dependencies"
     },
     {
       "id": "logical_not_group_column_usage",
@@ -4055,6 +4351,26 @@
       ],
       "columnLineage": [],
       "description": "SQL Server DECLARE table variable records the created script-local table variable"
+    },
+    {
+      "id": "declare_scalar_variables",
+      "file": "cases/declare_scalar_variables.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DECLARE scalar variables is accepted as table-free script control"
+    },
+    {
+      "id": "set_variable_scalar_subquery",
+      "file": "cases/set_variable_scalar_subquery.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server SET variable scalar subquery keeps source table reads without table outputs"
     },
     {
       "id": "insert_table_variable",
