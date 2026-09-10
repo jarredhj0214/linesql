@@ -518,6 +518,39 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterViewStmt(PostgreSqlParser.AlterViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterViewRename(PostgreSqlParser.AlterViewRenameContext ctx) {
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        outputTables.add(renamedTable(ctx.source, cleanIdentifier(ctx.target)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterViewSetSchema(PostgreSqlParser.AlterViewSetSchemaContext ctx) {
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        outputTables.add(tableInSchema(ctx.source, cleanIdentifier(ctx.targetSchema)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterViewOther(PostgreSqlParser.AlterViewOtherContext ctx) {
+        outputTables.add(tableRef(ctx.source));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitAlterMaterializedViewStmt(PostgreSqlParser.AlterMaterializedViewStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_VIEW);
         return visitChildren(ctx);

@@ -28,6 +28,7 @@ statement
     | dropFunctionStatement                                          #dropFunctionStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
+    | alterViewStatement                                             #alterViewStmt
     | alterMaterializedViewStatement                                 #alterMaterializedViewStmt
     | refreshMaterializedViewStatement                               #refreshMaterializedViewStmt
     | truncateTableStatement                                         #truncateTableStmt
@@ -541,6 +542,12 @@ dropFunctionStatement
 
 refreshMaterializedViewStatement
     : REFRESH MATERIALIZED VIEW CONCURRENTLY? multipartIdentifier
+    ;
+
+alterViewStatement
+    : ALTER VIEW (IF EXISTS)? source=multipartIdentifier RENAME TO target=identifier                 #alterViewRename
+    | ALTER VIEW (IF EXISTS)? source=multipartIdentifier SET SCHEMA targetSchema=identifier          #alterViewSetSchema
+    | ALTER VIEW (IF EXISTS)? source=multipartIdentifier .+?                                         #alterViewOther
     ;
 
 alterMaterializedViewStatement

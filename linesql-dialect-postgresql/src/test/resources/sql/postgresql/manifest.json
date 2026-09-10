@@ -1100,6 +1100,24 @@
       "outputTables": ["archive.mv_daily_orders"],
       "columnLineage": [],
       "description": "PostgreSQL ALTER MATERIALIZED VIEW SET SCHEMA records old and relocated materialized view objects"
+    },
+    {
+      "id": "alter_view_rename",
+      "file": "cases/alter_view_rename.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": ["mart.v_daily_orders"],
+      "outputTables": ["mart.v_daily_orders_v2"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER VIEW RENAME records old and new view objects"
+    },
+    {
+      "id": "alter_view_set_schema",
+      "file": "cases/alter_view_set_schema.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": ["mart.v_daily_orders"],
+      "outputTables": ["archive.v_daily_orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER VIEW SET SCHEMA records old and relocated view objects"
     }
   ]
 }
