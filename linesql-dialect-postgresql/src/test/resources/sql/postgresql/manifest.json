@@ -894,6 +894,41 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL DROP SEQUENCE is accepted as schema-object control"
+    },
+    {
+      "id": "create_policy_using",
+      "file": "cases/create_policy_using.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.tenant_id"},
+        {"type": "WHERE", "column": "mart.users.deleted_at"}
+      ],
+      "description": "PostgreSQL CREATE POLICY USING records affected table and predicate column usages"
+    },
+    {
+      "id": "create_policy_with_check",
+      "file": "cases/create_policy_with_check.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.tenant_id"},
+        {"type": "WHERE", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL CREATE POLICY WITH CHECK records affected table and write predicate columns"
+    },
+    {
+      "id": "drop_policy",
+      "file": "cases/drop_policy.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP POLICY records the affected table without inventing column lineage"
     }
   ]
 }

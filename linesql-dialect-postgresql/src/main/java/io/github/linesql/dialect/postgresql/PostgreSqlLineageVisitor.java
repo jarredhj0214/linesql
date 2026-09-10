@@ -340,6 +340,25 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitPolicyStmt(PostgreSqlParser.PolicyStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitPolicyStatement(PostgreSqlParser.PolicyStatementContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        currentDmlTarget = table;
+        outputTables.add(table);
+        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+        for (PostgreSqlParser.PolicyPredicateContext predicate : ctx.policyPredicate()) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(predicate.expression()));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStmt(PostgreSqlParser.CreateTableStmtContext ctx) {
         return visitChildren(ctx);
     }

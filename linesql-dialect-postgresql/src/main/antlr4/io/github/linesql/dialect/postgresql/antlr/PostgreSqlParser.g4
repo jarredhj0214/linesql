@@ -17,6 +17,7 @@ statement
     | createSchemaStatement                                          #createSchemaStmt
     | createFunctionStatement                                        #createFunctionStmt
     | schemaObjectControlStatement                                   #schemaObjectControlStmt
+    | policyStatement                                                #policyStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
@@ -397,6 +398,31 @@ schemaObjectControlStatement
     | DROP SEQUENCE (IF EXISTS)? multipartIdentifier (CASCADE | RESTRICT)?
     ;
 
+policyStatement
+    : CREATE POLICY identifier ON multipartIdentifier
+      (AS (PERMISSIVE | RESTRICTIVE))?
+      (FOR policyCommand)?
+      (TO identifierList)?
+      policyPredicate*
+    | ALTER POLICY identifier ON multipartIdentifier
+      (TO identifierList)?
+      policyPredicate*
+    | DROP POLICY (IF EXISTS)? identifier ON multipartIdentifier (CASCADE | RESTRICT)?
+    ;
+
+policyCommand
+    : ALL
+    | SELECT
+    | INSERT
+    | UPDATE
+    | DELETE
+    ;
+
+policyPredicate
+    : USING LPAREN expression RPAREN
+    | WITH CHECK LPAREN expression RPAREN
+    ;
+
 functionArgumentList
     : functionArgument (COMMA functionArgument)*
     ;
@@ -688,8 +714,8 @@ strictIdentifier
 nonReservedKeyword
     : ADD | ASC | AUTO_INCREMENT | CAST | CASCADE | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
     | ANALYZE | COLUMN | COMMENT | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
-    | ATTACH | DETACH | ENGINE | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
-    | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PRECEDING | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | REVOKE | ROW | ROWS | SEPARATOR
+    | ATTACH | CHECK | DETACH | ENGINE | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
+    | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR
     | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | SHOW | STDIN | STDOUT | SYSTEM | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
     ;
 
