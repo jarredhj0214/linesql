@@ -77,6 +77,24 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         } else {
             suppressColumnLineage = true;
         }
+        currentDmlTarget = target;
+        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        if (ctx.onConflictClause() != null
+                && ctx.onConflictClause().assignmentList() != null) {
+            List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
+            List<ColumnLineage> duplicateAssignments = readDuplicateKeyAssignments(
+                    ctx.onConflictClause().assignmentList(),
+                    target,
+                    insertedSourcesByColumn());
+            lineages.addAll(duplicateAssignments);
+            result.setColumnLineage(lineages);
+            suppressColumnLineage = true;
+        }
+        if (ctx.onConflictClause() != null) {
+            for (PostgreSqlParser.ConflictWhereClauseContext conflictWhere : ctx.onConflictClause().conflictWhereClause()) {
+                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(conflictWhere.expression()));
+            }
+        }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -1483,12 +1501,26 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private List<ColumnRef> duplicateKeySources(PostgreSqlParser.ExpressionContext expression,
                                                 Map<String, List<ColumnRef>> insertedSourcesByColumn) {
+        String excludedColumn = excludedColumn(expression);
+        if (excludedColumn != null) {
+            List<ColumnRef> sources = insertedSourcesByColumn.get(excludedColumn.toLowerCase(Locale.ROOT));
+            return sources == null ? new ArrayList<ColumnRef>() : new ArrayList<>(sources);
+        }
         String valuesColumn = valuesFunctionColumn(expression);
         if (valuesColumn != null) {
             List<ColumnRef> sources = insertedSourcesByColumn.get(valuesColumn.toLowerCase(Locale.ROOT));
             return sources == null ? new ArrayList<ColumnRef>() : new ArrayList<>(sources);
         }
         return resolveSources(sourceColumns(expression));
+    }
+
+    private static String excludedColumn(PostgreSqlParser.ExpressionContext expression) {
+        String text = expression.getText().trim();
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("excluded.") || text.indexOf('.') != text.lastIndexOf('.')) {
+            return null;
+        }
+        return cleanIdentifier(text.substring(text.indexOf('.') + 1));
     }
 
     private static String valuesFunctionColumn(PostgreSqlParser.ExpressionContext expression) {

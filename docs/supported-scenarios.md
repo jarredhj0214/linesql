@@ -71,8 +71,8 @@ Implemented PostgreSQL scenarios:
 | Basic SELECT source and columns | `select id as user_id, name from public.users` | `select_basic` |
 | JOIN source tables and projections | `select u.id, o.amount from users u join orders o ...` | `join_projection` |
 | INSERT SELECT with RETURNING | `insert into mart.t select ... returning ...` | `insert_select_returning` |
-| INSERT SELECT with ON CONFLICT | `insert into mart.t select ... on conflict (...) do update ...` | `insert_on_conflict` |
-| PostgreSQL INSERT variants | `insert ... overriding system value select ...`, `insert ... on conflict on constraint ... do update ... where ...`, `insert ... default values`, `insert ... values (...)` | `insert_overriding_system_select`, `insert_on_conflict_constraint_where`, `insert_default_values`, `insert_values_target_columns` |
+| INSERT SELECT with ON CONFLICT | `insert into mart.t select ... on conflict (...) do update set c = excluded.c`; `excluded.c` is resolved back to the insert source column when the insert target column list is known | `insert_on_conflict` |
+| PostgreSQL INSERT variants | `insert ... overriding system value select ...`, `insert ... on conflict on constraint ... do update ... where ...`, `insert ... default values`, `insert ... values (...)`; conflict `WHERE` columns are returned as `WHERE` usages | `insert_overriding_system_select`, `insert_on_conflict_constraint_where`, `insert_default_values`, `insert_values_target_columns` |
 | WITH before INSERT SELECT | `with q as (...) insert into mart.t select ... from q` | `with_insert_select` |
 | WITH RECURSIVE SELECT | `with recursive q(...) as (...) select ... from q` | `with_recursive_select` |
 | COPY FROM target table and column list | `copy mart.t(c1, c2) from '/tmp/file.csv' with (...)` | `copy_from_csv` |

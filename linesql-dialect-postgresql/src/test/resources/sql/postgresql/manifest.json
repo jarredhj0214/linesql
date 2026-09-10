@@ -45,9 +45,10 @@
       "outputTables": ["mart.users"],
       "columnLineage": [
         {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
         {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
       ],
-      "description": "PostgreSQL INSERT SELECT with ON CONFLICT target and source lineage"
+      "description": "PostgreSQL INSERT SELECT with ON CONFLICT target, insert source lineage, and excluded-column update lineage"
     },
     {
       "id": "create_table_as_select",
@@ -848,9 +849,13 @@
       "outputTables": ["mart.users"],
       "columnLineage": [
         {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
         {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
       ],
-      "description": "PostgreSQL ON CONFLICT ON CONSTRAINT with conflict WHERE remains parse-compatible while preserving insert lineage"
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.deleted_at"}
+      ],
+      "description": "PostgreSQL ON CONFLICT ON CONSTRAINT with conflict WHERE preserves insert lineage, excluded-column update lineage, and predicate usage"
     },
     {
       "id": "insert_default_values",
