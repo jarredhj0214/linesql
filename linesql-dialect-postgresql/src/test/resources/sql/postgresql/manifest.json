@@ -992,6 +992,24 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL DROP SUBSCRIPTION is accepted as logical-replication control"
+    },
+    {
+      "id": "alter_table_enable_row_security",
+      "file": "cases/alter_table_enable_row_security.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE ENABLE ROW LEVEL SECURITY records the affected table"
+    },
+    {
+      "id": "alter_table_force_row_security",
+      "file": "cases/alter_table_force_row_security.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE FORCE ROW LEVEL SECURITY records the affected table"
     }
   ]
 }
