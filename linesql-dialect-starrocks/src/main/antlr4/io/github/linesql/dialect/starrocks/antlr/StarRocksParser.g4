@@ -49,6 +49,7 @@ statement
     | fileStatement                                                  #fileStmt
     | catalogStatement                                               #catalogStmt
     | storageVolumeStatement                                         #storageVolumeStmt
+    | warehouseStatement                                             #warehouseStmt
     | resourceGroupStatement                                         #resourceGroupStmt
     | resourceStatement                                              #resourceStmt
     | createFunctionStatement                                        #createFunctionStmt
@@ -593,6 +594,21 @@ storageVolumeOption
     | identifier EQ? (identifier | string | number)
     ;
 
+warehouseStatement
+    : CREATE WAREHOUSE (IF NOT EXISTS)? identifier propertiesClause?
+    | ALTER WAREHOUSE identifier warehouseAction
+    | DROP WAREHOUSE (IF EXISTS)? identifier
+    | SUSPEND WAREHOUSE identifier
+    | RESUME WAREHOUSE identifier
+    ;
+
+warehouseAction
+    : SET propertiesClause
+    | SUSPEND
+    | RESUME
+    | RENAME TO identifier
+    ;
+
 resourceStatement
     : CREATE EXTERNAL? RESOURCE (IF NOT EXISTS)? resourceIdentifier propertiesClause?
     | ALTER RESOURCE resourceIdentifier SET propertiesClause
@@ -1082,6 +1098,7 @@ showStatement
     | SHOW RESOURCE GROUP identifier
     | SHOW USAGE RESOURCE GROUPS
     | SHOW STORAGE VOLUMES (LIKE string)?
+    | SHOW WAREHOUSES (LIKE string | whereClause)? queryOrganization
     | SHOW RESOURCES whereClause? queryOrganization
     | SHOW PIPES (FROM identifier)? whereClause? queryOrganization
     | SHOW TEMPORARY? PARTITIONS FROM multipartIdentifier whereClause? queryOrganization
@@ -1398,7 +1415,7 @@ nonReservedKeyword
     | INVOKER | MANUAL | MATCH | MATCH_ALL | MATCH_ANY | MATCHED | MAX | MERGE | META | MIN | MINUS_KW | MODE | MULTIPLE | NEGATIVE | NODE | NODES | NONE | NULL | NULLS | OBSERVER | OLAP
     | OF | OFFSET | ONLY | OPTIMIZE | OUTFILE | OVER | OVERWRITE | PARTITION | PARTITIONS | PAUSE | PREPARE | PRIMARY | PROPERTIES | QUALIFY | QUOTA
     | NAME | PATH | PRECEDING | PROC | PROCESSLIST | QUERIES | QUERY | RANDOM | RANGE | READ | RECURSIVE | REFRESH | REGEXP | RENAME | REPAIR | REPLACE | REPLACE_IF_NOT_NULL | REPLICA | REPOSITORIES | REPOSITORY | RESUME | RESTORE | RETURNS | REVOKE | RLIKE | ROLLBACK | ROLE | ROLES | ROLLUP | ROUTINE | ROW | ROWS | RUNNING | SAMPLE | SCHEDULE | SECURITY | SEMI_JOIN | SESSION | SETS | SHOW | SNAPSHOT | SOME | SQLBLACKLIST | START | STATUS | STATS | STOP | STORED | SUBMIT | SUM | SWAP | SYNC | SYSTEM | TABLE | TABLES | TASK | TRANSACTION | UNBOUNDED | USER | USERS | VARIABLES | VIEWS
-    | CATALOG | CATALOGS | FILE | FILES | PIPE | PIPES | PIVOT | PROPERTY | RETRY | SUSPEND | SUSPENDED | VOLUMES
+    | CATALOG | CATALOGS | FILE | FILES | PIPE | PIPES | PIVOT | PROPERTY | RETRY | SUSPEND | SUSPENDED | VOLUMES | WAREHOUSE | WAREHOUSES
     | RETAIN | SPLIT | STRUCT | TABLET | TAG | TEMPORARY | TERMINATED | THAN | TIMESTAMP | TO | TRUE | TRUNCATE | UNIQUE | USAGE | VALUE | VALUES | VERSION | VERBOSE | VIEW
     ;
 

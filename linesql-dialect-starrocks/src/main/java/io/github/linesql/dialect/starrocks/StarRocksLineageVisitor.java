@@ -612,6 +612,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitWarehouseStmt(StarRocksParser.WarehouseStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitCreateFunctionStmt(StarRocksParser.CreateFunctionStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_ROUTINE);
         return null;

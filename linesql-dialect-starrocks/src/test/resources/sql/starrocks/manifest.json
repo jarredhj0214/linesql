@@ -11049,6 +11049,60 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "StarRocks ALTER TASK SET properties control statement"
+    },
+    {
+      "id": "create_warehouse",
+      "file": "cases/create_warehouse.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks CREATE WAREHOUSE control statement"
+    },
+    {
+      "id": "alter_warehouse_set",
+      "file": "cases/alter_warehouse_set.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ALTER WAREHOUSE SET properties control statement"
+    },
+    {
+      "id": "suspend_warehouse",
+      "file": "cases/suspend_warehouse.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SUSPEND WAREHOUSE control statement"
+    },
+    {
+      "id": "resume_warehouse",
+      "file": "cases/resume_warehouse.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks RESUME WAREHOUSE control statement"
+    },
+    {
+      "id": "drop_warehouse",
+      "file": "cases/drop_warehouse.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks DROP WAREHOUSE control statement"
+    },
+    {
+      "id": "show_warehouses",
+      "file": "cases/show_warehouses.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW WAREHOUSES metadata statement"
     }
   ]
 }
