@@ -2812,6 +2812,23 @@
       "description": "Flink CREATE TABLE with metadata column, computed column, watermark, primary key, partition, and connector options"
     },
     {
+      "id": "create_table_inline_primary_key",
+      "file": "cases/create_table_inline_primary_key.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.user_dim"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.user_dim.user_id"
+        }
+      ],
+      "description": "Flink CREATE TABLE inline PRIMARY KEY NOT ENFORCED records table-model column usage"
+    },
+    {
       "id": "create_table_distributed_hash",
       "file": "cases/create_table_distributed_hash.sql",
       "statementType": "CREATE_TABLE",
