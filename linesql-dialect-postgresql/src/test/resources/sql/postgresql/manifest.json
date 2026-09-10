@@ -961,6 +961,22 @@
       "description": "PostgreSQL LATERAL set-returning function maps generated alias columns to function argument sources"
     },
     {
+      "id": "lateral_unnest_with_ordinality",
+      "file": "cases/lateral_unnest_with_ordinality.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.users.id"]},
+        {"target": "item", "sources": ["public.users.tags"]},
+        {"target": "ord", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.users.tags"}
+      ],
+      "description": "PostgreSQL LATERAL UNNEST WITH ORDINALITY maps value column to input array and keeps ordinality generated"
+    },
+    {
       "id": "select_into_table",
       "file": "cases/select_into_table.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",

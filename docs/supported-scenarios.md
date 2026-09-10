@@ -96,7 +96,7 @@ Implemented PostgreSQL scenarios:
 | CREATE TABLE LIKE INCLUDING source table | `create table mart.t (like mart.s including all)` | `create_table_like_including` |
 | CREATE VIEW AS SELECT and view relocation | `create view mart.v as select ... from public.s`; `alter view mart.v rename to v2`; `alter view mart.v set schema archive` | `create_view`, `alter_view_rename`, `alter_view_set_schema` |
 | CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.mv as select ... from mart.s`, `create materialized view mart.mv as select ... with no data` | `create_materialized_view`, `create_materialized_view_with_no_data` |
-| VALUES and set-returning function relations | `values (...)`; `from (values (...)) as v(c)`; `cross join lateral jsonb_array_elements_text(t.tags) as e(value)` | `values_query`, `derived_values_table`, `lateral_jsonb_array_elements` |
+| VALUES and set-returning function relations | `values (...)`; `from (values (...)) as v(c)`; `cross join lateral jsonb_array_elements_text(t.tags) as e(value)`; `unnest(t.arr) with ordinality as u(item, ord)` | `values_query`, `derived_values_table`, `lateral_jsonb_array_elements`, `lateral_unnest_with_ordinality` |
 | REFRESH MATERIALIZED VIEW affected view | `refresh materialized view concurrently mart.mv` | `refresh_materialized_view` |
 | ALTER MATERIALIZED VIEW affected view | `alter materialized view mart.mv rename to mv2`, `alter materialized view mart.mv set schema archive` | `alter_materialized_view_rename`, `alter_materialized_view_set_schema` |
 | COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |

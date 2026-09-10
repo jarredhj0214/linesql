@@ -972,7 +972,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 ? new ArrayList<>()
                 : sourceColumns(ctx.expressionList());
         addColumnUsages(ColumnUsageType.JOIN_ON, sources);
-        registerGeneratedRelation(ctx.tableAlias(), sources);
+        registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
         return null;
     }
 
@@ -1136,6 +1136,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private void registerGeneratedRelation(PostgreSqlParser.TableAliasContext aliasCtx, List<SourceColumn> sources) {
+        registerGeneratedRelation(aliasCtx, sources, false);
+    }
+
+    private void registerGeneratedRelation(PostgreSqlParser.TableAliasContext aliasCtx,
+                                           List<SourceColumn> sources,
+                                           boolean withOrdinality) {
         String alias = tableAlias(aliasCtx);
         if (alias == null) {
             return;
@@ -1143,8 +1149,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         String derivedName = alias.toLowerCase(Locale.ROOT);
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         List<ColumnRef> refs = columnUsageRefs(sources);
-        for (String columnName : tableAliasColumnNames(aliasCtx)) {
-            columns.put(columnName, refs == null ? new ArrayList<>() : new ArrayList<>(refs));
+        List<String> aliasColumns = tableAliasColumnNames(aliasCtx);
+        for (int i = 0; i < aliasColumns.size(); i++) {
+            boolean ordinalityColumn = withOrdinality && i == aliasColumns.size() - 1;
+            columns.put(aliasColumns.get(i), ordinalityColumn || refs == null ? new ArrayList<>() : new ArrayList<>(refs));
         }
         derivedColumnLineage.put(derivedName, columns);
         addDerivedReference(alias, aliasCtx);
