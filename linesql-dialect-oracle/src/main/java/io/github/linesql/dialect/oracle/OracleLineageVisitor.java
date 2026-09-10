@@ -247,6 +247,17 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         LineageModelUtils.addColumnUsages(result, ColumnUsageType.INDEX, refs);
     }
 
+    private void addTableModelColumnUsages(TableRef table, OracleParser.IdentifierListContext identifierList) {
+        if (identifierList == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : identifierNames(identifierList)) {
+            refs.add(new ColumnRef(table, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+    }
+
     @Override
     public Void visitAlterIndexStmt(OracleParser.AlterIndexStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
@@ -513,6 +524,46 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableAddColumn(OracleParser.AlterTableAddColumnContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableAddPrimaryKeyConstraint(OracleParser.AlterTableAddPrimaryKeyConstraintContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addTableModelColumnUsages(target, ctx.identifierList());
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableAddForeignKeyConstraint(OracleParser.AlterTableAddForeignKeyConstraintContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier(0));
+        outputTables.add(target);
+        inputTables.add(tableRef(ctx.refTable));
+        addTableModelColumnUsages(target, ctx.localColumns);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableAddCheckConstraint(OracleParser.AlterTableAddCheckConstraintContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        currentDmlTarget = target;
+        List<ColumnRef> refs = resolveSources(sourceColumns(ctx.expression()));
+        if (refs != null && !refs.isEmpty()) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableDropConstraint(OracleParser.AlterTableDropConstraintContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;

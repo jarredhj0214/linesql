@@ -1780,6 +1780,78 @@
       "description": "Oracle ALTER TABLE ADD column affected table lineage"
     },
     {
+      "id": "alter_table_add_primary_key_constraint",
+      "file": "cases/alter_table_add_primary_key_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.order_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.order_date"
+        }
+      ],
+      "description": "Oracle ALTER TABLE ADD primary key constraint table-model columns"
+    },
+    {
+      "id": "alter_table_add_foreign_key_constraint",
+      "file": "cases/alter_table_add_foreign_key_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_items.order_id"
+        }
+      ],
+      "description": "Oracle ALTER TABLE ADD foreign key constraint records referenced table and local key columns"
+    },
+    {
+      "id": "alter_table_add_check_constraint",
+      "file": "cases/alter_table_add_check_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.amount"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.status"
+        }
+      ],
+      "description": "Oracle ALTER TABLE ADD CHECK constraint records predicate columns as table-model usage"
+    },
+    {
+      "id": "alter_table_drop_constraint",
+      "file": "cases/alter_table_drop_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE DROP CONSTRAINT affected table lineage"
+    },
+    {
       "id": "alter_table_add_partition",
       "file": "cases/alter_table_add_partition.sql",
       "statementType": "ALTER_TABLE",
