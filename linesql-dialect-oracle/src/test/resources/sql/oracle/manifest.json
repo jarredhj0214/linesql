@@ -4192,6 +4192,33 @@
       "description": "Oracle DROP SEQUENCE is accepted as schema-object control"
     },
     {
+      "id": "create_type_object",
+      "file": "cases/create_type_object.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE TYPE AS OBJECT is accepted as schema-object control"
+    },
+    {
+      "id": "create_type_table",
+      "file": "cases/create_type_table.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE TYPE AS TABLE is accepted as schema-object control"
+    },
+    {
+      "id": "drop_type_force",
+      "file": "cases/drop_type_force.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DROP TYPE FORCE is accepted as schema-object control"
+    },
+    {
       "id": "create_database_link",
       "file": "cases/create_database_link.sql",
       "statementType": "CONTROL",
