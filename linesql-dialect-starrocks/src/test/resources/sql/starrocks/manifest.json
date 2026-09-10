@@ -8933,6 +8933,33 @@
       "description": "StarRocks DROP CATALOG control statement without IF EXISTS"
     },
     {
+      "id": "alter_catalog_set_properties",
+      "file": "cases/alter_catalog_set_properties.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ALTER CATALOG SET control statement"
+    },
+    {
+      "id": "alter_catalog_reset_properties",
+      "file": "cases/alter_catalog_reset_properties.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ALTER CATALOG RESET control statement"
+    },
+    {
+      "id": "alter_catalog_comment",
+      "file": "cases/alter_catalog_comment.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ALTER CATALOG COMMENT control statement"
+    },
+    {
       "id": "show_create_catalog",
       "file": "cases/show_create_catalog.sql",
       "statementType": "READ_METADATA",
