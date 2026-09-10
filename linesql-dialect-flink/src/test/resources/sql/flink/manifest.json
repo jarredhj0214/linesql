@@ -2381,6 +2381,21 @@
       "description": "Flink EXECUTE STATEMENT SET merges input and output tables from all inserts"
     },
     {
+      "id": "execute_statement_set_mixed_overwrite",
+      "file": "cases/execute_statement_set_mixed_overwrite.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "ads.order_summary"
+      ],
+      "columnLineage": [],
+      "description": "Flink EXECUTE STATEMENT SET accepts mixed INSERT INTO and INSERT OVERWRITE sinks"
+    },
+    {
       "id": "create_table_connector",
       "file": "cases/create_table_connector.sql",
       "statementType": "CREATE_TABLE",
