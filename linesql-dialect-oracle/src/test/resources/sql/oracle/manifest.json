@@ -3797,6 +3797,33 @@
       "description": "Oracle anonymous BEGIN block is accepted as control syntax"
     },
     {
+      "id": "anonymous_exception_block",
+      "file": "cases/anonymous_exception_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle anonymous block with EXCEPTION handler is accepted as control syntax"
+    },
+    {
+      "id": "anonymous_execute_immediate_block",
+      "file": "cases/anonymous_execute_immediate_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle anonymous EXECUTE IMMEDIATE block is accepted without expanding dynamic SQL text"
+    },
+    {
+      "id": "anonymous_cursor_loop_block",
+      "file": "cases/anonymous_cursor_loop_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle anonymous cursor FOR loop block is accepted as control syntax"
+    },
+    {
       "id": "anonymous_declare_block",
       "file": "cases/anonymous_declare_block.sql",
       "statementType": "CONTROL",

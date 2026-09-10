@@ -4644,6 +4644,33 @@
       "description": "OceanBase Oracle mode anonymous BEGIN block is accepted as control syntax"
     },
     {
+      "id": "oracle_mode_anonymous_exception_block",
+      "file": "cases/oracle_mode_anonymous_exception_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode anonymous block with EXCEPTION handler is accepted as control syntax"
+    },
+    {
+      "id": "oracle_mode_anonymous_execute_immediate_block",
+      "file": "cases/oracle_mode_anonymous_execute_immediate_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode EXECUTE IMMEDIATE block is accepted without expanding dynamic SQL text"
+    },
+    {
+      "id": "oracle_mode_anonymous_cursor_loop_block",
+      "file": "cases/oracle_mode_anonymous_cursor_loop_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode anonymous cursor FOR loop block is accepted as control syntax"
+    },
+    {
       "id": "oracle_mode_anonymous_declare_block",
       "file": "cases/oracle_mode_anonymous_declare_block.sql",
       "statementType": "CONTROL",
