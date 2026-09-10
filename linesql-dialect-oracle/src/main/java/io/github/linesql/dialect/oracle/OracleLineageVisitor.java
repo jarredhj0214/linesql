@@ -394,6 +394,21 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitFlashbackTableStmt(OracleParser.FlashbackTableStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        OracleParser.FlashbackTableStatementContext statement = ctx.flashbackTableStatement();
+        for (OracleParser.MultipartIdentifierContext identifier : statement.multipartIdentifier()) {
+            outputTables.add(tableRef(identifier));
+        }
+        OracleParser.MultipartIdentifierContext restoredName = statement.flashbackTableTarget().multipartIdentifier();
+        if (restoredName != null) {
+            outputTables.add(tableRef(restoredName));
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitTruncateTableStmt(OracleParser.TruncateTableStmtContext ctx) {
         result.setStatementType(StatementType.TRUNCATE_TABLE);
         return visitChildren(ctx);

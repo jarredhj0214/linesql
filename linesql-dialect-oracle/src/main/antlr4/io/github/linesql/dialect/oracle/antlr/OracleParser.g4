@@ -24,6 +24,7 @@ statement
     | dropRoutineStatement                                           #dropRoutineStmt
     | dropTriggerStatement                                           #dropTriggerStmt
     | oracleSchemaObjectControlStatement                             #oracleSchemaObjectControlStmt
+    | flashbackTableStatement                                        #flashbackTableStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
     | truncateTableStatement                                         #truncateTableStmt
@@ -673,6 +674,18 @@ oracleSchemaObjectControlStatement
     | DROP PUBLIC? DATABASE LINK multipartIdentifier
     ;
 
+flashbackTableStatement
+    : FLASHBACK TABLE multipartIdentifier (COMMA multipartIdentifier)*
+      TO flashbackTableTarget
+    ;
+
+flashbackTableTarget
+    : BEFORE DROP (RENAME TO multipartIdentifier)?
+    | SCN expression
+    | TIMESTAMP expression
+    | RESTORE POINT identifier
+    ;
+
 truncateTableStatement
     : TRUNCATE TABLE? multipartIdentifier truncateTableOption*
     ;
@@ -866,12 +879,12 @@ strictIdentifier
 
 nonReservedKeyword
     : ADD | ANALYZE | APPLY | ASC | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | DEFAULT
-    | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFINER | DEMAND | DESCRIBE | DESC | DUAL | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
-    | BULK | CHECK | COLLECT | COMPLETE | FAST | FETCH | FIRST | FOR | FORCE | FUNCTION | GRANT | IF | IMMEDIATE | INDEX | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NULL
+    | BEFORE | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFINER | DEMAND | DESCRIBE | DESC | DUAL | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
+    | BULK | CHECK | COLLECT | COMPLETE | FAST | FETCH | FIRST | FLASHBACK | FOR | FORCE | FUNCTION | GRANT | IF | IMMEDIATE | INDEX | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NULL
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
     | KEY | NOCYCLE | NULLS | OBJECT | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PUBLIC | PURGE | READ | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS
     | CURRENT | UNBOUNDED | PRECEDING | FOLLOWING
-    | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | SYSTEM | TRANSACTION | RESET | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
+    | POINT | RESTORE | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | SYSTEM | TRANSACTION | RESET | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
     | TRUNCATE | TYPE | VALUES | VIEW | DATE | ESTIMATE | LINK | NOWAIT | OVERFLOW | RETURNING | SCN | TIES | TIMESTAMP | UNIQUE | VALIDATE | WAIT | WITHIN | WITHOUT
     | SKIP_KEYWORD | LOCK | LOCKED | MODE | SHARE | EXCLUSIVE
     | PIVOT | UNPIVOT | MATCH_RECOGNIZE | MODEL | MEASURES | DIMENSION | RULES | UPSERT | UPDATED | IGNORE | KEEP | NAV

@@ -4292,6 +4292,46 @@
         {"type": "WHERE", "column": "ods.orders_delta.status"}
       ],
       "description": "Oracle INSERT SELECT through DBLink keeps local source-to-remote target lineage"
+    },
+    {
+      "id": "flashback_table_before_drop",
+      "file": "cases/flashback_table_before_drop.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle FLASHBACK TABLE TO BEFORE DROP records the affected table"
+    },
+    {
+      "id": "flashback_table_before_drop_rename",
+      "file": "cases/flashback_table_before_drop_rename.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders", "mart.orders_restored"],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle FLASHBACK TABLE TO BEFORE DROP RENAME TO records original and restored table names"
+    },
+    {
+      "id": "flashback_table_scn",
+      "file": "cases/flashback_table_scn.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle FLASHBACK TABLE TO SCN records the affected table"
+    },
+    {
+      "id": "flashback_table_timestamp",
+      "file": "cases/flashback_table_timestamp.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle FLASHBACK TABLE TO TIMESTAMP records the affected table"
     }
   ]
 }
