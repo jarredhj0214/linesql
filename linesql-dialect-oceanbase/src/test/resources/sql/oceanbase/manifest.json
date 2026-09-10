@@ -4518,6 +4518,24 @@
       "description": "OceanBase Oracle mode SET TRANSACTION ISOLATION LEVEL is recognized without lineage"
     },
     {
+      "id": "oracle_mode_alter_system_set_scope",
+      "file": "cases/oracle_mode_alter_system_set_scope.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER SYSTEM SET with SCOPE option is recognized without lineage"
+    },
+    {
+      "id": "oracle_mode_alter_system_reset_scope",
+      "file": "cases/oracle_mode_alter_system_reset_scope.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER SYSTEM RESET with SCOPE and SID options is recognized without lineage"
+    },
+    {
       "id": "oracle_mode_alter_table_modify_column",
       "file": "cases/oracle_mode_alter_table_modify_column.sql",
       "statementType": "ALTER_TABLE",

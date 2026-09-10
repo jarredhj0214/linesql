@@ -75,6 +75,7 @@ public class OceanBaseDialectParser implements DialectParser {
                 || normalized.matches("(?s)^\\s*select\\b.+\\bbulk\\s+collect\\s+into\\b.*\\bfrom\\b.*")
                 || normalized.matches("(?s)^\\s*explain\\s+plan\\b.*")
                 || normalized.matches("(?s)^\\s*lock\\s+table\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+system\\s+(set|reset)\\b.*\\b(scope|sid)\\s*=.*")
                 || normalized.matches("(?s)^\\s*set\\s+transaction\\b.*")
                 || normalized.matches("(?s)^\\s*analyze\\s+index\\b.*")
                 || normalized.matches("(?s)^\\s*analyze\\s+table\\b.*\\b(compute|estimate|delete)\\s+statistics\\b.*")
