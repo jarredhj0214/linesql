@@ -3520,6 +3520,33 @@
       "description": "MySQL DROP TABLESPACE is accepted as table-free storage control DDL"
     },
     {
+      "id": "create_logfile_group",
+      "file": "cases/create_logfile_group.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CREATE LOGFILE GROUP is accepted as table-free storage control DDL"
+    },
+    {
+      "id": "alter_logfile_group",
+      "file": "cases/alter_logfile_group.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ALTER LOGFILE GROUP is accepted as table-free storage control DDL"
+    },
+    {
+      "id": "drop_logfile_group",
+      "file": "cases/drop_logfile_group.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL DROP LOGFILE GROUP is accepted as table-free storage control DDL"
+    },
+    {
       "id": "create_temporary_table_like",
       "file": "cases/create_temporary_table_like.sql",
       "statementType": "CREATE_TABLE_LIKE",

@@ -783,6 +783,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitLogfileGroupStmt(MySqlParser.LogfileGroupStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitResourceGroupStmt(MySqlParser.ResourceGroupStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;
