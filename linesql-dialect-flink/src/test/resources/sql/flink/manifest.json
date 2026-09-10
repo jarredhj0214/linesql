@@ -3283,6 +3283,46 @@
       "description": "Flink EXPLAIN keeps inner INSERT SELECT table and column lineage while classifying as metadata read"
     },
     {
+      "id": "explain_statement_set",
+      "file": "cases/explain_statement_set.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "ads.order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.order_summary.order_id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "ads.order_summary.amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink EXPLAIN PLAN FOR STATEMENT SET preserves multi-sink table and column lineage"
+    },
+    {
       "id": "group_by_rollup",
       "file": "cases/group_by_rollup.sql",
       "statementType": "SELECT",
