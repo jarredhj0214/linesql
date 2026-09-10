@@ -3388,6 +3388,33 @@
       "description": "Oracle CREATE FUNCTION is classified as routine lifecycle DDL without table lineage"
     },
     {
+      "id": "alter_procedure_compile",
+      "file": "cases/alter_procedure_compile.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ALTER PROCEDURE COMPILE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "alter_function_compile",
+      "file": "cases/alter_function_compile.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ALTER FUNCTION COMPILE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "alter_package_compile_body",
+      "file": "cases/alter_package_compile_body.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ALTER PACKAGE COMPILE BODY is classified as routine lifecycle DDL without table lineage"
+    },
+    {
       "id": "drop_procedure",
       "file": "cases/drop_procedure.sql",
       "statementType": "DROP_ROUTINE",

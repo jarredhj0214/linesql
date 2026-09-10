@@ -266,6 +266,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterRoutineStmt(OracleParser.AlterRoutineStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_ROUTINE);
+        return null;
+    }
+
+    @Override
     public Void visitAnonymousBlockStmt(OracleParser.AnonymousBlockStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;

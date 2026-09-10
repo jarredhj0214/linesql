@@ -17,6 +17,7 @@ statement
     | alterIndexStatement                                            #alterIndexStmt
     | dropIndexStatement                                             #dropIndexStmt
     | createRoutineStatement                                         #createRoutineStmt
+    | alterRoutineStatement                                          #alterRoutineStmt
     | anonymousBlockStatement                                        #anonymousBlockStmt
     | createTriggerStatement                                         #createTriggerStmt
     | createTableStatement                                           #createTableStmt
@@ -545,6 +546,10 @@ dropIndexStatement
 createRoutineStatement
     : CREATE (OR REPLACE)? (PROCEDURE | FUNCTION) multipartIdentifier .+?
     | CREATE (OR REPLACE)? PACKAGE BODY? multipartIdentifier .+?
+    ;
+
+alterRoutineStatement
+    : ALTER (PROCEDURE | FUNCTION | PACKAGE) multipartIdentifier .+?
     ;
 
 anonymousBlockStatement
