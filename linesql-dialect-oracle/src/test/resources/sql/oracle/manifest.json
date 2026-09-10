@@ -4124,6 +4124,54 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Oracle DROP SEQUENCE is accepted as schema-object control"
+    },
+    {
+      "id": "create_database_link",
+      "file": "cases/create_database_link.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE DATABASE LINK is accepted as schema-object control without synthetic table lineage"
+    },
+    {
+      "id": "drop_database_link",
+      "file": "cases/drop_database_link.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DROP DATABASE LINK is accepted as schema-object control"
+    },
+    {
+      "id": "select_dblink",
+      "file": "cases/select_dblink.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.remote_orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.remote_orders.order_id"]},
+        {"target": "amount", "sources": ["ods.remote_orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.remote_orders.status"}
+      ],
+      "description": "Oracle SELECT through DBLink keeps the remote table identity without treating the DBLink name as a table part"
+    },
+    {
+      "id": "insert_dblink_select",
+      "file": "cases/insert_dblink_select.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders_delta"],
+      "outputTables": ["ods.remote_orders"],
+      "columnLineage": [
+        {"target": "ods.remote_orders.order_id", "sources": ["ods.orders_delta.id"]},
+        {"target": "ods.remote_orders.amount", "sources": ["ods.orders_delta.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders_delta.status"}
+      ],
+      "description": "Oracle INSERT SELECT through DBLink keeps local source-to-remote target lineage"
     }
   ]
 }
