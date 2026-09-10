@@ -4836,6 +4836,57 @@
       "description": "OceanBase Oracle mode ALTER TABLE RENAME COLUMN records the affected table"
     },
     {
+      "id": "oracle_mode_alter_table_add_primary_key_constraint",
+      "file": "cases/oracle_mode_alter_table_add_primary_key_constraint.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.order_id"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.order_date"}
+      ],
+      "description": "OceanBase Oracle mode ALTER TABLE ADD PRIMARY KEY constraint records affected key columns"
+    },
+    {
+      "id": "oracle_mode_alter_table_add_foreign_key_constraint",
+      "file": "cases/oracle_mode_alter_table_add_foreign_key_constraint.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.order_items"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.order_items.order_id"}
+      ],
+      "description": "OceanBase Oracle mode ALTER TABLE ADD FOREIGN KEY constraint records local and referenced tables"
+    },
+    {
+      "id": "oracle_mode_alter_table_add_check_constraint",
+      "file": "cases/oracle_mode_alter_table_add_check_constraint.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.amount"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.status"}
+      ],
+      "description": "OceanBase Oracle mode ALTER TABLE ADD CHECK constraint records predicate columns"
+    },
+    {
+      "id": "oracle_mode_alter_table_drop_constraint",
+      "file": "cases/oracle_mode_alter_table_drop_constraint.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER TABLE DROP CONSTRAINT records the affected table"
+    },
+    {
       "id": "oracle_mode_table_function_relation",
       "file": "cases/oracle_mode_table_function_relation.sql",
       "statementType": "SELECT",

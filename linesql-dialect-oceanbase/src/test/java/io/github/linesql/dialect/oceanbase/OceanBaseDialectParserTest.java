@@ -42,7 +42,7 @@ public class OceanBaseDialectParserTest {
         for (JsonNode sqlCase : manifest.get("cases")) {
             String caseId = sqlCase.get("id").asText();
             String sql = resource("/sql/oceanbase/" + sqlCase.get("file").asText());
-            LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
+            LineageResult result = parser.parse(sql, parseOptions(sqlCase), new ParseContext());
 
             assertEquals(caseId, SqlDialect.OCEANBASE, result.getDialect());
             assertEquals(caseId, StatementType.valueOf(sqlCase.get("statementType").asText()), result.getStatementType());
@@ -147,6 +147,15 @@ public class OceanBaseDialectParserTest {
 
     private static JsonNode tableArray(String tableName) {
         return new ObjectMapper().createArrayNode().add(tableName);
+    }
+
+    private static ParseOptions parseOptions(JsonNode sqlCase) {
+        if (sqlCase.has("compatibilityMode")) {
+            return ParseOptions.builder()
+                    .dialectOption(OceanBaseDialectParser.COMPATIBILITY_MODE_OPTION, sqlCase.get("compatibilityMode").asText())
+                    .build();
+        }
+        return ParseOptions.defaults();
     }
 
     private static void assertColumnLineage(String caseId, JsonNode expectedNode, LineageResult result) {
