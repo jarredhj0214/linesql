@@ -1,0 +1,1 @@
+set transaction read only;

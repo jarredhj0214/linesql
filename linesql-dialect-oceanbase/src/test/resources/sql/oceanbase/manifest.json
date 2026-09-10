@@ -4464,6 +4464,33 @@
       "description": "OceanBase transaction SAVEPOINT control is recognized without lineage"
     },
     {
+      "id": "oracle_mode_set_transaction_read_only",
+      "file": "cases/oracle_mode_set_transaction_read_only.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode SET TRANSACTION READ ONLY is recognized without lineage"
+    },
+    {
+      "id": "oracle_mode_set_transaction_read_write",
+      "file": "cases/oracle_mode_set_transaction_read_write.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode SET TRANSACTION READ WRITE is recognized without lineage"
+    },
+    {
+      "id": "oracle_mode_set_transaction_isolation",
+      "file": "cases/oracle_mode_set_transaction_isolation.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode SET TRANSACTION ISOLATION LEVEL is recognized without lineage"
+    },
+    {
       "id": "oracle_mode_alter_table_modify_column",
       "file": "cases/oracle_mode_alter_table_modify_column.sql",
       "statementType": "ALTER_TABLE",
