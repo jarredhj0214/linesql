@@ -80,7 +80,7 @@ Implemented PostgreSQL scenarios:
 | COPY query TO keeps exported query lineage | `copy (select ... from mart.s) to stdout with csv header` | `copy_query_to_stdout` |
 | CREATE TABLE schema DDL | `create table mart.t (...)` | `create_table_schema` |
 | PostgreSQL table inheritance and partition DDL | `create unlogged table ... partition by ...`, `create table child partition of parent ...`, `create table child (...) inherits(parent)`, `alter table parent attach/detach partition child ...` | `create_unlogged_partitioned_table`, `create_partition_of_table`, `create_table_inherits`, `alter_table_attach_partition`, `alter_table_detach_partition` |
-| Schema and session control | `create schema ...`, `drop schema ...`, `set search_path to ...` | `create_schema`, `drop_schema`, `set_search_path` |
+| Schema, sequence, and session control | `create schema ...`, `drop schema ...`, `create/alter/drop sequence ...`, `set search_path to ...` | `create_schema`, `drop_schema`, `create_sequence`, `alter_sequence`, `drop_sequence`, `set_search_path` |
 | Function lifecycle DDL | `create or replace function ... returns ... language ... as ...`, `drop function ...` | `create_function`, `drop_function` |
 | Extension lifecycle control | `create extension if not exists ...`, `drop extension if exists ... cascade` | `create_extension`, `drop_extension` |
 | Table privilege statements | `grant select on table mart.t to role`, `revoke update on table mart.t from role` | `grant_table_privilege`, `revoke_table_privilege` |

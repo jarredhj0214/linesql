@@ -16,6 +16,7 @@ statement
     | createExtensionStatement                                       #createExtensionStmt
     | createSchemaStatement                                          #createSchemaStmt
     | createFunctionStatement                                        #createFunctionStmt
+    | schemaObjectControlStatement                                   #schemaObjectControlStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
@@ -390,6 +391,12 @@ createFunctionStatement
       AS string
     ;
 
+schemaObjectControlStatement
+    : CREATE (TEMPORARY | UNLOGGED)? SEQUENCE (IF NOT EXISTS)? multipartIdentifier .+?
+    | ALTER SEQUENCE (IF EXISTS)? multipartIdentifier .+?
+    | DROP SEQUENCE (IF EXISTS)? multipartIdentifier (CASCADE | RESTRICT)?
+    ;
+
 functionArgumentList
     : functionArgument (COMMA functionArgument)*
     ;
@@ -683,7 +690,7 @@ nonReservedKeyword
     | ANALYZE | COLUMN | COMMENT | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
     | ATTACH | DETACH | ENGINE | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
     | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PRECEDING | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | REVOKE | ROW | ROWS | SEPARATOR
-    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SET | SHOW | STDIN | STDOUT | SYSTEM | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
+    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | SHOW | STDIN | STDOUT | SYSTEM | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
     ;
 
 number

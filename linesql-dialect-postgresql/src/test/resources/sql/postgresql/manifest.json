@@ -867,6 +867,33 @@
         {"target": "mart.audit_events.created_at", "sources": []}
       ],
       "description": "PostgreSQL INSERT VALUES preserves target column lineage for generated or literal values"
+    },
+    {
+      "id": "create_sequence",
+      "file": "cases/create_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE SEQUENCE is accepted as schema-object control without synthetic table lineage"
+    },
+    {
+      "id": "alter_sequence",
+      "file": "cases/alter_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER SEQUENCE is accepted as schema-object control"
+    },
+    {
+      "id": "drop_sequence",
+      "file": "cases/drop_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP SEQUENCE is accepted as schema-object control"
     }
   ]
 }
