@@ -547,6 +547,15 @@
       "description": "OceanBase MySQL mode ALTER TABLE REBUILD PARTITION records the affected table"
     },
     {
+      "id": "mysql_mode_alter_table_check_partition",
+      "file": "cases/mysql_mode_alter_table_check_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.order_part"],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode ALTER TABLE CHECK PARTITION records the affected table"
+    },
+    {
       "id": "mysql_mode_alter_table_optimize_partition",
       "file": "cases/mysql_mode_alter_table_optimize_partition.sql",
       "statementType": "ALTER_TABLE",
