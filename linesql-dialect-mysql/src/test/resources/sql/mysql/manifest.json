@@ -7167,6 +7167,30 @@
       "description": "MySQL UNLOCK INSTANCE is accepted as a script-safe admin statement"
     },
     {
+      "id": "alter_instance_rotate_key",
+      "file": "cases/alter_instance_rotate_key.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL ALTER INSTANCE ROTATE INNODB MASTER KEY is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "alter_instance_reload_tls",
+      "file": "cases/alter_instance_reload_tls.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL ALTER INSTANCE RELOAD TLS is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "restart_statement",
+      "file": "cases/restart_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RESTART is accepted as a script-safe admin statement"
+    },
+    {
       "id": "clone_local_data_directory",
       "file": "cases/clone_local_data_directory.sql",
       "statementType": "CONTROL",
