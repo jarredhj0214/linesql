@@ -14,6 +14,7 @@ statement
     | deleteStatement                                                #deleteStmt
     | mergeStatement                                                 #mergeStmt
     | createIndexStatement                                           #createIndexStmt
+    | alterIndexStatement                                            #alterIndexStmt
     | createExtensionStatement                                       #createExtensionStmt
     | createSchemaStatement                                          #createSchemaStmt
     | createFunctionStatement                                        #createFunctionStmt
@@ -372,6 +373,12 @@ createIndexStatement
       LPAREN indexElementList RPAREN
       (INCLUDE LPAREN includeColumns=identifierList RPAREN)?
       (WHERE expression)?
+    ;
+
+alterIndexStatement
+    : ALTER INDEX (IF EXISTS)? source=multipartIdentifier RENAME TO target=identifier                #alterIndexRename
+    | ALTER INDEX (IF EXISTS)? source=multipartIdentifier SET SCHEMA targetSchema=identifier         #alterIndexSetSchema
+    | ALTER INDEX (IF EXISTS)? source=multipartIdentifier .+?                                        #alterIndexOther
     ;
 
 createExtensionStatement

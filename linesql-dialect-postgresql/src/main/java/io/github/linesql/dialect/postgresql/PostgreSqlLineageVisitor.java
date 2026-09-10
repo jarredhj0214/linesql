@@ -302,6 +302,39 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitAlterIndexStmt(PostgreSqlParser.AlterIndexStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterIndexRename(PostgreSqlParser.AlterIndexRenameContext ctx) {
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        outputTables.add(renamedTable(ctx.source, cleanIdentifier(ctx.target)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterIndexSetSchema(PostgreSqlParser.AlterIndexSetSchemaContext ctx) {
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        outputTables.add(tableInSchema(ctx.source, cleanIdentifier(ctx.targetSchema)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterIndexOther(PostgreSqlParser.AlterIndexOtherContext ctx) {
+        outputTables.add(tableRef(ctx.source));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
     private void addIdentifierListUsages(TableRef table,
                                         PostgreSqlParser.IdentifierListContext ctx,
                                         ColumnUsageType type) {

@@ -1118,6 +1118,33 @@
       "outputTables": ["archive.v_daily_orders"],
       "columnLineage": [],
       "description": "PostgreSQL ALTER VIEW SET SCHEMA records old and relocated view objects"
+    },
+    {
+      "id": "alter_index_rename",
+      "file": "cases/alter_index_rename.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["mart.idx_users_email"],
+      "outputTables": ["mart.idx_users_email_v2"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER INDEX RENAME records old and new index objects"
+    },
+    {
+      "id": "alter_index_set_schema",
+      "file": "cases/alter_index_set_schema.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["mart.idx_users_email"],
+      "outputTables": ["archive.idx_users_email"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER INDEX SET SCHEMA records old and relocated index objects"
+    },
+    {
+      "id": "alter_index_set_tablespace",
+      "file": "cases/alter_index_set_tablespace.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.idx_users_email"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER INDEX SET TABLESPACE records the affected index object"
     }
   ]
 }

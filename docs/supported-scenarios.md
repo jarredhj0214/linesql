@@ -98,7 +98,7 @@ Implemented PostgreSQL scenarios:
 | ALTER MATERIALIZED VIEW affected view | `alter materialized view mart.mv rename to mv2`, `alter materialized view mart.mv set schema archive` | `alter_materialized_view_rename`, `alter_materialized_view_set_schema` |
 | COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |
 | COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
-| CREATE INDEX affected table, index keys, included columns, and partial predicate columns | `create index concurrently idx on mart.t using btree(c) where flag = true`; `create index ... on mart.t (lower(c), ts desc) include (c2) where flag = true` | `create_index_partial`, `create_index_include_partial` |
+| Index lifecycle and affected objects | `create index concurrently idx on mart.t using btree(c) where flag = true`; `create index ... on mart.t (lower(c), ts desc) include (c2) where flag = true`; `alter index mart.idx rename to idx2`; `alter index mart.idx set schema archive`; `alter index mart.idx set tablespace fastspace` | `create_index_partial`, `create_index_include_partial`, `alter_index_rename`, `alter_index_set_schema`, `alter_index_set_tablespace` |
 | ANALYZE table metadata read | `analyze verbose mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `analyze_table` |
 | VACUUM affected table | `vacuum (full, analyze) mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `vacuum_table` |
 | REINDEX affected object | `reindex table concurrently mart.t`, `reindex index concurrently mart.idx_t_c` | `reindex_table`, `reindex_index` |
