@@ -4254,6 +4254,17 @@
       "description": "SQL Server SET NOCOUNT is classified as session control"
     },
     {
+      "id": "set_identity_insert",
+      "file": "cases/set_identity_insert.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server SET IDENTITY_INSERT records the affected table as a control output"
+    },
+    {
       "id": "execute_procedure",
       "file": "cases/execute_procedure.sql",
       "statementType": "CONTROL",

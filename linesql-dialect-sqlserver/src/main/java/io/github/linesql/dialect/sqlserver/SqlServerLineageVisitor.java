@@ -713,9 +713,18 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitSetStatement(SqlServerParser.SetStatementContext ctx) {
+    public Void visitSetOptionStatement(SqlServerParser.SetOptionStatementContext ctx) {
         collectSubqueryInputs(ctx);
         result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitSetIdentityInsertStatement(SqlServerParser.SetIdentityInsertStatementContext ctx) {
+        if ("identity_insert".equalsIgnoreCase(cleanIdentifier(ctx.optionName))) {
+            outputTables.add(tableRef(ctx.tableName));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
         return null;
     }
 

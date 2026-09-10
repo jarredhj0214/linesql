@@ -631,7 +631,8 @@ useStatement
     ;
 
 setStatement
-    : SET identifier (ON | OFF | EQ expression)?
+    : SET optionName=identifier tableName=multipartIdentifier (ON | OFF) #setIdentityInsertStatement
+    | SET identifier (ON | OFF | EQ expression)?                         #setOptionStatement
     ;
 
 executeStatement
