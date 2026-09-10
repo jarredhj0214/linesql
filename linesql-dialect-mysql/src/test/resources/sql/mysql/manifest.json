@@ -7106,6 +7106,22 @@
       "description": "MySQL SHOW BINARY LOGS is classified as a metadata read without table lineage"
     },
     {
+      "id": "show_binlog_events",
+      "file": "cases/show_binlog_events.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SHOW BINLOG EVENTS is classified as a metadata read without table lineage"
+    },
+    {
+      "id": "show_relaylog_events",
+      "file": "cases/show_relaylog_events.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SHOW RELAYLOG EVENTS is classified as a metadata read without table lineage"
+    },
+    {
       "id": "show_master_status",
       "file": "cases/show_master_status.sql",
       "statementType": "READ_METADATA",

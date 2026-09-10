@@ -1901,6 +1901,24 @@
       "description": "OceanBase MySQL mode SHOW BINARY LOGS is accepted as replication metadata"
     },
     {
+      "id": "mysql_mode_show_binlog_events",
+      "file": "cases/mysql_mode_show_binlog_events.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW BINLOG EVENTS is accepted as replication metadata"
+    },
+    {
+      "id": "mysql_mode_show_relaylog_events",
+      "file": "cases/mysql_mode_show_relaylog_events.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW RELAYLOG EVENTS is accepted as replication metadata"
+    },
+    {
       "id": "mysql_mode_show_master_status",
       "file": "cases/mysql_mode_show_master_status.sql",
       "statementType": "READ_METADATA",
