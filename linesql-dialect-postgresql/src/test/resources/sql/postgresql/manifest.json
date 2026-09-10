@@ -53,6 +53,37 @@
       "description": "PostgreSQL TABLESAMPLE BERNOULLI preserves sampled table and projection lineage"
     },
     {
+      "id": "select_for_update_skip_locked",
+      "file": "cases/select_for_update_skip_locked.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.jobs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.jobs.id"]},
+        {"target": "status", "sources": ["mart.jobs.status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.jobs.status"},
+        {"type": "ORDER_BY", "column": "mart.jobs.id"}
+      ],
+      "description": "PostgreSQL SELECT FOR UPDATE OF table SKIP LOCKED keeps query lineage and clause usage"
+    },
+    {
+      "id": "select_for_no_key_update_nowait",
+      "file": "cases/select_for_no_key_update_nowait.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.orders.id"]},
+        {"target": "amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.amount"}
+      ],
+      "description": "PostgreSQL SELECT FOR NO KEY UPDATE NOWAIT keeps query lineage"
+    },
+    {
       "id": "insert_select_returning",
       "file": "cases/insert_select_returning.sql",
       "statementType": "INSERT",

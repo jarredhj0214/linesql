@@ -71,6 +71,7 @@ Implemented PostgreSQL scenarios:
 | Basic SELECT source and columns | `select id as user_id, name from public.users` | `select_basic` |
 | JOIN source tables and projections | `select u.id, o.amount from users u join orders o ...` | `join_projection` |
 | TABLESAMPLE source lineage | `from t tablesample system (...) repeatable (...)`, `from t tablesample bernoulli (...)` | `select_tablesample_system`, `select_tablesample_bernoulli` |
+| SELECT row locking clauses | `for update of t skip locked`, `for no key update nowait` | `select_for_update_skip_locked`, `select_for_no_key_update_nowait` |
 | INSERT SELECT with RETURNING | `insert into mart.t select ... returning ...` | `insert_select_returning` |
 | INSERT SELECT with ON CONFLICT | `insert into mart.t select ... on conflict (...) do update set c = excluded.c`; `excluded.c` is resolved back to the insert source column when the insert target column list is known | `insert_on_conflict` |
 | PostgreSQL INSERT variants | `insert ... overriding system value select ...`, `insert ... on conflict on constraint ... do update ... where ...`, `insert ... default values`, `insert ... values (...)`; conflict `WHERE` columns are returned as `WHERE` usages | `insert_overriding_system_select`, `insert_on_conflict_constraint_where`, `insert_default_values`, `insert_values_target_columns` |
