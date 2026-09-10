@@ -163,7 +163,7 @@ Case coverage and benchmark methodology are tracked in [Benchmark and Coverage](
 | Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Column Usage |
 | --- | --- | --- | --- | --- | --- |
 | Spark | Active parser | Yes | Broad production SQL coverage | Broad production SQL coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
-| MySQL | Active parser | Yes | Broad SELECT, DML, DDL, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
+| MySQL | Active parser | Yes | Broad SELECT, DML, DDL, transaction, account, admin, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
 | Hive | Active parser | Yes | Common SELECT, DML, directory export, DDL, database lifecycle, repair/statistics statements, Hive query organization | Direct mappings, directory export columns, and common expressions | Predicate, grouping, ordering, window, sort/distribute/cluster usages |
 | Flink | Active parser | Yes | SELECT, DML, default/Hive-compatible DDL, connector/CDC DDL, materialized table, SQL Client utility, temporal join, window TVF, and MATCH_RECOGNIZE coverage | Direct mappings, common expressions, TVF generated columns, pattern measures | Common predicate, grouping, window descriptor, temporal join, pattern, and clause usages |
 | StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, warehouse, lifecycle, proc-path, and vertical-output metadata statement coverage | Direct mappings and common expressions | Predicate, clause, metadata/statistics, index, and table-model usages |

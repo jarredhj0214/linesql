@@ -6671,6 +6671,14 @@
       "description": "MySQL XA COMMIT ONE PHASE is accepted as distributed transaction control syntax"
     },
     {
+      "id": "xa_rollback",
+      "file": "cases/xa_rollback.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL XA ROLLBACK is accepted as distributed transaction control syntax"
+    },
+    {
       "id": "xa_recover",
       "file": "cases/xa_recover.sql",
       "statementType": "CONTROL",
