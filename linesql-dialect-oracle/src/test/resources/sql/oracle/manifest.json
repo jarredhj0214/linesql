@@ -997,6 +997,27 @@
       "description": "Oracle CREATE UNIQUE INDEX GLOBAL PARTITION BY HASH records affected table and index columns"
     },
     {
+      "id": "create_index_tablespace_online",
+      "file": "cases/create_index_tablespace_online.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "mart.orders.status"
+        },
+        {
+          "type": "INDEX",
+          "column": "mart.orders.created_at"
+        }
+      ],
+      "description": "Oracle CREATE INDEX with TABLESPACE, ONLINE, logging, parallel, and compression options records affected table and index columns"
+    },
+    {
       "id": "drop_view",
       "file": "cases/drop_view.sql",
       "statementType": "DROP_VIEW",
