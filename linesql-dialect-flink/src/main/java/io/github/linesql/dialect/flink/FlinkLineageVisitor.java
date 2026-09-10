@@ -489,6 +489,15 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterTableAddConstraint(FlinkParser.AlterTableAddConstraintContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addIdentifierListUsages(target, ctx.identifierList());
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableAddHiveColumns(FlinkParser.AlterTableAddHiveColumnsContext ctx) {
         return addAlteredTable(ctx.multipartIdentifier());
     }
@@ -580,6 +589,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableDropPrimaryKey(FlinkParser.AlterTableDropPrimaryKeyContext ctx) {
+        return addAlteredTable(ctx.multipartIdentifier());
+    }
+
+    @Override
+    public Void visitAlterTableDropConstraint(FlinkParser.AlterTableDropConstraintContext ctx) {
         return addAlteredTable(ctx.multipartIdentifier());
     }
 

@@ -655,6 +655,7 @@ alterTableStatement
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier RENAME identifier TO identifier         #alterTableRenameColumn
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier ADD COLUMN? tableElement columnPosition? #alterTableAddColumn
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier CHANGE COLUMN? identifier tableElement columnPosition? (CASCADE | RESTRICT)? #alterTableChangeColumn
+    | ALTER TABLE (IF existsKeyword)? multipartIdentifier ADD CONSTRAINT identifier PRIMARY KEY LPAREN identifierList RPAREN NOT ENFORCED #alterTableAddConstraint
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier ADD COLUMNS LPAREN tableElementList RPAREN (CASCADE | RESTRICT)? #alterTableAddHiveColumns
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier ADD LPAREN alterTableElementList RPAREN #alterTableAddColumns
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier REPLACE COLUMNS LPAREN tableElementList RPAREN (CASCADE | RESTRICT)? #alterTableReplaceColumns
@@ -671,6 +672,7 @@ alterTableStatement
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier ADD (distributionClause | alterDistributionClause) #alterTableAddDistribution
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier DROP DISTRIBUTION                       #alterTableDropDistribution
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier DROP PRIMARY KEY                        #alterTableDropPrimaryKey
+    | ALTER TABLE (IF existsKeyword)? multipartIdentifier DROP CONSTRAINT identifier              #alterTableDropConstraint
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier DROP WATERMARK                          #alterTableDropWatermark
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier RESET LPAREN stringList RPAREN          #alterTableResetProperties
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier alterTableAction                        #alterTableOther

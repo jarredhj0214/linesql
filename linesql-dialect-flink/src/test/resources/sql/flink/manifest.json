@@ -3207,6 +3207,38 @@
       "description": "Flink ALTER TABLE ADD DISTRIBUTION"
     },
     {
+      "id": "alter_table_add_constraint_primary_key",
+      "file": "cases/alter_table_add_constraint_primary_key.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.orders.order_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.orders.dt"
+        }
+      ],
+      "description": "Flink ALTER TABLE ADD CONSTRAINT PRIMARY KEY records table-model columns"
+    },
+    {
+      "id": "alter_table_drop_constraint",
+      "file": "cases/alter_table_drop_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink ALTER TABLE DROP CONSTRAINT affected table"
+    },
+    {
       "id": "alter_table_drop_watermark",
       "file": "cases/alter_table_drop_watermark.sql",
       "statementType": "ALTER_TABLE",
