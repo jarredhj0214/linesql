@@ -7044,6 +7044,46 @@
       "description": "MySQL FLUSH PRIVILEGES is accepted as a script-safe admin statement"
     },
     {
+      "id": "flush_tables_with_read_lock",
+      "file": "cases/flush_tables_with_read_lock.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL FLUSH TABLES WITH READ LOCK is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "flush_named_tables",
+      "file": "cases/flush_named_tables.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL FLUSH TABLES with table names is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "flush_binary_logs",
+      "file": "cases/flush_binary_logs.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL FLUSH BINARY LOGS is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "flush_hosts",
+      "file": "cases/flush_hosts.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL FLUSH HOSTS is accepted as a script-safe admin statement"
+    },
+    {
+      "id": "flush_no_write_to_binlog_status",
+      "file": "cases/flush_no_write_to_binlog_status.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL FLUSH NO_WRITE_TO_BINLOG STATUS is accepted as a script-safe admin statement"
+    },
+    {
       "id": "kill_query",
       "file": "cases/kill_query.sql",
       "statementType": "CONTROL",

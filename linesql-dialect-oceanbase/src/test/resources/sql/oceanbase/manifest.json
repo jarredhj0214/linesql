@@ -1901,6 +1901,33 @@
       "description": "OceanBase MySQL mode FLUSH PRIVILEGES is accepted as admin control"
     },
     {
+      "id": "mysql_mode_flush_tables_with_read_lock",
+      "file": "cases/mysql_mode_flush_tables_with_read_lock.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode FLUSH TABLES WITH READ LOCK is accepted as admin control"
+    },
+    {
+      "id": "mysql_mode_flush_binary_logs",
+      "file": "cases/mysql_mode_flush_binary_logs.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode FLUSH BINARY LOGS is accepted as admin control"
+    },
+    {
+      "id": "mysql_mode_flush_hosts",
+      "file": "cases/mysql_mode_flush_hosts.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode FLUSH HOSTS is accepted as admin control"
+    },
+    {
       "id": "mysql_mode_kill_query",
       "file": "cases/mysql_mode_kill_query.sql",
       "statementType": "CONTROL",

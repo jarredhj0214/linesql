@@ -1,0 +1,1 @@
+flush no_write_to_binlog status

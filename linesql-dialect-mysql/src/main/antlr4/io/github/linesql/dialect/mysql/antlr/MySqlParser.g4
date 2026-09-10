@@ -1163,7 +1163,7 @@ roleName
     ;
 
 adminStatement
-    : FLUSH (TABLES | PRIVILEGES | STATUS | LOGS | .+?)
+    : FLUSH (NO_WRITE_TO_BINLOG | LOCAL)? .+?
     | KILL (CONNECTION | QUERY)? number
     | LOCK INSTANCE FOR BACKUP
     | UNLOCK INSTANCE

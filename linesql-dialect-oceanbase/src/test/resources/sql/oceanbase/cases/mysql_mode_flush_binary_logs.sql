@@ -1,0 +1,1 @@
+flush binary logs
