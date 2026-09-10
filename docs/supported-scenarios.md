@@ -1083,7 +1083,7 @@ Implemented Flink table-level lineage scenarios:
 | ANALYZE TABLE statistics metadata read | `analyze table t compute statistics for all columns`; `analyze table t partition(...) compute statistics for columns c1, c2` | `analyze_table_statistics`, `analyze_table_all_columns`, `analyze_table_partition_columns` |
 | CALL and JOB utility statements | `call system.generate_n(4); show jobs; describe job '...'; stop job '...' with savepoint`; `stop job '...' with drain`; `stop job '...' with savepoint with drain` | `call_catalog_procedure`, `show_jobs`, `describe_job`, `stop_job_with_savepoint`, `stop_job_with_drain`, `stop_job_with_savepoint_drain` |
 | EXPLAIN wrapped lineage | `explain plan for select ...`; `explain estimated_cost, changelog_mode insert into ... select ...` | `explain_plan_for_select`, `explain_details_insert` |
-| Compiled plan utility statements | `compile plan '...' for insert into ... select ...`; `execute plan '...'` | `compile_plan_insert`, `execute_plan_file` |
+| Compiled plan utility statements | `compile plan '...' for insert into/overwrite ... select ...`; `execute plan '...'` | `compile_plan_insert`, `compile_plan_insert_overwrite`, `execute_plan_file` |
 
 Implemented Flink column-level lineage scenarios:
 
@@ -1148,7 +1148,7 @@ Implemented Flink column-level lineage scenarios:
 | Hive-compatible query organization | `sort by ...`; `distribute by ... sort by ...`; `cluster by ...` | `hive_sort_by`, `hive_distribute_sort_by`, `hive_cluster_by` |
 | Hive-compatible LIMIT offset form | `limit 20, 100` | `hive_limit_offset_rows` |
 | CREATE OR REPLACE / REPLACE TABLE AS SELECT output mapping | `create or replace table ads.t with (...) as select ... from dwd.s group by ...; replace table ads.t (...) as select ... from dwd.s` | `replace_table_as_select`, `replace_table_standalone_as_select` |
-| COMPILE PLAN inner INSERT output mapping | `compile plan '...' for insert into ads.t select c1 from dwd.s` | `compile_plan_insert` |
+| COMPILE PLAN inner INSERT output mapping | `compile plan '...' for insert into/overwrite ads.t select c1 from dwd.s` | `compile_plan_insert`, `compile_plan_insert_overwrite` |
 | CTAS explicit column-list remapping | `create table t (target_a, target_b) as select source_x, source_y from s` | `create_table_ctas_reordered_columns` |
 | ALTER VIEW AS query output mapping | `alter view ads.v as select ... from dwd.s group by ...` | `alter_view_as_query` |
 | Materialized table query output mapping | `create materialized table ... as select ...; alter materialized table ... as select ...` | `create_materialized_table_as_select`, `create_materialized_table_range_distribution`, `alter_materialized_table_as_select` |

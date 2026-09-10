@@ -5970,6 +5970,38 @@
       "description": "Flink COMPILE PLAN keeps inner INSERT SELECT lineage while classifying as metadata read"
     },
     {
+      "id": "compile_plan_insert_overwrite",
+      "file": "cases/compile_plan_insert_overwrite.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads.order_amounts"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.order_amounts.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads.order_amounts.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Flink COMPILE PLAN keeps inner INSERT OVERWRITE SELECT lineage while classifying as metadata read"
+    },
+    {
       "id": "execute_plan_file",
       "file": "cases/execute_plan_file.sql",
       "statementType": "CONTROL",
