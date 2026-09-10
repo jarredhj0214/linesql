@@ -108,6 +108,7 @@ public class OceanBaseDialectParser implements DialectParser {
                 || normalized.matches("(?s)^\\s*drop\\s+(public\\s+)?(sequence|synonym)\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+(public\\s+)?database\\s+link\\b.*")
                 || normalized.matches("(?s)^\\s*drop\\s+(public\\s+)?database\\s+link\\b.*")
+                || normalized.matches("(?s)^\\s*flashback\\s+table\\b.*\\bto\\s+(before\\s+drop|scn|timestamp|restore\\s+point)\\b.*")
                 || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
                 || normalized.matches("(?s).*\\bfor\\s+update\\s+of\\b.*\\bskip\\s+locked\\b.*")
                 || normalized.matches("(?s).*\\bfor\\s+update\\s+of\\b.*\\bwait\\s+\\d+\\b.*")

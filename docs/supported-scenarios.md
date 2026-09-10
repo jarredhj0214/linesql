@@ -340,7 +340,7 @@ Implemented OceanBase scenarios:
 | Recyclebin metadata read | `show recyclebin`, `show recyclebin where object_name like ...` | `control_show_recyclebin`, `control_show_recyclebin_where` |
 | Parameter metadata read | `show parameters like ...`, `show parameters tenant = all like ...` | `control_show_parameters_like`, `control_show_parameters_tenant_like` |
 | Purge recyclebin objects | `purge recyclebin`, `purge table app.t`, `purge index app.idx`, `purge database db`, `purge tenant tenant_a` | `control_purge_recyclebin`, `control_purge_table`, `control_purge_index`, `control_purge_database`, `control_purge_tenant` |
-| Flashback dropped table | `flashback table app.t to before drop`, `flashback table app.t to before drop rename to app.t_restored` | `control_flashback_table_before_drop`, `control_flashback_table_rename` |
+| Flashback dropped table and Oracle-mode table recovery | `flashback table app.t to before drop`, `flashback table app.t to before drop rename to app.t_restored`, `flashback table app.t to scn ...`, `flashback table app.t to timestamp ...`, `flashback table app.t to restore point ...` | `control_flashback_table_before_drop`, `control_flashback_table_rename`, `oracle_mode_flashback_table_scn`, `oracle_mode_flashback_table_timestamp`, `oracle_mode_flashback_table_restore_point` |
 
 Known OceanBase gaps:
 

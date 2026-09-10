@@ -4191,6 +4191,36 @@
       "description": "OceanBase FLASHBACK TABLE TO BEFORE DROP RENAME TO records original and restored table objects"
     },
     {
+      "id": "oracle_mode_flashback_table_scn",
+      "file": "cases/oracle_mode_flashback_table_scn.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["app.orders"],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "OceanBase Oracle mode FLASHBACK TABLE TO SCN records the affected table"
+    },
+    {
+      "id": "oracle_mode_flashback_table_timestamp",
+      "file": "cases/oracle_mode_flashback_table_timestamp.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["app.orders"],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "OceanBase Oracle mode FLASHBACK TABLE TO TIMESTAMP records the affected table"
+    },
+    {
+      "id": "oracle_mode_flashback_table_restore_point",
+      "file": "cases/oracle_mode_flashback_table_restore_point.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["app.orders"],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "OceanBase Oracle mode FLASHBACK TABLE TO RESTORE POINT records the affected table"
+    },
+    {
       "id": "control_flashback_tenant_before_drop",
       "file": "cases/control_flashback_tenant_before_drop.sql",
       "statementType": "CONTROL",
