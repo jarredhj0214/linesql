@@ -26,6 +26,33 @@
       "description": "PostgreSQL JOIN source tables and projection lineage"
     },
     {
+      "id": "select_tablesample_system",
+      "file": "cases/select_tablesample_system.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.orders.id"]},
+        {"target": "amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.amount"}
+      ],
+      "description": "PostgreSQL TABLESAMPLE SYSTEM with REPEATABLE preserves sampled table and column lineage"
+    },
+    {
+      "id": "select_tablesample_bernoulli",
+      "file": "cases/select_tablesample_bernoulli.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["ods.events.user_id"]},
+        {"target": "event_time", "sources": ["ods.events.event_time"]}
+      ],
+      "description": "PostgreSQL TABLESAMPLE BERNOULLI preserves sampled table and projection lineage"
+    },
+    {
       "id": "insert_select_returning",
       "file": "cases/insert_select_returning.sql",
       "statementType": "INSERT",
