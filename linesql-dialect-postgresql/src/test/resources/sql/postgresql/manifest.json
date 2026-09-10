@@ -1181,6 +1181,33 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL DROP TYPE IF EXISTS is accepted as type control DDL"
+    },
+    {
+      "id": "create_domain_email",
+      "file": "cases/create_domain_email.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE DOMAIN is accepted as domain control DDL"
+    },
+    {
+      "id": "alter_domain_set_default",
+      "file": "cases/alter_domain_set_default.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER DOMAIN SET DEFAULT is accepted as domain control DDL"
+    },
+    {
+      "id": "drop_domain_if_exists",
+      "file": "cases/drop_domain_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP DOMAIN IF EXISTS is accepted as domain control DDL"
     }
   ]
 }

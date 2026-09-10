@@ -341,6 +341,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitDomainStmt(PostgreSqlParser.DomainStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
     private void addIdentifierListUsages(TableRef table,
                                         PostgreSqlParser.IdentifierListContext ctx,
                                         ColumnUsageType type) {

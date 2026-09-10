@@ -16,6 +16,7 @@ statement
     | createIndexStatement                                           #createIndexStmt
     | alterIndexStatement                                            #alterIndexStmt
     | typeStatement                                                  #typeStmt
+    | domainStatement                                                #domainStmt
     | createExtensionStatement                                       #createExtensionStmt
     | createSchemaStatement                                          #createSchemaStmt
     | createFunctionStatement                                        #createFunctionStmt
@@ -391,6 +392,12 @@ typeStatement
 
 typeAttribute
     : identifier dataType
+    ;
+
+domainStatement
+    : CREATE DOMAIN multipartIdentifier AS? dataType .+?
+    | ALTER DOMAIN multipartIdentifier .+?
+    | DROP DOMAIN (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
     ;
 
 createExtensionStatement
@@ -804,7 +811,7 @@ strictIdentifier
 
 nonReservedKeyword
     : ADD | AFTER | ASC | AUTO_INCREMENT | BEFORE | CAST | CASCADE | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
-    | ANALYZE | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
+    | ANALYZE | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
     | ATTACH | CHECK | DETACH | ENGINE | ENUM | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
     | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR
     | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | BEGIN | START | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN

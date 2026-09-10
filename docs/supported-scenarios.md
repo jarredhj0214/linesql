@@ -100,6 +100,7 @@ Implemented PostgreSQL scenarios:
 | COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
 | Index lifecycle and affected objects | `create index concurrently idx on mart.t using btree(c) where flag = true`; `create index ... on mart.t (lower(c), ts desc) include (c2) where flag = true`; `alter index mart.idx rename to idx2`; `alter index mart.idx set schema archive`; `alter index mart.idx set tablespace fastspace` | `create_index_partial`, `create_index_include_partial`, `alter_index_rename`, `alter_index_set_schema`, `alter_index_set_tablespace` |
 | Type lifecycle control | `create type mart.status as enum (...)`, `create type mart.item as (...)`, `alter type mart.status add value ...`, `drop type if exists mart.status cascade` | `create_type_enum`, `create_type_composite`, `alter_type_add_value`, `drop_type_if_exists` |
+| Domain lifecycle control | `create domain mart.email as text check (...)`, `alter domain mart.email set default ...`, `drop domain if exists mart.email restrict` | `create_domain_email`, `alter_domain_set_default`, `drop_domain_if_exists` |
 | ANALYZE table metadata read | `analyze verbose mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `analyze_table` |
 | VACUUM affected table | `vacuum (full, analyze) mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `vacuum_table` |
 | REINDEX affected object | `reindex table concurrently mart.t`, `reindex index concurrently mart.idx_t_c` | `reindex_table`, `reindex_index` |
