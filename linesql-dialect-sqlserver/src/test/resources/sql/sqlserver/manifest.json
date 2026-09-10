@@ -4225,6 +4225,33 @@
       "description": "SQL Server ALTER SCHEMA TRANSFER OBJECT:: records source and relocated object"
     },
     {
+      "id": "create_database_control",
+      "file": "cases/create_database_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CREATE DATABASE is accepted as database control DDL"
+    },
+    {
+      "id": "alter_database_control",
+      "file": "cases/alter_database_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server ALTER DATABASE is accepted as database control DDL"
+    },
+    {
+      "id": "drop_database_control",
+      "file": "cases/drop_database_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DROP DATABASE is accepted as database control DDL"
+    },
+    {
       "id": "create_type_alias",
       "file": "cases/create_type_alias.sql",
       "statementType": "CONTROL",

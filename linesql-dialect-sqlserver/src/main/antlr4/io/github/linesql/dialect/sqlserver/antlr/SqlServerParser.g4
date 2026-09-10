@@ -18,6 +18,7 @@ statement
     | alterIndexStatement                                            #alterIndexStmt
     | dropStatisticsStatement                                        #dropStatisticsStmt
     | dropIndexStatement                                             #dropIndexStmt
+    | databaseStatement                                              #databaseStmt
     | createSchemaStatement                                          #createSchemaStmt
     | alterSchemaStatement                                           #alterSchemaStmt
     | typeStatement                                                  #typeStmt
@@ -554,6 +555,12 @@ scalarVariableDeclaration
 
 createSchemaStatement
     : CREATE SCHEMA identifier
+    ;
+
+databaseStatement
+    : CREATE DATABASE identifier .*?
+    | ALTER DATABASE identifier .+?
+    | DROP DATABASE (IF EXISTS)? identifier
     ;
 
 alterSchemaStatement
