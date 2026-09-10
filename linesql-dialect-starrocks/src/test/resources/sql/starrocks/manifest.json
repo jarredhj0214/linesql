@@ -5275,6 +5275,15 @@
       "description": "StarRocks START TRANSACTION control statement"
     },
     {
+      "id": "begin_transaction_control",
+      "file": "cases/begin_transaction_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks BEGIN transaction control statement"
+    },
+    {
       "id": "commit_control",
       "file": "cases/commit_control.sql",
       "statementType": "CONTROL",
