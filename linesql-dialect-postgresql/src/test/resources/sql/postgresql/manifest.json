@@ -929,6 +929,42 @@
       "outputTables": ["mart.users"],
       "columnLineage": [],
       "description": "PostgreSQL DROP POLICY records the affected table without inventing column lineage"
+    },
+    {
+      "id": "create_publication_for_tables",
+      "file": "cases/create_publication_for_tables.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users", "sales.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE PUBLICATION FOR TABLE records published source tables"
+    },
+    {
+      "id": "alter_publication_add_table",
+      "file": "cases/alter_publication_add_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.payments"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER PUBLICATION ADD TABLE records newly referenced tables"
+    },
+    {
+      "id": "create_publication_all_tables",
+      "file": "cases/create_publication_all_tables.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE PUBLICATION FOR ALL TABLES is accepted without synthetic table lineage"
+    },
+    {
+      "id": "drop_publication",
+      "file": "cases/drop_publication.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP PUBLICATION is accepted as logical-replication control"
     }
   ]
 }

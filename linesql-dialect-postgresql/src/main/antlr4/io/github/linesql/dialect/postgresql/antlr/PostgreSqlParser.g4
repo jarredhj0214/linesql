@@ -18,6 +18,7 @@ statement
     | createFunctionStatement                                        #createFunctionStmt
     | schemaObjectControlStatement                                   #schemaObjectControlStmt
     | policyStatement                                                #policyStmt
+    | publicationStatement                                           #publicationStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
@@ -423,6 +424,29 @@ policyPredicate
     | WITH CHECK LPAREN expression RPAREN
     ;
 
+publicationStatement
+    : CREATE PUBLICATION identifier FOR publicationTarget publicationOptions?
+    | ALTER PUBLICATION identifier (ADD | SET | DROP) publicationTarget publicationOptions?
+    | DROP PUBLICATION (IF EXISTS)? identifierList (CASCADE | RESTRICT)?
+    ;
+
+publicationTarget
+    : TABLE publicationTableList
+    | ALL TABLES
+    ;
+
+publicationTableList
+    : ONLY? multipartIdentifier (COMMA ONLY? multipartIdentifier)*
+    ;
+
+publicationOptions
+    : WITH LPAREN publicationOption (COMMA publicationOption)* RPAREN
+    ;
+
+publicationOption
+    : identifier EQ (identifier | string | number | TRUE | FALSE)
+    ;
+
 functionArgumentList
     : functionArgument (COMMA functionArgument)*
     ;
@@ -715,8 +739,8 @@ nonReservedKeyword
     : ADD | ASC | AUTO_INCREMENT | CAST | CASCADE | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
     | ANALYZE | COLUMN | COMMENT | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
     | ATTACH | CHECK | DETACH | ENGINE | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
-    | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR
-    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | SHOW | STDIN | STDOUT | SYSTEM | TABLE | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
+    | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR
+    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | SHOW | STDIN | STDOUT | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
     ;
 
 number

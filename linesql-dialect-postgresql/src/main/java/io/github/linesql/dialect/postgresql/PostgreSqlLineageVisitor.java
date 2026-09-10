@@ -359,6 +359,28 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitPublicationStmt(PostgreSqlParser.PublicationStmtContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitPublicationStatement(PostgreSqlParser.PublicationStatementContext ctx) {
+        PostgreSqlParser.PublicationTableListContext tableList = ctx.publicationTarget() == null
+                ? null
+                : ctx.publicationTarget().publicationTableList();
+        if (tableList == null) {
+            result.setStatementType(StatementType.CONTROL);
+            return null;
+        }
+        result.setStatementType(StatementType.READ_METADATA);
+        for (PostgreSqlParser.MultipartIdentifierContext table : tableList.multipartIdentifier()) {
+            inputTables.add(tableRef(table));
+        }
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStmt(PostgreSqlParser.CreateTableStmtContext ctx) {
         return visitChildren(ctx);
     }
