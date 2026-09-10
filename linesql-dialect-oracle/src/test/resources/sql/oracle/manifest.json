@@ -4097,6 +4097,33 @@
         {"type": "TABLE_MODEL", "column": "mart.sales_forecast.sales_amount"}
       ],
       "description": "Oracle MODEL KEEP NAV preserves measure alias lineage"
+    },
+    {
+      "id": "create_sequence",
+      "file": "cases/create_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE SEQUENCE is accepted as schema-object control without synthetic table lineage"
+    },
+    {
+      "id": "alter_sequence",
+      "file": "cases/alter_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ALTER SEQUENCE is accepted as schema-object control"
+    },
+    {
+      "id": "drop_sequence",
+      "file": "cases/drop_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DROP SEQUENCE is accepted as schema-object control"
     }
   ]
 }
