@@ -1010,6 +1010,24 @@
       "outputTables": ["mart.users"],
       "columnLineage": [],
       "description": "PostgreSQL ALTER TABLE FORCE ROW LEVEL SECURITY records the affected table"
+    },
+    {
+      "id": "alter_materialized_view_rename",
+      "file": "cases/alter_materialized_view_rename.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": ["mart.mv_daily_orders"],
+      "outputTables": ["mart.mv_daily_orders_v2"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER MATERIALIZED VIEW RENAME records old and new materialized view objects"
+    },
+    {
+      "id": "alter_materialized_view_set_schema",
+      "file": "cases/alter_materialized_view_set_schema.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": ["mart.mv_daily_orders"],
+      "outputTables": ["archive.mv_daily_orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER MATERIALIZED VIEW SET SCHEMA records old and relocated materialized view objects"
     }
   ]
 }

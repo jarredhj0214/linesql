@@ -84,7 +84,7 @@ These domains are the shared planning vocabulary across dialects.
 | StarRocks | `linesql-dialect-starrocks/src/main/antlr4/io/github/linesql/dialect/starrocks/antlr/StarRocksParser.g4` | Lightweight lineage grammar with StarRocks table model, load/unload, task, metadata, resource, warehouse, and lifecycle syntax. |
 | Oracle | `linesql-dialect-oracle/src/main/antlr4/io/github/linesql/dialect/oracle/antlr/OracleParser.g4` | Lightweight lineage grammar with Oracle query, DML, schema object, synonym reference, and materialized-view refresh/build anchors. |
 | SQL Server | `linesql-dialect-sqlserver/src/main/antlr4/io/github/linesql/dialect/sqlserver/antlr/SqlServerParser.g4` | Lightweight lineage grammar with SQL Server query, temporal-table reads, JSON/XML output suffixes, DML, APPLY/table-valued functions, OPENJSON WITH schema, table hints, DML OUTPUT, synonym, trigger, and online index option anchors. |
-| PostgreSQL | `linesql-dialect-postgresql/src/main/antlr4/io/github/linesql/dialect/postgresql/antlr/PostgreSqlParser.g4` | Dedicated lightweight lineage grammar for common PostgreSQL query and DML syntax. |
+| PostgreSQL | `linesql-dialect-postgresql/src/main/antlr4/io/github/linesql/dialect/postgresql/antlr/PostgreSqlParser.g4` | Dedicated lightweight lineage grammar for common PostgreSQL query, DML, materialized-view lifecycle, and maintenance syntax. |
 | OceanBase | `linesql-dialect-oceanbase/src/main/java/io/github/linesql/dialect/oceanbase/OceanBaseDialectParser.java` | Compatibility-mode parser that delegates to MySQL or Oracle lineage domains, including Oracle-style DBLink, synonym, flashback, and materialized-view patterns. |
 
 ## Dialect Variant Policy

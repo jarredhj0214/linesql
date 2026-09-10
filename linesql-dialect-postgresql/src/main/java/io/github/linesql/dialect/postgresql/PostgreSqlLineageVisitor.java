@@ -518,6 +518,39 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterMaterializedViewStmt(PostgreSqlParser.AlterMaterializedViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterMaterializedViewRename(PostgreSqlParser.AlterMaterializedViewRenameContext ctx) {
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        outputTables.add(renamedTable(ctx.source, cleanIdentifier(ctx.target)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterMaterializedViewSetSchema(PostgreSqlParser.AlterMaterializedViewSetSchemaContext ctx) {
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        outputTables.add(tableInSchema(ctx.source, cleanIdentifier(ctx.targetSchema)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterMaterializedViewOther(PostgreSqlParser.AlterMaterializedViewOtherContext ctx) {
+        outputTables.add(tableRef(ctx.source));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitTruncateTableStmt(PostgreSqlParser.TruncateTableStmtContext ctx) {
         result.setStatementType(StatementType.TRUNCATE_TABLE);
         return visitChildren(ctx);
@@ -1753,6 +1786,31 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private static TableRef tableRef(PostgreSqlParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
         return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private static TableRef renamedTable(PostgreSqlParser.MultipartIdentifierContext ctx, String name) {
+        List<String> parts = identifierParts(ctx);
+        if (parts.isEmpty()) {
+            parts.add(name);
+        } else {
+            parts.set(parts.size() - 1, name);
+        }
+        return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private static TableRef tableInSchema(PostgreSqlParser.MultipartIdentifierContext ctx, String schema) {
+        List<String> parts = identifierParts(ctx);
+        if (parts.size() >= 3) {
+            List<String> relocated = new ArrayList<>();
+            relocated.add(parts.get(parts.size() - 3));
+            relocated.add(schema);
+            relocated.add(parts.get(parts.size() - 1));
+            return LineageModelUtils.tableRefFromParts(relocated);
+        }
+        List<String> relocated = new ArrayList<>();
+        relocated.add(schema);
+        relocated.add(parts.isEmpty() ? "" : parts.get(parts.size() - 1));
+        return LineageModelUtils.tableRefFromParts(relocated);
     }
 
     private static List<String> identifierParts(PostgreSqlParser.MultipartIdentifierContext ctx) {

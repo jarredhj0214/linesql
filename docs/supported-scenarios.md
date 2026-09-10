@@ -95,6 +95,7 @@ Implemented PostgreSQL scenarios:
 | CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.mv as select ... from mart.s`, `create materialized view mart.mv as select ... with no data` | `create_materialized_view`, `create_materialized_view_with_no_data` |
 | VALUES and set-returning function relations | `values (...)`; `from (values (...)) as v(c)`; `cross join lateral jsonb_array_elements_text(t.tags) as e(value)` | `values_query`, `derived_values_table`, `lateral_jsonb_array_elements` |
 | REFRESH MATERIALIZED VIEW affected view | `refresh materialized view concurrently mart.mv` | `refresh_materialized_view` |
+| ALTER MATERIALIZED VIEW affected view | `alter materialized view mart.mv rename to mv2`, `alter materialized view mart.mv set schema archive` | `alter_materialized_view_rename`, `alter_materialized_view_set_schema` |
 | COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |
 | COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
 | CREATE INDEX affected table, index keys, included columns, and partial predicate columns | `create index concurrently idx on mart.t using btree(c) where flag = true`; `create index ... on mart.t (lower(c), ts desc) include (c2) where flag = true` | `create_index_partial`, `create_index_include_partial` |
