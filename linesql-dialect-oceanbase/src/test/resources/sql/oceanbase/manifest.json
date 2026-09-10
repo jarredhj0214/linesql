@@ -2447,6 +2447,21 @@
       "description": "OceanBase Oracle mode CREATE UNIQUE INDEX GLOBAL PARTITION BY HASH records affected table and index columns"
     },
     {
+      "id": "oracle_mode_create_index_tablespace_online",
+      "file": "cases/oracle_mode_create_index_tablespace_online.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.orders.status"},
+        {"type": "INDEX", "column": "mart.orders.created_at"}
+      ],
+      "description": "OceanBase Oracle mode CREATE INDEX with TABLESPACE, ONLINE, logging, parallel, and compression options records affected table and index columns"
+    },
+    {
       "id": "oracle_mode_drop_index",
       "file": "cases/oracle_mode_drop_index.sql",
       "statementType": "ALTER_TABLE",
