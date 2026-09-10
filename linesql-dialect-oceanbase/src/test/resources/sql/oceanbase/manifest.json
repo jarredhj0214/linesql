@@ -1838,6 +1838,24 @@
       "description": "OceanBase MySQL mode DROP USER is accepted as account control"
     },
     {
+      "id": "mysql_mode_rename_user",
+      "file": "cases/mysql_mode_rename_user.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode RENAME USER is accepted as account control"
+    },
+    {
+      "id": "mysql_mode_set_password_for_user",
+      "file": "cases/mysql_mode_set_password_for_user.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SET PASSWORD FOR user is accepted as account control"
+    },
+    {
       "id": "mysql_mode_create_role",
       "file": "cases/mysql_mode_create_role.sql",
       "statementType": "CONTROL",

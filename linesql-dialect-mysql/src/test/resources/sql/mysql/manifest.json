@@ -6978,6 +6978,22 @@
       "description": "MySQL DROP USER IF EXISTS is accepted as a script-safe account statement"
     },
     {
+      "id": "rename_user",
+      "file": "cases/rename_user.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RENAME USER is accepted as a script-safe account statement"
+    },
+    {
+      "id": "set_password_for_user",
+      "file": "cases/set_password_for_user.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SET PASSWORD FOR user is accepted as a script-safe account statement"
+    },
+    {
       "id": "show_create_user",
       "file": "cases/show_create_user.sql",
       "statementType": "READ_METADATA",

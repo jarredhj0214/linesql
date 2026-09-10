@@ -1123,6 +1123,8 @@ accountStatement
     | CREATE ROLE (IF NOT EXISTS)? roleNameList
     | DROP ROLE (IF EXISTS)? roleNameList
     | SET ROLE .+?
+    | RENAME USER roleName TO roleName (COMMA roleName TO roleName)*
+    | SET PASSWORD (FOR roleName)? EQ .+?
     | GRANT .+?
     | REVOKE .+?
     ;
