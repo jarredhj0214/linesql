@@ -274,6 +274,7 @@ Implemented OceanBase scenarios:
 | Oracle mode CREATE SEQUENCE | `create sequence ods.seq_order_id start with 1 increment by 1` | `oracle_mode_create_sequence` |
 | Oracle mode ALTER SEQUENCE | `alter sequence ods.seq_order_id increment by 10` | `oracle_mode_alter_sequence` |
 | Oracle mode DROP SEQUENCE | `drop sequence ods.seq_order_id` | `oracle_mode_drop_sequence` |
+| Oracle mode TYPE lifecycle | `create type app.t as object (...)`, `create type app.t_list as table of app.t`, `drop type app.t force` | `oracle_mode_create_type_object`, `oracle_mode_create_type_table`, `oracle_mode_drop_type_force` |
 | Oracle mode CREATE SYNONYM | `create or replace synonym app.orders_syn for ods.orders`, `create synonym app.s for ods.t@link`; returns the referenced table as an input and the synonym as an output | `oracle_mode_create_synonym`, `oracle_mode_create_synonym_for_dblink` |
 | Oracle mode CREATE PUBLIC SYNONYM | `create public synonym orders_syn for ods.orders`; returns the referenced table as an input and the public synonym as an output | `oracle_mode_create_public_synonym` |
 | Oracle mode DROP SYNONYM | `drop synonym app.orders_syn`; returns the affected synonym object as an output | `oracle_mode_drop_synonym` |

@@ -3547,6 +3547,33 @@
       "description": "OceanBase Oracle mode ALTER SEQUENCE is accepted as a table-free schema object statement"
     },
     {
+      "id": "oracle_mode_create_type_object",
+      "file": "cases/oracle_mode_create_type_object.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE TYPE AS OBJECT is accepted as a table-free schema object statement"
+    },
+    {
+      "id": "oracle_mode_create_type_table",
+      "file": "cases/oracle_mode_create_type_table.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE TYPE AS TABLE is accepted as a table-free schema object statement"
+    },
+    {
+      "id": "oracle_mode_drop_type_force",
+      "file": "cases/oracle_mode_drop_type_force.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DROP TYPE FORCE is accepted as a table-free schema object statement"
+    },
+    {
       "id": "oracle_mode_create_synonym",
       "file": "cases/oracle_mode_create_synonym.sql",
       "statementType": "CONTROL",
