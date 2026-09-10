@@ -763,6 +763,25 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitBackupRestoreStmt(SqlServerParser.BackupRestoreStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitDbccStmt(SqlServerParser.DbccStmtContext ctx) {
+        SqlServerParser.DbccStatementContext statement = ctx.dbccStatement();
+        if (statement.multipartIdentifier() != null) {
+            result.setStatementType(StatementType.READ_METADATA);
+            inputTables.add(tableRef(statement.multipartIdentifier()));
+            result.setInputTables(new ArrayList<>(inputTables));
+            return null;
+        }
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitScriptControlStmt(SqlServerParser.ScriptControlStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;

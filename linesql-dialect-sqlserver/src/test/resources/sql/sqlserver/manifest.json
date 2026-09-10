@@ -4528,6 +4528,58 @@
         {"type": "WHERE", "column": "ods.users.status"}
       ],
       "description": "SQL Server ALTER VIEW preserves target view columns and query lineage"
+    },
+    {
+      "id": "backup_database_control",
+      "file": "cases/backup_database_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server BACKUP DATABASE is accepted as a control statement"
+    },
+    {
+      "id": "backup_log_control",
+      "file": "cases/backup_log_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server BACKUP LOG is accepted as a control statement"
+    },
+    {
+      "id": "restore_database_control",
+      "file": "cases/restore_database_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server RESTORE DATABASE is accepted as a control statement"
+    },
+    {
+      "id": "dbcc_checkdb_control",
+      "file": "cases/dbcc_checkdb_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DBCC CHECKDB is accepted as a control statement"
+    },
+    {
+      "id": "dbcc_checktable_metadata",
+      "file": "cases/dbcc_checktable_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DBCC CHECKTABLE records the checked table as a metadata read"
     }
   ]
 }

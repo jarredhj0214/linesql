@@ -41,6 +41,8 @@ statement
     | setStatement                                                   #setStmt
     | executeStatement                                               #executeStmt
     | transactionStatement                                           #transactionStmt
+    | backupRestoreStatement                                         #backupRestoreStmt
+    | dbccStatement                                                  #dbccStmt
     | scriptControlStatement                                         #scriptControlStmt
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
@@ -659,6 +661,17 @@ transactionStatement
     | SAVE (TRAN | TRANSACTION) identifier
     ;
 
+backupRestoreStatement
+    : BACKUP (DATABASE | LOG) multipartIdentifier .+?
+    | RESTORE DATABASE multipartIdentifier .+?
+    ;
+
+dbccStatement
+    : DBCC CHECKTABLE LPAREN multipartIdentifier RPAREN .*?
+    | DBCC CHECKDB LPAREN? (identifier | string)? RPAREN? .*?
+    | DBCC .+?
+    ;
+
 scriptControlStatement
     : IF .+?
     | BEGIN TRY .+? END TRY BEGIN CATCH .+? END CATCH
@@ -762,10 +775,10 @@ strictIdentifier
 
 nonReservedKeyword
     : ADD | APPLY | ASC | CAST | COLLATE | COLUMN | COMMENT | CONTAINED | DEFAULT
-    | BEGIN | CLUSTERED | COMMIT | DECLARE | DESCRIBE | DESC | DISABLE | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
-    | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
+    | BACKUP | BEGIN | CHECKDB | CHECKTABLE | CLUSTERED | COMMIT | DATABASE | DBCC | DECLARE | DESCRIBE | DESC | DISABLE | DISK | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
+    | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | LOG | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
     | FETCH | FIRST | FOR | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
-    | AFTER | CATCH | CUBE | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REORGANIZE | RETURN | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
+    | AFTER | CATCH | CUBE | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REORGANIZE | RESTORE | RETURN | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
     | CONVERT
     | UNIQUE | WITHIN | XML
     ;
