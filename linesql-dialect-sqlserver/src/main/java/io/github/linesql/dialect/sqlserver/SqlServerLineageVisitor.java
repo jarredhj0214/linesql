@@ -513,6 +513,18 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateFunctionStmt(SqlServerParser.CreateFunctionStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterFunctionStmt(SqlServerParser.AlterFunctionStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_ROUTINE);
+        return null;
+    }
+
+    @Override
     public Void visitCreateTriggerStmt(SqlServerParser.CreateTriggerStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_TRIGGER);
         return visitChildren(ctx);
@@ -674,6 +686,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropProcedureStmt(SqlServerParser.DropProcedureStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitDropFunctionStmt(SqlServerParser.DropFunctionStmtContext ctx) {
         result.setStatementType(StatementType.DROP_ROUTINE);
         return null;
     }

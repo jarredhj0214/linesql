@@ -4288,6 +4288,24 @@
       "description": "SQL Server CREATE OR ALTER PROCEDURE is classified as routine lifecycle DDL without table lineage"
     },
     {
+      "id": "create_or_alter_function",
+      "file": "cases/create_or_alter_function.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CREATE OR ALTER FUNCTION is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "alter_function",
+      "file": "cases/alter_function.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server ALTER FUNCTION is classified as routine lifecycle DDL without table lineage"
+    },
+    {
       "id": "create_or_alter_trigger",
       "file": "cases/create_or_alter_trigger.sql",
       "statementType": "CREATE_TRIGGER",
@@ -4306,6 +4324,15 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "SQL Server DROP PROCEDURE is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "drop_function_if_exists",
+      "file": "cases/drop_function_if_exists.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DROP FUNCTION IF EXISTS is classified as routine lifecycle DDL"
     },
     {
       "id": "drop_trigger_if_exists",

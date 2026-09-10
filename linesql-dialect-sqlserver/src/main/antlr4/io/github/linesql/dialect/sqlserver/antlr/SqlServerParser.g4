@@ -24,6 +24,7 @@ statement
     | typeStatement                                                  #typeStmt
     | createSynonymStatement                                         #createSynonymStmt
     | createProcedureStatement                                       #createProcedureStmt
+    | createFunctionStatement                                        #createFunctionStmt
     | createTriggerStatement                                         #createTriggerStmt
     | createTableStatement                                           #createTableStmt
     | declareTableVariableStatement                                  #declareTableVariableStmt
@@ -33,11 +34,13 @@ statement
     | dropSchemaStatement                                            #dropSchemaStmt
     | dropSynonymStatement                                           #dropSynonymStmt
     | dropProcedureStatement                                         #dropProcedureStmt
+    | dropFunctionStatement                                          #dropFunctionStmt
     | dropTriggerStatement                                           #dropTriggerStmt
     | dropTableStatement                                             #dropTableStmt
     | dropViewStatement                                              #dropViewStmt
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
+    | alterFunctionStatement                                         #alterFunctionStmt
     | useStatement                                                   #useStmt
     | setStatement                                                   #setStmt
     | executeStatement                                               #executeStmt
@@ -581,6 +584,14 @@ createProcedureStatement
     : CREATE (OR ALTER)? PROCEDURE multipartIdentifier .+?
     ;
 
+createFunctionStatement
+    : CREATE (OR ALTER)? FUNCTION multipartIdentifier .+?
+    ;
+
+alterFunctionStatement
+    : ALTER FUNCTION multipartIdentifier .+?
+    ;
+
 createTriggerStatement
     : CREATE (OR ALTER)? TRIGGER multipartIdentifier ON multipartIdentifier .+?
     ;
@@ -621,6 +632,10 @@ dropSynonymStatement
 
 dropProcedureStatement
     : DROP PROCEDURE (IF EXISTS)? multipartIdentifier
+    ;
+
+dropFunctionStatement
+    : DROP FUNCTION (IF EXISTS)? multipartIdentifier
     ;
 
 dropTriggerStatement
@@ -785,7 +800,7 @@ nonReservedKeyword
     | BACKUP | BEGIN | CHECKDB | CHECKTABLE | CLUSTERED | COMMIT | DATABASE | DBCC | DECLARE | DESCRIBE | DESC | DISABLE | DISK | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
     | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | LOG | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
     | FETCH | FIRST | FOR | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
-    | AFTER | CATCH | CUBE | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REORGANIZE | RESTORE | RETURN | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
+    | AFTER | CATCH | CUBE | FUNCTION | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REORGANIZE | RESTORE | RETURN | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
     | CONVERT
     | UNIQUE | WITHIN | XML
     ;
