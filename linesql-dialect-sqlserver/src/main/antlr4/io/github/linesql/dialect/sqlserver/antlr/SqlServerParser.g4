@@ -26,6 +26,7 @@ statement
     | declareTableVariableStatement                                  #declareTableVariableStmt
     | declareScalarVariableStatement                                 #declareScalarVariableStmt
     | createViewStatement                                            #createViewStmt
+    | alterViewStatement                                             #alterViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
     | dropSynonymStatement                                           #dropSynonymStmt
     | dropProcedureStatement                                         #dropProcedureStmt
@@ -564,6 +565,13 @@ createTriggerStatement
 
 createViewStatement
     : CREATE (OR (REPLACE | ALTER))? VIEW (IF NOT EXISTS)? multipartIdentifier
+      (LPAREN viewColumnList=identifierList RPAREN)?
+      viewOptionClause?
+      AS query
+    ;
+
+alterViewStatement
+    : ALTER VIEW multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       viewOptionClause?
       AS query

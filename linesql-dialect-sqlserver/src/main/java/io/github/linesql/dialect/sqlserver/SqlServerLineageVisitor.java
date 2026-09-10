@@ -573,6 +573,29 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterViewStmt(SqlServerParser.AlterViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterViewStatement(SqlServerParser.AlterViewStatementContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        if (ctx.viewColumnList != null) {
+            for (SqlServerParser.IdentifierContext id : ctx.viewColumnList.identifier()) {
+                insertTargetColumns.add(cleanIdentifier(id));
+            }
+        }
+        visit(ctx.query());
+        refreshColumnLineage();
+        retargetColumnLineage(target);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitDropTableStmt(SqlServerParser.DropTableStmtContext ctx) {
         result.setStatementType(StatementType.DROP_TABLE);
         return visitChildren(ctx);

@@ -4408,6 +4408,25 @@
         {"type": "WHERE", "column": "ods.users.status"}
       ],
       "description": "SQL Server INSERT into table variable keeps source-to-target column lineage"
+    },
+    {
+      "id": "alter_view",
+      "file": "cases/alter_view.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.v_user_columns"
+      ],
+      "columnLineage": [
+        {"target": "ads.v_user_columns.uid", "sources": ["ods.users.id"]},
+        {"target": "ads.v_user_columns.uname", "sources": ["ods.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.status"}
+      ],
+      "description": "SQL Server ALTER VIEW preserves target view columns and query lineage"
     }
   ]
 }

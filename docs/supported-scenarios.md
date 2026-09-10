@@ -373,6 +373,7 @@ Implemented SQL Server table-level lineage scenarios:
 | CREATE VIEW AS SELECT | `create view ads.v as select ... from ods.s join dwd.o`, `create view ... with schemabinding as select ...` | `create_view`, `create_view_with_schemabinding` |
 | CREATE OR ALTER VIEW AS SELECT | `create or alter view dbo.v as select ... from dbo.s` | `create_or_alter_view` |
 | CREATE OR REPLACE VIEW AS SELECT | `create or replace view ads.v as select ... from ods.s` | `create_or_replace_view` |
+| ALTER VIEW AS SELECT | `alter view ads.v(c1, c2) as select ... from ods.s where ...` | `alter_view` |
 | INSERT SELECT over CTE | `insert into ads.t with q as (...) select ... from q` | `insert_from_cte` |
 | DML OUTPUT INTO audit tables | `insert/update/delete ... output inserted/deleted.c into audit.t(...)`, `output inserted.* into audit.t`, `output deleted.* into audit.t`, `delete alias output ... from ... join ...`, `output ... into @table_variable`, `output ... into #temp`, `with q as (...) update ... output ... into audit.t from q`, `output deleted.*, inserted.* into audit.t` | `insert_output_into`, `insert_output_wildcard_into`, `insert_output_table_variable`, `update_output_into`, `update_output_wildcard_into`, `update_output_table_variable`, `with_update_output_from_cte`, `delete_alias_output_from_join`, `delete_output_into`, `delete_output_wildcard_into`, `delete_output_table_variable`, `delete_output_temp_table` |
 | WITH before INSERT SELECT | `with q as (...) insert into ads.t select ... from q` | `with_insert_select` |
@@ -433,6 +434,7 @@ Implemented SQL Server column-level lineage scenarios:
 | CREATE VIEW output column targets | `create view ads.v as select u.id from ods.users u`, `create view ... with schemabinding as select ...` | `create_view`, `create_view_with_schemabinding` |
 | CREATE VIEW over aliased/expression/aggregate projections | `create view ads.v as select a as c1, upper(b), count(c) ...` | `create_view_expression_projection` |
 | CREATE VIEW column list target names | `create view ads.v(c1, c2) as select a, b from ods.s` | `create_view_column_list` |
+| ALTER VIEW output column targets | `alter view ads.v(c1, c2) as select a, b from ods.s` | `alter_view` |
 | INSERT SELECT target mapping over CTE | `insert into ads.t with q as (...) select q.c1 from q` | `insert_from_cte` |
 | WITH before INSERT SELECT target mapping | `with q as (...) insert into ads.t(c1) select q.c1 from q` | `with_insert_select` |
 | INSERT target column list over subquery propagation | `insert into ads.t(c1) select c1 from (select a as c1 from ods.s) q` | `insert_from_subquery` |
