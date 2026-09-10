@@ -741,7 +741,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitReindexStatement(PostgreSqlParser.ReindexStatementContext ctx) {
-        if (ctx.TABLE() != null) {
+        if (ctx.TABLE() != null || ctx.INDEX() != null) {
             outputTables.add(tableRef(ctx.multipartIdentifier()));
             result.setOutputTables(new ArrayList<>(outputTables));
         }

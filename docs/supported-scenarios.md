@@ -101,7 +101,7 @@ Implemented PostgreSQL scenarios:
 | CREATE INDEX affected table, index keys, included columns, and partial predicate columns | `create index concurrently idx on mart.t using btree(c) where flag = true`; `create index ... on mart.t (lower(c), ts desc) include (c2) where flag = true` | `create_index_partial`, `create_index_include_partial` |
 | ANALYZE table metadata read | `analyze verbose mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `analyze_table` |
 | VACUUM affected table | `vacuum (full, analyze) mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `vacuum_table` |
-| REINDEX TABLE affected table | `reindex table concurrently mart.t` | `reindex_table` |
+| REINDEX affected object | `reindex table concurrently mart.t`, `reindex index concurrently mart.idx_t_c` | `reindex_table`, `reindex_index` |
 | DROP TABLE affected table | `drop table if exists mart.t`, `drop table if exists mart.t restrict` | `drop_table`, `drop_table_restrict` |
 | DROP VIEW affected view | `drop view if exists mart.v`, `drop view if exists mart.v cascade` | `drop_view`, `drop_view_cascade` |
 | DROP MATERIALIZED VIEW affected view | `drop materialized view if exists mart.mv` | `drop_materialized_view` |
