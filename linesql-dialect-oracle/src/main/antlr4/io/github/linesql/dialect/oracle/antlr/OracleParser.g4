@@ -7,7 +7,8 @@ singleStatement
     ;
 
 statement
-    : query                                                          #statementDefault
+    : transactionStatement                                           #transactionStmt
+    | query                                                          #statementDefault
     | insertStatement                                                #insertStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
@@ -29,7 +30,6 @@ statement
     | lockTableStatement                                             #lockTableStmt
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
-    | transactionStatement                                           #transactionStmt
     | alterSessionStatement                                          #alterSessionStmt
     | alterMaterializedViewStatement                                 #alterMaterializedViewStmt
     | alterTableStatement                                            #alterTableStmt
@@ -702,6 +702,7 @@ transactionStatement
     : COMMIT
     | ROLLBACK
     | SAVEPOINT identifier
+    | SET TRANSACTION (READ (ONLY | WRITE) | ISOLATION LEVEL identifier)
     ;
 
 privilegeList
@@ -860,9 +861,9 @@ nonReservedKeyword
     | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFINER | DEMAND | DESCRIBE | DESC | DUAL | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
     | BULK | CHECK | COLLECT | COMPLETE | FAST | FETCH | FIRST | FOR | FORCE | FUNCTION | GRANT | IF | IMMEDIATE | INDEX | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NULL
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
-    | KEY | NOCYCLE | NULLS | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PUBLIC | PURGE | READ | RENAME | REPLACE | REUSE | ROW | ROWS
+    | KEY | NOCYCLE | NULLS | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PUBLIC | PURGE | READ | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS
     | CURRENT | UNBOUNDED | PRECEDING | FOLLOWING
-    | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
+    | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | TRANSACTION | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
     | TRUNCATE | VALUES | VIEW | DATE | ESTIMATE | LINK | NOWAIT | OVERFLOW | RETURNING | SCN | TIES | TIMESTAMP | UNIQUE | VALIDATE | WAIT | WITHIN | WITHOUT
     | SKIP_KEYWORD | LOCK | LOCKED | MODE | SHARE | EXCLUSIVE
     | PIVOT | UNPIVOT | MATCH_RECOGNIZE | MODEL | MEASURES | DIMENSION | RULES | UPSERT | UPDATED | IGNORE | KEEP | NAV

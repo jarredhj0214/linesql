@@ -3815,6 +3815,33 @@
       "description": "Oracle SAVEPOINT transaction control is recognized without lineage"
     },
     {
+      "id": "set_transaction_read_only",
+      "file": "cases/set_transaction_read_only.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle SET TRANSACTION READ ONLY is recognized without lineage"
+    },
+    {
+      "id": "set_transaction_read_write",
+      "file": "cases/set_transaction_read_write.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle SET TRANSACTION READ WRITE is recognized without lineage"
+    },
+    {
+      "id": "set_transaction_isolation",
+      "file": "cases/set_transaction_isolation.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle SET TRANSACTION ISOLATION LEVEL is recognized without lineage"
+    },
+    {
       "id": "alter_table_modify_column",
       "file": "cases/alter_table_modify_column.sql",
       "statementType": "ALTER_TABLE",
