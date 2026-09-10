@@ -1586,6 +1586,33 @@
       "description": "OceanBase MySQL mode START TRANSACTION READ WRITE is accepted as a table-free control statement"
     },
     {
+      "id": "mysql_mode_set_transaction_read_only",
+      "file": "cases/mysql_mode_set_transaction_read_only.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SET TRANSACTION READ ONLY is accepted as transaction control"
+    },
+    {
+      "id": "mysql_mode_set_transaction_isolation_repeatable_read",
+      "file": "cases/mysql_mode_set_transaction_isolation_repeatable_read.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ is accepted as transaction control"
+    },
+    {
+      "id": "mysql_mode_set_transaction_isolation_read_committed",
+      "file": "cases/mysql_mode_set_transaction_isolation_read_committed.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED is accepted as transaction control"
+    },
+    {
       "id": "mysql_mode_xa_start",
       "file": "cases/mysql_mode_xa_start.sql",
       "statementType": "CONTROL",
