@@ -31,6 +31,7 @@ statement
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
     | alterSessionStatement                                          #alterSessionStmt
+    | alterSystemStatement                                           #alterSystemStmt
     | alterMaterializedViewStatement                                 #alterMaterializedViewStmt
     | alterTableStatement                                            #alterTableStmt
     | analyzeTableStatement                                          #analyzeTableStmt
@@ -721,6 +722,10 @@ alterSessionStatement
     : ALTER SESSION SET identifier EQ? expression
     ;
 
+alterSystemStatement
+    : ALTER SYSTEM (SET | RESET) .+?
+    ;
+
 alterMaterializedViewStatement
     : ALTER MATERIALIZED VIEW multipartIdentifier .+?
     ;
@@ -863,7 +868,7 @@ nonReservedKeyword
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
     | KEY | NOCYCLE | NULLS | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PUBLIC | PURGE | READ | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS
     | CURRENT | UNBOUNDED | PRECEDING | FOLLOWING
-    | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | TRANSACTION | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
+    | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | SYSTEM | TRANSACTION | RESET | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
     | TRUNCATE | VALUES | VIEW | DATE | ESTIMATE | LINK | NOWAIT | OVERFLOW | RETURNING | SCN | TIES | TIMESTAMP | UNIQUE | VALIDATE | WAIT | WITHIN | WITHOUT
     | SKIP_KEYWORD | LOCK | LOCKED | MODE | SHARE | EXCLUSIVE
     | PIVOT | UNPIVOT | MATCH_RECOGNIZE | MODEL | MEASURES | DIMENSION | RULES | UPSERT | UPDATED | IGNORE | KEEP | NAV

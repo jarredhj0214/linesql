@@ -3352,6 +3352,24 @@
       "description": "Oracle ALTER SESSION current_schema is classified as session control"
     },
     {
+      "id": "alter_system_set_scope",
+      "file": "cases/alter_system_set_scope.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ALTER SYSTEM SET with SCOPE option is classified as system control"
+    },
+    {
+      "id": "alter_system_reset_scope",
+      "file": "cases/alter_system_reset_scope.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle ALTER SYSTEM RESET with SCOPE and SID options is classified as system control"
+    },
+    {
       "id": "create_procedure",
       "file": "cases/create_procedure.sql",
       "statementType": "CREATE_ROUTINE",

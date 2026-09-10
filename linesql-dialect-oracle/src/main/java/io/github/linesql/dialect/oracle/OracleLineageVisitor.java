@@ -460,6 +460,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterSystemStmt(OracleParser.AlterSystemStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitAlterMaterializedViewStmt(OracleParser.AlterMaterializedViewStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         outputTables.add(tableRef(ctx.alterMaterializedViewStatement().multipartIdentifier()));
