@@ -4436,6 +4436,51 @@
       "description": "SQL Server DECLARE scalar variables is accepted as table-free script control"
     },
     {
+      "id": "if_drop_table_control",
+      "file": "cases/if_drop_table_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server IF control flow is accepted without inferring branch lineage"
+    },
+    {
+      "id": "try_catch_transaction_control",
+      "file": "cases/try_catch_transaction_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server TRY CATCH script block is accepted as control flow"
+    },
+    {
+      "id": "print_message_control",
+      "file": "cases/print_message_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server PRINT message statement is accepted as script control"
+    },
+    {
+      "id": "raiserror_control",
+      "file": "cases/raiserror_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server RAISERROR statement is accepted as script control"
+    },
+    {
+      "id": "return_status_control",
+      "file": "cases/return_status_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server RETURN statement is accepted as script control"
+    },
+    {
       "id": "set_variable_scalar_subquery",
       "file": "cases/set_variable_scalar_subquery.sql",
       "statementType": "CONTROL",

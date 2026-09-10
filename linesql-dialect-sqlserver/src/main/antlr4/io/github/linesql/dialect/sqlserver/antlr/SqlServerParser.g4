@@ -41,6 +41,7 @@ statement
     | setStatement                                                   #setStmt
     | executeStatement                                               #executeStmt
     | transactionStatement                                           #transactionStmt
+    | scriptControlStatement                                         #scriptControlStmt
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
     | showStatement                                                  #showStmt
@@ -658,6 +659,15 @@ transactionStatement
     | SAVE (TRAN | TRANSACTION) identifier
     ;
 
+scriptControlStatement
+    : IF .+?
+    | BEGIN TRY .+? END TRY BEGIN CATCH .+? END CATCH
+    | PRINT .+?
+    | THROW .+?
+    | RAISERROR .+?
+    | RETURN .*?
+    ;
+
 grantStatement
     : GRANT .+? ON objectScope? multipartIdentifier TO .+?
     ;
@@ -755,7 +765,7 @@ nonReservedKeyword
     | BEGIN | CLUSTERED | COMMIT | DECLARE | DESCRIBE | DESC | DISABLE | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
     | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
     | FETCH | FIRST | FOR | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
-    | AFTER | CUBE | PERSISTED | PRIMARY | PROCEDURE | REBUILD | RECOMPILE | REORGANIZE | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
+    | AFTER | CATCH | CUBE | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REORGANIZE | RETURN | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
     | CONVERT
     | UNIQUE | WITHIN | XML
     ;
