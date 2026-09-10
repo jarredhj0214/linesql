@@ -1145,6 +1145,42 @@
       "outputTables": ["mart.idx_users_email"],
       "columnLineage": [],
       "description": "PostgreSQL ALTER INDEX SET TABLESPACE records the affected index object"
+    },
+    {
+      "id": "create_type_enum",
+      "file": "cases/create_type_enum.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE TYPE AS ENUM is accepted as type control DDL"
+    },
+    {
+      "id": "create_type_composite",
+      "file": "cases/create_type_composite.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE TYPE AS composite is accepted as type control DDL"
+    },
+    {
+      "id": "alter_type_add_value",
+      "file": "cases/alter_type_add_value.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TYPE ADD VALUE is accepted as type control DDL"
+    },
+    {
+      "id": "drop_type_if_exists",
+      "file": "cases/drop_type_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP TYPE IF EXISTS is accepted as type control DDL"
     }
   ]
 }

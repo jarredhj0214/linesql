@@ -15,6 +15,7 @@ statement
     | mergeStatement                                                 #mergeStmt
     | createIndexStatement                                           #createIndexStmt
     | alterIndexStatement                                            #alterIndexStmt
+    | typeStatement                                                  #typeStmt
     | createExtensionStatement                                       #createExtensionStmt
     | createSchemaStatement                                          #createSchemaStmt
     | createFunctionStatement                                        #createFunctionStmt
@@ -379,6 +380,17 @@ alterIndexStatement
     : ALTER INDEX (IF EXISTS)? source=multipartIdentifier RENAME TO target=identifier                #alterIndexRename
     | ALTER INDEX (IF EXISTS)? source=multipartIdentifier SET SCHEMA targetSchema=identifier         #alterIndexSetSchema
     | ALTER INDEX (IF EXISTS)? source=multipartIdentifier .+?                                        #alterIndexOther
+    ;
+
+typeStatement
+    : CREATE TYPE multipartIdentifier AS ENUM LPAREN string (COMMA string)* RPAREN
+    | CREATE TYPE multipartIdentifier AS LPAREN typeAttribute (COMMA typeAttribute)* RPAREN
+    | ALTER TYPE multipartIdentifier ADD VALUE (IF NOT EXISTS)? string ((BEFORE | AFTER) string)?
+    | DROP TYPE (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
+    ;
+
+typeAttribute
+    : identifier dataType
     ;
 
 createExtensionStatement
@@ -791,11 +803,11 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ASC | AUTO_INCREMENT | CAST | CASCADE | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
+    : ADD | AFTER | ASC | AUTO_INCREMENT | BEFORE | CAST | CASCADE | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
     | ANALYZE | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
-    | ATTACH | CHECK | DETACH | ENGINE | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
+    | ATTACH | CHECK | DETACH | ENGINE | ENUM | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
     | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR
-    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | BEGIN | START | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
+    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | BEGIN | START | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
     ;
 
 number
