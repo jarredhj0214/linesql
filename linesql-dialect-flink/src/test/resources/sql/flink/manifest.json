@@ -2859,6 +2859,19 @@
       "description": "Flink CREATE TABLE LIKE with include/exclude options and additional watermark"
     },
     {
+      "id": "create_table_like_all_overwriting_options",
+      "file": "cases/create_table_like_all_overwriting_options.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "dwd.orders_copy"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE TABLE LIKE with INCLUDING ALL and OVERWRITING OPTIONS"
+    },
+    {
       "id": "replace_table_as_select",
       "file": "cases/replace_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
