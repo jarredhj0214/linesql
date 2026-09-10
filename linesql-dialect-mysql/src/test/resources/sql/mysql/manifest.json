@@ -7645,6 +7645,24 @@
       "description": "MySQL INSTALL PLUGIN control statement"
     },
     {
+      "id": "install_component",
+      "file": "cases/install_component.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL INSTALL COMPONENT control statement"
+    },
+    {
+      "id": "uninstall_plugin",
+      "file": "cases/uninstall_plugin.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL UNINSTALL PLUGIN control statement"
+    },
+    {
       "id": "uninstall_component",
       "file": "cases/uninstall_component.sql",
       "statementType": "CONTROL",

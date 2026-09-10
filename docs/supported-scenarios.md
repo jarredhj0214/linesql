@@ -1532,7 +1532,7 @@ Implemented MySQL table-level lineage scenarios:
 | MySQL control expressions with scalar subqueries | `call app.p((select max(ts) from app.users))`, `do (select count(*) from app.orders)` | `call_scalar_subquery_input`, `do_scalar_subquery_input` |
 | MySQL schema/database control DDL | `create database ...`, `drop schema ...`, `alter database ... default character set ...`, `alter schema default encryption = ...` | `create_database`, `drop_schema`, `alter_database_charset`, `alter_schema_encryption` |
 | MySQL tablespace control DDL | `create tablespace ts add datafile ... engine=...`, `create undo tablespace ...`, `alter tablespace ...`, `alter undo tablespace ...`, `drop tablespace ...` | `create_tablespace`, `create_undo_tablespace`, `alter_tablespace_rename`, `alter_undo_tablespace_active`, `drop_tablespace` |
-| MySQL plugin/component and federated server control | `install plugin ... soname ...`, `uninstall component ...`, `create/alter/drop server ... options (...)` | `install_plugin`, `uninstall_component`, `create_server`, `alter_server`, `drop_server` |
+| MySQL plugin/component and federated server control | `install plugin ... soname ...`, `uninstall plugin ...`, `install component ...`, `uninstall component ...`, `create/alter/drop server ... options (...)` | `install_plugin`, `uninstall_plugin`, `install_component`, `uninstall_component`, `create_server`, `alter_server`, `drop_server` |
 | MySQL resource group control | `create/alter/drop resource group ...`, `set resource group ... for ...` | `create_resource_group`, `alter_resource_group`, `drop_resource_group`, `set_resource_group` |
 
 Implemented MySQL column-level lineage scenarios:
