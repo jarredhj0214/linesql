@@ -216,7 +216,7 @@ Implemented OceanBase scenarios:
 | MySQL mode trailing SELECT INTO OUTFILE | `select ... from app.t where ... into outfile '/tmp/x.csv'` | `mysql_mode_select_trailing_into_outfile` |
 | MySQL mode LOAD XML | `load xml infile ... into table ods.t rows identified by ...`, `load xml ... set c = ...` | `mysql_mode_load_xml_rows_identified`, `mysql_mode_load_xml_set_assignments` |
 | MySQL mode transaction start | `start transaction with consistent snapshot, read write`, `start transaction read write, with consistent snapshot` | `mysql_mode_start_transaction_snapshot`, `mysql_mode_start_transaction_read_write` |
-| MySQL mode XA transaction control | `xa start`, `xa end ... suspend for migrate`, `xa prepare`, `xa commit ... one phase`, `xa recover convert xid` | `mysql_mode_xa_start`, `mysql_mode_xa_end_suspend`, `mysql_mode_xa_prepare`, `mysql_mode_xa_commit_one_phase`, `mysql_mode_xa_recover` |
+| MySQL mode XA transaction control | `xa start`, `xa end ... suspend for migrate`, `xa prepare`, `xa commit ... one phase`, `xa rollback`, `xa recover convert xid` | `mysql_mode_xa_start`, `mysql_mode_xa_end_suspend`, `mysql_mode_xa_prepare`, `mysql_mode_xa_commit_one_phase`, `mysql_mode_xa_rollback`, `mysql_mode_xa_recover` |
 | MySQL mode transaction commit | `commit and chain` | `mysql_mode_commit_chain` |
 | MySQL mode savepoint lifecycle | `savepoint sp`, `rollback to savepoint sp`, `release savepoint sp` | `mysql_mode_savepoint`, `mysql_mode_rollback_to_savepoint`, `mysql_mode_release_savepoint` |
 | MySQL mode session and variable settings | `set global undo_retention = 900`, `set names ... collate ...`, `set character set ...` | `mysql_mode_set_global_undo_retention`, `mysql_mode_set_names_collate`, `mysql_mode_set_character_set` |

@@ -1622,6 +1622,15 @@
       "description": "OceanBase MySQL mode XA COMMIT ONE PHASE is accepted as distributed transaction control"
     },
     {
+      "id": "mysql_mode_xa_rollback",
+      "file": "cases/mysql_mode_xa_rollback.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode XA ROLLBACK is accepted as distributed transaction control"
+    },
+    {
       "id": "mysql_mode_xa_recover",
       "file": "cases/mysql_mode_xa_recover.sql",
       "statementType": "CONTROL",
