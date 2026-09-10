@@ -20,6 +20,7 @@ statement
     | dropIndexStatement                                             #dropIndexStmt
     | createSchemaStatement                                          #createSchemaStmt
     | alterSchemaStatement                                           #alterSchemaStmt
+    | typeStatement                                                  #typeStmt
     | createSynonymStatement                                         #createSynonymStmt
     | createProcedureStatement                                       #createProcedureStmt
     | createTriggerStatement                                         #createTriggerStmt
@@ -556,6 +557,12 @@ alterSchemaStatement
     : ALTER SCHEMA targetSchema=identifier TRANSFER objectScope? source=multipartIdentifier
     ;
 
+typeStatement
+    : CREATE TYPE multipartIdentifier FROM dataType (NULL | NOT NULL)?
+    | CREATE TYPE multipartIdentifier AS TABLE LPAREN tableElementList RPAREN
+    | DROP TYPE (IF EXISTS)? multipartIdentifier
+    ;
+
 createSynonymStatement
     : CREATE SYNONYM multipartIdentifier FOR multipartIdentifier
     ;
@@ -748,7 +755,7 @@ nonReservedKeyword
     | BEGIN | CLUSTERED | COMMIT | DECLARE | DESCRIBE | DESC | DISABLE | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
     | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
     | FETCH | FIRST | FOR | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
-    | AFTER | CUBE | PERSISTED | PRIMARY | PROCEDURE | REBUILD | RECOMPILE | REORGANIZE | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY_CAST | TRY_CONVERT | TRUNCATE | USE | VALUES | VIEW
+    | AFTER | CUBE | PERSISTED | PRIMARY | PROCEDURE | REBUILD | RECOMPILE | REORGANIZE | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
     | CONVERT
     | UNIQUE | WITHIN | XML
     ;

@@ -479,6 +479,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitTypeStmt(SqlServerParser.TypeStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitCreateSynonymStmt(SqlServerParser.CreateSynonymStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return visitChildren(ctx);

@@ -45,6 +45,7 @@ NOT: N O T;
 TEMPORARY: T E M P O R A R Y;
 TABLE: T A B L E;
 VIEW: V I E W;
+TYPE: T Y P E;
 IF: I F;
 EXISTS: E X I S T S;
 EXEC: E X E C;

@@ -4225,6 +4225,33 @@
       "description": "SQL Server ALTER SCHEMA TRANSFER OBJECT:: records source and relocated object"
     },
     {
+      "id": "create_type_alias",
+      "file": "cases/create_type_alias.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CREATE TYPE alias is accepted as type control DDL"
+    },
+    {
+      "id": "create_type_table",
+      "file": "cases/create_type_table.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CREATE TYPE AS TABLE is accepted as type control DDL"
+    },
+    {
+      "id": "drop_type_if_exists",
+      "file": "cases/drop_type_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DROP TYPE IF EXISTS is accepted as type control DDL"
+    },
+    {
       "id": "create_or_alter_procedure",
       "file": "cases/create_or_alter_procedure.sql",
       "statementType": "CREATE_ROUTINE",
