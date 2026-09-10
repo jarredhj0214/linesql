@@ -714,6 +714,15 @@
       "description": "OceanBase MySQL mode ALTER PROCEDURE is classified as routine lifecycle DDL"
     },
     {
+      "id": "mysql_mode_restart_statement",
+      "file": "cases/mysql_mode_restart_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode RESTART is classified as instance admin control"
+    },
+    {
       "id": "mysql_mode_create_table_partition_as_select",
       "file": "cases/mysql_mode_create_table_partition_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
@@ -4663,6 +4672,24 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "OceanBase Oracle mode CREATE PACKAGE BODY is recognized as routine lifecycle DDL"
+    },
+    {
+      "id": "oracle_mode_alter_procedure_compile",
+      "file": "cases/oracle_mode_alter_procedure_compile.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER PROCEDURE COMPILE routes to Oracle compatibility parser"
+    },
+    {
+      "id": "oracle_mode_alter_package_compile_body",
+      "file": "cases/oracle_mode_alter_package_compile_body.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER PACKAGE COMPILE BODY routes to Oracle compatibility parser"
     },
     {
       "id": "oracle_mode_anonymous_begin_block",

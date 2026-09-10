@@ -97,6 +97,7 @@ public class OceanBaseDialectParser implements DialectParser {
                 || normalized.matches("(?s)^\\s*drop\\s+type\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+(or\\s+replace\\s+)?package\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+(or\\s+replace\\s+)?package\\s+body\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+(procedure|function|package)\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+or\\s+replace\\s+trigger\\b.*")
                 || normalized.matches("(?s)^\\s*(declare\\b.*\\bbegin\\b|begin\\b).*\\bend\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+(or\\s+replace\\s+)?(no\\s+)?force\\s+view\\b.*")
