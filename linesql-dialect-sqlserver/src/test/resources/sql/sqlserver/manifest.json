@@ -2709,6 +2709,78 @@
       "description": "SQL Server ALTER TABLE ADD column affected table lineage"
     },
     {
+      "id": "alter_table_add_primary_key_constraint",
+      "file": "cases/alter_table_add_primary_key_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "dbo.orders.order_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "dbo.orders.order_date"
+        }
+      ],
+      "description": "SQL Server ALTER TABLE ADD primary key constraint table-model columns"
+    },
+    {
+      "id": "alter_table_add_foreign_key_constraint",
+      "file": "cases/alter_table_add_foreign_key_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [
+        "dbo.order_items"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "dbo.order_items.order_id"
+        }
+      ],
+      "description": "SQL Server ALTER TABLE ADD foreign key constraint records referenced table and local key columns"
+    },
+    {
+      "id": "alter_table_add_check_constraint",
+      "file": "cases/alter_table_add_check_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "dbo.orders.amount"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "dbo.orders.status"
+        }
+      ],
+      "description": "SQL Server ALTER TABLE ADD CHECK constraint records predicate columns as table-model usage"
+    },
+    {
+      "id": "alter_table_drop_constraint",
+      "file": "cases/alter_table_drop_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server ALTER TABLE DROP CONSTRAINT affected table lineage"
+    },
+    {
       "id": "insert_values",
       "file": "cases/insert_values.sql",
       "statementType": "INSERT",

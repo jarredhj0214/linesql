@@ -360,6 +360,17 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         LineageModelUtils.addColumnUsages(result, ColumnUsageType.INDEX, refs);
     }
 
+    private void addTableModelColumnUsages(TableRef table, SqlServerParser.IdentifierListContext identifierList) {
+        if (identifierList == null) {
+            return;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : identifierNames(identifierList)) {
+            refs.add(new ColumnRef(table, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+    }
+
     private void visitRelationListForInputs(SqlServerParser.RelationListContext ctx) {
         for (SqlServerParser.RelationContext relation : ctx.relation()) {
             visitRelationPrimaryForDml(relation.relationPrimary());
@@ -736,6 +747,46 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableAddColumn(SqlServerParser.AlterTableAddColumnContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableAddPrimaryKeyConstraint(SqlServerParser.AlterTableAddPrimaryKeyConstraintContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addTableModelColumnUsages(target, ctx.identifierList());
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableAddForeignKeyConstraint(SqlServerParser.AlterTableAddForeignKeyConstraintContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier(0));
+        outputTables.add(target);
+        inputTables.add(tableRef(ctx.refTable));
+        addTableModelColumnUsages(target, ctx.localColumns);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableAddCheckConstraint(SqlServerParser.AlterTableAddCheckConstraintContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        currentDmlTarget = target;
+        List<ColumnRef> refs = resolveSources(sourceColumns(ctx.expression()));
+        if (refs != null && !refs.isEmpty()) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+        }
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableDropConstraint(SqlServerParser.AlterTableDropConstraintContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
