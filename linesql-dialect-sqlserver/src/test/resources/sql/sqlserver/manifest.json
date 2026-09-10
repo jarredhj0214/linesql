@@ -4207,6 +4207,24 @@
       "description": "SQL Server DROP SCHEMA is classified as schema lifecycle DDL"
     },
     {
+      "id": "alter_schema_transfer_table",
+      "file": "cases/alter_schema_transfer_table.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["dbo.orders"],
+      "outputTables": ["archive.orders"],
+      "columnLineage": [],
+      "description": "SQL Server ALTER SCHEMA TRANSFER records source and relocated object"
+    },
+    {
+      "id": "alter_schema_transfer_object",
+      "file": "cases/alter_schema_transfer_object.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["dbo.orders"],
+      "outputTables": ["archive.orders"],
+      "columnLineage": [],
+      "description": "SQL Server ALTER SCHEMA TRANSFER OBJECT:: records source and relocated object"
+    },
+    {
       "id": "create_or_alter_procedure",
       "file": "cases/create_or_alter_procedure.sql",
       "statementType": "CREATE_ROUTINE",

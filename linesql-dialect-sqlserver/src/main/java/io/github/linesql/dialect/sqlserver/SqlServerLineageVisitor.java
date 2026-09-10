@@ -463,6 +463,22 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterSchemaStmt(SqlServerParser.AlterSchemaStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterSchemaStatement(SqlServerParser.AlterSchemaStatementContext ctx) {
+        TableRef source = tableRef(ctx.source);
+        inputTables.add(source);
+        outputTables.add(tableInSchema(ctx.source, cleanIdentifier(ctx.targetSchema)));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitCreateSynonymStmt(SqlServerParser.CreateSynonymStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return visitChildren(ctx);
@@ -1692,6 +1708,19 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     private static TableRef tableRef(SqlServerParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
+        return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private static TableRef tableInSchema(SqlServerParser.MultipartIdentifierContext ctx, String schema) {
+        List<String> parts = identifierParts(ctx);
+        if (parts.isEmpty()) {
+            return LineageModelUtils.tableRefFromParts(parts);
+        }
+        if (parts.size() == 1) {
+            parts.add(0, schema);
+        } else {
+            parts.set(parts.size() - 2, schema);
+        }
         return LineageModelUtils.tableRefFromParts(parts);
     }
 
