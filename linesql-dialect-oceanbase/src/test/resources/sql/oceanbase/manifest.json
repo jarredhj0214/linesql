@@ -861,6 +861,33 @@
       "description": "OceanBase MySQL mode SHOW WARNINGS is accepted as table-free diagnostic metadata"
     },
     {
+      "id": "mysql_mode_show_errors",
+      "file": "cases/mysql_mode_show_errors.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW ERRORS is accepted as table-free diagnostic metadata"
+    },
+    {
+      "id": "mysql_mode_show_count_warnings",
+      "file": "cases/mysql_mode_show_count_warnings.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW COUNT(*) WARNINGS is accepted as table-free diagnostic metadata"
+    },
+    {
+      "id": "mysql_mode_show_count_errors",
+      "file": "cases/mysql_mode_show_count_errors.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW COUNT(*) ERRORS is accepted as table-free diagnostic metadata"
+    },
+    {
       "id": "mysql_mode_show_open_tables_like",
       "file": "cases/mysql_mode_show_open_tables_like.sql",
       "statementType": "READ_METADATA",

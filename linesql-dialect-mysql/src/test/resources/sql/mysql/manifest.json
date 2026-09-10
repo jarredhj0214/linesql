@@ -5215,6 +5215,42 @@
       "description": "MySQL SHOW VARIABLES is accepted as table-free metadata"
     },
     {
+      "id": "show_warnings",
+      "file": "cases/show_warnings.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW WARNINGS is accepted as table-free diagnostic metadata"
+    },
+    {
+      "id": "show_errors",
+      "file": "cases/show_errors.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW ERRORS is accepted as table-free diagnostic metadata"
+    },
+    {
+      "id": "show_count_warnings",
+      "file": "cases/show_count_warnings.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW COUNT(*) WARNINGS is accepted as table-free diagnostic metadata"
+    },
+    {
+      "id": "show_count_errors",
+      "file": "cases/show_count_errors.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW COUNT(*) ERRORS is accepted as table-free diagnostic metadata"
+    },
+    {
       "id": "show_processlist",
       "file": "cases/show_processlist.sql",
       "statementType": "READ_METADATA",
