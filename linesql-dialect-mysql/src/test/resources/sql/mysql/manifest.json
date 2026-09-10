@@ -7100,6 +7100,30 @@
       "description": "MySQL RESET is accepted as a script-safe admin statement"
     },
     {
+      "id": "reset_binary_logs_and_gtids",
+      "file": "cases/reset_binary_logs_and_gtids.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RESET BINARY LOGS AND GTIDS is accepted as a script-safe replication statement"
+    },
+    {
+      "id": "reset_persist",
+      "file": "cases/reset_persist.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RESET PERSIST is accepted as a script-safe system variable statement"
+    },
+    {
+      "id": "reset_persist_if_exists",
+      "file": "cases/reset_persist_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RESET PERSIST IF EXISTS is accepted as a script-safe system variable statement"
+    },
+    {
       "id": "lock_instance_for_backup",
       "file": "cases/lock_instance_for_backup.sql",
       "statementType": "CONTROL",
@@ -7170,6 +7194,14 @@
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL RESET REPLICA ALL is accepted as a script-safe replication statement"
+    },
+    {
+      "id": "reset_replica_channel",
+      "file": "cases/reset_replica_channel.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RESET REPLICA ALL FOR CHANNEL is accepted as a script-safe replication statement"
     },
     {
       "id": "show_binary_logs",

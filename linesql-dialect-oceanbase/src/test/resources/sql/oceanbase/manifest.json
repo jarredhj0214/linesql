@@ -2027,6 +2027,33 @@
       "description": "OceanBase MySQL mode RESET REPLICA ALL is accepted as replication control"
     },
     {
+      "id": "mysql_mode_reset_replica_channel",
+      "file": "cases/mysql_mode_reset_replica_channel.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode RESET REPLICA ALL FOR CHANNEL is accepted as replication control"
+    },
+    {
+      "id": "mysql_mode_reset_binary_logs_and_gtids",
+      "file": "cases/mysql_mode_reset_binary_logs_and_gtids.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode RESET BINARY LOGS AND GTIDS is accepted as replication control"
+    },
+    {
+      "id": "mysql_mode_reset_persist",
+      "file": "cases/mysql_mode_reset_persist.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode RESET PERSIST is accepted as system variable control"
+    },
+    {
       "id": "mysql_mode_lock_instance_for_backup",
       "file": "cases/mysql_mode_lock_instance_for_backup.sql",
       "statementType": "CONTROL",

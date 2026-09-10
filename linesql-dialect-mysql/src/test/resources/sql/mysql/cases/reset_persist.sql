@@ -1,0 +1,1 @@
+reset persist max_connections
