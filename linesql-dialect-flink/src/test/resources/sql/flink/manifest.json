@@ -4299,6 +4299,15 @@
       "description": "Flink CREATE FUNCTION AS identifier with USING JAR"
     },
     {
+      "id": "create_function_using_artifact",
+      "file": "cases/create_function_using_artifact.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink CREATE TEMPORARY FUNCTION with USING ARTIFACT resource"
+    },
+    {
       "id": "create_materialized_table_as_select",
       "file": "cases/create_materialized_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
