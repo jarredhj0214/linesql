@@ -66,6 +66,7 @@ setOperator
 
 queryPrimary
     : querySpecification                                             #queryPrimaryDefault
+    | VALUES valuesClause (COMMA valuesClause)*                      #valuesQuery
     | LPAREN query RPAREN                                            #subqueryPrimary
     ;
 
@@ -111,6 +112,8 @@ relation
 
 relationPrimary
     : ONLY? multipartIdentifier tableAlias                           #tableName
+    | LATERAL? functionName LPAREN expressionList? RPAREN tableAlias #tableFunction
+    | LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
@@ -134,7 +137,7 @@ joinCriteria
     ;
 
 tableAlias
-    : (AS? strictIdentifier)?
+    : (AS? strictIdentifier (LPAREN identifierList RPAREN)?)?
     ;
 
 whereClause

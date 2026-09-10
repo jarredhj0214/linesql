@@ -739,6 +739,42 @@
       "outputTables": ["mart.audit_events"],
       "columnLineage": [],
       "description": "PostgreSQL INSERT DEFAULT VALUES records the target table without inventing column lineage"
+    },
+    {
+      "id": "values_query",
+      "file": "cases/values_query.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL standalone VALUES query is accepted without inventing table lineage"
+    },
+    {
+      "id": "derived_values_table",
+      "file": "cases/derived_values_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": []},
+        {"target": "name", "sources": []}
+      ],
+      "description": "PostgreSQL derived VALUES table aliases are accepted as generated columns"
+    },
+    {
+      "id": "lateral_jsonb_array_elements",
+      "file": "cases/lateral_jsonb_array_elements.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.users.id"]},
+        {"target": "value", "sources": ["public.users.tags"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.users.tags"}
+      ],
+      "description": "PostgreSQL LATERAL set-returning function maps generated alias columns to function argument sources"
     }
   ]
 }

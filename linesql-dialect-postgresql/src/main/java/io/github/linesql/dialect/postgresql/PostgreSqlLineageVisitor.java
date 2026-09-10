@@ -733,6 +733,22 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitTableFunction(PostgreSqlParser.TableFunctionContext ctx) {
+        List<SourceColumn> sources = ctx.expressionList() == null
+                ? new ArrayList<>()
+                : sourceColumns(ctx.expressionList());
+        addColumnUsages(ColumnUsageType.JOIN_ON, sources);
+        registerGeneratedRelation(ctx.tableAlias(), sources);
+        return null;
+    }
+
+    @Override
+    public Void visitValuesTable(PostgreSqlParser.ValuesTableContext ctx) {
+        registerGeneratedRelation(ctx.tableAlias(), new ArrayList<>());
+        return null;
+    }
+
+    @Override
     public Void visitRelation(PostgreSqlParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
@@ -875,6 +891,29 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         addDerivedInputTables(derivedName);
         refreshColumnLineage();
+    }
+
+    private void registerGeneratedRelation(PostgreSqlParser.TableAliasContext aliasCtx, List<SourceColumn> sources) {
+        String alias = tableAlias(aliasCtx);
+        if (alias == null) {
+            return;
+        }
+        String derivedName = alias.toLowerCase(Locale.ROOT);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        List<ColumnRef> refs = columnUsageRefs(sources);
+        for (String columnName : tableAliasColumnNames(aliasCtx)) {
+            columns.put(columnName, refs == null ? new ArrayList<>() : new ArrayList<>(refs));
+        }
+        derivedColumnLineage.put(derivedName, columns);
+        addDerivedReference(alias, aliasCtx);
+    }
+
+    private static List<String> tableAliasColumnNames(PostgreSqlParser.TableAliasContext ctx) {
+        List<String> names = new ArrayList<>();
+        if (ctx != null && ctx.identifierList() != null) {
+            names.addAll(identifierNames(ctx.identifierList()));
+        }
+        return names;
     }
 
     private void addDerivedInputTables(String derivedName) {
