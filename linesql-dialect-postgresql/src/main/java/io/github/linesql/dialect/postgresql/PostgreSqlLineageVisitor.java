@@ -361,6 +361,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+            if (ctx.ctasColumnList != null) {
+                for (PostgreSqlParser.IdentifierContext id : ctx.ctasColumnList.identifier()) {
+                    insertTargetColumns.add(cleanIdentifier(id));
+                }
+            }
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);

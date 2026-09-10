@@ -409,6 +409,10 @@ indexElement
 createTableStatement
     : CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier PARTITION OF partitionParent=multipartIdentifier partitionBound?
     | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
+      LPAREN ctasColumnList=identifierList RPAREN
+      tableOption*
+      AS query withDataClause?
+    | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
       inheritsClause?
       partitionByClause?

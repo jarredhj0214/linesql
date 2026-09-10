@@ -84,7 +84,7 @@ Implemented PostgreSQL scenarios:
 | Function lifecycle DDL | `create or replace function ... returns ... language ... as ...`, `drop function ...` | `create_function`, `drop_function` |
 | Extension lifecycle control | `create extension if not exists ...`, `drop extension if exists ... cascade` | `create_extension`, `drop_extension` |
 | Table privilege statements | `grant select on table mart.t to role`, `revoke update on table mart.t from role` | `grant_table_privilege`, `revoke_table_privilege` |
-| CREATE TABLE AS SELECT | `create table mart.t as select ... from public.s`, `create table mart.t as select ... with no data` | `create_table_as_select`, `create_table_as_select_with_no_data` |
+| CREATE TABLE AS SELECT | `create table mart.t as select ... from public.s`, `create table mart.t(c1, c2) as select ...`, `create table mart.t as select ... with no data` | `create_table_as_select`, `create_table_as_select_column_list`, `create_table_as_select_with_no_data` |
 | SELECT INTO created table lineage | `select ... into mart.t from public.s`; `select ... into temporary table tmp_t from public.s` | `select_into_table`, `select_into_temporary_table` |
 | CREATE TABLE LIKE INCLUDING source table | `create table mart.t (like mart.s including all)` | `create_table_like_including` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from public.s` | `create_view` |

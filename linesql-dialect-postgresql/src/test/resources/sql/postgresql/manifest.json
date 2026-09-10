@@ -77,6 +77,23 @@
       "description": "PostgreSQL CTAS WITH NO DATA keeps lineage even when data population is deferred"
     },
     {
+      "id": "create_table_as_select_column_list",
+      "file": "cases/create_table_as_select_column_list.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["public.users", "sales.orders"],
+      "outputTables": ["mart.user_order_snapshot"],
+      "columnLineage": [
+        {"target": "mart.user_order_snapshot.user_id", "sources": ["public.users.id"]},
+        {"target": "mart.user_order_snapshot.order_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.users.id"},
+        {"type": "JOIN_ON", "column": "sales.orders.user_id"},
+        {"type": "WHERE", "column": "public.users.status"}
+      ],
+      "description": "PostgreSQL CTAS column aliases retarget SELECT projections"
+    },
+    {
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
