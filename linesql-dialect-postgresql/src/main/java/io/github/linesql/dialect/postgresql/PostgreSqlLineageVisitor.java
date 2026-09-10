@@ -472,6 +472,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             inputTables.add(tableRef(likeSource(ctx.tableElementList())));
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
+            currentDmlTarget = target;
+            collectCreateTableElements(ctx.tableElementList(), target);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -1614,6 +1616,65 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         return null;
+    }
+
+    private void collectCreateTableElements(PostgreSqlParser.TableElementListContext ctx, TableRef target) {
+        if (ctx == null) {
+            return;
+        }
+        List<ColumnLineage> generatedColumns = new ArrayList<>();
+        for (PostgreSqlParser.TableElementContext element : ctx.tableElement()) {
+            if (element.columnName != null) {
+                String columnName = cleanIdentifier(element.columnName);
+                for (PostgreSqlParser.ColumnConstraintContext constraint : element.columnConstraint()) {
+                    collectColumnConstraint(constraint, target, columnName, generatedColumns);
+                }
+            }
+            if (element.tableConstraint() != null) {
+                collectTableConstraint(element.tableConstraint());
+            }
+        }
+        if (!generatedColumns.isEmpty()) {
+            result.setColumnLineage(generatedColumns);
+        }
+    }
+
+    private void collectColumnConstraint(PostgreSqlParser.ColumnConstraintContext ctx,
+                                         TableRef target,
+                                         String columnName,
+                                         List<ColumnLineage> generatedColumns) {
+        if (ctx == null) {
+            return;
+        }
+        if (ctx.refTable != null) {
+            inputTables.add(tableRef(ctx.refTable));
+        }
+        if (ctx.generatedExpression != null) {
+            List<ColumnRef> sources = resolveSources(sourceColumns(ctx.generatedExpression));
+            if (sources == null) {
+                sources = new ArrayList<>();
+            }
+            generatedColumns.add(LineageModelUtils.columnLineage(
+                    target,
+                    columnName,
+                    sources,
+                    ctx.generatedExpression.getText()));
+        }
+        if (ctx.checkExpression != null) {
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.checkExpression));
+        }
+        if (ctx.nestedColumnConstraint != null) {
+            collectColumnConstraint(ctx.nestedColumnConstraint, target, columnName, generatedColumns);
+        }
+    }
+
+    private void collectTableConstraint(PostgreSqlParser.TableConstraintContext ctx) {
+        if (ctx.refTable != null) {
+            inputTables.add(tableRef(ctx.refTable));
+        }
+        if (ctx.checkExpression != null) {
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.checkExpression));
+        }
     }
 
     private List<ColumnRef> resolveSources(List<SourceColumn> sourceColumns) {

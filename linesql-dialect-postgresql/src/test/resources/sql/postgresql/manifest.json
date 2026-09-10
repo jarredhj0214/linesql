@@ -1289,6 +1289,50 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL UNLISTEN command is accepted as session control"
+    },
+    {
+      "id": "create_table_generated_identity",
+      "file": "cases/create_table_generated_identity.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users_identity"],
+      "columnLineage": [],
+      "description": "PostgreSQL GENERATED ALWAYS AS IDENTITY column definition is accepted in CREATE TABLE"
+    },
+    {
+      "id": "create_table_generated_stored",
+      "file": "cases/create_table_generated_stored.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.user_names"],
+      "columnLineage": [
+        {"target": "mart.user_names.full_name", "sources": ["mart.user_names.first_name", "mart.user_names.last_name"]}
+      ],
+      "description": "PostgreSQL stored generated column expression records same-table column lineage"
+    },
+    {
+      "id": "create_table_column_references",
+      "file": "cases/create_table_column_references.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.order_items"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.order_items.amount"}
+      ],
+      "description": "PostgreSQL column-level REFERENCES and CHECK constraints record referenced table and table-model columns"
+    },
+    {
+      "id": "create_table_foreign_key_check",
+      "file": "cases/create_table_foreign_key_check.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.order_items_fk"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.order_items_fk.amount"}
+      ],
+      "description": "PostgreSQL table-level FOREIGN KEY and CHECK constraints record referenced table and table-model columns"
     }
   ]
 }
