@@ -886,6 +886,7 @@ alterTableAction
     | DROP PARTITION identifierList
     | TRUNCATE PARTITION identifierList
     | REBUILD PARTITION identifierList
+    | CHECK PARTITION identifierList
     | OPTIMIZE PARTITION identifierList
     | ANALYZE PARTITION identifierList
     | REPAIR PARTITION identifierList

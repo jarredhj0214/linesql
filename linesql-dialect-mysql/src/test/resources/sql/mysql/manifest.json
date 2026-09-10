@@ -9667,6 +9667,17 @@
       "description": "MySQL ALTER TABLE REBUILD PARTITION reports the affected table"
     },
     {
+      "id": "alter_table_check_partition",
+      "file": "cases/alter_table_check_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLE CHECK PARTITION reports the affected table"
+    },
+    {
       "id": "alter_table_coalesce_partition",
       "file": "cases/alter_table_coalesce_partition.sql",
       "statementType": "ALTER_TABLE",
