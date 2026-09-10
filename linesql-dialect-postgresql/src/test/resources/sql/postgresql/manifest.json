@@ -965,6 +965,33 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL DROP PUBLICATION is accepted as logical-replication control"
+    },
+    {
+      "id": "create_subscription",
+      "file": "cases/create_subscription.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE SUBSCRIPTION is accepted as logical-replication control without synthetic table lineage"
+    },
+    {
+      "id": "alter_subscription_set_publication",
+      "file": "cases/alter_subscription_set_publication.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER SUBSCRIPTION SET PUBLICATION is accepted as logical-replication control"
+    },
+    {
+      "id": "drop_subscription",
+      "file": "cases/drop_subscription.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DROP SUBSCRIPTION is accepted as logical-replication control"
     }
   ]
 }

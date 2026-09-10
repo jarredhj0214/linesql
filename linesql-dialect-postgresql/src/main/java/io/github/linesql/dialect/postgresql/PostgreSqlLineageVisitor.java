@@ -381,6 +381,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitSubscriptionStmt(PostgreSqlParser.SubscriptionStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitCreateTableStmt(PostgreSqlParser.CreateTableStmtContext ctx) {
         return visitChildren(ctx);
     }
