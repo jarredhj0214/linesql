@@ -5269,6 +5269,33 @@
       "description": "MySQL SHOW ENGINES is accepted as table-free server metadata"
     },
     {
+      "id": "get_diagnostics",
+      "file": "cases/get_diagnostics.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL GET DIAGNOSTICS is accepted as table-free diagnostic control syntax"
+    },
+    {
+      "id": "signal_sqlstate",
+      "file": "cases/signal_sqlstate.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SIGNAL SQLSTATE is accepted as table-free diagnostic control syntax"
+    },
+    {
+      "id": "resignal_sqlstate",
+      "file": "cases/resignal_sqlstate.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL RESIGNAL SQLSTATE is accepted as table-free diagnostic control syntax"
+    },
+    {
       "id": "regexp_predicate_column_usage",
       "file": "cases/regexp_predicate_column_usage.sql",
       "statementType": "SELECT",

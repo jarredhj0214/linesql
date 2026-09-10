@@ -888,6 +888,33 @@
       "description": "OceanBase MySQL mode SHOW COUNT(*) ERRORS is accepted as table-free diagnostic metadata"
     },
     {
+      "id": "mysql_mode_get_diagnostics",
+      "file": "cases/mysql_mode_get_diagnostics.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode GET DIAGNOSTICS is accepted as table-free diagnostic control syntax"
+    },
+    {
+      "id": "mysql_mode_signal_sqlstate",
+      "file": "cases/mysql_mode_signal_sqlstate.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SIGNAL SQLSTATE is accepted as table-free diagnostic control syntax"
+    },
+    {
+      "id": "mysql_mode_resignal_sqlstate",
+      "file": "cases/mysql_mode_resignal_sqlstate.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode RESIGNAL SQLSTATE is accepted as table-free diagnostic control syntax"
+    },
+    {
       "id": "mysql_mode_show_open_tables_like",
       "file": "cases/mysql_mode_show_open_tables_like.sql",
       "statementType": "READ_METADATA",

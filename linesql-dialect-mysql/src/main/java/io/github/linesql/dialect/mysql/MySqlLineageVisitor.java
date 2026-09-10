@@ -1136,6 +1136,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitDiagnosticStmt(MySqlParser.DiagnosticStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitAdminStmt(MySqlParser.AdminStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;
