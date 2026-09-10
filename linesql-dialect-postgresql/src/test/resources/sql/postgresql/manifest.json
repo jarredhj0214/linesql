@@ -62,6 +62,21 @@
       "description": "PostgreSQL CTAS table and column lineage"
     },
     {
+      "id": "create_table_as_select_with_no_data",
+      "file": "cases/create_table_as_select_with_no_data.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": ["mart.active_users_empty"],
+      "columnLineage": [
+        {"target": "mart.active_users_empty.user_id", "sources": ["public.users.id"]},
+        {"target": "mart.active_users_empty.email_norm", "sources": ["public.users.email"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "public.users.status"}
+      ],
+      "description": "PostgreSQL CTAS WITH NO DATA keeps lineage even when data population is deferred"
+    },
+    {
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
@@ -375,6 +390,23 @@
         {"type": "WHERE", "column": "mart.users.status"}
       ],
       "description": "PostgreSQL CREATE MATERIALIZED VIEW AS SELECT records view target and query lineage"
+    },
+    {
+      "id": "create_materialized_view_with_no_data",
+      "file": "cases/create_materialized_view_with_no_data.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["mart.users", "mart.orders"],
+      "outputTables": ["mart.mv_user_orders_empty"],
+      "columnLineage": [
+        {"target": "mart.mv_user_orders_empty.user_id", "sources": ["mart.users.id"]},
+        {"target": "mart.mv_user_orders_empty.amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.users.id"},
+        {"type": "JOIN_ON", "column": "mart.orders.user_id"},
+        {"type": "WHERE", "column": "mart.users.status"}
+      ],
+      "description": "PostgreSQL CREATE MATERIALIZED VIEW WITH NO DATA preserves query lineage"
     },
     {
       "id": "create_table_like_including",

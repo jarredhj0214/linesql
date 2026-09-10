@@ -84,11 +84,11 @@ Implemented PostgreSQL scenarios:
 | Function lifecycle DDL | `create or replace function ... returns ... language ... as ...`, `drop function ...` | `create_function`, `drop_function` |
 | Extension lifecycle control | `create extension if not exists ...`, `drop extension if exists ... cascade` | `create_extension`, `drop_extension` |
 | Table privilege statements | `grant select on table mart.t to role`, `revoke update on table mart.t from role` | `grant_table_privilege`, `revoke_table_privilege` |
-| CREATE TABLE AS SELECT | `create table mart.t as select ... from public.s` | `create_table_as_select` |
+| CREATE TABLE AS SELECT | `create table mart.t as select ... from public.s`, `create table mart.t as select ... with no data` | `create_table_as_select`, `create_table_as_select_with_no_data` |
 | SELECT INTO created table lineage | `select ... into mart.t from public.s`; `select ... into temporary table tmp_t from public.s` | `select_into_table`, `select_into_temporary_table` |
 | CREATE TABLE LIKE INCLUDING source table | `create table mart.t (like mart.s including all)` | `create_table_like_including` |
 | CREATE VIEW AS SELECT | `create view mart.v as select ... from public.s` | `create_view` |
-| CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.mv as select ... from mart.s` | `create_materialized_view` |
+| CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.mv as select ... from mart.s`, `create materialized view mart.mv as select ... with no data` | `create_materialized_view`, `create_materialized_view_with_no_data` |
 | VALUES and set-returning function relations | `values (...)`; `from (values (...)) as v(c)`; `cross join lateral jsonb_array_elements_text(t.tags) as e(value)` | `values_query`, `derived_values_table`, `lateral_jsonb_array_elements` |
 | REFRESH MATERIALIZED VIEW affected view | `refresh materialized view concurrently mart.mv` | `refresh_materialized_view` |
 | COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |

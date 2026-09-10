@@ -414,7 +414,7 @@ createTableStatement
       partitionByClause?
       commentClause?
       tableOption*
-      (AS query)?
+      (AS query withDataClause?)?
     | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
     ;
 
@@ -442,7 +442,11 @@ createViewStatement
       AS query
     | CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
-      AS query
+      AS query withDataClause?
+    ;
+
+withDataClause
+    : WITH NO? DATA
     ;
 
 dropTableStatement
