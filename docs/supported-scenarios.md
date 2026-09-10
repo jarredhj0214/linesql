@@ -1246,6 +1246,7 @@ Implemented Hive table-level lineage scenarios:
 | UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | LOAD DATA target table lineage | `load data inpath '...' into table ads.t` | `load_data` |
+| EXPORT/IMPORT table migration | `export table dwd.t partition(...) to 'path'`, `import table dwd.t from 'path'`, `import external table ... location ...` | `export_table_partition`, `import_table_from_path`, `import_external_table_location` |
 | DROP TABLE affected table | `drop table if exists mart.t` | `drop_table` |
 | DROP TABLE PURGE affected table | `drop table if exists mart.t purge` | `drop_table_purge` |
 | TRUNCATE TABLE affected table | `truncate table ads.t partition (...)` | `truncate_table` |

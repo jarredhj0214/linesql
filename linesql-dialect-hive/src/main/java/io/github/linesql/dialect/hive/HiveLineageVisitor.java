@@ -308,6 +308,34 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitExportTableStmt(HiveParser.ExportTableStmtContext ctx) {
+        result.setStatementType(StatementType.SELECT);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitExportTableStatement(HiveParser.ExportTableStatementContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitImportTableStmt(HiveParser.ImportTableStmtContext ctx) {
+        result.setStatementType(StatementType.LOAD_DATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitImportTableStatement(HiveParser.ImportTableStatementContext ctx) {
+        if (ctx.multipartIdentifier() != null) {
+            outputTables.add(tableRef(ctx.multipartIdentifier()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+        return null;
+    }
+
+    @Override
     public Void visitRepairTableStmt(HiveParser.RepairTableStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);

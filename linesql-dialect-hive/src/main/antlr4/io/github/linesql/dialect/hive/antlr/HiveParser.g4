@@ -24,6 +24,8 @@ statement
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
     | loadDataStatement                                              #loadDataStmt
+    | exportTableStatement                                           #exportTableStmt
+    | importTableStatement                                           #importTableStmt
     | repairTableStatement                                           #repairTableStmt
     | analyzeTableStatement                                          #analyzeTableStmt
     ;
@@ -359,6 +361,15 @@ loadDataStatement
       (PARTITION partitionSpec)?
     ;
 
+exportTableStatement
+    : EXPORT TABLE multipartIdentifier (PARTITION partitionSpec)? TO string
+    ;
+
+importTableStatement
+    : IMPORT EXTERNAL? TABLE multipartIdentifier FROM string (LOCATION string)?
+    | IMPORT FROM string
+    ;
+
 repairTableStatement
     : MSCK? REPAIR TABLE multipartIdentifier (SYNC? PARTITIONS?)?
     ;
@@ -439,7 +450,7 @@ nonReservedKeyword
     : ADD | ANALYZE | ASC | CASCADE | CAST | CLUSTER | COLLECTION | COLUMN | COLUMNS | COMMENT | COMPUTE | DATA | DATABASE | DATABASES | DEFAULT
     | DELIMITED | DESCRIBE | DESC | DIRECTORY | DISTRIBUTE | END | EXISTS | EXTERNAL | FALSE | FIELDS | FORMAT
     | IF | INPUTFORMAT | INTERVAL | ITEMS | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | MAP | NULL
-    | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PURGE | RENAME
+    | EXPORT | IMPORT | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PURGE | RENAME
     | OUTPUTFORMAT | REPAIR | REPLACE | RESTRICT | ROW | SCHEMA | SCHEMAS | SERDEPROPERTIES | SET | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TBLPROPERTIES
     | TEMPORARY | TERMINATED | TO | TRUE | TRUNCATE | USE | VALUES | VIEW
     ;

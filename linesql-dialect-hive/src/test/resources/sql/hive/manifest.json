@@ -2083,6 +2083,39 @@
         }
       ],
       "description": "Hive LIMIT offset,row-count form remains compatible while preserving ORDER BY usage"
+    },
+    {
+      "id": "export_table_partition",
+      "file": "cases/export_table_partition.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive EXPORT TABLE records the exported table as a source table"
+    },
+    {
+      "id": "import_table_from_path",
+      "file": "cases/import_table_from_path.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "dwd.orders_restore"
+      ],
+      "columnLineage": [],
+      "description": "Hive IMPORT TABLE records the imported table as a load target"
+    },
+    {
+      "id": "import_external_table_location",
+      "file": "cases/import_external_table_location.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.events_restore"
+      ],
+      "columnLineage": [],
+      "description": "Hive IMPORT EXTERNAL TABLE with LOCATION records the external table target"
     }
   ]
 }
