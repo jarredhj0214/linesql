@@ -626,6 +626,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterTablespaceStmt(MySqlParser.AlterTablespaceStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitDropTablespaceStmt(MySqlParser.DropTablespaceStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;

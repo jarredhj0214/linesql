@@ -3493,6 +3493,24 @@
       "description": "MySQL CREATE UNDO TABLESPACE is accepted as table-free storage control DDL"
     },
     {
+      "id": "alter_tablespace_rename",
+      "file": "cases/alter_tablespace_rename.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ALTER TABLESPACE RENAME is accepted as table-free storage control DDL"
+    },
+    {
+      "id": "alter_undo_tablespace_active",
+      "file": "cases/alter_undo_tablespace_active.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL ALTER UNDO TABLESPACE SET ACTIVE is accepted as table-free storage control DDL"
+    },
+    {
       "id": "drop_tablespace",
       "file": "cases/drop_tablespace.sql",
       "statementType": "CONTROL",

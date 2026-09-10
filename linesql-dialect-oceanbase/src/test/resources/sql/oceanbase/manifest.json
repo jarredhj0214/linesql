@@ -3511,6 +3511,15 @@
       "description": "OceanBase CREATE UNDO TABLESPACE is accepted as a table-free control statement"
     },
     {
+      "id": "control_alter_undo_tablespace",
+      "file": "cases/control_alter_undo_tablespace.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER UNDO TABLESPACE is accepted as a table-free control statement"
+    },
+    {
       "id": "control_drop_undo_tablespace",
       "file": "cases/control_drop_undo_tablespace.sql",
       "statementType": "CONTROL",

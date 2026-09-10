@@ -22,6 +22,7 @@ statement
     | createTablespaceStatement                                      #createTablespaceStmt
     | createViewStatement                                            #createViewStmt
     | alterDatabaseStatement                                         #alterDatabaseStmt
+    | alterTablespaceStatement                                       #alterTablespaceStmt
     | dropDatabaseStatement                                          #dropDatabaseStmt
     | dropTablespaceStatement                                        #dropTablespaceStmt
     | dropIndexStatement                                             #dropIndexStmt
@@ -713,6 +714,10 @@ alterDatabaseStatement
 
 createTablespaceStatement
     : CREATE UNDO? TABLESPACE identifier .+?
+    ;
+
+alterTablespaceStatement
+    : ALTER UNDO? TABLESPACE identifier .+?
     ;
 
 dropTablespaceStatement
