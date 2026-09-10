@@ -860,10 +860,10 @@ jobStatement
     | STOP JOB string (WITH SAVEPOINT)? (WITH DRAIN)?
     ;
 
-// ============ EXECUTE STATEMENT SET ============
+// ============ STATEMENT SET ============
 
 executeStatementSet
-    : EXECUTE STATEMENT SET BEGIN (insertStatement SEMI)+ END
+    : EXECUTE? STATEMENT SET BEGIN (insertStatement SEMI)+ END
     ;
 
 // ============ DDL Helpers ============

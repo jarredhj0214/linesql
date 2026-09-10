@@ -836,14 +836,34 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitExecuteStatementSet(FlinkParser.ExecuteStatementSetContext ctx) {
-        // Visit all insert statements in the set
         List<FlinkParser.InsertStatementContext> inserts = ctx.insertStatement();
         if (inserts != null && !inserts.isEmpty()) {
             for (FlinkParser.InsertStatementContext insert : inserts) {
-                visitInsertStatement(insert);
+                processStatementSetInsert(insert);
             }
         }
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void processStatementSetInsert(FlinkParser.InsertStatementContext insert) {
+        LineageResult branchResult = new LineageResult();
+        FlinkLineageVisitor branchVisitor = new FlinkLineageVisitor(branchResult);
+        branchVisitor.setContext(context);
+        branchVisitor.cteNames.addAll(cteNames);
+        branchVisitor.tableAliases.putAll(tableAliases);
+        branchVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        branchVisitor.derivedAliases.putAll(derivedAliases);
+        branchVisitor.derivedReferences.addAll(derivedReferences);
+        branchVisitor.visibleRelationCount = visibleRelationCount;
+        branchVisitor.visibleRelations.addAll(visibleRelations);
+        branchVisitor.visitInsertStatement(insert);
+
+        inputTables.addAll(branchResult.getInputTables());
+        outputTables.addAll(branchResult.getOutputTables());
+        result.getColumnLineage().addAll(branchResult.getColumnLineage());
+        LineageModelUtils.mergeColumnUsages(result, branchResult);
     }
 
     // ============ Query traversal ============

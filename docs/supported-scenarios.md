@@ -1042,7 +1042,7 @@ Implemented Flink table-level lineage scenarios:
 | DELETE target table lineage | `delete from ads_t where ...`; `delete from ads_t` | `delete_where`, `delete_without_where` |
 | UPDATE with subquery sources | `update ads_t set c = (select ... from ods_s1) where id in (select ... from ods_s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads_t where id in (select ... from ods_s)` | `delete_with_subquery` |
-| Statement set write lineage | `execute statement set begin insert into ...; end`, mixed `insert into` and `insert overwrite` sinks | `execute_statement_set`, `execute_statement_set_mixed_overwrite` |
+| Statement set write lineage | `statement set begin insert into ...; end`, `execute statement set begin insert into ...; end`, mixed `insert into` and `insert overwrite` sinks; input/output tables and per-sink column mappings are merged | `statement_set`, `statement_set_mixed_overwrite`, `execute_statement_set`, `execute_statement_set_mixed_overwrite` |
 | CREATE TABLE connector DDL | `create table ods_t (...) with ('connector' = 'kafka')` | `create_table_connector` |
 | CREATE TABLE connector DDL tolerance | `with ('password' = 'secret' 'table-name' = 't')` preserves table lineage when a comma is missing between properties | `create_table_properties_missing_comma_tolerant` |
 | CREATE TABLE metadata/computed/watermark/PK/partition DDL | `create table t (... c metadata from 'k' virtual, ts as ..., watermark for ..., primary key ... not enforced) partitioned by (...) with (...)`; computed columns with column inputs produce same-table column lineage, while watermark, primary-key, partition columns are returned as `TABLE_MODEL` usages | `create_table_metadata_computed_partitioned` |

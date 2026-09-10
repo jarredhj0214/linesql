@@ -2377,8 +2377,33 @@
         "ads.user_summary",
         "ads.order_summary"
       ],
-      "columnLineage": [],
-      "description": "Flink EXECUTE STATEMENT SET merges input and output tables from all inserts"
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.order_summary.order_id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "ads.order_summary.amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink EXECUTE STATEMENT SET merges input/output tables and column lineage from all inserts"
     },
     {
       "id": "execute_statement_set_mixed_overwrite",
@@ -2392,8 +2417,113 @@
         "ads.user_summary",
         "ads.order_summary"
       ],
-      "columnLineage": [],
-      "description": "Flink EXECUTE STATEMENT SET accepts mixed INSERT INTO and INSERT OVERWRITE sinks"
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.order_summary.order_id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "ads.order_summary.amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink EXECUTE STATEMENT SET accepts mixed INSERT INTO and INSERT OVERWRITE sinks with column lineage"
+    },
+    {
+      "id": "statement_set",
+      "file": "cases/statement_set.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "ads.order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.order_summary.order_id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "ads.order_summary.amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink STATEMENT SET without EXECUTE prefix merges input/output tables and column lineage"
+    },
+    {
+      "id": "statement_set_mixed_overwrite",
+      "file": "cases/statement_set_mixed_overwrite.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users",
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "ads.order_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "ads.order_summary.order_id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "ads.order_summary.amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "description": "Flink STATEMENT SET without EXECUTE prefix accepts mixed INSERT INTO and INSERT OVERWRITE sinks"
     },
     {
       "id": "create_table_connector",
