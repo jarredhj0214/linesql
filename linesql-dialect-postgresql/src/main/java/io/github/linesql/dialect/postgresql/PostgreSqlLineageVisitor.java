@@ -775,6 +775,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitSelectIntoClause(PostgreSqlParser.SelectIntoClauseContext ctx) {
+        result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitWhereClause(PostgreSqlParser.WhereClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
         return visitChildren(ctx);

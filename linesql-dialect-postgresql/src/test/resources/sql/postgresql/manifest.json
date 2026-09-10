@@ -775,6 +775,36 @@
         {"type": "JOIN_ON", "column": "public.users.tags"}
       ],
       "description": "PostgreSQL LATERAL set-returning function maps generated alias columns to function argument sources"
+    },
+    {
+      "id": "select_into_table",
+      "file": "cases/select_into_table.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": ["mart.active_user_snapshot"],
+      "columnLineage": [
+        {"target": "mart.active_user_snapshot.user_id", "sources": ["public.users.id"]},
+        {"target": "mart.active_user_snapshot.email_norm", "sources": ["public.users.email"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "public.users.status"}
+      ],
+      "description": "PostgreSQL SELECT INTO creates a table while preserving source-to-target column lineage"
+    },
+    {
+      "id": "select_into_temporary_table",
+      "file": "cases/select_into_temporary_table.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": ["tmp_user_amounts"],
+      "columnLineage": [
+        {"target": "tmp_user_amounts.user_id", "sources": ["sales.orders.user_id"]},
+        {"target": "tmp_user_amounts.total_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.user_id"}
+      ],
+      "description": "PostgreSQL SELECT INTO TEMPORARY TABLE preserves aggregate column lineage"
     }
   ]
 }

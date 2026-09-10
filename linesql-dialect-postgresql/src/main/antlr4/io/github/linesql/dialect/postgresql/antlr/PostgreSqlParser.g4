@@ -71,7 +71,7 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause fromClause? whereClause? groupByClause? havingClause?
+    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause?
     ;
 
 selectClause
@@ -96,6 +96,10 @@ selectItem
     : expression (AS? alias=identifier)?                             #selectExpression
     | qualifiedName DOT STAR                                         #selectQualifiedStar
     | STAR                                                           #selectStar
+    ;
+
+selectIntoClause
+    : INTO (TEMPORARY | UNLOGGED)? TABLE? multipartIdentifier
     ;
 
 fromClause
