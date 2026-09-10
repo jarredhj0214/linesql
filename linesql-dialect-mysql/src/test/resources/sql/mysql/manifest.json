@@ -6647,6 +6647,30 @@
       "description": "MySQL SAVEPOINT is accepted as transaction control syntax"
     },
     {
+      "id": "set_transaction_read_only",
+      "file": "cases/set_transaction_read_only.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SET TRANSACTION READ ONLY is accepted as transaction control syntax"
+    },
+    {
+      "id": "set_transaction_isolation_repeatable_read",
+      "file": "cases/set_transaction_isolation_repeatable_read.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ is accepted as transaction control syntax"
+    },
+    {
+      "id": "set_transaction_isolation_read_committed",
+      "file": "cases/set_transaction_isolation_read_committed.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED is accepted as transaction control syntax"
+    },
+    {
       "id": "rollback_to_savepoint",
       "file": "cases/rollback_to_savepoint.sql",
       "statementType": "CONTROL",
