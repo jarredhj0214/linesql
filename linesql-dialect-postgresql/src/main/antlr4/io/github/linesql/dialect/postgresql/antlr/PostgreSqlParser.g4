@@ -43,6 +43,9 @@ statement
     | vacuumStatement                                                #vacuumStmt
     | analyzeStatement                                               #analyzeStmt
     | reindexStatement                                               #reindexStmt
+    | clusterStatement                                               #clusterStmt
+    | lockStatement                                                  #lockStmt
+    | routineControlStatement                                        #routineControlStmt
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
     | setStatement                                                   #setStmt
@@ -677,6 +680,40 @@ reindexStatement
     : REINDEX (TABLE | INDEX) CONCURRENTLY? multipartIdentifier
     ;
 
+clusterStatement
+    : CLUSTER VERBOSE
+    | CLUSTER VERBOSE? multipartIdentifier (USING multipartIdentifier)?
+    ;
+
+lockStatement
+    : LOCK TABLE? lockTarget (COMMA lockTarget)* (IN lockMode MODE)? NOWAIT?
+    ;
+
+lockTarget
+    : ONLY? multipartIdentifier STAR?
+    ;
+
+lockMode
+    : lockModeWord+
+    ;
+
+lockModeWord
+    : ACCESS
+    | EXCLUSIVE
+    | SHARE
+    | ROW
+    | UPDATE
+    | identifier
+    ;
+
+routineControlStatement
+    : CALL .+?
+    | DO (string | DOLLAR_QUOTED_STRING) (LANGUAGE identifier)?
+    | LISTEN identifier
+    | NOTIFY identifier (COMMA string)?
+    | UNLISTEN (STAR | identifier)
+    ;
+
 transactionStatement
     : BEGIN (WORK | TRANSACTION)?
     | START TRANSACTION transactionCharacteristicList?
@@ -810,11 +847,11 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | AFTER | ASC | AUTO_INCREMENT | BEFORE | CAST | CASCADE | CHARSET | CHARACTER | COLLATE | CONCURRENTLY
+    : ACCESS | ADD | AFTER | ASC | AUTO_INCREMENT | BEFORE | CALL | CAST | CASCADE | CHARSET | CHARACTER | CLUSTER | COLLATE | CONCURRENTLY
     | ANALYZE | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
     | ATTACH | CHECK | DETACH | ENGINE | ENUM | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
-    | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR
-    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | BEGIN | START | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
+    | LISTEN | LOCK | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR | SHARE
+    | EXCLUSIVE | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | BEGIN | START | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
     ;
 
 number
@@ -824,4 +861,5 @@ number
 string
     : STRING_LITERAL
     | DOUBLE_QUOTED_STRING
+    | DOLLAR_QUOTED_STRING
     ;

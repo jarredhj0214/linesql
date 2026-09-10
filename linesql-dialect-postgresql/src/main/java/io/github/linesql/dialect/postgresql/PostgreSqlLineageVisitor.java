@@ -827,6 +827,40 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitClusterStmt(PostgreSqlParser.ClusterStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_TABLE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitClusterStatement(PostgreSqlParser.ClusterStatementContext ctx) {
+        if (ctx.multipartIdentifier() != null && !ctx.multipartIdentifier().isEmpty()) {
+            outputTables.add(tableRef(ctx.multipartIdentifier(0)));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitLockStmt(PostgreSqlParser.LockStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLockTarget(PostgreSqlParser.LockTargetContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitRoutineControlStmt(PostgreSqlParser.RoutineControlStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitGrantStmt(PostgreSqlParser.GrantStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);

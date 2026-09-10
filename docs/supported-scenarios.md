@@ -104,6 +104,8 @@ Implemented PostgreSQL scenarios:
 | ANALYZE table metadata read | `analyze verbose mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `analyze_table` |
 | VACUUM affected table | `vacuum (full, analyze) mart.t(c1, c2)`; selected columns are returned as `READ_METADATA` usages | `vacuum_table` |
 | REINDEX affected object | `reindex table concurrently mart.t`, `reindex index concurrently mart.idx_t_c` | `reindex_table`, `reindex_index` |
+| PostgreSQL table maintenance and locking | `cluster verbose mart.t using idx_t_c`, `cluster verbose`, `lock table mart.t in access exclusive mode nowait`, `lock table mart.t, mart.u in share mode` | `cluster_table_using_index`, `cluster_all_tables`, `lock_table_access_exclusive`, `lock_multiple_tables_share` |
+| PostgreSQL routine and notification control | `call mart.proc(...)`, anonymous `do $$ ... $$` blocks, `listen channel`, `notify channel, 'payload'`, `unlisten *` | `call_procedure`, `do_block`, `listen_channel`, `notify_channel`, `unlisten_all` |
 | DROP TABLE affected table | `drop table if exists mart.t`, `drop table if exists mart.t restrict` | `drop_table`, `drop_table_restrict` |
 | DROP VIEW affected view | `drop view if exists mart.v`, `drop view if exists mart.v cascade` | `drop_view`, `drop_view_cascade` |
 | DROP MATERIALIZED VIEW affected view | `drop materialized view if exists mart.mv` | `drop_materialized_view` |
@@ -134,7 +136,7 @@ Known PostgreSQL gaps:
 | Full PostgreSQL grammar | A dedicated lightweight ANTLR grammar exists for baseline cases; broad PostgreSQL syntax is still being expanded. |
 | RETURNING row lineage | Write lineage is preserved, but returned-row lineage is not modeled as a separate output stream yet. |
 | Full ON CONFLICT action lineage | Source-to-target insert lineage is preserved; conflict update action lineage is not fully expanded yet. |
-| Broader PostgreSQL-specific DDL | Core table/view/index/comment/maintenance DDL is covered; advanced storage, partition, policy, publication/subscription, and procedural bodies are still being expanded. |
+| Broader PostgreSQL-specific DDL | Core table/view/index/comment/maintenance/locking DDL is covered; advanced storage, partition, policy, publication/subscription, and procedural bodies are still being expanded. |
 
 ## OceanBase
 

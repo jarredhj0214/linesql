@@ -1208,6 +1208,87 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL DROP DOMAIN IF EXISTS is accepted as domain control DDL"
+    },
+    {
+      "id": "cluster_table_using_index",
+      "file": "cases/cluster_table_using_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL CLUSTER table USING index records the physically rewritten table as an affected table"
+    },
+    {
+      "id": "cluster_all_tables",
+      "file": "cases/cluster_all_tables.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CLUSTER without a table is accepted as database-wide maintenance without inventing table lineage"
+    },
+    {
+      "id": "lock_table_access_exclusive",
+      "file": "cases/lock_table_access_exclusive.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["mart.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL LOCK TABLE records the locked table while classifying the statement as control"
+    },
+    {
+      "id": "lock_multiple_tables_share",
+      "file": "cases/lock_multiple_tables_share.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["mart.orders", "mart.order_items"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL LOCK TABLE with multiple targets records all locked tables"
+    },
+    {
+      "id": "call_procedure",
+      "file": "cases/call_procedure.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CALL procedure is accepted as routine control"
+    },
+    {
+      "id": "do_block",
+      "file": "cases/do_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL anonymous DO block is accepted as procedural control without expanding dynamic body SQL"
+    },
+    {
+      "id": "listen_channel",
+      "file": "cases/listen_channel.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL LISTEN notification command is accepted as session control"
+    },
+    {
+      "id": "notify_channel",
+      "file": "cases/notify_channel.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL NOTIFY command is accepted as session control"
+    },
+    {
+      "id": "unlisten_all",
+      "file": "cases/unlisten_all.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL UNLISTEN command is accepted as session control"
     }
   ]
 }
