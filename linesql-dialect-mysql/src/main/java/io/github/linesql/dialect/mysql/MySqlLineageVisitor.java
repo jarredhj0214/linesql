@@ -974,6 +974,19 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitIndexCacheStmt(MySqlParser.IndexCacheStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitIndexCacheTableSpec(MySqlParser.IndexCacheTableSpecContext ctx) {
+        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
     public Void visitExplainStmt(MySqlParser.ExplainStmtContext ctx) {
         return visit(ctx.explainStatement());
     }

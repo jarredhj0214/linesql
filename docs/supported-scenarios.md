@@ -1522,6 +1522,7 @@ Implemented MySQL table-level lineage scenarios:
 | Multi-table metadata maintenance reads | `analyze table app.t1, app.t2`, `check table app.t1, app.t2 for upgrade` | `analyze_multiple_tables`, `check_multiple_tables` |
 | OPTIMIZE TABLE maintenance read | `optimize table mart.t`, `optimize local table mart.t` | `optimize_table`, `optimize_local_table` |
 | REPAIR TABLE maintenance read | `repair table mart.t`, `repair no_write_to_binlog table mart.t quick use_frm` | `repair_table`, `repair_no_write_quick_use_frm` |
+| Index cache maintenance reads | `cache index mart.t, mart.t2 key (...) in hot_cache`, `load index into cache mart.t key (...), mart.t2 ignore leaves` | `cache_index`, `load_index_into_cache` |
 | DESCRIBE TABLE metadata read | `describe table mart.t` | `describe_table` |
 | EXPLAIN table metadata read | `explain table mart.users name` | `explain_table_metadata` |
 | LOCK TABLES control statement | `lock tables app.users read, mart.user_summary write`, `lock tables app.users as u read local, mart.t low_priority write` | `lock_tables`, `lock_tables_alias_low_priority` |

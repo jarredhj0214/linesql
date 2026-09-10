@@ -9672,6 +9672,30 @@
       "description": "MySQL REPAIR NO_WRITE_TO_BINLOG TABLE QUICK USE_FRM reports the repaired table"
     },
     {
+      "id": "cache_index",
+      "file": "cases/cache_index.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders",
+        "mart.order_items"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL CACHE INDEX reports the indexed tables"
+    },
+    {
+      "id": "load_index_into_cache",
+      "file": "cases/load_index_into_cache.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders",
+        "mart.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL LOAD INDEX INTO CACHE reports the indexed tables"
+    },
+    {
       "id": "named_window_inheritance",
       "file": "cases/named_window_inheritance.sql",
       "statementType": "SELECT",
