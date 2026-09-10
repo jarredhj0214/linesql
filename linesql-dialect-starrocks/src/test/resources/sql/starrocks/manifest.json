@@ -11123,6 +11123,15 @@
       "description": "StarRocks ALTER WAREHOUSE SET properties control statement"
     },
     {
+      "id": "alter_warehouse_rename",
+      "file": "cases/alter_warehouse_rename.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks ALTER WAREHOUSE RENAME control statement"
+    },
+    {
       "id": "suspend_warehouse",
       "file": "cases/suspend_warehouse.sql",
       "statementType": "CONTROL",
@@ -11157,6 +11166,15 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "StarRocks SHOW WAREHOUSES metadata statement"
+    },
+    {
+      "id": "show_warehouses_like",
+      "file": "cases/show_warehouses_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW WAREHOUSES LIKE metadata statement"
     }
   ]
 }
