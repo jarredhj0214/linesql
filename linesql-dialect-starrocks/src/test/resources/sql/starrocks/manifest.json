@@ -10773,6 +10773,24 @@
       "description": "StarRocks SHOW FULL PROCESSLIST metadata statement"
     },
     {
+      "id": "show_warnings",
+      "file": "cases/show_warnings.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW WARNINGS diagnostic metadata statement"
+    },
+    {
+      "id": "show_errors",
+      "file": "cases/show_errors.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW ERRORS diagnostic metadata statement"
+    },
+    {
       "id": "show_cluster_nodes",
       "file": "cases/show_cluster_nodes.sql",
       "statementType": "READ_METADATA",
