@@ -4863,6 +4863,33 @@
       "description": "OceanBase Oracle mode ALTER TABLE ADD FOREIGN KEY constraint records local and referenced tables"
     },
     {
+      "id": "oracle_mode_alter_table_add_primary_key_constraint_enable",
+      "file": "cases/oracle_mode_alter_table_add_primary_key_constraint_enable.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.order_id"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.order_date"}
+      ],
+      "description": "OceanBase Oracle mode ALTER TABLE ADD PRIMARY KEY accepts ENABLE NOVALIDATE constraint state"
+    },
+    {
+      "id": "oracle_mode_alter_table_add_foreign_key_constraint_deferrable",
+      "file": "cases/oracle_mode_alter_table_add_foreign_key_constraint_deferrable.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.order_items"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.order_items.order_id"}
+      ],
+      "description": "OceanBase Oracle mode ALTER TABLE ADD FOREIGN KEY accepts DEFERRABLE INITIALLY DEFERRED constraint state"
+    },
+    {
       "id": "oracle_mode_alter_table_add_check_constraint",
       "file": "cases/oracle_mode_alter_table_add_check_constraint.sql",
       "compatibilityMode": "oracle",
