@@ -65,10 +65,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 insertTargetColumns.add(cleanIdentifier(id));
             }
         }
-        if (ctx.query() != null) {
+        List<PostgreSqlParser.ValuesClauseContext> queryValues = valuesQueryRows(ctx.query());
+        if (!queryValues.isEmpty()) {
+            result.setColumnLineage(readInsertValues(queryValues, target));
+        } else if (ctx.query() != null) {
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
+        } else if (!ctx.valuesClause().isEmpty()) {
+            result.setColumnLineage(readInsertValues(ctx.valuesClause(), target));
         } else {
             suppressColumnLineage = true;
         }
@@ -1317,6 +1322,56 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             lineages.add(lineage);
         }
         return lineages;
+    }
+
+    private List<ColumnLineage> readInsertValues(List<PostgreSqlParser.ValuesClauseContext> valueRows,
+                                                 TableRef target) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        if (insertTargetColumns.isEmpty() || valueRows.isEmpty()) {
+            return lineages;
+        }
+        int columnCount = insertTargetColumns.size();
+        List<Set<ColumnRef>> sourcesByColumn = new ArrayList<>();
+        List<String> expressionsByColumn = new ArrayList<>();
+        for (int i = 0; i < columnCount; i++) {
+            sourcesByColumn.add(new LinkedHashSet<>());
+            expressionsByColumn.add(null);
+        }
+        for (PostgreSqlParser.ValuesClauseContext row : valueRows) {
+            List<PostgreSqlParser.ExpressionContext> expressions = row.expressionList().expression();
+            int count = Math.min(columnCount, expressions.size());
+            for (int i = 0; i < count; i++) {
+                PostgreSqlParser.ExpressionContext expression = expressions.get(i);
+                collectSubqueryInputs(expression);
+                List<ColumnRef> sources = resolveSources(sourceColumns(expression));
+                if (sources != null) {
+                    sourcesByColumn.get(i).addAll(sources);
+                }
+                if (expressionsByColumn.get(i) == null) {
+                    expressionsByColumn.set(i, expression.getText());
+                }
+            }
+        }
+        for (int i = 0; i < columnCount; i++) {
+            ColumnLineage lineage = new ColumnLineage();
+            lineage.setTarget(new ColumnRef(target, insertTargetColumns.get(i)));
+            lineage.setSources(new ArrayList<>(sourcesByColumn.get(i)));
+            lineage.setExpression(expressionsByColumn.get(i));
+            lineages.add(lineage);
+        }
+        return lineages;
+    }
+
+    private static List<PostgreSqlParser.ValuesClauseContext> valuesQueryRows(PostgreSqlParser.QueryContext query) {
+        if (query == null || !(query.queryTerm() instanceof PostgreSqlParser.QueryTermDefaultContext)) {
+            return new ArrayList<>();
+        }
+        PostgreSqlParser.QueryPrimaryContext primary =
+                ((PostgreSqlParser.QueryTermDefaultContext) query.queryTerm()).queryPrimary();
+        if (!(primary instanceof PostgreSqlParser.ValuesQueryContext)) {
+            return new ArrayList<>();
+        }
+        return ((PostgreSqlParser.ValuesQueryContext) primary).valuesClause();
     }
 
     private List<ColumnLineage> readCopyColumns(PostgreSqlParser.IdentifierListContext ctx, TableRef target) {

@@ -805,6 +805,19 @@
         {"type": "GROUP_BY", "column": "sales.orders.user_id"}
       ],
       "description": "PostgreSQL SELECT INTO TEMPORARY TABLE preserves aggregate column lineage"
+    },
+    {
+      "id": "insert_values_target_columns",
+      "file": "cases/insert_values_target_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["mart.audit_events"],
+      "columnLineage": [
+        {"target": "mart.audit_events.id", "sources": []},
+        {"target": "mart.audit_events.event_type", "sources": []},
+        {"target": "mart.audit_events.created_at", "sources": []}
+      ],
+      "description": "PostgreSQL INSERT VALUES preserves target column lineage for generated or literal values"
     }
   ]
 }
