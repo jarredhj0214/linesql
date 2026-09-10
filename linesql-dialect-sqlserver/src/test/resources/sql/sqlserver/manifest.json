@@ -3991,6 +3991,42 @@
       "description": "SQL Server CREATE INDEX WITH options records the affected table and index columns"
     },
     {
+      "id": "create_clustered_columnstore_index",
+      "file": "cases/create_clustered_columnstore_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.fact_orders"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE CLUSTERED COLUMNSTORE INDEX records the affected table"
+    },
+    {
+      "id": "create_nonclustered_columnstore_index",
+      "file": "cases/create_nonclustered_columnstore_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.fact_orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "dbo.fact_orders.order_id"
+        },
+        {
+          "type": "INDEX",
+          "column": "dbo.fact_orders.amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.fact_orders.amount"
+        }
+      ],
+      "description": "SQL Server CREATE NONCLUSTERED COLUMNSTORE INDEX records index and filter columns"
+    },
+    {
       "id": "create_statistics_filtered",
       "file": "cases/create_statistics_filtered.sql",
       "statementType": "ALTER_TABLE",

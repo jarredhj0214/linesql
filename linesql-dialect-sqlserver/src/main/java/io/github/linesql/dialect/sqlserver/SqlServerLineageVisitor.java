@@ -417,7 +417,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             outputTables.add(table);
             currentDmlTarget = table;
             tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
-            addColumnUsages(ColumnUsageType.INDEX, sourceColumns(ctx.indexElementList()));
+            if (ctx.indexElementList() != null) {
+                addColumnUsages(ColumnUsageType.INDEX, sourceColumns(ctx.indexElementList()));
+            }
             addIndexColumnUsages(table, ctx.identifierList());
             if (ctx.whereClause() != null) {
                 addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
