@@ -7,7 +7,8 @@ singleStatement
     ;
 
 statement
-    : query                                                          #statementDefault
+    : transactionStatement                                           #transactionStmt
+    | query                                                          #statementDefault
     | insertStatement                                                #insertStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
@@ -643,6 +644,32 @@ reindexStatement
     : REINDEX (TABLE | INDEX) CONCURRENTLY? multipartIdentifier
     ;
 
+transactionStatement
+    : BEGIN (WORK | TRANSACTION)?
+    | START TRANSACTION transactionCharacteristicList?
+    | COMMIT (WORK | TRANSACTION)?
+    | ROLLBACK (WORK | TRANSACTION)?
+    | ROLLBACK (WORK | TRANSACTION)? TO SAVEPOINT? identifier
+    | SAVEPOINT identifier
+    | RELEASE SAVEPOINT? identifier
+    | SET TRANSACTION transactionCharacteristicList
+    ;
+
+transactionCharacteristicList
+    : transactionCharacteristic (COMMA transactionCharacteristic)*
+    ;
+
+transactionCharacteristic
+    : ISOLATION LEVEL isolationLevel
+    | READ (WRITE | ONLY)
+    ;
+
+isolationLevel
+    : READ (UNCOMMITTED | COMMITTED)
+    | REPEATABLE READ
+    | SERIALIZABLE
+    ;
+
 grantStatement
     : GRANT .+? ON TABLE? multipartIdentifier TO .+?
     ;
@@ -754,7 +781,7 @@ nonReservedKeyword
     | ANALYZE | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | END
     | ATTACH | CHECK | DETACH | ENGINE | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FUNCTION | GRANT | GROUPS | HEADER | IF | ILIKE | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
     | OF | OFFSET | ONLY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR
-    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
+    | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | BEGIN | START | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TEMPORARY | TO | TRUE | TRUNCATE | UNBOUNDED | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
     ;
 
 number

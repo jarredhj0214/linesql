@@ -780,6 +780,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitTransactionStmt(PostgreSqlParser.TransactionStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
     // ============ Query traversal ============
 
     @Override

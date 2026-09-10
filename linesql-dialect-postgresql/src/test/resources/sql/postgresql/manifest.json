@@ -545,6 +545,69 @@
       "description": "PostgreSQL SET search_path is classified as session control"
     },
     {
+      "id": "begin_transaction",
+      "file": "cases/begin_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL BEGIN TRANSACTION is classified as transaction control"
+    },
+    {
+      "id": "start_transaction_isolation",
+      "file": "cases/start_transaction_isolation.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL START TRANSACTION with isolation and read mode is classified as transaction control"
+    },
+    {
+      "id": "commit_transaction",
+      "file": "cases/commit_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL COMMIT WORK is classified as transaction control"
+    },
+    {
+      "id": "rollback_transaction",
+      "file": "cases/rollback_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ROLLBACK TRANSACTION is classified as transaction control"
+    },
+    {
+      "id": "savepoint_transaction",
+      "file": "cases/savepoint_transaction.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SAVEPOINT is classified as transaction control"
+    },
+    {
+      "id": "rollback_to_savepoint",
+      "file": "cases/rollback_to_savepoint.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ROLLBACK TO SAVEPOINT is classified as transaction control"
+    },
+    {
+      "id": "release_savepoint",
+      "file": "cases/release_savepoint.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL RELEASE SAVEPOINT is classified as transaction control"
+    },
+    {
       "id": "create_function",
       "file": "cases/create_function.sql",
       "statementType": "CREATE_ROUTINE",
