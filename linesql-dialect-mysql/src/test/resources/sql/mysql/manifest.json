@@ -6639,6 +6639,30 @@
       "description": "MySQL ROLLBACK is accepted as a script-safe control statement"
     },
     {
+      "id": "savepoint_statement",
+      "file": "cases/savepoint_statement.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL SAVEPOINT is accepted as transaction control syntax"
+    },
+    {
+      "id": "rollback_to_savepoint",
+      "file": "cases/rollback_to_savepoint.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL ROLLBACK TO SAVEPOINT is accepted as transaction control syntax"
+    },
+    {
+      "id": "release_savepoint",
+      "file": "cases/release_savepoint.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL RELEASE SAVEPOINT is accepted as transaction control syntax"
+    },
+    {
       "id": "xa_start",
       "file": "cases/xa_start.sql",
       "statementType": "CONTROL",
