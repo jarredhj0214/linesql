@@ -451,6 +451,16 @@ See [Contributing](CONTRIBUTING.md) for the development workflow.
 - Dialect detection is conservative and anchor-based; explicit dialect is recommended when the engine is known.
 - Lineage coverage is case-backed and dialect-specific; unsupported grammar returns diagnostics instead of implying complete lineage.
 
+## parseScript Diagnostics
+
+```java
+LineSqlResult result = LineSql.parseScript("SELECT id FROM ods.users; MERGE MAGIC INTO t;");
+```
+```json
+{"statements": 2, "diagnostics": [{"statementIndex": 1, "message": "unsupported statement"}]}
+```
+Graceful degradation: valid statements still produce lineage, while unsupported statements are reported as diagnostics instead of failing the whole script.
+
 ## Design Docs
 
 - [Architecture Vision](docs/design/architecture.md)
