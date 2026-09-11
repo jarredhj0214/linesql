@@ -1,0 +1,3 @@
+ALTER TABLESPACE app_ts
+ADD DATAFILE 'app_ts02.dbf'
+SIZE 100M;

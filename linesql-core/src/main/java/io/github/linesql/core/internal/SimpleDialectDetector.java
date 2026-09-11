@@ -64,10 +64,15 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*change\\s+tenant\\b.*")
                 || normalized.matches("(?s)^\\s*(create|alter|drop)\\s+resource\\s+(unit|pool)\\b.*")
                 || normalized.matches("(?s)^\\s*(create|alter|drop)\\s+tablegroup\\b.*")
-                || normalized.matches("(?s)^\\s*alter\\s+system\\s+(add|delete)\\s+server\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+system\\s+(add|delete|start|stop|cancel\\s+delete)\\s+server\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+system\\s+(add|delete|isolate|start|(force\\s+)?stop)\\s+zone\\b.*")
                 || normalized.matches("(?s)^\\s*alter\\s+system\\s+(major|minor)\\s+freeze\\b.*")
                 || normalized.matches("(?s)^\\s*alter\\s+system\\s+(set|reset)\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+system\\s+(no)?archivelog\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+system\\s+restore\\b.*")
                 || normalized.matches("(?s)^\\s*(start|stop)\\s+server\\b.*")
+                || normalized.matches("(?s)^\\s*show\\s+(servers?|zone)\\b.*")
+                || normalized.matches("(?s)^\\s*show\\s+restore\\s+preview\\b.*")
                 || normalized.matches("(?s)^\\s*show\\s+(create\\s+)?tenant\\b.*")
                 || normalized.matches("(?s)^\\s*show\\s+resource\\s+(unit|pool)\\b.*")
                 || normalized.matches("(?s)^\\s*show\\s+tablegroups?\\b.*")
@@ -133,16 +138,25 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bcreate\\s+routine\\s+load\\b.*")
                 || normalized.matches("(?s).*\\bload\\s+label\\b.*")
                 || normalized.matches("(?s)^\\s*show\\s+proc\\b.*")
+                || normalized.matches("(?s)^\\s*show\\s+tablet\\b.*")
+                || normalized.matches("(?s)^\\s*show\\s+(routine\\s+load|load)\\b.*")
+                || normalized.matches("(?s)^\\s*show\\s+create\\s+materialized\\s+view\\b.*")
+                || normalized.matches("(?s)^\\s*admin\\s+(show|cancel|repair)\\b.*")
                 || normalized.matches("(?s).*\\brefresh\\s+materialized\\s+view\\b.*")
+                || normalized.matches("(?s)^\\s*cancel\\s+refresh\\s+materialized\\s+view\\b.*")
+                || normalized.matches("(?s)^\\s*cancel\\s+(load|export|alter\\s+table|backup|restore|decommission)\\b.*")
+                || normalized.matches("(?s)^\\s*recover\\s+(database|table|partition)\\b.*")
+                || normalized.matches("(?s)^\\s*sync\\s*$")
+                || normalized.matches("(?s)^\\s*submit\\s+task\\b.*")
                 || normalized.contains(" properties (\"replication_num\"")) {
-            candidates.add(candidate(SqlDialect.STARROCKS, 0.93, "StarRocks key, distribution, or replication syntax"));
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.93, "StarRocks key, load, materialized view, metadata, task, or admin syntax"));
         }
         if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
                 || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")
                 || normalized.matches("(?s).*\\bstart\\s+with\\b.*")
                 || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
                 || normalized.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*")
-                || normalized.matches("(?s)^(?!\\s*explain\\s+partitions\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*")
+                || normalized.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*")
                 || normalized.matches("(?s)^\\s*create\\s+(global|private)\\s+temporary\\s+table\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+table\\b.*\\b(nologging|logging|parallel|noparallel|compress|nocompress)\\b.*\\bas\\s+select\\b.*")
                 || normalized.matches("(?s)^\\s*drop\\s+table\\b.*\\bcascade\\s+constraints\\b.*")
@@ -155,8 +169,9 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         if (normalized.matches("(?s).*\\bselect\\s+top\\s+\\d+\\b.*")
                 || containsSqlServerBracketIdentifier(normalized)
-                || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")) {
-            candidates.add(candidate(SqlDialect.SQLSERVER, 0.91, "SQL Server TOP, bracketed identifier, or table hint syntax"));
+                || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")
+                || normalized.matches("(?s).*\\b(openjson|openxml|openquery|openrowset)\\s*\\(.*")) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.91, "SQL Server TOP, bracketed identifier, table hint, OPENJSON/OPENXML, or external rowset syntax"));
         }
         if (sparkSignal) {
             candidates.add(candidate(
@@ -175,6 +190,7 @@ public class SimpleDialectDetector implements DialectDetector {
         return sql.contains("${")
                 || sql.contains("#day#")
                 || sql.contains("`")
+                || sql.matches("(?s)^\\s*set\\s+spark\\.sql\\..*")
                 || sql.matches("(?s).*\\bcast\\s*\\([^)]*\\bas\\s+string\\s*\\).*")
                 || sql.matches("(?s).*\\b(get_json_object|regexp_replace|regexp_extract|date_format|date_sub|from_unixtime|unix_timestamp|collect_list|collect_set|named_struct|posexplode|explode|if|ifnull|nvl)\\s*\\(.*")
                 || sql.matches("(?s).*\\brlike\\b.*")

@@ -14,6 +14,58 @@
       "description": "OceanBase MySQL compatibility mode SELECT lineage"
     },
     {
+      "id": "mysql_mode_derived_table_query_primary_star",
+      "file": "cases/mysql_mode_derived_table_query_primary_star.sql",
+      "statementType": "SELECT",
+      "compatibilityMode": "mysql",
+      "inputTables": ["app.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "*", "sources": ["app.users.*"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "OceanBase MySQL mode TABLE query primary inside a derived table keeps wildcard lineage"
+    },
+    {
+      "id": "mysql_mode_table_query_union_projection",
+      "file": "cases/mysql_mode_table_query_union_projection.sql",
+      "statementType": "SELECT",
+      "compatibilityMode": "mysql",
+      "inputTables": ["app.users", "app.admin_users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "*", "sources": ["app.users.*", "app.admin_users.id"]}
+      ],
+      "description": "OceanBase MySQL mode TABLE query primary participates in UNION query expressions"
+    },
+    {
+      "id": "mysql_mode_drop_multiple_temporary_tables",
+      "file": "cases/mysql_mode_drop_multiple_temporary_tables.sql",
+      "statementType": "DROP_TABLE",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [
+        "tmp_users",
+        "tmp_orders"
+      ],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode DROP TEMPORARY TABLE supports multiple affected temporary tables"
+    },
+    {
+      "id": "mysql_mode_drop_table_cascade",
+      "file": "cases/mysql_mode_drop_table_cascade.sql",
+      "statementType": "DROP_TABLE",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [
+        "mart.old_orders"
+      ],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode DROP TABLE with CASCADE reports the affected table"
+    },
+    {
       "id": "mysql_mode_insert_select",
       "file": "cases/mysql_mode_insert_select.sql",
       "statementType": "INSERT",
@@ -24,6 +76,20 @@
         {"target": "mart.user_orders.amount", "sources": ["app.orders.amount"]}
       ],
       "description": "OceanBase MySQL mode INSERT SELECT lineage"
+    },
+    {
+      "id": "mysql_mode_insert_column_list_skipped_constant",
+      "file": "cases/mysql_mode_insert_column_list_skipped_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": ["app.users"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [
+        {"target": "mart.user_summary.user_id", "sources": ["app.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "OceanBase MySQL mode INSERT target column list keeps target-column ordinal alignment when generated expressions are skipped"
     },
     {
       "id": "mysql_mode_create_table_as_select",
@@ -203,6 +269,39 @@
         {"type": "WHERE", "column": "app.users.status"}
       ],
       "description": "OceanBase MySQL mode EXPLAIN OUTLINE preserves wrapped INSERT SELECT lineage"
+    },
+    {
+      "id": "mysql_mode_explain_analyze_insert_select",
+      "file": "cases/mysql_mode_explain_analyze_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {"target": "ads.user_summary.user_id", "sources": ["ods.users.id"]},
+        {"target": "ads.user_summary.user_name", "sources": ["ods.users.name"]}
+      ],
+      "description": "OceanBase MySQL mode EXPLAIN ANALYZE preserves wrapped INSERT SELECT lineage"
+    },
+    {
+      "id": "mysql_mode_explain_update_join",
+      "file": "cases/mysql_mode_explain_update_join.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.users", "app.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["app.users_delta.name"]},
+        {"target": "mart.users.status", "sources": []}
+      ],
+      "description": "OceanBase MySQL mode EXPLAIN preserves wrapped UPDATE JOIN lineage"
+    },
+    {
+      "id": "mysql_mode_explain_delete_using",
+      "file": "cases/mysql_mode_explain_delete_using.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.users", "app.deleted_users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode EXPLAIN preserves wrapped DELETE USING lineage"
     },
     {
       "id": "mysql_mode_create_table_subpartition",
@@ -1302,6 +1401,43 @@
       "description": "OceanBase MySQL mode window function projection lineage"
     },
     {
+      "id": "mysql_mode_group_by_with_rollup",
+      "file": "cases/mysql_mode_group_by_with_rollup.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["app.orders.region"]},
+        {"target": "order_count", "sources": ["app.orders.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.status"},
+        {"type": "GROUP_BY", "column": "app.orders.region"}
+      ],
+      "description": "OceanBase MySQL mode GROUP BY WITH ROLLUP keeps aggregate lineage and grouping usage"
+    },
+    {
+      "id": "mysql_mode_group_by_rollup_function",
+      "file": "cases/mysql_mode_group_by_rollup_function.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["app.orders.region"]},
+        {"target": "channel", "sources": ["app.orders.channel"]},
+        {"target": "total_amount", "sources": ["app.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.deleted"},
+        {"type": "GROUP_BY", "column": "app.orders.region"},
+        {"type": "GROUP_BY", "column": "app.orders.channel"},
+        {"type": "HAVING", "column": "app.orders.amount"}
+      ],
+      "description": "OceanBase MySQL mode ROLLUP(...) grouping keeps aggregate lineage and HAVING usage"
+    },
+    {
       "id": "mysql_mode_cte_column_projection",
       "file": "cases/mysql_mode_cte_column_projection.sql",
       "statementType": "SELECT",
@@ -1312,6 +1448,68 @@
         {"target": "user_name", "sources": ["app.users.name"]}
       ],
       "description": "OceanBase MySQL mode single CTE direct column propagation"
+    },
+    {
+      "id": "mysql_mode_nested_derived_query_column_projection",
+      "file": "cases/mysql_mode_nested_derived_query_column_projection.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["app.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "OceanBase MySQL mode nested derived query direct column propagation"
+    },
+    {
+      "id": "mysql_mode_lateral_derived_column_aliases",
+      "file": "cases/mysql_mode_lateral_derived_column_aliases.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users", "app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.users.id"]},
+        {"target": "last_amount", "sources": ["app.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.user_id"},
+        {"type": "WHERE", "column": "app.users.id"},
+        {"type": "ORDER_BY", "column": "app.orders.created_at"}
+      ],
+      "description": "OceanBase MySQL mode LATERAL derived query column alias list retargets derived projections"
+    },
+    {
+      "id": "mysql_mode_natural_inner_join_projection",
+      "file": "cases/mysql_mode_natural_inner_join_projection.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users", "app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.users.id"]},
+        {"target": "amount", "sources": ["app.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "OceanBase MySQL mode NATURAL INNER JOIN keeps source table and projection lineage"
+    },
+    {
+      "id": "mysql_mode_recursive_cte_column_projection",
+      "file": "cases/mysql_mode_recursive_cte_column_projection.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.employees"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.employees.id"]},
+        {"target": "manager_id", "sources": ["app.employees.manager_id"]}
+      ],
+      "description": "OceanBase MySQL mode WITH RECURSIVE keeps base-table inputs and final CTE projection lineage"
     },
     {
       "id": "mysql_mode_in_subquery_column_usage",
@@ -1418,6 +1616,19 @@
         {"type": "WHERE", "column": "app.orders.payload"}
       ],
       "description": "OceanBase MySQL mode JSON_TABLE nested path columns map to the JSON document source"
+    },
+    {
+      "id": "mysql_mode_json_table_exists_default_columns",
+      "file": "cases/mysql_mode_json_table_exists_default_columns.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "sku", "sources": ["app.orders.payload"]},
+        {"target": "has_discount", "sources": ["app.orders.payload"]}
+      ],
+      "description": "OceanBase MySQL mode JSON_TABLE EXISTS PATH and DEFAULT ON EMPTY columns propagate the JSON document source"
     },
     {
       "id": "mysql_mode_json_extract_expression",
@@ -1565,6 +1776,40 @@
       "description": "OceanBase MySQL mode system-view SELECT keeps table and column lineage"
     },
     {
+      "id": "mysql_mode_information_schema_tables",
+      "file": "cases/mysql_mode_information_schema_tables.sql",
+      "statementType": "SELECT",
+      "inputTables": ["information_schema.tables"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "table_schema", "sources": ["information_schema.tables.table_schema"]},
+        {"target": "table_name", "sources": ["information_schema.tables.table_name"]},
+        {"target": "table_rows", "sources": ["information_schema.tables.table_rows"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "information_schema.tables.table_schema"},
+        {"type": "WHERE", "column": "information_schema.tables.table_type"}
+      ],
+      "description": "OceanBase MySQL mode information_schema query keeps metadata table and column lineage"
+    },
+    {
+      "id": "mysql_mode_internal_virtual_table",
+      "file": "cases/mysql_mode_internal_virtual_table.sql",
+      "statementType": "SELECT",
+      "inputTables": ["oceanbase.__all_virtual_table"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "tenant_id", "sources": ["oceanbase.__all_virtual_table.tenant_id"]},
+        {"target": "table_id", "sources": ["oceanbase.__all_virtual_table.table_id"]},
+        {"target": "table_name", "sources": ["oceanbase.__all_virtual_table.table_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "oceanbase.__all_virtual_table.tenant_id"},
+        {"type": "WHERE", "column": "oceanbase.__all_virtual_table.table_type"}
+      ],
+      "description": "OceanBase MySQL mode internal virtual table query keeps metadata table and column lineage"
+    },
+    {
       "id": "mysql_mode_select_for_update_nowait",
       "file": "cases/mysql_mode_select_for_update_nowait.sql",
       "statementType": "SELECT",
@@ -1593,6 +1838,40 @@
         {"type": "WHERE", "column": "mart.orders.dt"}
       ],
       "description": "OceanBase MySQL mode SELECT FOR SHARE SKIP LOCKED keeps query lineage and predicate usage"
+    },
+    {
+      "id": "mysql_mode_select_for_update_of_alias_nowait",
+      "file": "cases/mysql_mode_select_for_update_of_alias_nowait.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users", "app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.users.id"]},
+        {"target": "amount", "sources": ["app.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "app.users.id"},
+        {"type": "JOIN_ON", "column": "app.orders.user_id"},
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "OceanBase MySQL mode SELECT FOR UPDATE OF alias NOWAIT keeps join and predicate lineage"
+    },
+    {
+      "id": "mysql_mode_select_lock_in_share_mode",
+      "file": "cases/mysql_mode_select_lock_in_share_mode.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.users.id"]},
+        {"target": "name", "sources": ["app.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "OceanBase MySQL mode LOCK IN SHARE MODE keeps query lineage and predicate usage"
     },
     {
       "id": "mysql_mode_flashback_snapshot",
@@ -1625,6 +1904,21 @@
       "description": "OceanBase MySQL mode SELECT INTO OUTFILE keeps table and projection lineage without treating the file as a table"
     },
     {
+      "id": "mysql_mode_select_into_dumpfile",
+      "file": "cases/mysql_mode_select_into_dumpfile.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.orders.id"]},
+        {"target": "status", "sources": ["app.orders.status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.status"}
+      ],
+      "description": "OceanBase MySQL mode SELECT INTO DUMPFILE keeps table and projection lineage without treating the file as a table"
+    },
+    {
       "id": "mysql_mode_select_trailing_into_outfile",
       "file": "cases/mysql_mode_select_trailing_into_outfile.sql",
       "statementType": "SELECT",
@@ -1638,6 +1932,52 @@
         {"type": "WHERE", "column": "app.orders.dt"}
       ],
       "description": "OceanBase MySQL mode trailing SELECT INTO OUTFILE keeps table and projection lineage"
+    },
+    {
+      "id": "mysql_mode_select_into_variables",
+      "file": "cases/mysql_mode_select_into_variables.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.orders.id"]},
+        {"target": "status", "sources": ["app.orders.status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.dt"}
+      ],
+      "description": "OceanBase MySQL mode SELECT INTO user variables keeps source table and projection lineage"
+    },
+    {
+      "id": "mysql_mode_select_into_variables_tail",
+      "file": "cases/mysql_mode_select_into_variables_tail.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.orders.id"]},
+        {"target": "amount", "sources": ["app.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.dt"}
+      ],
+      "description": "OceanBase MySQL mode trailing SELECT INTO user variables keeps source table and projection lineage"
+    },
+    {
+      "id": "mysql_mode_select_procedure_analyse",
+      "file": "cases/mysql_mode_select_procedure_analyse.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["app.orders.user_id"]},
+        {"target": "amount", "sources": ["app.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.status"},
+        {"type": "ORDER_BY", "column": "app.orders.amount"}
+      ],
+      "description": "OceanBase MySQL mode SELECT PROCEDURE ANALYSE keeps source table, projection, predicate, and ordering lineage"
     },
     {
       "id": "mysql_mode_start_transaction_snapshot",
@@ -2144,6 +2484,53 @@
       "description": "OceanBase MySQL mode DEALLOCATE PREPARE is accepted as dynamic SQL control"
     },
     {
+      "id": "mysql_mode_declare_cursor_for_select",
+      "file": "cases/mysql_mode_declare_cursor_for_select.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "CONTROL",
+      "inputTables": ["app.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["app.orders.order_id"]},
+        {"target": "amount", "sources": ["app.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.orders.status"},
+        {"type": "ORDER_BY", "column": "app.orders.created_at"}
+      ],
+      "description": "OceanBase MySQL mode DECLARE CURSOR FOR SELECT preserves embedded query lineage"
+    },
+    {
+      "id": "mysql_mode_open_cursor",
+      "file": "cases/mysql_mode_open_cursor.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode OPEN cursor is accepted as script-safe control"
+    },
+    {
+      "id": "mysql_mode_fetch_cursor",
+      "file": "cases/mysql_mode_fetch_cursor.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode FETCH cursor into variables is accepted as script-safe control"
+    },
+    {
+      "id": "mysql_mode_close_cursor",
+      "file": "cases/mysql_mode_close_cursor.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode CLOSE cursor is accepted as script-safe control"
+    },
+    {
       "id": "mysql_mode_lock_tables",
       "file": "cases/mysql_mode_lock_tables.sql",
       "statementType": "CONTROL",
@@ -2184,6 +2571,23 @@
       "inputTables": [],
       "outputTables": [],
       "description": "OceanBase Oracle compatibility mode DUAL pseudo table query"
+    },
+    {
+      "id": "oracle_mode_data_dictionary_view",
+      "file": "cases/oracle_mode_data_dictionary_view.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sys.dba_tables"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "owner", "sources": ["sys.dba_tables.owner"]},
+        {"target": "table_name", "sources": ["sys.dba_tables.table_name"]},
+        {"target": "tablespace_name", "sources": ["sys.dba_tables.tablespace_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sys.dba_tables.owner"},
+        {"type": "WHERE", "column": "sys.dba_tables.temporary"}
+      ],
+      "description": "OceanBase Oracle mode data dictionary view query keeps metadata table and column lineage"
     },
     {
       "id": "oracle_mode_analyze_table_all_columns",
@@ -2621,6 +3025,19 @@
       "description": "OceanBase Oracle mode CREATE BITMAP INDEX records the affected table and index columns"
     },
     {
+      "id": "oracle_mode_create_function_based_index",
+      "file": "cases/oracle_mode_create_function_based_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.users.email"},
+        {"type": "INDEX", "column": "mart.users.phone"}
+      ],
+      "description": "OceanBase Oracle mode function-based CREATE INDEX records expression source columns"
+    },
+    {
       "id": "oracle_mode_create_index_local",
       "file": "cases/oracle_mode_create_index_local.sql",
       "statementType": "ALTER_TABLE",
@@ -2984,6 +3401,37 @@
       "description": "OceanBase Oracle mode INSERT target column list over derived subquery propagation"
     },
     {
+      "id": "oracle_mode_insert_partition_select",
+      "file": "cases/oracle_mode_insert_partition_select.sql",
+      "statementType": "INSERT",
+      "compatibilityMode": "oracle",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [
+        {"target": "mart.user_summary.user_id", "sources": ["ods.users.id"]},
+        {"target": "mart.user_summary.user_name", "sources": ["ods.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.dt"}
+      ],
+      "description": "OceanBase Oracle mode INSERT into a partition target keeps table and target-column lineage"
+    },
+    {
+      "id": "oracle_mode_insert_sequence_nextval_select",
+      "file": "cases/oracle_mode_insert_sequence_nextval_select.sql",
+      "statementType": "INSERT",
+      "compatibilityMode": "oracle",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.order_snapshot"],
+      "columnLineage": [
+        {"target": "mart.order_snapshot.user_id", "sources": ["ods.orders.user_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"}
+      ],
+      "description": "OceanBase Oracle mode sequence NEXTVAL in INSERT SELECT is ignored as generated value while real source columns keep lineage"
+    },
+    {
       "id": "oracle_mode_insert_values_returning",
       "file": "cases/oracle_mode_insert_values_returning.sql",
       "statementType": "INSERT",
@@ -3078,6 +3526,21 @@
       "description": "OceanBase Oracle mode UPDATE expression assignments keep deterministic field lineage"
     },
     {
+      "id": "oracle_mode_update_partition_target",
+      "file": "cases/oracle_mode_update_partition_target.sql",
+      "statementType": "UPDATE",
+      "compatibilityMode": "oracle",
+      "inputTables": ["mart.user_summary"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [
+        {"target": "mart.user_summary.user_name", "sources": ["mart.user_summary.user_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.user_summary.status"}
+      ],
+      "description": "OceanBase Oracle mode UPDATE partition target keeps affected table, assignment lineage, and predicate usage"
+    },
+    {
       "id": "oracle_mode_update_returning",
       "file": "cases/oracle_mode_update_returning.sql",
       "statementType": "UPDATE",
@@ -3118,6 +3581,19 @@
         {"type": "WHERE", "column": "ads.user_summary.user_id"}
       ],
       "description": "OceanBase Oracle mode DELETE WHERE EXISTS preserves target, subquery input, and predicate usage"
+    },
+    {
+      "id": "oracle_mode_delete_subpartition_target",
+      "file": "cases/oracle_mode_delete_subpartition_target.sql",
+      "statementType": "DELETE",
+      "compatibilityMode": "oracle",
+      "inputTables": ["mart.user_summary"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.user_summary.status"}
+      ],
+      "description": "OceanBase Oracle mode DELETE subpartition target keeps affected table and predicate usage"
     },
     {
       "id": "oracle_mode_delete_returning",
@@ -3294,6 +3770,38 @@
         {"type": "WINDOW_ORDER_BY", "column": "sales.orders.created_at"}
       ],
       "description": "OceanBase Oracle mode analytic window frame keeps partition and ordering lineage"
+    },
+    {
+      "id": "oracle_mode_window_ignore_nulls_lineage",
+      "file": "cases/oracle_mode_window_ignore_nulls_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.account_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "account_id", "sources": ["ods.account_events.account_id"]},
+        {"target": "first_amount", "sources": ["ods.account_events.amount", "ods.account_events.account_id", "ods.account_events.event_time"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.account_events.account_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.account_events.event_time"}
+      ],
+      "description": "OceanBase Oracle mode FIRST_VALUE IGNORE NULLS keeps value, partition, and ordering lineage"
+    },
+    {
+      "id": "oracle_mode_window_respect_nulls_lineage",
+      "file": "cases/oracle_mode_window_respect_nulls_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.account_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "account_id", "sources": ["ods.account_events.account_id"]},
+        {"target": "last_status", "sources": ["ods.account_events.status", "ods.account_events.account_id", "ods.account_events.event_time"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.account_events.account_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.account_events.event_time"}
+      ],
+      "description": "OceanBase Oracle mode LAST_VALUE RESPECT NULLS keeps value, partition, and ordering lineage"
     },
     {
       "id": "oracle_mode_keep_dense_rank_projection",
@@ -3971,10 +4479,13 @@
       "id": "oracle_mode_sequence_nextval_insert",
       "file": "cases/oracle_mode_sequence_nextval_insert.sql",
       "statementType": "SELECT",
+      "compatibilityMode": "oracle",
       "inputTables": [],
       "outputTables": [],
-      "columnLineage": [],
-      "description": "OceanBase Oracle mode sequence NEXTVAL pseudocolumn is accepted without inventing a table-column source"
+      "columnLineage": [
+        {"target": "next_id", "sources": []}
+      ],
+      "description": "OceanBase Oracle mode sequence NEXTVAL pseudocolumn is accepted as a generated output without inventing a table-column source"
     },
     {
       "id": "oracle_mode_update_dblink",
@@ -4135,6 +4646,15 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "OceanBase SHOW PARAMETERS with TENANT scope is accepted as a table-free parameter metadata statement"
+    },
+    {
+      "id": "control_show_proc",
+      "file": "cases/control_show_proc.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase SHOW PROC is accepted as a table-free process metadata statement"
     },
     {
       "id": "control_purge_recyclebin",
@@ -4722,10 +5242,19 @@
       "id": "oracle_mode_anonymous_cursor_loop_block",
       "file": "cases/oracle_mode_anonymous_cursor_loop_block.sql",
       "statementType": "CONTROL",
-      "inputTables": [],
+      "inputTables": ["ods.orders"],
       "outputTables": [],
       "columnLineage": [],
-      "description": "OceanBase Oracle mode anonymous cursor FOR loop block is accepted as control syntax"
+      "description": "OceanBase Oracle mode anonymous cursor FOR loop block preserves static SELECT table lineage"
+    },
+    {
+      "id": "oracle_mode_anonymous_insert_select_block",
+      "file": "cases/oracle_mode_anonymous_insert_select_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.order_summary"],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode anonymous block preserves static INSERT SELECT table lineage"
     },
     {
       "id": "oracle_mode_anonymous_declare_block",
@@ -4923,6 +5452,55 @@
         {"target": "value", "sources": ["app.split_tags.value"]}
       ],
       "description": "OceanBase Oracle mode TABLE(function()) relation is treated as a source relation"
+    },
+    {
+      "id": "oracle_mode_json_scalar_function_lineage",
+      "file": "cases/oracle_mode_json_scalar_function_lineage.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.events.event_id"]},
+        {"target": "user_id", "sources": ["ods.events.payload"]},
+        {"target": "items_json", "sources": ["ods.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.payload"}
+      ],
+      "description": "OceanBase Oracle mode SQL/JSON scalar functions map projection and predicate lineage to the payload column"
+    },
+    {
+      "id": "oracle_mode_nested_derived_query_column_projection",
+      "file": "cases/oracle_mode_nested_derived_query_column_projection.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["ods.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.status"}
+      ],
+      "description": "OceanBase Oracle mode nested derived query direct column propagation"
+    },
+    {
+      "id": "oracle_mode_recursive_cte_column_projection",
+      "file": "cases/oracle_mode_recursive_cte_column_projection.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "SELECT",
+      "inputTables": ["app.org"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.org.id"]},
+        {"target": "parent_id", "sources": ["app.org.parent_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.org.parent_id"},
+        {"type": "JOIN_ON", "column": "app.org.parent_id"}
+      ],
+      "description": "OceanBase Oracle mode recursive subquery factoring direct column propagation"
     },
     {
       "id": "oracle_mode_xml_table_relation",
@@ -5145,6 +5723,276 @@
         {"type": "TABLE_MODEL", "column": "mart.sales_forecast.sales_amount"}
       ],
       "description": "OceanBase Oracle mode MODEL KEEP NAV preserves measure alias lineage"
+    },
+    {
+      "id": "control_alter_system_start_zone",
+      "file": "cases/control_alter_system_start_zone.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM START ZONE is accepted as cluster zone lifecycle control"
+    },
+    {
+      "id": "control_alter_system_add_zone",
+      "file": "cases/control_alter_system_add_zone.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM ADD ZONE is accepted as cluster zone lifecycle control"
+    },
+    {
+      "id": "control_alter_system_stop_zone",
+      "file": "cases/control_alter_system_stop_zone.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM STOP ZONE is accepted as cluster zone lifecycle control"
+    },
+    {
+      "id": "control_alter_system_delete_zone",
+      "file": "cases/control_alter_system_delete_zone.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM DELETE ZONE is accepted as cluster zone lifecycle control"
+    },
+    {
+      "id": "control_alter_system_isolate_zone",
+      "file": "cases/control_alter_system_isolate_zone.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM ISOLATE ZONE is accepted as cluster zone lifecycle control"
+    },
+    {
+      "id": "control_alter_system_cancel_delete_server",
+      "file": "cases/control_alter_system_cancel_delete_server.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM CANCEL DELETE SERVER is accepted as OBServer lifecycle control"
+    },
+    {
+      "id": "control_alter_system_force_stop_zone",
+      "file": "cases/control_alter_system_force_stop_zone.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM FORCE STOP ZONE is accepted as forced cluster zone lifecycle control"
+    },
+    {
+      "id": "control_show_servers",
+      "file": "cases/control_show_servers.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase SHOW SERVERS is accepted as cluster server metadata read"
+    },
+    {
+      "id": "control_show_zone",
+      "file": "cases/control_show_zone.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase SHOW ZONE is accepted as cluster zone metadata read"
+    },
+    {
+      "id": "control_alter_system_archivelog",
+      "file": "cases/control_alter_system_archivelog.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM ARCHIVELOG is accepted as backup archive control"
+    },
+    {
+      "id": "control_alter_system_noarchivelog",
+      "file": "cases/control_alter_system_noarchivelog.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM NOARCHIVELOG is accepted as backup archive control"
+    },
+    {
+      "id": "control_alter_system_restore_tenant",
+      "file": "cases/control_alter_system_restore_tenant.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM RESTORE TENANT is accepted as tenant restore control"
+    },
+    {
+      "id": "control_alter_system_restore_preview",
+      "file": "cases/control_alter_system_restore_preview.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase ALTER SYSTEM RESTORE PREVIEW is accepted as restore preview control"
+    },
+    {
+      "id": "control_show_restore_preview",
+      "file": "cases/control_show_restore_preview.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase SHOW RESTORE PREVIEW is accepted as restore preview metadata read"
+    },
+    {
+      "id": "oracle_mode_create_user_control",
+      "file": "cases/oracle_mode_create_user_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE USER is accepted as principal control"
+    },
+    {
+      "id": "oracle_mode_alter_user_quota_control",
+      "file": "cases/oracle_mode_alter_user_quota_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER USER quota statement is accepted as principal control"
+    },
+    {
+      "id": "oracle_mode_create_role_control",
+      "file": "cases/oracle_mode_create_role_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE ROLE is accepted as principal control"
+    },
+    {
+      "id": "oracle_mode_drop_user_cascade_control",
+      "file": "cases/oracle_mode_drop_user_cascade_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DROP USER CASCADE is accepted as principal control"
+    },
+    {
+      "id": "oracle_mode_create_directory_control",
+      "file": "cases/oracle_mode_create_directory_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE DIRECTORY is accepted as external file directory control"
+    },
+    {
+      "id": "oracle_mode_drop_directory_control",
+      "file": "cases/oracle_mode_drop_directory_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DROP DIRECTORY is accepted as external file directory control"
+    },
+    {
+      "id": "oracle_mode_create_tablespace_control",
+      "file": "cases/oracle_mode_create_tablespace_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE TABLESPACE is accepted as storage control"
+    },
+    {
+      "id": "oracle_mode_alter_tablespace_control",
+      "file": "cases/oracle_mode_alter_tablespace_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER TABLESPACE is accepted as storage control"
+    },
+    {
+      "id": "oracle_mode_drop_tablespace_control",
+      "file": "cases/oracle_mode_drop_tablespace_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DROP TABLESPACE is accepted as storage control"
+    },
+    {
+      "id": "oracle_mode_create_context_control",
+      "file": "cases/oracle_mode_create_context_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE CONTEXT is accepted as application context control"
+    },
+    {
+      "id": "oracle_mode_drop_context_control",
+      "file": "cases/oracle_mode_drop_context_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DROP CONTEXT is accepted as application context control"
+    },
+    {
+      "id": "oracle_mode_create_profile_control",
+      "file": "cases/oracle_mode_create_profile_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE PROFILE is accepted as profile control"
+    },
+    {
+      "id": "oracle_mode_create_audit_policy_control",
+      "file": "cases/oracle_mode_create_audit_policy_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode CREATE AUDIT POLICY is accepted as audit policy control"
+    },
+    {
+      "id": "oracle_mode_drop_audit_policy_control",
+      "file": "cases/oracle_mode_drop_audit_policy_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DROP AUDIT POLICY is accepted as audit policy control"
+    },
+    {
+      "id": "oracle_mode_audit_table_control",
+      "file": "cases/oracle_mode_audit_table_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode AUDIT table statement is accepted as audit control"
+    },
+    {
+      "id": "oracle_mode_noaudit_table_control",
+      "file": "cases/oracle_mode_noaudit_table_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode NOAUDIT table statement is accepted as audit control"
     }
   ]
 }

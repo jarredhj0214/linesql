@@ -1,0 +1,1 @@
+AUDIT SELECT, INSERT ON mart.orders BY ACCESS;

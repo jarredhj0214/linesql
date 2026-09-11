@@ -1,0 +1,5 @@
+CREATE TRIGGER trg_users_audit
+BEFORE INSERT OR UPDATE ON mart.users
+FOR EACH ROW
+WHEN (NEW.id IS NOT NULL)
+EXECUTE FUNCTION mart.audit_users()

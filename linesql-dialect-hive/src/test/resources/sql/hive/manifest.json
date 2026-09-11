@@ -763,6 +763,30 @@
       "description": "Hive single derived subquery table and direct column propagation"
     },
     {
+      "id": "nested_derived_query_column_projection",
+      "file": "cases/nested_derived_query_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Hive nested derived subquery direct column propagation"
+    },
+    {
       "id": "insert_from_cte",
       "file": "cases/insert_from_cte.sql",
       "statementType": "INSERT",
@@ -787,6 +811,35 @@
         }
       ],
       "description": "Hive INSERT target column list mapping over single CTE direct column propagation"
+    },
+    {
+      "id": "with_insert_select",
+      "file": "cases/with_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.active"}
+      ],
+      "description": "Hive WITH before INSERT SELECT propagates CTE source columns into target columns"
     },
     {
       "id": "create_view_with_cte",
@@ -887,6 +940,32 @@
         }
       ],
       "description": "Hive INSERT target column list mapping"
+    },
+    {
+      "id": "insert_column_list_skipped_constant",
+      "file": "cases/insert_column_list_skipped_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Hive INSERT target column list keeps source columns aligned when earlier SELECT items are generated constants"
     },
     {
       "id": "insert_union_column_lineage",
@@ -1797,6 +1876,38 @@
       "description": "Hive window function projection column lineage and window clause usages"
     },
     {
+      "id": "transform_select",
+      "file": "cases/transform_select.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "key",
+          "sources": [
+            "ods.events.id",
+            "ods.events.payload"
+          ]
+        },
+        {
+          "target": "value",
+          "sources": [
+            "ods.events.id",
+            "ods.events.payload"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.dt"
+        }
+      ],
+      "description": "Hive TRANSFORM USING script maps declared output columns to transform input expressions"
+    },
+    {
       "id": "create_table_stored_as",
       "file": "cases/create_table_stored_as.sql",
       "statementType": "CREATE_TABLE",
@@ -1817,6 +1928,28 @@
       ],
       "columnLineage": [],
       "description": "Hive LOAD DATA INPATH into table lineage"
+    },
+    {
+      "id": "load_data_partition",
+      "file": "cases/load_data_partition.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive LOAD DATA INPATH into partitioned table lineage"
+    },
+    {
+      "id": "load_data_local_overwrite",
+      "file": "cases/load_data_local_overwrite.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.users"
+      ],
+      "columnLineage": [],
+      "description": "Hive LOAD DATA LOCAL INPATH OVERWRITE into table lineage"
     },
     {
       "id": "create_database_location",
@@ -1866,6 +1999,28 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Hive ANALYZE TABLE COMPUTE STATISTICS records the inspected table"
+    },
+    {
+      "id": "analyze_table_all_columns",
+      "file": "cases/analyze_table_all_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive ANALYZE TABLE FOR ALL COLUMNS records the inspected table"
+    },
+    {
+      "id": "analyze_table_partition_columns",
+      "file": "cases/analyze_table_partition_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive ANALYZE TABLE partition FOR COLUMNS records the inspected table"
     },
     {
       "id": "drop_table_purge",
@@ -2116,6 +2271,679 @@
       ],
       "columnLineage": [],
       "description": "Hive IMPORT EXTERNAL TABLE with LOCATION records the external table target"
+    },
+    {
+      "id": "alter_table_add_partitions_location",
+      "file": "cases/alter_table_add_partitions_location.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE ADD IF NOT EXISTS PARTITION with LOCATION records the affected table"
+    },
+    {
+      "id": "alter_table_drop_partition_purge",
+      "file": "cases/alter_table_drop_partition_purge.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE DROP IF EXISTS PARTITION PURGE records the affected table"
+    },
+    {
+      "id": "alter_table_rename_partition",
+      "file": "cases/alter_table_rename_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE PARTITION RENAME records the affected table"
+    },
+    {
+      "id": "alter_table_partition_set_location",
+      "file": "cases/alter_table_partition_set_location.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE PARTITION SET LOCATION records the affected table"
+    },
+    {
+      "id": "alter_table_touch",
+      "file": "cases/alter_table_touch.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE TOUCH records the affected table"
+    },
+    {
+      "id": "alter_table_partition_touch",
+      "file": "cases/alter_table_partition_touch.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE PARTITION TOUCH records the affected table"
+    },
+    {
+      "id": "alter_table_concatenate",
+      "file": "cases/alter_table_concatenate.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE CONCATENATE records the affected table"
+    },
+    {
+      "id": "alter_table_compact_wait",
+      "file": "cases/alter_table_compact_wait.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE PARTITION COMPACT AND WAIT records the affected table"
+    },
+    {
+      "id": "alter_table_exchange_partition",
+      "file": "cases/alter_table_exchange_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "staging.orders_tmp"
+      ],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE EXCHANGE PARTITION records source and target tables"
+    },
+    {
+      "id": "grouping_sets_column_usage",
+      "file": "cases/grouping_sets_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "dwd.orders.channel"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.channel"
+        }
+      ],
+      "description": "Hive GROUPING SETS records grouping columns as GROUP_BY usages"
+    },
+    {
+      "id": "cube_column_usage",
+      "file": "cases/cube_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "dwd.orders.channel"
+          ]
+        },
+        {
+          "target": "order_count",
+          "sources": [
+            "dwd.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.channel"
+        },
+        {
+          "type": "HAVING",
+          "column": "dwd.orders.order_id"
+        }
+      ],
+      "description": "Hive CUBE records grouping columns and HAVING aggregate inputs"
+    },
+    {
+      "id": "group_by_with_rollup",
+      "file": "cases/group_by_with_rollup.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "dwd.orders.region"
+          ]
+        },
+        {
+          "target": "channel",
+          "sources": [
+            "dwd.orders.channel"
+          ]
+        },
+        {
+          "target": "total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.channel"
+        }
+      ],
+      "description": "Hive legacy GROUP BY ... WITH ROLLUP records grouping columns as GROUP_BY usages"
+    },
+    {
+      "id": "lateral_view_explode",
+      "file": "cases/lateral_view_explode.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "item",
+          "sources": [
+            "ods.users.items"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.items"
+        }
+      ],
+      "description": "Hive LATERAL VIEW explode generated column resolves back to the UDTF input column"
+    },
+    {
+      "id": "lateral_view_outer_posexplode",
+      "file": "cases/lateral_view_outer_posexplode.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "pos",
+          "sources": [
+            "ods.users.items"
+          ]
+        },
+        {
+          "target": "item",
+          "sources": [
+            "ods.users.items"
+          ]
+        }
+      ],
+      "description": "Hive LATERAL VIEW OUTER posexplode generated columns resolve back to the UDTF input column"
+    },
+    {
+      "id": "merge_into_update_insert",
+      "file": "cases/merge_into_update_insert.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "mart.users",
+        "staging.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "staging.users_delta.name"
+          ]
+        },
+        {
+          "target": "mart.users.updated_at",
+          "sources": [
+            "staging.users_delta.updated_at"
+          ]
+        },
+        {
+          "target": "mart.users.id",
+          "sources": [
+            "staging.users_delta.id"
+          ]
+        },
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "staging.users_delta.name"
+          ]
+        },
+        {
+          "target": "mart.users.updated_at",
+          "sources": [
+            "staging.users_delta.updated_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "staging.users_delta.id"
+        },
+        {
+          "type": "MERGE_WHEN",
+          "column": "staging.users_delta.op"
+        }
+      ],
+      "description": "Hive MERGE INTO records target/source tables, matched update lineage, insert value lineage, and merge predicates"
+    },
+    {
+      "id": "merge_using_subquery",
+      "file": "cases/merge_using_subquery.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "mart.users",
+        "staging.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "staging.users_delta.name"
+          ]
+        },
+        {
+          "target": "mart.users.id",
+          "sources": [
+            "staging.users_delta.id"
+          ]
+        },
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "staging.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "staging.users_delta.dt"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "mart.users.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "staging.users_delta.id"
+        }
+      ],
+      "description": "Hive MERGE USING subquery propagates source columns into update and insert lineage"
+    },
+    {
+      "id": "set_session_property",
+      "file": "cases/set_session_property.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive SET session property is accepted as script control"
+    },
+    {
+      "id": "add_jar_resource",
+      "file": "cases/add_jar_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive ADD JAR resource statement is accepted as script control"
+    },
+    {
+      "id": "add_file_resource",
+      "file": "cases/add_file_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive ADD FILE resource statement is accepted as script control"
+    },
+    {
+      "id": "add_archive_resource",
+      "file": "cases/add_archive_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive ADD ARCHIVE resource statement is accepted as script control"
+    },
+    {
+      "id": "delete_jar_resource",
+      "file": "cases/delete_jar_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive DELETE JAR resource statement is accepted as script control"
+    },
+    {
+      "id": "delete_archive_resource",
+      "file": "cases/delete_archive_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive DELETE ARCHIVE resource statement is accepted as script control"
+    },
+    {
+      "id": "list_jar_resource",
+      "file": "cases/list_jar_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive LIST JAR resource statement is accepted as script control"
+    },
+    {
+      "id": "list_file_resource",
+      "file": "cases/list_file_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive LIST FILE resource statement is accepted as script control"
+    },
+    {
+      "id": "create_function_using_jar",
+      "file": "cases/create_function_using_jar.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive CREATE FUNCTION USING JAR is accepted as routine lifecycle DDL"
+    },
+    {
+      "id": "drop_temporary_function",
+      "file": "cases/drop_temporary_function.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive DROP TEMPORARY FUNCTION is accepted as routine lifecycle DDL"
+    },
+    {
+      "id": "reload_function",
+      "file": "cases/reload_function.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive RELOAD FUNCTION is accepted as script control"
+    },
+    {
+      "id": "explain_formatted_select",
+      "file": "cases/explain_formatted_select.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "last_event_time",
+          "sources": [
+            "dwd.user_events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.user_events.dt"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.user_events.user_id"
+        }
+      ],
+      "description": "Hive EXPLAIN FORMATTED SELECT preserves wrapped query lineage"
+    },
+    {
+      "id": "explain_extended_insert",
+      "file": "cases/explain_extended_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [
+        "ads.user_event_daily"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_event_daily.user_id",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_event_daily.event_time",
+          "sources": [
+            "dwd.user_events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.user_events.dt"
+        }
+      ],
+      "description": "Hive EXPLAIN EXTENDED INSERT preserves wrapped insert table and column lineage"
+    },
+    {
+      "id": "explain_dependency_select",
+      "file": "cases/explain_dependency_select.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "dwd.user_events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.user_events.dt"
+        }
+      ],
+      "description": "Hive EXPLAIN DEPENDENCY SELECT preserves wrapped query lineage"
+    },
+    {
+      "id": "explain_authorization_insert",
+      "file": "cases/explain_authorization_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [
+        "ads.user_event_daily"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_event_daily.user_id",
+          "sources": [
+            "dwd.user_events.user_id"
+          ]
+        },
+        {
+          "target": "ads.user_event_daily.event_time",
+          "sources": [
+            "dwd.user_events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.user_events.dt"
+        }
+      ],
+      "description": "Hive EXPLAIN AUTHORIZATION INSERT preserves wrapped insert lineage"
+    },
+    {
+      "id": "alter_table_archive_partition",
+      "file": "cases/alter_table_archive_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE ARCHIVE PARTITION records the affected table"
+    },
+    {
+      "id": "alter_table_unarchive_partition",
+      "file": "cases/alter_table_unarchive_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive ALTER TABLE UNARCHIVE PARTITION records the affected table"
+    },
+    {
+      "id": "lock_table_shared",
+      "file": "cases/lock_table_shared.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive LOCK TABLE records the locked table as affected"
+    },
+    {
+      "id": "unlock_table",
+      "file": "cases/unlock_table.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "Hive UNLOCK TABLE records the unlocked table as affected"
     }
   ]
 }

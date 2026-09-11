@@ -70,6 +70,15 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitTableQueryPrimary(MySqlParser.TableQueryPrimaryContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        addInputTable(table, true);
+        projections.add(starProjection(null, "*", 0));
+        refreshColumnLineage();
+        return null;
+    }
+
+    @Override
     public Void visitValuesStmt(MySqlParser.ValuesStmtContext ctx) {
         result.setStatementType(StatementType.SELECT);
         return null;
@@ -1098,6 +1107,21 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCursorStmt(MySqlParser.CursorStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        MySqlParser.CursorStatementContext statement = ctx.cursorStatement();
+        if (statement instanceof MySqlParser.DeclareCursorStatementContext) {
+            MySqlParser.QueryContext query = ((MySqlParser.DeclareCursorStatementContext) statement).cursorQuery;
+            LineageResult queryResult = lineageForQuery(query);
+            inputTables.addAll(queryResult.getInputTables());
+            result.setInputTables(new ArrayList<>(inputTables));
+            result.setColumnLineage(queryResult.getColumnLineage());
+            result.setColumnUsages(queryResult.getColumnUsages());
+        }
+        return null;
+    }
+
+    @Override
     public Void visitPrepareStmt(MySqlParser.PrepareStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;
@@ -1383,17 +1407,19 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitSelectClause(MySqlParser.SelectClauseContext ctx) {
-        for (MySqlParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
+        List<MySqlParser.SelectItemContext> items = ctx.selectItemList().selectItem();
+        for (int i = 0; i < items.size(); i++) {
+            MySqlParser.SelectItemContext item = items.get(i);
             if (item instanceof MySqlParser.SelectExpressionContext) {
-                Projection projection = projection((MySqlParser.SelectExpressionContext) item);
+                Projection projection = projection((MySqlParser.SelectExpressionContext) item, i);
                 if (projection != null) {
                     projections.add(projection);
                 }
             } else if (item instanceof MySqlParser.SelectStarContext) {
-                projections.add(starProjection(null, item.getText()));
+                projections.add(starProjection(null, item.getText(), i));
             } else if (item instanceof MySqlParser.SelectQualifiedStarContext) {
                 MySqlParser.SelectQualifiedStarContext star = (MySqlParser.SelectQualifiedStarContext) item;
-                projections.add(starProjection(qualifiedNameText(star.qualifiedName()), item.getText()));
+                projections.add(starProjection(qualifiedNameText(star.qualifiedName()), item.getText(), i));
             }
         }
         return visitChildren(ctx);
@@ -1782,10 +1808,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     private void refreshColumnLineage() {
+        refreshColumnLineage(outputTables.size() == 1 ? outputTables.iterator().next() : null);
+    }
+
+    private void refreshColumnLineage(TableRef targetTable) {
         if (suppressColumnLineage || projections.isEmpty()) {
             return;
         }
-        TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;
         List<ColumnLineage> columnLineage = new ArrayList<>();
         for (int i = 0; i < projections.size(); i++) {
             Projection projection = projections.get(i);
@@ -1793,7 +1822,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             if (sources == null) {
                 continue;
             }
-            String targetColumn = targetColumn(projection, columnLineage.size());
+            String targetColumn = targetColumn(projection, projection.ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
@@ -1806,6 +1835,10 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     private void retargetColumnLineage(TableRef targetTable) {
+        if (!projections.isEmpty()) {
+            refreshColumnLineage(targetTable);
+            return;
+        }
         result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
                 result.getColumnLineage(),
                 targetTable,
@@ -1813,7 +1846,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     private String targetColumn(Projection projection, int index) {
-        if (index < insertTargetColumns.size()) {
+        if (index >= 0 && index < insertTargetColumns.size()) {
             return insertTargetColumns.get(index);
         }
         return projection.targetColumn;
@@ -1959,7 +1992,25 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        return caseInsensitiveColumnRefs(columns, sourceColumn.name);
+        List<ColumnRef> refs = caseInsensitiveColumnRefs(columns, sourceColumn.name);
+        if (refs != null) {
+            return refs;
+        }
+        return derivedWildcardFallback(columns, sourceColumn.name);
+    }
+
+    private static List<ColumnRef> derivedWildcardFallback(Map<String, List<ColumnRef>> columns, String columnName) {
+        List<ColumnRef> wildcard = caseInsensitiveColumnRefs(columns, "*");
+        if (wildcard == null || wildcard.size() != 1) {
+            return null;
+        }
+        ColumnRef ref = wildcard.get(0);
+        if (ref.getTable() == null || !"*".equals(ref.getName())) {
+            return null;
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        refs.add(new ColumnRef(ref.getTable(), columnName));
+        return refs;
     }
 
     private static List<ColumnRef> caseInsensitiveColumnRefs(Map<String, List<ColumnRef>> columns, String columnName) {
@@ -2298,17 +2349,19 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (specification == null || specification.selectClause() == null) {
             return;
         }
-        for (MySqlParser.SelectItemContext item : specification.selectClause().selectItemList().selectItem()) {
+        List<MySqlParser.SelectItemContext> items = specification.selectClause().selectItemList().selectItem();
+        for (int i = 0; i < items.size(); i++) {
+            MySqlParser.SelectItemContext item = items.get(i);
             if (item instanceof MySqlParser.SelectExpressionContext) {
-                Projection projection = projection((MySqlParser.SelectExpressionContext) item);
+                Projection projection = projection((MySqlParser.SelectExpressionContext) item, i);
                 if (projection != null) {
                     projections.add(projection);
                 }
             } else if (item instanceof MySqlParser.SelectStarContext) {
-                projections.add(starProjection(null, item.getText()));
+                projections.add(starProjection(null, item.getText(), i));
             } else if (item instanceof MySqlParser.SelectQualifiedStarContext) {
                 MySqlParser.SelectQualifiedStarContext star = (MySqlParser.SelectQualifiedStarContext) item;
-                projections.add(starProjection(qualifiedNameText(star.qualifiedName()), item.getText()));
+                projections.add(starProjection(qualifiedNameText(star.qualifiedName()), item.getText(), i));
             }
         }
     }
@@ -2325,7 +2378,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         return ((MySqlParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(MySqlParser.SelectExpressionContext ctx) {
+    private Projection projection(MySqlParser.SelectExpressionContext ctx, int ordinal) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         addNamedWindowSourceColumns(ctx.expression(), sourceColumns);
@@ -2342,13 +2395,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, targetColumn, expression, ctx.expression());
+        return new Projection(sourceColumns, targetColumn, expression, ctx.expression(), ordinal);
     }
 
-    private Projection starProjection(String qualifier, String expression) {
+    private Projection starProjection(String qualifier, String expression, int ordinal) {
         List<SourceColumn> sourceColumns = new ArrayList<>();
         sourceColumns.add(new SourceColumn(qualifier, "*"));
-        return new Projection(sourceColumns, "*", expression, null);
+        return new Projection(sourceColumns, "*", expression, null, ordinal);
     }
 
     private void addNamedWindowSourceColumns(ParseTree tree, List<SourceColumn> sourceColumns) {
@@ -2701,12 +2754,14 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         final String targetColumn;
         final String expression;
         final ParseTree expressionTree;
+        final int ordinal;
 
-        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, ParseTree expressionTree) {
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, ParseTree expressionTree, int ordinal) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
             this.expressionTree = expressionTree;
+            this.ordinal = ordinal;
         }
     }
 

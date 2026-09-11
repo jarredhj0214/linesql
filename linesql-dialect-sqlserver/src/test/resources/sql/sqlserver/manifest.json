@@ -44,6 +44,162 @@
       "description": "SQL Server local temporary table names are parsed as table references"
     },
     {
+      "id": "fulltext_contains_freetext_predicate",
+      "file": "cases/fulltext_contains_freetext_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.products"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "product_id",
+          "sources": [
+            "dbo.products.product_id"
+          ]
+        },
+        {
+          "target": "title",
+          "sources": [
+            "dbo.products.title"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.products.description"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.products.notes"
+        }
+      ],
+      "description": "SQL Server full-text CONTAINS and FREETEXT predicates collect searched columns as WHERE usage"
+    },
+    {
+      "id": "null_default_system_literals",
+      "file": "cases/null_default_system_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.events.id"
+          ]
+        },
+        {
+          "target": "effective_ts",
+          "sources": [
+            "dbo.events.updated_at"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.events.deleted_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.events.archived_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.events.retry_count"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.events.updated_at"
+        }
+      ],
+      "description": "SQL Server NULL, DEFAULT, and zero-argument system functions are accepted without inventing source columns"
+    },
+    {
+      "id": "fulltext_contains_multi_column_predicate",
+      "file": "cases/fulltext_contains_multi_column_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.products"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "product_id",
+          "sources": [
+            "dbo.products.product_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.products.title"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.products.description"
+        }
+      ],
+      "description": "SQL Server full-text CONTAINS over a column list collects every searched column"
+    },
+    {
+      "id": "fulltext_containstable_relation",
+      "file": "cases/fulltext_containstable_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.products"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "rank",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.products.title"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.products.description"
+        }
+      ],
+      "description": "SQL Server CONTAINSTABLE table-valued full-text search records the searched table and searched columns"
+    },
+    {
+      "id": "fulltext_freetexttable_relation",
+      "file": "cases/fulltext_freetexttable_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.documents"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "rank",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.documents.body"
+        }
+      ],
+      "description": "SQL Server FREETEXTTABLE table-valued full-text search records the searched table and searched column"
+    },
+    {
       "id": "join_projection",
       "file": "cases/join_projection.sql",
       "statementType": "SELECT",
@@ -169,54 +325,56 @@
       "file": "cases/openquery_relation.sql",
       "statementType": "SELECT",
       "inputTables": [
-        "openquery"
+        "openquery",
+        "ods.orders"
       ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
           "sources": [
-            "openquery.id"
+            "ods.orders.id"
           ]
         },
         {
           "target": "amount",
           "sources": [
-            "openquery.amount"
+            "ods.orders.amount"
           ]
         }
       ],
-      "description": "SQL Server OPENQUERY relation is retained as an external table-valued source"
+      "description": "SQL Server OPENQUERY relation keeps the external source marker and parses embedded remote SQL lineage"
     },
     {
       "id": "openrowset_relation",
       "file": "cases/openrowset_relation.sql",
       "statementType": "SELECT",
       "inputTables": [
-        "openrowset"
+        "openrowset",
+        "ods.orders"
       ],
       "outputTables": [],
       "columnLineage": [
         {
           "target": "id",
           "sources": [
-            "openrowset.id"
+            "ods.orders.id"
           ]
         },
         {
           "target": "amount",
           "sources": [
-            "openrowset.amount"
+            "ods.orders.amount"
           ]
         }
       ],
       "columnUsages": [
         {
           "type": "WHERE",
-          "column": "openrowset.amount"
+          "column": "ods.orders.amount"
         }
       ],
-      "description": "SQL Server OPENROWSET relation is retained as an external table-valued source"
+      "description": "SQL Server OPENROWSET relation keeps the external source marker and parses embedded remote SQL lineage"
     },
     {
       "id": "cross_apply_table_valued_function",
@@ -289,6 +447,41 @@
       "description": "SQL Server OUTER APPLY table-valued function keeps function source and correlated argument usage"
     },
     {
+      "id": "cross_apply_string_split",
+      "file": "cases/cross_apply_string_split.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users",
+        "string_split"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "tag",
+          "sources": [
+            "string_split.value"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.users.tags"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.users.active"
+        }
+      ],
+      "description": "SQL Server CROSS APPLY STRING_SPLIT exposes alias columns while keeping correlated input usage"
+    },
+    {
       "id": "cross_apply_openjson_with_schema",
       "file": "cases/cross_apply_openjson_with_schema.sql",
       "statementType": "SELECT",
@@ -328,6 +521,240 @@
         }
       ],
       "description": "SQL Server CROSS APPLY OPENJSON WITH schema keeps source table, JSON function relation, and correlated payload usage"
+    },
+    {
+      "id": "outer_apply_openjson_with_schema",
+      "file": "cases/outer_apply_openjson_with_schema.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.events",
+        "openjson"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "dbo.events.event_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "openjson.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "openjson.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.events.payload"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.events.dt"
+        }
+      ],
+      "description": "SQL Server OUTER APPLY OPENJSON WITH schema keeps source table, JSON function relation, and correlated payload usage"
+    },
+    {
+      "id": "cross_apply_openjson_default_schema",
+      "file": "cases/cross_apply_openjson_default_schema.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.events",
+        "openjson"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "dbo.events.event_id"
+          ]
+        },
+        {
+          "target": "item_key",
+          "sources": [
+            "openjson.key"
+          ]
+        },
+        {
+          "target": "item_value",
+          "sources": [
+            "openjson.value"
+          ]
+        },
+        {
+          "target": "item_type",
+          "sources": [
+            "openjson.type"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.events.payload"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.events.dt"
+        }
+      ],
+      "description": "SQL Server CROSS APPLY OPENJSON default schema exposes key, value, and type columns"
+    },
+    {
+      "id": "cross_apply_openjson_as_json",
+      "file": "cases/cross_apply_openjson_as_json.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.events",
+        "openjson"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "dbo.events.event_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "openjson.user_id"
+          ]
+        },
+        {
+          "target": "items_json",
+          "sources": [
+            "openjson.items_json"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.events.payload"
+        },
+        {
+          "type": "WHERE",
+          "column": "openjson.items_json"
+        }
+      ],
+      "description": "SQL Server OPENJSON WITH AS JSON exposes nested JSON columns and correlated payload usage"
+    },
+    {
+      "id": "json_value_query_lineage",
+      "file": "cases/json_value_query_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "dbo.events.event_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "dbo.events.payload"
+          ]
+        },
+        {
+          "target": "items_json",
+          "sources": [
+            "dbo.events.payload"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.events.payload"
+        }
+      ],
+      "description": "SQL Server JSON_VALUE, JSON_QUERY, and ISJSON expressions map back to the JSON payload column"
+    },
+    {
+      "id": "cross_apply_openxml_with_schema",
+      "file": "cases/cross_apply_openxml_with_schema.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.raw_xml_batches",
+        "openxml"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "batch_id",
+          "sources": [
+            "dbo.raw_xml_batches.batch_id"
+          ]
+        },
+        {
+          "target": "order_id",
+          "sources": [
+            "openxml.order_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "openxml.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.raw_xml_batches.doc_handle"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.raw_xml_batches.loaded_at"
+        }
+      ],
+      "description": "SQL Server CROSS APPLY OPENXML WITH schema exposes XML rowset columns and correlated XML document handle usage"
+    },
+    {
+      "id": "cross_apply_xml_nodes",
+      "file": "cases/cross_apply_xml_nodes.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.payload"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "SQL Server CROSS APPLY XML nodes() reads the XML column without creating a fake function table"
     },
     {
       "id": "values_derived_table",
@@ -1956,6 +2383,34 @@
       "description": "SQL Server MERGE WHEN MATCHED AND condition records assignment lineage and WHEN predicate usage"
     },
     {
+      "id": "merge_matched_delete",
+      "file": "cases/merge_matched_delete.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        },
+        {
+          "type": "MERGE_WHEN",
+          "column": "ods.users_delta.is_deleted"
+        }
+      ],
+      "description": "SQL Server MERGE WHEN MATCHED THEN DELETE keeps target/source lineage and matched predicate usage"
+    },
+    {
       "id": "merge_target_holdlock",
       "file": "cases/merge_target_holdlock.sql",
       "statementType": "MERGE",
@@ -2198,6 +2653,50 @@
       "description": "SQL Server MERGE OUTPUT INTO records audit output table while preserving merge lineage"
     },
     {
+      "id": "merge_output_action",
+      "file": "cases/merge_output_action.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "ads.user_summary",
+        "ods.users_delta"
+      ],
+      "outputTables": [
+        "ads.user_summary",
+        "audit.user_summary_merge_actions"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users_delta.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users_delta.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "ads.user_summary.user_id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.users_delta.id"
+        }
+      ],
+      "description": "SQL Server MERGE OUTPUT $action INTO records audit output table without treating $action as a source column"
+    },
+    {
       "id": "cte_column_projection",
       "file": "cases/cte_column_projection.sql",
       "statementType": "SELECT",
@@ -2246,6 +2745,30 @@
       "description": "SQL Server single derived subquery table and direct column propagation"
     },
     {
+      "id": "nested_derived_query_column_projection",
+      "file": "cases/nested_derived_query_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        }
+      ],
+      "description": "SQL Server nested derived query direct column propagation"
+    },
+    {
       "id": "insert_from_cte",
       "file": "cases/insert_from_cte.sql",
       "statementType": "INSERT",
@@ -2270,6 +2793,38 @@
         }
       ],
       "description": "SQL Server INSERT target column list mapping over single CTE direct column propagation"
+    },
+    {
+      "id": "insert_top_select",
+      "file": "cases/insert_top_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.user_sample"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_sample.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_sample.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "SQL Server INSERT TOP SELECT keeps limited insert source-to-target column lineage"
     },
     {
       "id": "insert_output_into",
@@ -2458,6 +3013,40 @@
       "description": "SQL Server CTE column alias list propagation"
     },
     {
+      "id": "recursive_cte_column_projection",
+      "file": "cases/recursive_cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.employees.id"
+          ]
+        },
+        {
+          "target": "manager_id",
+          "sources": [
+            "dbo.employees.manager_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.employees.manager_id"
+        }
+      ],
+      "description": "SQL Server recursive CTE direct column propagation"
+    },
+    {
       "id": "insert_column_list",
       "file": "cases/insert_column_list.sql",
       "statementType": "INSERT",
@@ -2482,6 +3071,32 @@
         }
       ],
       "description": "SQL Server INSERT target column list mapping"
+    },
+    {
+      "id": "insert_column_list_skipped_constant",
+      "file": "cases/insert_column_list_skipped_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "SQL Server INSERT target column list keeps source columns aligned when earlier SELECT items are generated expressions"
     },
     {
       "id": "insert_union_column_lineage",
@@ -2674,6 +3289,28 @@
       ],
       "columnLineage": [],
       "description": "SQL Server DROP TABLE supports multiple affected tables"
+    },
+    {
+      "id": "drop_temp_table",
+      "file": "cases/drop_temp_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "#tmp_users"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP TABLE IF EXISTS supports local temporary table names"
+    },
+    {
+      "id": "drop_global_temp_table",
+      "file": "cases/drop_global_temp_table.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "##tmp_orders"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server DROP TABLE IF EXISTS supports global temporary table names"
     },
     {
       "id": "truncate_table",
@@ -3763,6 +4400,74 @@
       "description": "SQL Server SELECT FOR XML PATH keeps table and projection lineage"
     },
     {
+      "id": "select_for_xml_elements_xsinil",
+      "file": "cases/select_for_xml_elements_xsinil.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.users.id"
+        }
+      ],
+      "description": "SQL Server SELECT FOR XML ELEMENTS XSINIL keeps table and projection lineage"
+    },
+    {
+      "id": "select_for_json_auto_options",
+      "file": "cases/select_for_json_auto_options.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dbo.users.id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "dbo.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.users.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.users.name"
+        }
+      ],
+      "description": "SQL Server SELECT FOR JSON AUTO options keep table, projection, and ORDER BY lineage"
+    },
+    {
       "id": "with_insert_select",
       "file": "cases/with_insert_select.sql",
       "statementType": "INSERT",
@@ -4396,6 +5101,19 @@
       "description": "SQL Server CREATE OR ALTER PROCEDURE is classified as routine lifecycle DDL without table lineage"
     },
     {
+      "id": "create_or_alter_procedure_insert_select_body",
+      "file": "cases/create_or_alter_procedure_insert_select_body.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [],
+      "description": "SQL Server CREATE OR ALTER PROCEDURE preserves conservative static INSERT SELECT table lineage from the routine body"
+    },
+    {
       "id": "create_or_alter_function",
       "file": "cases/create_or_alter_function.sql",
       "statementType": "CREATE_ROUTINE",
@@ -4405,6 +5123,17 @@
       "description": "SQL Server CREATE OR ALTER FUNCTION is classified as routine lifecycle DDL without table lineage"
     },
     {
+      "id": "create_or_alter_function_select_body",
+      "file": "cases/create_or_alter_function_select_body.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CREATE OR ALTER FUNCTION preserves conservative static SELECT table lineage from the routine body"
+    },
+    {
       "id": "alter_function",
       "file": "cases/alter_function.sql",
       "statementType": "ALTER_ROUTINE",
@@ -4412,6 +5141,17 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "SQL Server ALTER FUNCTION is classified as routine lifecycle DDL without table lineage"
+    },
+    {
+      "id": "alter_function_static_select_body",
+      "file": "cases/alter_function_static_select_body.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server ALTER FUNCTION preserves conservative static SELECT table lineage from the routine body"
     },
     {
       "id": "create_or_alter_trigger",
@@ -4546,8 +5286,11 @@
         "ods.sales"
       ],
       "outputTables": [],
-      "columnLineage": [],
-      "description": "SQL Server PIVOT relation operator keeps source table lineage"
+      "columnLineage": [
+        {"target": "north_amount", "sources": ["ods.sales.amount", "ods.sales.region"]},
+        {"target": "south_amount", "sources": ["ods.sales.amount", "ods.sales.region"]}
+      ],
+      "description": "SQL Server PIVOT relation operator keeps source table and generated pivot column lineage"
     },
     {
       "id": "unpivot_source_table",
@@ -4557,8 +5300,11 @@
         "mart.monthly_sales"
       ],
       "outputTables": [],
-      "columnLineage": [],
-      "description": "SQL Server UNPIVOT relation operator keeps source table lineage"
+      "columnLineage": [
+        {"target": "month_name", "sources": ["mart.monthly_sales.jan_amount", "mart.monthly_sales.feb_amount"]},
+        {"target": "amount", "sources": ["mart.monthly_sales.jan_amount", "mart.monthly_sales.feb_amount"]}
+      ],
+      "description": "SQL Server UNPIVOT relation operator keeps source table and generated unpivot column lineage"
     },
     {
       "id": "select_table_variable",
@@ -4576,6 +5322,20 @@
         {"type": "WHERE", "column": "@active_users.status"}
       ],
       "description": "SQL Server SELECT can preserve table-variable source lineage"
+    },
+    {
+      "id": "select_variable_assignment",
+      "file": "cases/select_variable_assignment.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.status"}
+      ],
+      "description": "SQL Server SELECT scalar variable assignments keep source table reads without creating output column lineage"
     },
     {
       "id": "declare_table_variable",
@@ -4596,6 +5356,76 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "SQL Server DECLARE scalar variables is accepted as table-free script control"
+    },
+    {
+      "id": "declare_cursor_for_select",
+      "file": "cases/declare_cursor_for_select.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "dbo.orders.order_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dbo.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.orders.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.orders.created_at"
+        }
+      ],
+      "description": "SQL Server DECLARE CURSOR FOR SELECT is accepted as cursor control while preserving query lineage"
+    },
+    {
+      "id": "open_cursor",
+      "file": "cases/open_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server OPEN cursor command is accepted as cursor control"
+    },
+    {
+      "id": "fetch_cursor",
+      "file": "cases/fetch_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server FETCH cursor command is accepted as cursor control"
+    },
+    {
+      "id": "close_cursor",
+      "file": "cases/close_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server CLOSE cursor command is accepted as cursor control"
+    },
+    {
+      "id": "deallocate_cursor",
+      "file": "cases/deallocate_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL Server DEALLOCATE cursor command is accepted as cursor control"
     },
     {
       "id": "if_drop_table_control",
@@ -4742,6 +5572,359 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "SQL Server DBCC CHECKTABLE records the checked table as a metadata read"
+    },
+    {
+      "id": "create_sequence",
+      "file": "cases/create_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE SEQUENCE is accepted as a sequence lifecycle control statement"
+    },
+    {
+      "id": "alter_sequence_restart",
+      "file": "cases/alter_sequence_restart.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server ALTER SEQUENCE is accepted as a sequence lifecycle control statement"
+    },
+    {
+      "id": "drop_sequence",
+      "file": "cases/drop_sequence.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DROP SEQUENCE is accepted as a sequence lifecycle control statement"
+    },
+    {
+      "id": "next_value_for_sequence_projection",
+      "file": "cases/next_value_for_sequence_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": []},
+        {"target": "name", "sources": ["dbo.users.name"]}
+      ],
+      "columnUsages": [],
+      "description": "SQL Server NEXT VALUE FOR sequence expression is treated as a generated projection without table lineage"
+    },
+    {
+      "id": "throw_message_control",
+      "file": "cases/throw_message_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server standalone THROW is accepted as script control"
+    },
+    {
+      "id": "waitfor_delay_control",
+      "file": "cases/waitfor_delay_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server WAITFOR DELAY is accepted as script control"
+    },
+    {
+      "id": "waitfor_time_control",
+      "file": "cases/waitfor_time_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server WAITFOR TIME is accepted as script control"
+    },
+    {
+      "id": "kill_session_control",
+      "file": "cases/kill_session_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server KILL session WITH STATUSONLY is accepted as script control"
+    },
+    {
+      "id": "kill_unit_of_work_control",
+      "file": "cases/kill_unit_of_work_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server KILL unit-of-work GUID is accepted as script control"
+    },
+    {
+      "id": "set_ansi_nulls_control",
+      "file": "cases/set_ansi_nulls_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server SET ANSI_NULLS is accepted as session control"
+    },
+    {
+      "id": "set_datefirst_control",
+      "file": "cases/set_datefirst_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server SET DATEFIRST is accepted as session control"
+    },
+    {
+      "id": "set_lock_timeout_control",
+      "file": "cases/set_lock_timeout_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server SET LOCK_TIMEOUT is accepted as session control"
+    },
+    {
+      "id": "set_transaction_isolation_control",
+      "file": "cases/set_transaction_isolation_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server SET TRANSACTION ISOLATION LEVEL is accepted as transaction control"
+    },
+    {
+      "id": "bulk_insert_with_options",
+      "file": "cases/bulk_insert_with_options.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders_stage"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server BULK INSERT records the loaded target table"
+    },
+    {
+      "id": "create_login_control",
+      "file": "cases/create_login_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE LOGIN is accepted as principal control"
+    },
+    {
+      "id": "create_user_for_login_control",
+      "file": "cases/create_user_for_login_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE USER FOR LOGIN is accepted as principal control"
+    },
+    {
+      "id": "alter_role_add_member_control",
+      "file": "cases/alter_role_add_member_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server ALTER ROLE ADD MEMBER is accepted as principal control"
+    },
+    {
+      "id": "drop_user_if_exists_control",
+      "file": "cases/drop_user_if_exists_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DROP USER IF EXISTS is accepted as principal control"
+    },
+    {
+      "id": "create_external_data_source_control",
+      "file": "cases/create_external_data_source_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE EXTERNAL DATA SOURCE is accepted as external object control"
+    },
+    {
+      "id": "create_external_file_format_control",
+      "file": "cases/create_external_file_format_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE EXTERNAL FILE FORMAT is accepted as external object control"
+    },
+    {
+      "id": "drop_external_data_source_control",
+      "file": "cases/drop_external_data_source_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DROP EXTERNAL DATA SOURCE is accepted as external object control"
+    },
+    {
+      "id": "drop_external_file_format_control",
+      "file": "cases/drop_external_file_format_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DROP EXTERNAL FILE FORMAT is accepted as external object control"
+    },
+    {
+      "id": "create_database_scoped_credential_control",
+      "file": "cases/create_database_scoped_credential_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE DATABASE SCOPED CREDENTIAL is accepted as external access control"
+    },
+    {
+      "id": "alter_database_scoped_credential_control",
+      "file": "cases/alter_database_scoped_credential_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server ALTER DATABASE SCOPED CREDENTIAL is accepted as external access control"
+    },
+    {
+      "id": "drop_database_scoped_credential_control",
+      "file": "cases/drop_database_scoped_credential_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DROP DATABASE SCOPED CREDENTIAL is accepted as external access control"
+    },
+    {
+      "id": "create_credential_control",
+      "file": "cases/create_credential_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE CREDENTIAL is accepted as external access control"
+    },
+    {
+      "id": "create_security_policy_filter_control",
+      "file": "cases/create_security_policy_filter_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE SECURITY POLICY reports the protected table from FILTER PREDICATE"
+    },
+    {
+      "id": "alter_security_policy_add_block_control",
+      "file": "cases/alter_security_policy_add_block_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server ALTER SECURITY POLICY ADD BLOCK PREDICATE reports the protected table"
+    },
+    {
+      "id": "alter_security_policy_drop_predicate_control",
+      "file": "cases/alter_security_policy_drop_predicate_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server ALTER SECURITY POLICY DROP PREDICATE reports the protected table"
+    },
+    {
+      "id": "create_master_key_control",
+      "file": "cases/create_master_key_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE MASTER KEY is accepted as encryption key control"
+    },
+    {
+      "id": "drop_master_key_control",
+      "file": "cases/drop_master_key_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DROP MASTER KEY is accepted as encryption key control"
+    },
+    {
+      "id": "create_certificate_control",
+      "file": "cases/create_certificate_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE CERTIFICATE is accepted as certificate control"
+    },
+    {
+      "id": "create_symmetric_key_control",
+      "file": "cases/create_symmetric_key_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server CREATE SYMMETRIC KEY is accepted as encryption key control"
+    },
+    {
+      "id": "drop_asymmetric_key_control",
+      "file": "cases/drop_asymmetric_key_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DROP ASYMMETRIC KEY is accepted as encryption key control"
     }
   ]
 }

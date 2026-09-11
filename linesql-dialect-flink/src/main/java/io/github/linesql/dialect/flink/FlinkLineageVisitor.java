@@ -120,6 +120,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitInsertStatement(FlinkParser.InsertStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
         if (ctx.columnList != null) {
@@ -1637,10 +1640,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private void refreshColumnLineage() {
+        refreshColumnLineage(outputTables.size() == 1 ? outputTables.iterator().next() : null);
+    }
+
+    private void refreshColumnLineage(TableRef targetTable) {
         if (suppressColumnLineage || projections.isEmpty()) {
             return;
         }
-        TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;
         List<ColumnLineage> columnLineage = new ArrayList<>();
         for (int i = 0; i < projections.size(); i++) {
             Projection projection = projections.get(i);
@@ -1651,7 +1657,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             if (sources == null) {
                 continue;
             }
-            String targetColumn = targetColumn(projection, columnLineage.size());
+            String targetColumn = targetColumn(projection, projection.ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
@@ -1701,6 +1707,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private void retargetColumnLineage(TableRef targetTable) {
+        if (!projections.isEmpty()) {
+            refreshColumnLineage(targetTable);
+            return;
+        }
         result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
                 result.getColumnLineage(),
                 targetTable,
@@ -1724,7 +1734,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (projection.wildcard) {
             return "*";
         }
-        if (index < insertTargetColumns.size()) {
+        if (index >= 0 && index < insertTargetColumns.size()) {
             return insertTargetColumns.get(index);
         }
         return projection.targetColumn;
@@ -2194,17 +2204,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (ctx.selectItemList() == null) {
             return;
         }
-        for (FlinkParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
+        List<FlinkParser.SelectItemContext> items = ctx.selectItemList().selectItem();
+        for (int i = 0; i < items.size(); i++) {
+            FlinkParser.SelectItemContext item = items.get(i);
             if (item instanceof FlinkParser.SelectExpressionContext) {
-                Projection projection = projection((FlinkParser.SelectExpressionContext) item);
+                Projection projection = projection((FlinkParser.SelectExpressionContext) item, i);
                 if (projection != null) {
                     projections.add(projection);
                 }
             } else if (item instanceof FlinkParser.SelectQualifiedStarContext) {
                 FlinkParser.SelectQualifiedStarContext star = (FlinkParser.SelectQualifiedStarContext) item;
-                projections.add(wildcardProjection(qualifiedName(star.qualifiedName()), star.getText()));
+                projections.add(wildcardProjection(qualifiedName(star.qualifiedName()), star.getText(), i));
             } else if (item instanceof FlinkParser.SelectStarContext) {
-                projections.add(wildcardProjection(null, item.getText()));
+                projections.add(wildcardProjection(null, item.getText(), i));
             }
         }
     }
@@ -2214,7 +2226,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         List<SourceColumn> inputColumns = sourceColumns(ctx.expressionList());
         List<String> outputColumns = transformOutputNames(ctx.transformOutputList());
         for (String outputColumn : outputColumns) {
-            result.add(new Projection(inputColumns, outputColumn, ctx.getText()));
+            result.add(new Projection(inputColumns, outputColumn, ctx.getText(), -1));
         }
         return result;
     }
@@ -2243,7 +2255,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return ((FlinkParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(FlinkParser.SelectExpressionContext ctx) {
+    private Projection projection(FlinkParser.SelectExpressionContext ctx, int ordinal) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
@@ -2261,7 +2273,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, targetColumn, expression);
+        return new Projection(sourceColumns, targetColumn, expression, ordinal);
     }
 
     private String inferredSingleSourceTarget(
@@ -2297,10 +2309,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 || normalized.startsWith("JSON_ARRAYAGG(");
     }
 
-    private static Projection wildcardProjection(String qualifier, String expression) {
+    private static Projection wildcardProjection(String qualifier, String expression, int ordinal) {
         List<SourceColumn> sourceColumns = new ArrayList<>();
         sourceColumns.add(new SourceColumn(qualifier, "*"));
-        return new Projection(sourceColumns, "*", expression, true);
+        return new Projection(sourceColumns, "*", expression, true, ordinal);
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
@@ -2389,7 +2401,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
         if (tree instanceof FlinkParser.ColumnReferenceContext) {
             FlinkParser.ColumnReferenceContext colRef = (FlinkParser.ColumnReferenceContext) tree;
-            columns.add(new SourceColumn(null, cleanIdentifier(colRef.identifier())));
+            String column = cleanIdentifier(colRef.identifier());
+            if (!isFlinkGeneratedExpression(column)) {
+                columns.add(new SourceColumn(null, column));
+            }
             return;
         }
         if (tree instanceof FlinkParser.DereferenceContext) {
@@ -2558,21 +2573,41 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return value;
     }
 
+    private static boolean isFlinkGeneratedExpression(String text) {
+        String normalized = text.toLowerCase(Locale.ROOT);
+        return "current_date".equals(normalized)
+                || "current_time".equals(normalized)
+                || "current_timestamp".equals(normalized)
+                || "localtime".equals(normalized)
+                || "localtimestamp".equals(normalized)
+                || "true".equals(normalized)
+                || "false".equals(normalized)
+                || "null".equals(normalized)
+                || "unknown".equals(normalized)
+                || "default".equals(normalized);
+    }
+
     private static class Projection {
         final List<SourceColumn> sourceColumns;
         final String targetColumn;
         final String expression;
         final boolean wildcard;
+        final int ordinal;
 
         Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
-            this(sourceColumns, targetColumn, expression, false);
+            this(sourceColumns, targetColumn, expression, -1);
         }
 
-        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, boolean wildcard) {
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, int ordinal) {
+            this(sourceColumns, targetColumn, expression, false, ordinal);
+        }
+
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, boolean wildcard, int ordinal) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
             this.wildcard = wildcard;
+            this.ordinal = ordinal;
         }
     }
 

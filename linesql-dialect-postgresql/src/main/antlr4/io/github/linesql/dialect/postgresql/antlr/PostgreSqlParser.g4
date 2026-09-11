@@ -8,6 +8,7 @@ singleStatement
 
 statement
     : transactionStatement                                           #transactionStmt
+    | explainStatement                                               #explainStmt
     | query                                                          #statementDefault
     | insertStatement                                                #insertStmt
     | updateStatement                                                #updateStmt
@@ -15,15 +16,21 @@ statement
     | mergeStatement                                                 #mergeStmt
     | createIndexStatement                                           #createIndexStmt
     | alterIndexStatement                                            #alterIndexStmt
+    | dropIndexStatement                                             #dropIndexStmt
+    | statisticsStatement                                            #statisticsStmt
     | typeStatement                                                  #typeStmt
     | domainStatement                                                #domainStmt
     | createExtensionStatement                                       #createExtensionStmt
     | createSchemaStatement                                          #createSchemaStmt
+    | databaseStatement                                              #databaseStmt
     | createFunctionStatement                                        #createFunctionStmt
+    | triggerStatement                                               #triggerStmt
+    | ruleStatement                                                  #ruleStmt
     | schemaObjectControlStatement                                   #schemaObjectControlStmt
     | policyStatement                                                #policyStmt
     | publicationStatement                                           #publicationStmt
     | subscriptionStatement                                          #subscriptionStmt
+    | foreignDataStatement                                           #foreignDataStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropSchemaStatement                                            #dropSchemaStmt
@@ -38,6 +45,7 @@ statement
     | alterTableStatement                                            #alterTableStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
+    | securityLabelStatement                                         #securityLabelStmt
     | commentStatement                                               #commentStmt
     | copyStatement                                                  #copyStmt
     | vacuumStatement                                                #vacuumStmt
@@ -46,6 +54,8 @@ statement
     | clusterStatement                                               #clusterStmt
     | lockStatement                                                  #lockStmt
     | routineControlStatement                                        #routineControlStmt
+    | principalStatement                                             #principalStmt
+    | defaultPrivilegesStatement                                     #defaultPrivilegesStmt
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
     | setStatement                                                   #setStmt
@@ -62,7 +72,7 @@ ctes
     ;
 
 namedQuery
-    : name=identifier (LPAREN columnAliases=identifierList RPAREN)? AS LPAREN query RPAREN
+    : name=identifier (LPAREN columnAliases=identifierList RPAREN)? AS (NOT? MATERIALIZED)? LPAREN query RPAREN
     ;
 
 queryTerm
@@ -80,11 +90,12 @@ setOperator
 queryPrimary
     : querySpecification                                             #queryPrimaryDefault
     | VALUES valuesClause (COMMA valuesClause)*                      #valuesQuery
+    | TABLE ONLY? multipartIdentifier                                #tableQuery
     | LPAREN query RPAREN                                            #subqueryPrimary
     ;
 
 querySpecification
-    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause?
+    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause? windowClause?
     ;
 
 selectClause
@@ -130,10 +141,15 @@ relation
 relationPrimary
     : ONLY? multipartIdentifier tableSampleClause? tableAlias        #tableName
     | LATERAL? functionName LPAREN expressionList? RPAREN (WITH ORDINALITY)? tableAlias #tableFunction
+    | LATERAL? ROWS FROM LPAREN rowsFromItem (COMMA rowsFromItem)* RPAREN (WITH ORDINALITY)? tableAlias #rowsFromTableFunction
     | LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
+    ;
+
+rowsFromItem
+    : functionName LPAREN expressionList? RPAREN (AS? LPAREN identifierList RPAREN)?
     ;
 
 tableSampleClause
@@ -167,7 +183,19 @@ whereClause
     ;
 
 groupByClause
-    : GROUP BY expression (COMMA expression)*
+    : GROUP BY groupByItem (COMMA groupByItem)*
+    ;
+
+groupByItem
+    : expression
+    | ROLLUP LPAREN expressionList RPAREN
+    | CUBE LPAREN expressionList RPAREN
+    | GROUPING SETS LPAREN groupingSet (COMMA groupingSet)* RPAREN
+    ;
+
+groupingSet
+    : LPAREN expressionList? RPAREN
+    | expression
     ;
 
 havingClause
@@ -215,7 +243,7 @@ predicate
     | NOT? IN LPAREN (expressionList | query) RPAREN
     | NOT? LIKE valueExpression
     | NOT? ILIKE valueExpression
-    | IS NOT? NULL
+    | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
     ;
 
 valueExpression
@@ -255,7 +283,7 @@ primaryExpression
     ;
 
 aggregateSuffix
-    : withinGroupClause? filterClause? (OVER windowSpec)?
+    : withinGroupClause? filterClause? (OVER windowRef)?
     ;
 
 withinGroupClause
@@ -271,7 +299,20 @@ whenClause
     ;
 
 windowSpec
-    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    : LPAREN identifier? (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    ;
+
+windowRef
+    : windowSpec
+    | identifier
+    ;
+
+windowClause
+    : WINDOW namedWindow (COMMA namedWindow)*
+    ;
+
+namedWindow
+    : identifier AS windowSpec
     ;
 
 windowFrame
@@ -385,6 +426,7 @@ assignmentList
 
 assignment
     : multipartIdentifier EQ expression
+    | LPAREN identifierList RPAREN EQ LPAREN expressionList RPAREN
     ;
 
 // ============ DDL Statements ============
@@ -401,6 +443,20 @@ alterIndexStatement
     : ALTER INDEX (IF EXISTS)? source=multipartIdentifier RENAME TO target=identifier                #alterIndexRename
     | ALTER INDEX (IF EXISTS)? source=multipartIdentifier SET SCHEMA targetSchema=identifier         #alterIndexSetSchema
     | ALTER INDEX (IF EXISTS)? source=multipartIdentifier .+?                                        #alterIndexOther
+    ;
+
+dropIndexStatement
+    : DROP INDEX CONCURRENTLY? (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
+    ;
+
+statisticsStatement
+    : CREATE STATISTICS (IF NOT EXISTS)? multipartIdentifier? statisticsKindList?
+      ON expressionList FROM table=multipartIdentifier
+    | DROP STATISTICS (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
+    ;
+
+statisticsKindList
+    : LPAREN identifierList RPAREN
     ;
 
 typeStatement
@@ -436,11 +492,31 @@ createSchemaStatement
     : CREATE SCHEMA (IF NOT EXISTS)? identifier
     ;
 
+databaseStatement
+    : CREATE DATABASE identifier .*
+    | ALTER DATABASE identifier .*
+    | DROP DATABASE (IF EXISTS)? identifier
+    ;
+
 createFunctionStatement
     : CREATE (OR REPLACE)? (FUNCTION | PROCEDURE) multipartIdentifier LPAREN functionArgumentList? RPAREN
       (RETURNS dataType)?
       LANGUAGE identifier
       AS string
+    ;
+
+triggerStatement
+    : CREATE (OR REPLACE)? TRIGGER identifier .+? ON target=multipartIdentifier .+?   #createTrigger
+    | DROP TRIGGER (IF EXISTS)? identifier ON target=multipartIdentifier (CASCADE | RESTRICT)? #dropTrigger
+    | CREATE EVENT TRIGGER identifier ON identifier .+?                                #createEventTrigger
+    | ALTER EVENT TRIGGER identifier .+?                                               #alterEventTrigger
+    | DROP EVENT TRIGGER (IF EXISTS)? identifier (CASCADE | RESTRICT)?                 #dropEventTrigger
+    ;
+
+ruleStatement
+    : CREATE (OR REPLACE)? RULE identifier AS ON (SELECT | INSERT | UPDATE | DELETE)
+      TO target=multipartIdentifier (WHERE expression)? DO (ALSO | INSTEAD)? .+?       #createRule
+    | DROP RULE (IF EXISTS)? identifier ON target=multipartIdentifier (CASCADE | RESTRICT)? #dropRule
     ;
 
 schemaObjectControlStatement
@@ -503,6 +579,31 @@ subscriptionStatement
     | DROP SUBSCRIPTION (IF EXISTS)? identifier (CASCADE | RESTRICT)?
     ;
 
+foreignDataStatement
+    : CREATE FOREIGN TABLE (IF NOT EXISTS)? multipartIdentifier (LPAREN tableElementList RPAREN)? SERVER identifier foreignOptions?
+    | ALTER FOREIGN TABLE (IF EXISTS)? multipartIdentifier .+?
+    | DROP FOREIGN TABLE (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
+    | IMPORT FOREIGN SCHEMA identifier importForeignSchemaFilter? FROM SERVER identifier INTO identifier foreignOptions?
+    | CREATE FOREIGN DATA WRAPPER identifier .+?
+    | ALTER FOREIGN DATA WRAPPER identifier .+?
+    | DROP FOREIGN DATA WRAPPER (IF EXISTS)? identifier (CASCADE | RESTRICT)?
+    | CREATE SERVER (IF NOT EXISTS)? identifier .+?
+    | ALTER SERVER identifier .+?
+    | DROP SERVER (IF EXISTS)? identifier (CASCADE | RESTRICT)?
+    | CREATE USER MAPPING (IF NOT EXISTS)? FOR .+? SERVER identifier foreignOptions?
+    | ALTER USER MAPPING FOR .+? SERVER identifier .+?
+    | DROP USER MAPPING (IF EXISTS)? FOR .+? SERVER identifier
+    ;
+
+importForeignSchemaFilter
+    : LIMIT TO LPAREN identifierList RPAREN
+    | EXCEPT LPAREN identifierList RPAREN
+    ;
+
+foreignOptions
+    : OPTIONS LPAREN propertyList? RPAREN
+    ;
+
 functionArgumentList
     : functionArgument (COMMA functionArgument)*
     ;
@@ -554,7 +655,7 @@ partitionBoundKind
     ;
 
 createViewStatement
-    : CREATE (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
+    : CREATE (OR REPLACE)? TEMPORARY? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       AS query
     | CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
@@ -609,8 +710,17 @@ truncateTableStatement
 alterTableStatement
     : ALTER TABLE parent=multipartIdentifier ATTACH PARTITION child=multipartIdentifier partitionBound?  #alterTableAttachPartition
     | ALTER TABLE parent=multipartIdentifier DETACH PARTITION child=multipartIdentifier                  #alterTableDetachPartition
+    | ALTER TABLE target=multipartIdentifier RENAME COLUMN sourceColumn=identifier TO targetColumn=identifier #alterTableRenameColumn
     | ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
     | ALTER TABLE multipartIdentifier ADD COLUMN? identifier dataType         #alterTableAddColumn
+    | ALTER TABLE target=multipartIdentifier DROP COLUMN (IF EXISTS)? dropColumn=identifier (CASCADE | RESTRICT)? #alterTableDropColumn
+    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier SET DEFAULT expression #alterTableAlterColumnSetDefault
+    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier DROP DEFAULT #alterTableAlterColumnDropDefault
+    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier SET NOT NULL #alterTableAlterColumnSetNotNull
+    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier DROP NOT NULL #alterTableAlterColumnDropNotNull
+    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier TYPE dataType (USING usingExpression=expression)? #alterTableAlterColumnType
+    | ALTER TABLE target=multipartIdentifier ADD (CONSTRAINT identifier)? FOREIGN KEY LPAREN localColumns=identifierList RPAREN REFERENCES refTable=multipartIdentifier (LPAREN refColumns=identifierList RPAREN)? #alterTableAddForeignKey
+    | ALTER TABLE target=multipartIdentifier ADD (CONSTRAINT identifier)? CHECK LPAREN checkExpression=expression RPAREN #alterTableAddCheck
     | ALTER TABLE multipartIdentifier alterTableAction                        #alterTableOther
     ;
 
@@ -632,6 +742,11 @@ describeStatement
 
 commentStatement
     : COMMENT ON (TABLE multipartIdentifier | COLUMN multipartIdentifier)
+      IS string
+    ;
+
+securityLabelStatement
+    : SECURITY LABEL (FOR identifier)? ON (TABLE multipartIdentifier | COLUMN multipartIdentifier)
       IS string
     ;
 
@@ -725,10 +840,68 @@ lockModeWord
 
 routineControlStatement
     : CALL .+?
+    | PREPARE identifier (LPAREN dataTypeList? RPAREN)? AS preparedQuery=query
+    | EXECUTE identifier (LPAREN expressionList? RPAREN)?
+    | DEALLOCATE PREPARE? identifier
+    | DECLARE identifier cursorOption* CURSOR cursorHold? FOR cursorQuery=query
+    | FETCH fetchDirection? ((FROM | IN) identifier)?
+    | MOVE fetchDirection? ((FROM | IN) identifier)?
+    | CLOSE (identifier | ALL)
     | DO (string | DOLLAR_QUOTED_STRING) (LANGUAGE identifier)?
     | LISTEN identifier
     | NOTIFY identifier (COMMA string)?
     | UNLISTEN (STAR | identifier)
+    ;
+
+cursorOption
+    : BINARY
+    | INSENSITIVE
+    | SCROLL
+    | NO SCROLL
+    ;
+
+cursorHold
+    : WITH HOLD
+    | WITHOUT HOLD
+    ;
+
+fetchDirection
+    : NEXT
+    | PRIOR
+    | FIRST
+    | LAST
+    | ABSOLUTE number
+    | RELATIVE number
+    | FORWARD number?
+    | BACKWARD number?
+    | ALL
+    ;
+
+principalStatement
+    : CREATE (ROLE | USER) .+?
+    | ALTER (ROLE | USER) .+?
+    | DROP (ROLE | USER) (IF EXISTS)? .+?
+    ;
+
+defaultPrivilegesStatement
+    : ALTER DEFAULT PRIVILEGES .+?
+    ;
+
+explainStatement
+    : EXPLAIN explainOption* explainedStatement
+    | EXPLAIN LPAREN explainOption (COMMA explainOption)* RPAREN explainedStatement
+    ;
+
+explainOption
+    : (ANALYZE | VERBOSE | COSTS | SETTINGS | BUFFERS | WAL | TIMING | SUMMARY | FORMAT) (identifier | string | number | TRUE | FALSE)?
+    ;
+
+explainedStatement
+    : query
+    | insertStatement
+    | updateStatement
+    | deleteStatement
+    | mergeStatement
     ;
 
 transactionStatement
@@ -758,11 +931,19 @@ isolationLevel
     ;
 
 grantStatement
-    : GRANT .+? ON TABLE? multipartIdentifier TO .+?
+    : GRANT .+? ON privilegeTarget TO .+?
     ;
 
 revokeStatement
-    : REVOKE .+? ON TABLE? multipartIdentifier FROM .+?
+    : REVOKE .+? ON privilegeTarget FROM .+?
+    ;
+
+privilegeTarget
+    : TABLE? multipartIdentifier                                     #tablePrivilegeTarget
+    | SEQUENCE multipartIdentifier                                   #namedControlPrivilegeTarget
+    | (FUNCTION | PROCEDURE) multipartIdentifier (LPAREN dataTypeList? RPAREN)? #routinePrivilegeTarget
+    | SCHEMA multipartIdentifier                                     #namedControlPrivilegeTarget
+    | ALL (TABLES | SEQUENCES | FUNCTIONS) IN SCHEMA identifier      #schemaWidePrivilegeTarget
     ;
 
 setStatement
@@ -817,7 +998,7 @@ propertyList
     ;
 
 property
-    : string EQ string
+    : (identifier | string) EQ? (identifier | string | number | TRUE | FALSE)
     ;
 
 tableOption
@@ -871,11 +1052,11 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ACCESS | ADD | AFTER | ALWAYS | ASC | AUTO_INCREMENT | BEFORE | CALL | CAST | CASCADE | CHARSET | CHARACTER | CLUSTER | COLLATE | CONCURRENTLY
-    | ANALYZE | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
-    | ATTACH | CHECK | DETACH | ENGINE | ENUM | EXCLUDING | EXISTS | EXTENSION | EXTERNAL | FALSE | FILTER | FIRST | FOLLOWING | FOR | FOREIGN | FORMAT | FUNCTION | GENERATED | GRANT | GROUPS | HEADER | IF | ILIKE | IDENTITY | INCLUDE | INCLUDING | INDEX | INHERITS | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MATCHED | MATERIALIZED | NULL | NULLS
-    | LISTEN | LOCK | LOCKED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | ORDINALITY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROW | ROWS | SEPARATOR | SHARE | SKIP_
-    | EXCLUSIVE | FREEZE | PRIMARY | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RETURNS | SCHEMA | SEARCH_PATH | SEQUENCE | SET | BEGIN | START | STORED | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMPORARY | TO | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WITHIN
+    : ACCESS | ADD | AFTER | ALSO | ALWAYS | ASC | AUTO_INCREMENT | BEFORE | BUFFERS | CALL | CAST | CASCADE | CHARSET | CHARACTER | CLUSTER | COLLATE | CONCURRENTLY | COSTS
+    | ANALYZE | BINARY | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | CURSOR | DATABASE | DEALLOCATE | DECLARE | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
+    | ATTACH | BACKWARD | CHECK | CLOSE | CUBE | DETACH | ENGINE | ENUM | EVENT | EXCLUDING | EXECUTE | EXISTS | EXPLAIN | EXTENSION | EXTERNAL | FALSE | FETCH | FILTER | FIRST | FOLLOWING | FOR | FORWARD | FOREIGN | FORMAT | FUNCTION | FUNCTIONS | GENERATED | GRANT | GROUPING | GROUPS | HEADER | HOLD | IF | ILIKE | IDENTITY | IMPORT | INCLUDE | INCLUDING | INDEX | INHERITS | INSENSITIVE | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MAPPING | MATCHED | MATERIALIZED | MOVE | NEXT | NULL | NULLS
+    | LABEL | LISTEN | LOCK | LOCKED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OPTIONS | ORDINALITY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PRIVILEGES | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROLE | ROW | ROWS | RULE | SECURITY | SEPARATOR | SERVER | SHARE | SKIP_
+    | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER
     ;
 
 number

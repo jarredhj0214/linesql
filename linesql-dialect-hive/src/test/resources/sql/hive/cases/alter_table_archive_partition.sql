@@ -1,0 +1,1 @@
+ALTER TABLE mart.orders ARCHIVE PARTITION (dt = '2026-09-10');

@@ -1,0 +1,1 @@
+NOAUDIT SELECT, INSERT ON mart.orders;

@@ -1,4 +1,4 @@
-select *
+select p.[North] as north_amount, p.[South] as south_amount
 from (
     select region, amount
     from ods.sales

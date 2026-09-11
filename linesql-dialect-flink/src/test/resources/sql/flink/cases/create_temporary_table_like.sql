@@ -1,0 +1,5 @@
+CREATE TEMPORARY TABLE tmp.orders_buffer
+LIKE ods.orders (
+    INCLUDING ALL
+    OVERWRITING OPTIONS
+);

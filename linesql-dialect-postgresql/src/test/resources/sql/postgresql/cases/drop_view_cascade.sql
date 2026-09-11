@@ -1,0 +1,1 @@
+DROP VIEW IF EXISTS mart.v_old_users CASCADE

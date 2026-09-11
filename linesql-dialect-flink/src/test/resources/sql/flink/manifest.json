@@ -725,6 +725,35 @@
       "description": "Flink single CTE table and direct column propagation"
     },
     {
+      "id": "with_insert_select",
+      "file": "cases/with_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.user_id",
+          "sources": [
+            "ods_users.id"
+          ]
+        },
+        {
+          "target": "ads_user_summary.user_name",
+          "sources": [
+            "ods_users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods_users.active"}
+      ],
+      "description": "Flink WITH before INSERT SELECT propagates CTE source columns into target columns"
+    },
+    {
       "id": "subquery_column_projection",
       "file": "cases/subquery_column_projection.sql",
       "statementType": "SELECT",
@@ -747,6 +776,30 @@
         }
       ],
       "description": "Flink single derived subquery table and direct column propagation"
+    },
+    {
+      "id": "nested_derived_query_column_projection",
+      "file": "cases/nested_derived_query_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods_users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods_users.status"
+        }
+      ],
+      "description": "Flink nested derived query direct column propagation"
     },
     {
       "id": "insert_from_cte",
@@ -873,6 +926,32 @@
         }
       ],
       "description": "Flink INSERT target column list mapping"
+    },
+    {
+      "id": "insert_column_list_skipped_constant",
+      "file": "cases/insert_column_list_skipped_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods_users"
+      ],
+      "outputTables": [
+        "ads_user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_user_summary.uid",
+          "sources": [
+            "ods_users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods_users.status"
+        }
+      ],
+      "description": "Flink INSERT target column list keeps source columns aligned when earlier SELECT items are generated expressions"
     },
     {
       "id": "insert_union_column_lineage",
@@ -2693,6 +2772,52 @@
       "description": "Flink TUMBLE table-valued function table lineage, projected dependencies, and window time usage"
     },
     {
+      "id": "insert_tumble_window",
+      "file": "cases/insert_tumble_window.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "ads_window_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_window_orders.window_start",
+          "sources": [
+            "ods.orders.window_start"
+          ]
+        },
+        {
+          "target": "ads_window_orders.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads_window_orders.order_count",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.orders.ts"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.window_start"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.user_id"
+        }
+      ],
+      "description": "Flink INSERT target column mapping over a TUMBLE table-valued window"
+    },
+    {
       "id": "window_frame",
       "file": "cases/window_frame.sql",
       "statementType": "SELECT",
@@ -2870,6 +2995,67 @@
       ],
       "columnLineage": [],
       "description": "Flink CREATE TABLE LIKE with INCLUDING ALL and OVERWRITING OPTIONS"
+    },
+    {
+      "id": "create_temporary_table_schema",
+      "file": "cases/create_temporary_table_schema.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "tmp.session_orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE TEMPORARY TABLE schema DDL"
+    },
+    {
+      "id": "create_temporary_table_as_select",
+      "file": "cases/create_temporary_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "tmp.active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "tmp.active_users.id",
+          "sources": [
+            "ods.users.user_id"
+          ]
+        },
+        {
+          "target": "tmp.active_users.user_name",
+          "sources": [
+            "ods.users.user_name"
+          ]
+        }
+      ],
+      "description": "Flink CREATE TEMPORARY TABLE AS SELECT target and column lineage"
+    },
+    {
+      "id": "create_temporary_table_like",
+      "file": "cases/create_temporary_table_like.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "tmp.orders_buffer"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE TEMPORARY TABLE LIKE structure lineage"
+    },
+    {
+      "id": "create_external_table_schema",
+      "file": "cases/create_external_table_schema.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ext.kafka_orders"
+      ],
+      "columnLineage": [],
+      "description": "Flink CREATE EXTERNAL TABLE schema DDL"
     },
     {
       "id": "replace_table_as_select",
@@ -3258,6 +3444,23 @@
       "description": "Flink ALTER TABLE ADD CONSTRAINT PRIMARY KEY records table-model columns"
     },
     {
+      "id": "alter_table_add_watermark",
+      "file": "cases/alter_table_add_watermark.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.orders.event_time"
+        }
+      ],
+      "description": "Flink ALTER TABLE ADD WATERMARK records event-time table-model usage"
+    },
+    {
       "id": "alter_table_drop_constraint",
       "file": "cases/alter_table_drop_constraint.sql",
       "statementType": "ALTER_TABLE",
@@ -3557,6 +3760,62 @@
         }
       ],
       "description": "Flink HOP table-valued function table lineage, projected dependencies, and window time usage"
+    },
+    {
+      "id": "insert_hop_window",
+      "file": "cases/insert_hop_window.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "ads_hop_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads_hop_orders.window_start",
+          "sources": [
+            "dwd.orders.window_start"
+          ]
+        },
+        {
+          "target": "ads_hop_orders.window_end",
+          "sources": [
+            "dwd.orders.window_end"
+          ]
+        },
+        {
+          "target": "ads_hop_orders.user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ads_hop_orders.total_amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "dwd.orders.rowtime"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.window_start"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.window_end"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Flink INSERT target column mapping over a HOP table-valued window"
     },
     {
       "id": "cumulate_window",
@@ -4480,6 +4739,57 @@
       "description": "Flink PostgreSQL CDC connector source table DDL"
     },
     {
+      "id": "create_table_oceanbase_cdc",
+      "file": "cases/create_table_oceanbase_cdc.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods_ob_orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods_ob_orders.id"
+        }
+      ],
+      "description": "Flink OceanBase CDC connector source table DDL with primary-key table model usage"
+    },
+    {
+      "id": "create_table_oracle_cdc",
+      "file": "cases/create_table_oracle_cdc.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods_oracle_orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods_oracle_orders.id"
+        }
+      ],
+      "description": "Flink Oracle CDC connector source table DDL with primary-key table model usage"
+    },
+    {
+      "id": "create_table_sqlserver_cdc",
+      "file": "cases/create_table_sqlserver_cdc.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ods_sqlserver_orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods_sqlserver_orders.id"
+        }
+      ],
+      "description": "Flink SQL Server CDC connector source table DDL with primary-key table model usage"
+    },
+    {
       "id": "create_table_upsert_kafka",
       "file": "cases/create_table_upsert_kafka.sql",
       "statementType": "CREATE_TABLE",
@@ -4879,6 +5189,15 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Flink SHOW CREATE CATALOG metadata statement"
+    },
+    {
+      "id": "show_create_function",
+      "file": "cases/show_create_function.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW CREATE FUNCTION metadata statement"
     },
     {
       "id": "show_databases",

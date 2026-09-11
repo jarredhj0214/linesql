@@ -26,6 +26,62 @@
       "description": "Oracle basic SELECT table and column lineage"
     },
     {
+      "id": "data_dictionary_dba_tables",
+      "file": "cases/data_dictionary_dba_tables.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sys.dba_tables"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "owner", "sources": ["sys.dba_tables.owner"]},
+        {"target": "table_name", "sources": ["sys.dba_tables.table_name"]},
+        {"target": "tablespace_name", "sources": ["sys.dba_tables.tablespace_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sys.dba_tables.owner"},
+        {"type": "WHERE", "column": "sys.dba_tables.temporary"}
+      ],
+      "description": "Oracle DBA_TABLES data dictionary query keeps metadata table and column lineage"
+    },
+    {
+      "id": "oracle_text_contains_score",
+      "file": "cases/oracle_text_contains_score.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.documents"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "doc_id", "sources": ["app.documents.doc_id"]},
+        {"target": "relevance", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.documents.body"}
+      ],
+      "description": "Oracle Text CONTAINS predicate records the searched document column as WHERE usage"
+    },
+    {
+      "id": "data_dictionary_all_tab_columns",
+      "file": "cases/data_dictionary_all_tab_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sys.all_tab_columns"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "owner", "sources": ["sys.all_tab_columns.owner"]},
+        {"target": "table_name", "sources": ["sys.all_tab_columns.table_name"]},
+        {"target": "column_name", "sources": ["sys.all_tab_columns.column_name"]},
+        {"target": "data_type", "sources": ["sys.all_tab_columns.data_type"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sys.all_tab_columns.owner"},
+        {"type": "WHERE", "column": "sys.all_tab_columns.nullable"}
+      ],
+      "description": "Oracle ALL_TAB_COLUMNS data dictionary query keeps metadata table and column lineage"
+    },
+    {
       "id": "select_into_variables",
       "file": "cases/select_into_variables.sql",
       "statementType": "SELECT",
@@ -118,6 +174,52 @@
         }
       ],
       "description": "Oracle DATE and TIMESTAMP literals are accepted in predicates without inventing source columns"
+    },
+    {
+      "id": "null_default_system_literals",
+      "file": "cases/null_default_system_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.events.id"
+          ]
+        },
+        {
+          "target": "effective_ts",
+          "sources": [
+            "app.events.updated_at"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.deleted_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.archived_at"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.retry_count"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.created_at"
+        }
+      ],
+      "description": "Oracle NULL, DEFAULT, and system datetime literals are accepted without inventing source columns"
     },
     {
       "id": "join_projection",
@@ -588,6 +690,64 @@
       "description": "Oracle INSERT INTO SELECT table and column lineage"
     },
     {
+      "id": "insert_sequence_nextval_select",
+      "file": "cases/insert_sequence_nextval_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.order_snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.order_snapshot.user_id",
+          "sources": [
+            "ods.orders.user_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        }
+      ],
+      "description": "Oracle sequence NEXTVAL in INSERT SELECT is ignored as generated value while real source columns keep lineage"
+    },
+    {
+      "id": "insert_partition_select",
+      "file": "cases/insert_partition_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.dt"
+        }
+      ],
+      "description": "Oracle INSERT into a partition target keeps table and target-column lineage"
+    },
+    {
       "id": "create_table_as_select",
       "file": "cases/create_table_as_select.sql",
       "statementType": "CREATE_TABLE_AS_SELECT",
@@ -963,6 +1123,27 @@
       "description": "Oracle CREATE BITMAP INDEX records the affected table and index columns"
     },
     {
+      "id": "create_function_based_index",
+      "file": "cases/create_function_based_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "mart.users.email"
+        },
+        {
+          "type": "INDEX",
+          "column": "mart.users.phone"
+        }
+      ],
+      "description": "Oracle function-based CREATE INDEX records expression source columns"
+    },
+    {
       "id": "create_index_local",
       "file": "cases/create_index_local.sql",
       "statementType": "ALTER_TABLE",
@@ -1027,6 +1208,15 @@
       ],
       "columnLineage": [],
       "description": "Oracle DROP VIEW records the affected view"
+    },
+    {
+      "id": "drop_index",
+      "file": "cases/drop_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DROP INDEX is accepted as an index lifecycle statement without synthetic table lineage"
     },
     {
       "id": "drop_materialized_view",
@@ -1252,6 +1442,50 @@
       "description": "Oracle CONNECT BY NOCYCLE keeps table and projection lineage"
     },
     {
+      "id": "order_siblings_by",
+      "file": "cases/order_siblings_by.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.org_units"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.org_units.id"
+          ]
+        },
+        {
+          "target": "parent_id",
+          "sources": [
+            "app.org_units.parent_id"
+          ]
+        },
+        {
+          "target": "name",
+          "sources": [
+            "app.org_units.name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.org_units.parent_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.org_units.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.org_units.name"
+        }
+      ],
+      "description": "Oracle ORDER SIBLINGS BY keeps hierarchical query lineage and sibling ordering usage"
+    },
+    {
       "id": "legacy_outer_join_marker",
       "file": "cases/legacy_outer_join_marker.sql",
       "statementType": "SELECT",
@@ -1312,6 +1546,32 @@
       "description": "Oracle UPDATE target table lineage and deterministic assignment column lineage"
     },
     {
+      "id": "update_partition_target",
+      "file": "cases/update_partition_target.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.user_summary"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_summary.user_name",
+          "sources": [
+            "mart.user_summary.user_name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "mart.user_summary.status"
+        }
+      ],
+      "description": "Oracle UPDATE partition target keeps affected table, assignment lineage, and predicate usage"
+    },
+    {
       "id": "update_expression_assignment",
       "file": "cases/update_expression_assignment.sql",
       "statementType": "UPDATE",
@@ -1356,6 +1616,25 @@
       ],
       "columnLineage": [],
       "description": "Oracle DELETE target table lineage"
+    },
+    {
+      "id": "delete_subpartition_target",
+      "file": "cases/delete_subpartition_target.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "mart.user_summary"
+      ],
+      "outputTables": [
+        "mart.user_summary"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "mart.user_summary.status"
+        }
+      ],
+      "description": "Oracle DELETE subpartition target keeps affected table and predicate usage"
     },
     {
       "id": "cte_column_projection",
@@ -1404,6 +1683,30 @@
         }
       ],
       "description": "Oracle single derived subquery table and direct column propagation"
+    },
+    {
+      "id": "nested_derived_query_column_projection",
+      "file": "cases/nested_derived_query_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Oracle nested derived query direct column propagation"
     },
     {
       "id": "insert_from_cte",
@@ -1504,6 +1807,40 @@
         }
       ],
       "description": "Oracle CTE column alias list propagation"
+    },
+    {
+      "id": "recursive_cte_column_projection",
+      "file": "cases/recursive_cte_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.org"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.org.id"
+          ]
+        },
+        {
+          "target": "parent_id",
+          "sources": [
+            "app.org.parent_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.org.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.org.parent_id"
+        }
+      ],
+      "description": "Oracle recursive subquery factoring direct column propagation keeps base-table lineage"
     },
     {
       "id": "insert_column_list",
@@ -2916,6 +3253,78 @@
       "description": "Oracle analytic window frame keeps partition and ordering lineage"
     },
     {
+      "id": "window_ignore_nulls_lineage",
+      "file": "cases/window_ignore_nulls_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.account_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "account_id",
+          "sources": [
+            "ods.account_events.account_id"
+          ]
+        },
+        {
+          "target": "first_amount",
+          "sources": [
+            "ods.account_events.amount",
+            "ods.account_events.account_id",
+            "ods.account_events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.account_events.account_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.account_events.event_time"
+        }
+      ],
+      "description": "Oracle FIRST_VALUE IGNORE NULLS keeps value, partition, and ordering lineage"
+    },
+    {
+      "id": "window_respect_nulls_lineage",
+      "file": "cases/window_respect_nulls_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.account_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "account_id",
+          "sources": [
+            "ods.account_events.account_id"
+          ]
+        },
+        {
+          "target": "last_status",
+          "sources": [
+            "ods.account_events.status",
+            "ods.account_events.account_id",
+            "ods.account_events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.account_events.account_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.account_events.event_time"
+        }
+      ],
+      "description": "Oracle LAST_VALUE RESPECT NULLS keeps value, partition, and ordering lineage"
+    },
+    {
       "id": "keep_dense_rank_projection",
       "file": "cases/keep_dense_rank_projection.sql",
       "statementType": "SELECT",
@@ -3500,6 +3909,24 @@
       "description": "Oracle CREATE FUNCTION is classified as routine lifecycle DDL without table lineage"
     },
     {
+      "id": "create_procedure_insert_select_body",
+      "file": "cases/create_procedure_insert_select_body.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [],
+      "description": "Oracle CREATE PROCEDURE body preserves conservative static INSERT SELECT table lineage"
+    },
+    {
+      "id": "create_function_select_into_body",
+      "file": "cases/create_function_select_into_body.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle CREATE FUNCTION body preserves conservative static SELECT table lineage"
+    },
+    {
       "id": "alter_procedure_compile",
       "file": "cases/alter_procedure_compile.sql",
       "statementType": "ALTER_ROUTINE",
@@ -3957,10 +4384,19 @@
       "id": "anonymous_cursor_loop_block",
       "file": "cases/anonymous_cursor_loop_block.sql",
       "statementType": "CONTROL",
-      "inputTables": [],
+      "inputTables": ["ods.orders"],
       "outputTables": [],
       "columnLineage": [],
-      "description": "Oracle anonymous cursor FOR loop block is accepted as control syntax"
+      "description": "Oracle anonymous cursor FOR loop block preserves static SELECT table lineage"
+    },
+    {
+      "id": "anonymous_insert_select_block",
+      "file": "cases/anonymous_insert_select_block.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.order_summary"],
+      "columnLineage": [],
+      "description": "Oracle anonymous block preserves static INSERT SELECT table lineage"
     },
     {
       "id": "anonymous_declare_block",
@@ -4080,6 +4516,22 @@
         {"type": "JOIN_ON", "column": "ods.events.user_id"}
       ],
       "description": "Oracle JSON_TABLE relation keeps base table, JSON table-valued source, and correlated payload usage"
+    },
+    {
+      "id": "json_scalar_function_lineage",
+      "file": "cases/json_scalar_function_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.events.event_id"]},
+        {"target": "user_id", "sources": ["ods.events.payload"]},
+        {"target": "items_json", "sources": ["ods.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.payload"}
+      ],
+      "description": "Oracle SQL/JSON scalar functions map projection and predicate lineage to the payload column"
     },
     {
       "id": "xml_table_relation",
@@ -4471,6 +4923,186 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "Oracle FLASHBACK TABLE TO TIMESTAMP records the affected table"
+    },
+    {
+      "id": "create_user_control",
+      "file": "cases/create_user_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle CREATE USER is accepted as principal control"
+    },
+    {
+      "id": "alter_user_quota_control",
+      "file": "cases/alter_user_quota_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle ALTER USER quota statement is accepted as principal control"
+    },
+    {
+      "id": "create_role_control",
+      "file": "cases/create_role_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle CREATE ROLE is accepted as principal control"
+    },
+    {
+      "id": "drop_user_cascade_control",
+      "file": "cases/drop_user_cascade_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle DROP USER CASCADE is accepted as principal control"
+    },
+    {
+      "id": "create_directory_control",
+      "file": "cases/create_directory_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle CREATE DIRECTORY is accepted as external file directory control"
+    },
+    {
+      "id": "drop_directory_control",
+      "file": "cases/drop_directory_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle DROP DIRECTORY is accepted as external file directory control"
+    },
+    {
+      "id": "create_tablespace_control",
+      "file": "cases/create_tablespace_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle CREATE TABLESPACE is accepted as storage control"
+    },
+    {
+      "id": "alter_tablespace_control",
+      "file": "cases/alter_tablespace_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle ALTER TABLESPACE is accepted as storage control"
+    },
+    {
+      "id": "drop_tablespace_control",
+      "file": "cases/drop_tablespace_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle DROP TABLESPACE is accepted as storage control"
+    },
+    {
+      "id": "create_context_control",
+      "file": "cases/create_context_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle CREATE CONTEXT is accepted as application context control"
+    },
+    {
+      "id": "drop_context_control",
+      "file": "cases/drop_context_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle DROP CONTEXT is accepted as application context control"
+    },
+    {
+      "id": "create_profile_control",
+      "file": "cases/create_profile_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle CREATE PROFILE is accepted as profile control"
+    },
+    {
+      "id": "alter_profile_control",
+      "file": "cases/alter_profile_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle ALTER PROFILE is accepted as profile control"
+    },
+    {
+      "id": "drop_profile_control",
+      "file": "cases/drop_profile_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle DROP PROFILE is accepted as profile control"
+    },
+    {
+      "id": "create_audit_policy_control",
+      "file": "cases/create_audit_policy_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle CREATE AUDIT POLICY is accepted as audit policy control"
+    },
+    {
+      "id": "drop_audit_policy_control",
+      "file": "cases/drop_audit_policy_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle DROP AUDIT POLICY is accepted as audit policy control"
+    },
+    {
+      "id": "audit_table_control",
+      "file": "cases/audit_table_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle AUDIT table statement is accepted as audit control"
+    },
+    {
+      "id": "noaudit_table_control",
+      "file": "cases/noaudit_table_control.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle NOAUDIT table statement is accepted as audit control"
     }
   ]
 }

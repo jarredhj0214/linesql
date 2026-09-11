@@ -50,6 +50,7 @@ statement
     | analyzeTableStatement                                          #analyzeTableStmt
     | tableMaintenanceStatement                                      #tableMaintenanceStmt
     | indexCacheStatement                                            #indexCacheStmt
+    | describeStatement                                              #describeStmt
     | explainStatement                                               #explainStmt
     | useStatement                                                   #useStmt
     | lockTablesStatement                                            #lockTablesStmt
@@ -58,6 +59,7 @@ statement
     | setStatement                                                   #setStmt
     | doStatement                                                    #doStmt
     | callStatement                                                  #callStmt
+    | cursorStatement                                                #cursorStmt
     | prepareStatement                                               #prepareStmt
     | executeStatement                                               #executeStmt
     | deallocatePrepareStatement                                     #deallocatePrepareStmt
@@ -69,7 +71,6 @@ statement
     | accountStatement                                               #accountStmt
     | adminStatement                                                 #adminStmt
     | showStatement                                                  #showStmt
-    | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
     ;
 
@@ -135,6 +136,7 @@ setOperator
 queryPrimary
     : querySpecification                                             #queryPrimaryDefault
     | valueTable                                                     #valuesPrimary
+    | TABLE multipartIdentifier                                      #tableQueryPrimary
     | LPAREN query RPAREN                                            #subqueryPrimary
     ;
 
@@ -1089,6 +1091,13 @@ callStatement
     : CALL multipartIdentifier LPAREN expressionList? RPAREN
     ;
 
+cursorStatement
+    : DECLARE identifier CURSOR FOR cursorQuery=query                 #declareCursorStatement
+    | OPEN identifier                                                 #openCursorStatement
+    | FETCH identifier INTO selectIntoVariableList                    #fetchCursorStatement
+    | CLOSE identifier                                                #closeCursorStatement
+    ;
+
 prepareStatement
     : PREPARE identifier FROM .+?
     ;
@@ -1526,8 +1535,8 @@ strictIdentifier
 nonReservedKeyword
     : ACCOUNT | ACTION | ADD | AFTER | AGAINST | ALGORITHM | ANALYSE | ANALYZE | ANY | ARRAY | ASC | AT | ATTRIBUTE | AUTO_INCREMENT | BACKUP | BASIC | BINARY | BINLOG | BOOLEAN | BOTH | CACHE | CASCADE | CASCADED | CALL | CAST | CHANGE | CHAR | CHARACTER | CHARSET | CHECK | CHECKSUM | CIPHER | CLONE | CLOSE | COALESCE | COLLATE | COLLATION | COLLATIONS | CONNECTION
     | ALWAYS | AVG_ROW_LENGTH | COLUMN | COLUMN_FORMAT | COMMENT | CONSTRAINT | CURRENT | CURRENT_DATE | CURRENT_TIME | CURRENT_TIMESTAMP | CURRENT_USER | DATA | DATABASES | DATE | DEFAULT | DEFINER | DELAYED | DELAY_KEY_WRITE | DELETE | DESCRIBE | DESC | DISTINCTROW | DO | DUPLICATE | EACH | ENCLOSED | END | ENGINES
-    | DATABASE | DATAFILE | DEALLOCATE | DIAGNOSTICS | DISCARD | DIV | DOUBLE | DUMPFILE | EMPTY | ENCRYPTION | ENFORCED | ENGINE | ENDS | ERROR | ERRORS | ESCAPE | ESCAPED | EVENT | EVENTS | EVERY | EXCHANGE | EXECUTE | EXISTS | EXPIRE | EXPLAIN | EXTERNAL | EXTENDED | EXTENDED_NOADDR | FAILED_LOGIN_ATTEMPTS | FALSE | FAST | FIELDS | FIRST | FLUSH | FOLLOWING | FOR | FORCE | FOREIGN | FORMAT | FULLTEXT | FUNCTION | GENERATED | GET | GET_FORMAT | GLOBAL | GRANT | GRANTS | GROUP | HANDLER | HIGH_PRIORITY | IF | IGNORE | IMPORT | INDEX | INSERT_METHOD | INSTANCE | INTEGER | INTERVAL | INVOKER | ISSUER | JSON_TABLE | JSON_VALUE | KEY | KILL | LAST | LATERAL | LIKE | LIMIT | LINES | LOCK | LOCKED | LOGFILE | LOGS | MASTER | MAX_ROWS | MEDIUM | MERGE | MIN_ROWS | MINUS_SET | MOD | MODE | MODIFY | NAMES | NATIONAL | NCHAR | NESTED | NEVER | NEXT | NO | NONE | NO_WRITE_TO_BINLOG | NOWAIT | NULL | NVARCHAR | OF
-    | EXPANSION | EXTRACT | INFILE | IDENTIFIED | INDEXES | KEY_BLOCK_SIZE | KEYS | LANGUAGE | LEADING | LEAVES | LINEAR | LOAD | LOCAL | LOCALTIME | LOCALTIMESTAMP | LOW_PRIORITY | MATCH | MEMBER | NULLS | OFFSET | ONE | OPEN | OPTIMIZE | OPTION | OPTIONALLY | ORDINALITY | OUTFILE | OUTLINE | OVER | PACK_KEYS | PARTITION | PARTITIONING | PARTITIONS | PASSWORD | PASSWORD_LOCK_TIME | PATH | PHASE | POOL | POSITION | PRECEDING | PRECISION | PREPARE | PRESERVE | PREV | PRIVILEGES | PROCEDURE | PROCESSLIST | PROXYCONFIG | QUERY | RANGE | READ | REBUILD | RECOVER | RECURSIVE | REFERENCES | RELAYLOG | REORGANIZE | REPAIR | REPLACE | RENAME | REMOVE | REPLICA | REPLICATION | REQUIRE | RESET | RESPECT | RESTART | RESUME | RETURNING | ROW | ROW_FORMAT | ROWS | SCHEDULE | SECONDARY_ENGINE_ATTRIBUTE | SEPARATOR
+    | DATABASE | DATAFILE | DEALLOCATE | DECLARE | DIAGNOSTICS | DISCARD | DIV | DOUBLE | DUMPFILE | EMPTY | ENCRYPTION | ENFORCED | ENGINE | ENDS | ERROR | ERRORS | ESCAPE | ESCAPED | EVENT | EVENTS | EVERY | EXCHANGE | EXECUTE | EXISTS | EXPIRE | EXPLAIN | EXTERNAL | EXTENDED | EXTENDED_NOADDR | FAILED_LOGIN_ATTEMPTS | FALSE | FAST | FETCH | FIELDS | FIRST | FLUSH | FOLLOWING | FOR | FORCE | FOREIGN | FORMAT | FULLTEXT | FUNCTION | GENERATED | GET | GET_FORMAT | GLOBAL | GRANT | GRANTS | GROUP | HANDLER | HIGH_PRIORITY | IF | IGNORE | IMPORT | INDEX | INSERT_METHOD | INSTANCE | INTEGER | INTERVAL | INVOKER | ISSUER | JSON_TABLE | JSON_VALUE | KEY | KILL | LAST | LATERAL | LIKE | LIMIT | LINES | LOCK | LOCKED | LOGFILE | LOGS | MASTER | MAX_ROWS | MEDIUM | MERGE | MIN_ROWS | MINUS_SET | MOD | MODE | MODIFY | NAMES | NATIONAL | NCHAR | NESTED | NEVER | NEXT | NO | NONE | NO_WRITE_TO_BINLOG | NOWAIT | NULL | NVARCHAR | OF
+    | CURSOR | EXPANSION | EXTRACT | INFILE | IDENTIFIED | INDEXES | KEY_BLOCK_SIZE | KEYS | LANGUAGE | LEADING | LEAVES | LINEAR | LOAD | LOCAL | LOCALTIME | LOCALTIMESTAMP | LOW_PRIORITY | MATCH | MEMBER | NULLS | OFFSET | ONE | OPEN | OPTIMIZE | OPTION | OPTIONALLY | ORDINALITY | OUTFILE | OUTLINE | OVER | PACK_KEYS | PARTITION | PARTITIONING | PARTITIONS | PASSWORD | PASSWORD_LOCK_TIME | PATH | PHASE | POOL | POSITION | PRECEDING | PRECISION | PREPARE | PRESERVE | PREV | PRIVILEGES | PROCEDURE | PROCESSLIST | PROXYCONFIG | QUERY | RANGE | READ | REBUILD | RECOVER | RECURSIVE | REFERENCES | RELAYLOG | REORGANIZE | REPAIR | REPLACE | RENAME | REMOVE | REPLICA | REPLICATION | REQUIRE | RESET | RESPECT | RESTART | RESUME | RETURNING | ROW | ROW_FORMAT | ROWS | SCHEDULE | SECONDARY_ENGINE_ATTRIBUTE | SEPARATOR
     | BUCKETS | HASH | HISTOGRAM | LESS | LIST | MAXVALUE | NATURAL | ONLY | PRIMARY | QUICK | REGEXP | RELEASE | RESTRICT | REVOKE | RLIKE | ROLLBACK | ROLLUP | SAVEPOINT | SCHEMAS | SECURITY | SESSION | SET | SHARDING | SHARE | SHOW | SKIP_ | SNAPSHOT | SOUNDS | SOURCE | SPATIAL | SQL | SQL_BIG_RESULT | SQL_BUFFER_RESULT | SQL_CACHE | SQL_CALC_FOUND_ROWS | SSL | STOP | SUBJECT
     | RESIGNAL | SIGNED | SIGNAL | SLAVE | SOME | SQL_NO_CACHE | SQL_SMALL_RESULT | SRID | STACKED | STANDBY | START | STARTING | STARTS | STATS_AUTO_RECALC | STATS_PERSISTENT | STATS_SAMPLE_PAGES | STORAGE | STORED | STRAIGHT_JOIN | SUBPARTITION | SUBPARTITIONS | SUBSTRING | SUSPEND | SYSTEM | TABLE | TABLE_CHECKSUM | TABLEGROUP | TABLESPACE | TEMPORARY | TEMPTABLE | TENANT | TERMINATED | THAN | TIME | TIMESTAMP | TIMESTAMPADD | TIMESTAMPDIFF | TO | TRAILING | TRANSACTION | ISOLATION | LEVEL | REPEATABLE | COMMITTED | UNCOMMITTED | SERIALIZABLE | TRIM | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNDEFINED | UNDO | UNIQUE | UNIT | UNKNOWN | UNSIGNED | VALIDATION | VALUES | VIEW | VIRTUAL | VISIBLE | INVISIBLE | WITHOUT | WORK | X509 | XOR | ZEROFILL | ZONE
     | AUTOEXTEND_SIZE | CHANGED | COLUMNS | COMPLETION | COMPRESSION | CONVERT | DIRECTORY | ENGINE_ATTRIBUTE | MIGRATE | SCHEMA | STATUS | TABLES | TRIGGER | TRIGGERS | UNLOCK | UPGRADE | USE | USE_FRM | USER | UTC_DATE | UTC_TIME | UTC_TIMESTAMP | VALUE | VARCHAR | VARIABLES | VARYING | WARNINGS | WINDOW | WITH | WRITE | XA | XID | XML | BEGIN | CHAIN | COMMIT | CONSISTENT

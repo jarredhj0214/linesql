@@ -1,0 +1,3 @@
+CREATE TABLESPACE app_ts
+DATAFILE 'app_ts01.dbf'
+SIZE 100M;

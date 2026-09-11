@@ -33,14 +33,41 @@
         "app.users"
       ],
       "outputTables": [],
-      "columnLineage": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "app.users.*"
+          ]
+        }
+      ],
       "columnUsages": [
         {
           "type": "ORDER_BY",
           "column": "app.users.id"
         }
       ],
-      "description": "MySQL TABLE statement is treated as SELECT-style table lineage"
+      "description": "MySQL TABLE statement is treated as SELECT-style table and schema-free wildcard lineage"
+    },
+    {
+      "id": "table_query_union_projection",
+      "file": "cases/table_query_union_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.admin_users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "app.users.*",
+            "app.admin_users.id"
+          ]
+        }
+      ],
+      "description": "MySQL TABLE query primary participates in UNION query expressions with schema-free wildcard lineage"
     },
     {
       "id": "handler_open",
@@ -705,6 +732,30 @@
       "description": "MySQL aliased subquery direct column propagation"
     },
     {
+      "id": "nested_derived_query_column_projection",
+      "file": "cases/nested_derived_query_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL nested derived query direct column propagation"
+    },
+    {
       "id": "derived_table_column_aliases",
       "file": "cases/derived_table_column_aliases.sql",
       "statementType": "SELECT",
@@ -1281,6 +1332,25 @@
         }
       ],
       "description": "MySQL INSERT SELECT with ON DUPLICATE KEY UPDATE maps INSERT and duplicate-update field lineage"
+    },
+    {
+      "id": "insert_table_source",
+      "file": "cases/insert_table_source.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.orders_archive"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.id"
+        }
+      ],
+      "description": "MySQL INSERT ... TABLE source query keeps source/target tables and query organization usages"
     },
     {
       "id": "replace_select",
@@ -2411,6 +2481,17 @@
       "description": "MySQL CREATE FULLTEXT INDEX affected table lineage"
     },
     {
+      "id": "create_spatial_index",
+      "file": "cases/create_spatial_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "gis.places"
+      ],
+      "columnLineage": [],
+      "description": "MySQL CREATE SPATIAL INDEX affected table lineage"
+    },
+    {
       "id": "create_index_using_options",
       "file": "cases/create_index_using_options.sql",
       "statementType": "ALTER_TABLE",
@@ -3236,6 +3317,32 @@
         }
       ],
       "description": "MySQL INSERT target column list mapping"
+    },
+    {
+      "id": "insert_column_list_skipped_constant",
+      "file": "cases/insert_column_list_skipped_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "MySQL INSERT target column list keeps source columns aligned when earlier SELECT items are generated constants"
     },
     {
       "id": "insert_union_column_lineage",
@@ -6022,6 +6129,71 @@
       "description": "MySQL EXPLAIN ANALYZE preserves wrapped SELECT lineage"
     },
     {
+      "id": "explain_analyze_insert_select",
+      "file": "cases/explain_analyze_insert_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        },
+        {
+          "target": "ads.user_summary.user_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "MySQL EXPLAIN ANALYZE preserves wrapped INSERT SELECT lineage"
+    },
+    {
+      "id": "explain_update_join",
+      "file": "cases/explain_update_join.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "mart.users",
+        "app.users_delta"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.users.name",
+          "sources": [
+            "app.users_delta.name"
+          ]
+        },
+        {
+          "target": "mart.users.status",
+          "sources": []
+        }
+      ],
+      "description": "MySQL EXPLAIN preserves wrapped UPDATE JOIN lineage"
+    },
+    {
+      "id": "explain_delete_using",
+      "file": "cases/explain_delete_using.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "mart.users",
+        "app.deleted_users"
+      ],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "description": "MySQL EXPLAIN preserves wrapped DELETE USING lineage"
+    },
+    {
       "id": "create_view_declared_columns",
       "file": "cases/create_view_declared_columns.sql",
       "statementType": "CREATE_VIEW",
@@ -6241,6 +6413,37 @@
       "description": "MySQL NATURAL JOIN source table and projection lineage"
     },
     {
+      "id": "natural_inner_join_projection",
+      "file": "cases/natural_inner_join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL NATURAL INNER JOIN keeps source table and projection lineage"
+    },
+    {
       "id": "update_low_priority_ignore",
       "file": "cases/update_low_priority_ignore.sql",
       "statementType": "UPDATE",
@@ -6443,6 +6646,17 @@
         "tmp_users"
       ],
       "description": "MySQL DROP TEMPORARY TABLE affected table lineage"
+    },
+    {
+      "id": "drop_multiple_temporary_tables",
+      "file": "cases/drop_multiple_temporary_tables.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "tmp_users",
+        "tmp_orders"
+      ],
+      "description": "MySQL DROP TEMPORARY TABLE supports multiple affected temporary tables"
     },
     {
       "id": "json_extract_expression",
@@ -6881,6 +7095,64 @@
       "inputTables": [],
       "outputTables": [],
       "description": "MySQL DEALLOCATE PREPARE is accepted as a script-safe control statement"
+    },
+    {
+      "id": "declare_cursor_for_select",
+      "file": "cases/declare_cursor_for_select.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "app.orders.order_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL DECLARE CURSOR FOR SELECT is accepted as routine cursor control while preserving query lineage"
+    },
+    {
+      "id": "open_cursor",
+      "file": "cases/open_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL OPEN cursor command is accepted as routine cursor control"
+    },
+    {
+      "id": "fetch_cursor",
+      "file": "cases/fetch_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL FETCH cursor command is accepted as routine cursor control"
+    },
+    {
+      "id": "close_cursor",
+      "file": "cases/close_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "MySQL CLOSE cursor command is accepted as routine cursor control"
     },
     {
       "id": "create_procedure",
@@ -8144,6 +8416,45 @@
       "description": "MySQL LATERAL derived query preserves inner projection lineage and correlated predicate usages"
     },
     {
+      "id": "lateral_derived_column_aliases",
+      "file": "cases/lateral_derived_column_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        },
+        {
+          "target": "last_amount",
+          "sources": [
+            "app.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.users.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.orders.created_at"
+        }
+      ],
+      "description": "MySQL LATERAL derived query column alias list retargets derived projections"
+    },
+    {
       "id": "create_table_compound_type_names",
       "file": "cases/create_table_compound_type_names.sql",
       "statementType": "CREATE_TABLE",
@@ -9046,6 +9357,17 @@
       ],
       "columnLineage": [],
       "description": "MySQL DROP TABLE with RESTRICT reports the affected table"
+    },
+    {
+      "id": "drop_table_cascade",
+      "file": "cases/drop_table_cascade.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.old_orders"
+      ],
+      "columnLineage": [],
+      "description": "MySQL DROP TABLE with CASCADE reports the affected table"
     },
     {
       "id": "drop_view_cascade",
@@ -10042,6 +10364,30 @@
         }
       ],
       "description": "MySQL SELECT star preserves schema-free wildcard source lineage"
+    },
+    {
+      "id": "derived_table_query_primary_star",
+      "file": "cases/derived_table_query_primary_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "app.users.*"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "MySQL TABLE query primary inside a derived table keeps wildcard lineage and outer predicate usage"
     },
     {
       "id": "select_qualified_star_lineage",

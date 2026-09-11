@@ -28,6 +28,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     private final Set<String> cteNames = new LinkedHashSet<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
+    private final Map<String, List<SourceColumn>> generatedColumns = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
@@ -45,6 +46,51 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     public Void visitStatementDefault(HiveParser.StatementDefaultContext ctx) {
         result.setStatementType(StatementType.SELECT);
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitExplainStmt(HiveParser.ExplainStmtContext ctx) {
+        return visit(ctx.explainStatement());
+    }
+
+    @Override
+    public Void visitExplainStatement(HiveParser.ExplainStatementContext ctx) {
+        return visit(ctx.explainedStatement());
+    }
+
+    @Override
+    public Void visitExplainedStatement(HiveParser.ExplainedStatementContext ctx) {
+        if (ctx.query() != null) {
+            result.setStatementType(StatementType.SELECT);
+            return visit(ctx.query());
+        }
+        if (ctx.insertDirectoryStatement() != null) {
+            result.setStatementType(StatementType.INSERT);
+            return visit(ctx.insertDirectoryStatement());
+        }
+        if (ctx.insertStatement() != null) {
+            result.setStatementType(StatementType.INSERT);
+            return visit(ctx.insertStatement());
+        }
+        if (ctx.updateStatement() != null) {
+            result.setStatementType(StatementType.UPDATE);
+            return visit(ctx.updateStatement());
+        }
+        if (ctx.deleteStatement() != null) {
+            result.setStatementType(StatementType.DELETE);
+            return visit(ctx.deleteStatement());
+        }
+        if (ctx.mergeStatement() != null) {
+            result.setStatementType(StatementType.MERGE);
+            return visit(ctx.mergeStatement());
+        }
+        if (ctx.createTableStatement() != null) {
+            return visit(ctx.createTableStatement());
+        }
+        if (ctx.createViewStatement() != null) {
+            return visit(ctx.createViewStatement());
+        }
+        return null;
     }
 
     @Override
@@ -69,6 +115,9 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitInsertStatement(HiveParser.InsertStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
         if (ctx.columnList != null) {
@@ -132,6 +181,71 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitMergeStmt(HiveParser.MergeStmtContext ctx) {
+        result.setStatementType(StatementType.MERGE);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitMergeStatement(HiveParser.MergeStatementContext ctx) {
+        TableRef target = tableRef(ctx.target);
+        currentDmlTarget = target;
+        inputTables.add(target);
+        outputTables.add(target);
+        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        String targetAlias = tableAlias(ctx.targetAlias);
+        if (targetAlias != null) {
+            tableAliases.put(targetAlias.toLowerCase(Locale.ROOT), target);
+        }
+
+        visit(ctx.mergeSource());
+        addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
+
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (HiveParser.MergeClauseContext clause : ctx.mergeClause()) {
+            if (clause instanceof HiveParser.MergeMatchedUpdateContext) {
+                HiveParser.MergeMatchedUpdateContext update = (HiveParser.MergeMatchedUpdateContext) clause;
+                if (update.expression() != null) {
+                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(update.expression()));
+                }
+                lineages.addAll(readAssignments(update.assignmentList(), target));
+            } else if (clause instanceof HiveParser.MergeMatchedDeleteContext) {
+                HiveParser.MergeMatchedDeleteContext delete = (HiveParser.MergeMatchedDeleteContext) clause;
+                if (delete.expression() != null) {
+                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(delete.expression()));
+                }
+            } else if (clause instanceof HiveParser.MergeNotMatchedInsertContext) {
+                HiveParser.MergeNotMatchedInsertContext insert = (HiveParser.MergeNotMatchedInsertContext) clause;
+                if (insert.expression() != null) {
+                    addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(insert.expression()));
+                }
+                lineages.addAll(readMergeInsertValues(insert, target));
+            }
+        }
+
+        result.setColumnLineage(lineages);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitMergeTableSource(HiveParser.MergeTableSourceContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        addInputTable(table, ctx.tableAlias(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitMergeQuerySource(HiveParser.MergeQuerySourceContext ctx) {
+        String alias = tableAlias(ctx.tableAlias());
+        String relationName = alias == null ? "$merge_source" : alias;
+        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), new ArrayList<>());
+        addDerivedReference(relationName, ctx.tableAlias());
         return null;
     }
 
@@ -239,6 +353,15 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterTableExchangePartition(HiveParser.AlterTableExchangePartitionContext ctx) {
+        inputTables.add(tableRef(ctx.source));
+        outputTables.add(tableRef(ctx.target));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableOther(HiveParser.AlterTableOtherContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -260,6 +383,36 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     @Override
     public Void visitUseStmt(HiveParser.UseStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitSetStmt(HiveParser.SetStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitResourceStmt(HiveParser.ResourceStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitCreateFunction(HiveParser.CreateFunctionContext ctx) {
+        result.setStatementType(StatementType.CREATE_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitDropFunction(HiveParser.DropFunctionContext ctx) {
+        result.setStatementType(StatementType.DROP_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitReloadFunction(HiveParser.ReloadFunctionContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -361,6 +514,19 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitLockTableStmt(HiveParser.LockTableStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitLockTableStatement(HiveParser.LockTableStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
     // ============ Query traversal ============
 
     @Override
@@ -426,16 +592,47 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitLateralView(HiveParser.LateralViewContext ctx) {
+        List<HiveParser.IdentifierContext> identifiers = ctx.identifier();
+        if (identifiers.size() < 2) {
+            return null;
+        }
+        String relationAlias = cleanIdentifier(identifiers.get(0));
+        List<SourceColumn> sources = sourceColumns(ctx.expressionList());
+        for (int i = 1; i < identifiers.size(); i++) {
+            registerGeneratedColumn(relationAlias, cleanIdentifier(identifiers.get(i)), sources);
+        }
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(HiveParser.SelectClauseContext ctx) {
-        for (HiveParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
+        if (ctx.transformClause() != null) {
+            return visit(ctx.transformClause());
+        }
+        List<HiveParser.SelectItemContext> items = ctx.selectItemList().selectItem();
+        for (int i = 0; i < items.size(); i++) {
+            HiveParser.SelectItemContext item = items.get(i);
             if (item instanceof HiveParser.SelectExpressionContext) {
-                Projection projection = projection((HiveParser.SelectExpressionContext) item);
+                Projection projection = projection((HiveParser.SelectExpressionContext) item, i);
                 if (projection != null) {
                     projections.add(projection);
                 }
             }
         }
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitTransformClause(HiveParser.TransformClauseContext ctx) {
+        List<SourceColumn> sources = ctx.expressionList() == null
+                ? new ArrayList<>()
+                : sourceColumns(ctx.expressionList());
+        List<String> outputs = identifierNames(ctx.identifierList());
+        for (int i = 0; i < outputs.size(); i++) {
+            projections.add(new Projection(sources, outputs.get(i), ctx.getText(), i));
+        }
+        return null;
     }
 
     @Override
@@ -456,8 +653,8 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitGroupByClause(HiveParser.GroupByClauseContext ctx) {
-        for (HiveParser.ExpressionContext expression : ctx.expression()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+        for (HiveParser.GroupByItemContext item : ctx.groupByItem()) {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(item));
         }
         return visitChildren(ctx);
     }
@@ -567,6 +764,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
+        relationVisitor.generatedColumns.putAll(generatedColumns);
         relationVisitor.visit(query);
         relationVisitor.refreshColumnLineage();
 
@@ -591,6 +789,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
+        queryVisitor.generatedColumns.putAll(generatedColumns);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(queryTerm);
         queryVisitor.refreshColumnLineage();
@@ -693,10 +892,13 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     private void refreshColumnLineage() {
+        refreshColumnLineage(outputTables.size() == 1 ? outputTables.iterator().next() : null);
+    }
+
+    private void refreshColumnLineage(TableRef targetTable) {
         if (suppressColumnLineage || projections.isEmpty()) {
             return;
         }
-        TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;
         List<ColumnLineage> columnLineage = new ArrayList<>();
         for (int i = 0; i < projections.size(); i++) {
             Projection projection = projections.get(i);
@@ -704,7 +906,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             if (sources == null) {
                 continue;
             }
-            String targetColumn = targetColumn(projection, columnLineage.size());
+            String targetColumn = targetColumn(projection, projection.ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
@@ -717,6 +919,10 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     private void retargetColumnLineage(TableRef targetTable) {
+        if (!projections.isEmpty()) {
+            refreshColumnLineage(targetTable);
+            return;
+        }
         result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
                 result.getColumnLineage(),
                 targetTable,
@@ -724,7 +930,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     private String targetColumn(Projection projection, int index) {
-        if (index < insertTargetColumns.size()) {
+        if (index >= 0 && index < insertTargetColumns.size()) {
             return insertTargetColumns.get(index);
         }
         return projection.targetColumn;
@@ -751,6 +957,10 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {
+        return columnRefs(sourceColumns, new LinkedHashSet<>());
+    }
+
+    private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns, Set<String> resolvingGeneratedColumns) {
         TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
                 ? inputTables.iterator().next()
                 : null;
@@ -761,6 +971,17 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            List<SourceColumn> generatedSources = generatedColumnSources(sourceColumn);
+            String generatedKey = generatedColumnKey(sourceColumn);
+            if (generatedSources != null && resolvingGeneratedColumns.add(generatedKey)) {
+                List<ColumnRef> generatedRefs = columnRefs(generatedSources, resolvingGeneratedColumns);
+                if (generatedRefs == null) {
+                    return null;
+                }
+                refs.addAll(generatedRefs);
+                resolvingGeneratedColumns.remove(generatedKey);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
@@ -778,6 +999,29 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             refs.add(new ColumnRef(table, sourceColumn.name));
         }
         return refs;
+    }
+
+    private void registerGeneratedColumn(String relationAlias, String columnName, List<SourceColumn> sources) {
+        List<SourceColumn> copiedSources = new ArrayList<>(sources);
+        generatedColumns.put(columnName.toLowerCase(Locale.ROOT), copiedSources);
+        if (relationAlias != null && !relationAlias.isEmpty()) {
+            generatedColumns.put((relationAlias + "." + columnName).toLowerCase(Locale.ROOT), copiedSources);
+        }
+    }
+
+    private List<SourceColumn> generatedColumnSources(SourceColumn sourceColumn) {
+        if (sourceColumn.resolvedRef != null) {
+            return null;
+        }
+        return generatedColumns.get(generatedColumnKey(sourceColumn));
+    }
+
+    private static String generatedColumnKey(SourceColumn sourceColumn) {
+        String name = sourceColumn.name.toLowerCase(Locale.ROOT);
+        if (sourceColumn.qualifier == null) {
+            return name;
+        }
+        return sourceColumn.qualifier.toLowerCase(Locale.ROOT) + "." + name;
     }
 
     private SourceColumn scopedSourceColumn(SourceColumn sourceColumn) {
@@ -847,6 +1091,35 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         return lineages;
     }
 
+    private List<ColumnLineage> readMergeInsertValues(HiveParser.MergeNotMatchedInsertContext ctx, TableRef target) {
+        List<String> targetColumns = ctx.columnList == null ? new ArrayList<>() : identifierNames(ctx.columnList);
+        List<ColumnLineage> lineages = new ArrayList<>();
+        List<HiveParser.ExpressionContext> values = ctx.expressionList().expression();
+        for (int i = 0; i < values.size(); i++) {
+            HiveParser.ExpressionContext value = values.get(i);
+            List<ColumnRef> sources = resolveSources(sourceColumns(value));
+            if (sources == null) {
+                continue;
+            }
+            String targetColumn = i < targetColumns.size()
+                    ? targetColumns.get(i)
+                    : directTargetName(value, i);
+            ColumnLineage lineage = new ColumnLineage();
+            lineage.setTarget(new ColumnRef(target, targetColumn));
+            lineage.setSources(sources);
+            lineages.add(lineage);
+        }
+        return lineages;
+    }
+
+    private String directTargetName(HiveParser.ExpressionContext expression, int index) {
+        List<SourceColumn> sources = sourceColumns(expression);
+        if (sources.size() == 1) {
+            return sources.get(0).name;
+        }
+        return "col" + (index + 1);
+    }
+
     private List<ColumnRef> resolveSources(List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sc : sourceColumns) {
@@ -855,6 +1128,15 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn col = scopedSourceColumn(sc);
+            List<SourceColumn> generatedSources = generatedColumnSources(col);
+            if (generatedSources != null) {
+                List<ColumnRef> generatedRefs = columnRefs(generatedSources);
+                if (generatedRefs == null) {
+                    return null;
+                }
+                refs.addAll(generatedRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(col);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
@@ -926,6 +1208,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
+        queryVisitor.generatedColumns.putAll(generatedColumns);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
@@ -941,9 +1224,11 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         if (specification == null || specification.selectClause() == null) {
             return;
         }
-        for (HiveParser.SelectItemContext item : specification.selectClause().selectItemList().selectItem()) {
+        List<HiveParser.SelectItemContext> items = specification.selectClause().selectItemList().selectItem();
+        for (int i = 0; i < items.size(); i++) {
+            HiveParser.SelectItemContext item = items.get(i);
             if (item instanceof HiveParser.SelectExpressionContext) {
-                Projection projection = projection((HiveParser.SelectExpressionContext) item);
+                Projection projection = projection((HiveParser.SelectExpressionContext) item, i);
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -963,7 +1248,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         return ((HiveParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(HiveParser.SelectExpressionContext ctx) {
+    private Projection projection(HiveParser.SelectExpressionContext ctx, int ordinal) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
@@ -979,7 +1264,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, targetColumn, expression);
+        return new Projection(sourceColumns, targetColumn, expression, ordinal);
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
@@ -1046,7 +1331,10 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
         if (tree instanceof HiveParser.ColumnReferenceContext) {
             HiveParser.ColumnReferenceContext colRef = (HiveParser.ColumnReferenceContext) tree;
-            columns.add(new SourceColumn(null, cleanIdentifier(colRef.identifier())));
+            String column = cleanIdentifier(colRef.identifier());
+            if (!isHiveGeneratedExpression(column)) {
+                columns.add(new SourceColumn(null, column));
+            }
             return;
         }
         if (tree instanceof HiveParser.DereferenceContext) {
@@ -1175,15 +1463,27 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         return value;
     }
 
+    private static boolean isHiveGeneratedExpression(String text) {
+        String normalized = text.toLowerCase(Locale.ROOT);
+        return "current_date".equals(normalized)
+                || "current_timestamp".equals(normalized)
+                || "true".equals(normalized)
+                || "false".equals(normalized)
+                || "null".equals(normalized)
+                || "default".equals(normalized);
+    }
+
     private static class Projection {
         final List<SourceColumn> sourceColumns;
         final String targetColumn;
         final String expression;
+        final int ordinal;
 
-        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, int ordinal) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
+            this.ordinal = ordinal;
         }
     }
 

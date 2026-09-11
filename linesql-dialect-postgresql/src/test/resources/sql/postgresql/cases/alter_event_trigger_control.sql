@@ -1,0 +1,1 @@
+ALTER EVENT TRIGGER ddl_audit DISABLE;

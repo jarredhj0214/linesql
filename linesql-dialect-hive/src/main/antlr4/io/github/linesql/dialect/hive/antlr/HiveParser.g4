@@ -8,10 +8,12 @@ singleStatement
 
 statement
     : query                                                          #statementDefault
+    | explainStatement                                               #explainStmt
     | insertDirectoryStatement                                       #insertDirectoryStmt
     | insertStatement                                                #insertStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
+    | mergeStatement                                                 #mergeStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropTableStatement                                             #dropTableStmt
@@ -20,6 +22,9 @@ statement
     | createDatabaseStatement                                        #createDatabaseStmt
     | dropDatabaseStatement                                          #dropDatabaseStmt
     | useStatement                                                   #useStmt
+    | setStatement                                                   #setStmt
+    | resourceStatement                                              #resourceStmt
+    | functionStatement                                              #functionStmt
     | showStatement                                                  #showStmt
     | describeStatement                                              #describeStmt
     | commentStatement                                               #commentStmt
@@ -28,6 +33,29 @@ statement
     | importTableStatement                                           #importTableStmt
     | repairTableStatement                                           #repairTableStmt
     | analyzeTableStatement                                          #analyzeTableStmt
+    | lockTableStatement                                             #lockTableStmt
+    ;
+
+explainStatement
+    : EXPLAIN explainOption* explainedStatement
+    ;
+
+explainOption
+    : EXTENDED
+    | FORMATTED
+    | DEPENDENCY
+    | AUTHORIZATION
+    ;
+
+explainedStatement
+    : query
+    | insertDirectoryStatement
+    | insertStatement
+    | updateStatement
+    | deleteStatement
+    | mergeStatement
+    | createTableStatement
+    | createViewStatement
     ;
 
 // ============ Query ============
@@ -66,7 +94,11 @@ querySpecification
     ;
 
 selectClause
-    : SELECT setQuantifier? selectItemList
+    : SELECT setQuantifier? (selectItemList | transformClause)
+    ;
+
+transformClause
+    : (TRANSFORM | MAP | REDUCE) LPAREN expressionList? RPAREN USING string AS identifierList
     ;
 
 setQuantifier
@@ -97,7 +129,7 @@ relation
     ;
 
 lateralView
-    : LATERAL VIEW functionName LPAREN expressionList RPAREN identifier AS identifier (COMMA identifier)*
+    : LATERAL VIEW OUTER? functionName LPAREN expressionList RPAREN identifier AS identifier (COMMA identifier)*
     ;
 
 relationPrimary
@@ -133,7 +165,23 @@ whereClause
     ;
 
 groupByClause
-    : GROUP BY expression (COMMA expression)*
+    : GROUP BY groupByItem (COMMA groupByItem)* legacyGroupByModifier?
+    ;
+
+legacyGroupByModifier
+    : WITH (ROLLUP | CUBE)
+    ;
+
+groupByItem
+    : expression
+    | ROLLUP LPAREN expressionList RPAREN
+    | CUBE LPAREN expressionList RPAREN
+    | GROUPING SETS LPAREN groupingSet (COMMA groupingSet)* RPAREN
+    ;
+
+groupingSet
+    : LPAREN expressionList? RPAREN
+    | expression
     ;
 
 havingClause
@@ -233,7 +281,7 @@ expressionList
 // ============ DML Statements ============
 
 insertStatement
-    : INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
+    : ctes? INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
       (PARTITION partitionSpec)?
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
@@ -271,6 +319,24 @@ updateStatement
 
 deleteStatement
     : DELETE FROM multipartIdentifier whereClause?
+    ;
+
+mergeStatement
+    : MERGE INTO target=multipartIdentifier targetAlias=tableAlias
+      USING mergeSource
+      ON expression
+      mergeClause+
+    ;
+
+mergeSource
+    : multipartIdentifier tableAlias                                  #mergeTableSource
+    | LPAREN query RPAREN tableAlias                                  #mergeQuerySource
+    ;
+
+mergeClause
+    : WHEN MATCHED (AND expression)? THEN UPDATE SET assignmentList    #mergeMatchedUpdate
+    | WHEN MATCHED (AND expression)? THEN DELETE                       #mergeMatchedDelete
+    | WHEN NOT MATCHED (AND expression)? THEN INSERT (LPAREN columnList=identifierList RPAREN)? VALUES LPAREN expressionList RPAREN #mergeNotMatchedInsert
     ;
 
 assignmentList
@@ -320,6 +386,22 @@ useStatement
     : USE identifier
     ;
 
+setStatement
+    : SET .+?
+    ;
+
+resourceStatement
+    : ADD (JAR | FILE | ARCHIVE) .+?
+    | DELETE (JAR | FILE | ARCHIVE) .+?
+    | LIST (JAR | FILE | ARCHIVE)
+    ;
+
+functionStatement
+    : CREATE TEMPORARY? FUNCTION qualifiedName AS string (USING (JAR | FILE | ARCHIVE) string (COMMA (JAR | FILE | ARCHIVE) string)*)? #createFunction
+    | DROP TEMPORARY? FUNCTION (IF EXISTS)? qualifiedName                                                        #dropFunction
+    | RELOAD FUNCTION                                                                                            #reloadFunction
+    ;
+
 dropTableStatement
     : DROP TABLE (IF EXISTS)? multipartIdentifier PURGE?
     ;
@@ -331,11 +413,22 @@ truncateTableStatement
 alterTableStatement
     : ALTER TABLE multipartIdentifier RENAME (TO)? multipartIdentifier   #alterTableRename
     | ALTER TABLE multipartIdentifier ADD COLUMNS? identifier dataType   #alterTableAddColumn
+    | ALTER TABLE target=multipartIdentifier EXCHANGE PARTITION partitionSpec WITH TABLE source=multipartIdentifier #alterTableExchangePartition
     | ALTER TABLE multipartIdentifier alterTableAction                   #alterTableOther
     ;
 
 alterTableAction
-    : DROP COLUMN identifier
+    : ADD (IF NOT EXISTS)? PARTITION partitionSpec (LOCATION string)? (PARTITION partitionSpec (LOCATION string)?)*
+    | DROP (IF EXISTS)? PARTITION partitionSpec PURGE?
+    | PARTITION partitionSpec RENAME TO PARTITION partitionSpec
+    | PARTITION partitionSpec SET LOCATION string
+    | TOUCH (PARTITION partitionSpec)?
+    | PARTITION partitionSpec TOUCH
+    | CONCATENATE
+    | PARTITION partitionSpec CONCATENATE
+    | COMPACT string (AND WAIT)?
+    | PARTITION partitionSpec COMPACT string (AND WAIT)?
+    | DROP COLUMN identifier
     | SET LPAREN propertyList RPAREN
     | COMMENT EQ? string
     | .+?
@@ -375,7 +468,12 @@ repairTableStatement
     ;
 
 analyzeTableStatement
-    : ANALYZE TABLE multipartIdentifier (PARTITION partitionSpec)? COMPUTE STATISTICS NOSCAN?
+    : ANALYZE TABLE multipartIdentifier (PARTITION partitionSpec)? COMPUTE STATISTICS (NOSCAN | FOR ALL COLUMNS | FOR COLUMNS identifierList)?
+    ;
+
+lockTableStatement
+    : LOCK TABLE multipartIdentifier (SHARED | EXCLUSIVE)
+    | UNLOCK TABLE multipartIdentifier
     ;
 
 // ============ DDL Helpers ============
@@ -447,12 +545,12 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ANALYZE | ASC | CASCADE | CAST | CLUSTER | COLLECTION | COLUMN | COLUMNS | COMMENT | COMPUTE | DATA | DATABASE | DATABASES | DEFAULT
-    | DELIMITED | DESCRIBE | DESC | DIRECTORY | DISTRIBUTE | END | EXISTS | EXTERNAL | FALSE | FIELDS | FORMAT
-    | IF | INPUTFORMAT | INTERVAL | ITEMS | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | MAP | NULL
-    | EXPORT | IMPORT | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PURGE | RENAME
-    | OUTPUTFORMAT | REPAIR | REPLACE | RESTRICT | ROW | SCHEMA | SCHEMAS | SERDEPROPERTIES | SET | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TBLPROPERTIES
-    | TEMPORARY | TERMINATED | TO | TRUE | TRUNCATE | USE | VALUES | VIEW
+    : ADD | ANALYZE | ARCHIVE | ASC | AUTHORIZATION | CASCADE | CAST | CLUSTER | COLLECTION | COLUMN | COLUMNS | COMMENT | COMPUTE | DATA | DATABASE | DATABASES | DEFAULT
+    | DELIMITED | DEPENDENCY | DESCRIBE | DESC | DIRECTORY | DISTRIBUTE | END | EXCLUSIVE | EXISTS | EXPLAIN | EXTENDED | EXTERNAL | FALSE | FIELDS | FILE | FOR | FORMAT | FORMATTED
+    | FUNCTION | FUNCTIONS | IF | INPUTFORMAT | INTERVAL | ITEMS | JAR | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | LOCK | MAP | NULL
+    | EXPORT | IMPORT | MATCHED | MERGE | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PURGE | REDUCE | RENAME
+    | COMPACT | CONCATENATE | EXCHANGE | OUTPUTFORMAT | RELOAD | REPAIR | REPLACE | RESTRICT | ROW | SCHEMA | SCHEMAS | SERDEPROPERTIES | SET | SHARED | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TBLPROPERTIES
+    | TEMPORARY | TERMINATED | TO | TOUCH | TRANSFORM | TRUE | TRUNCATE | UNLOCK | USE | VALUES | VIEW | WAIT
     ;
 
 number

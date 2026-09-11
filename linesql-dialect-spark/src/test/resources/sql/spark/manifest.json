@@ -899,6 +899,26 @@
       "description": "ANALYZE TABLE metadata read table lineage"
     },
     {
+      "id": "analyze_table_all_columns",
+      "file": "cases/analyze_table_all_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "description": "Spark ANALYZE TABLE FOR ALL COLUMNS preserves metadata table lineage"
+    },
+    {
+      "id": "analyze_table_partition_columns",
+      "file": "cases/analyze_table_partition_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "description": "Spark ANALYZE TABLE partition FOR COLUMNS preserves metadata table lineage"
+    },
+    {
       "id": "describe_table",
       "file": "cases/describe_table.sql",
       "statementType": "READ_METADATA",
@@ -2176,6 +2196,44 @@
       "description": "Spark zip_with lambda maps paired-array output to both array input columns"
     },
     {
+      "id": "lambda_map_filter_struct_capture",
+      "file": "cases/lambda_map_filter_struct_capture.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "valid_attributes",
+          "sources": [
+            "ods.orders.attributes",
+            "ods.orders.min_score"
+          ]
+        }
+      ],
+      "description": "Spark map_filter lambda ignores key/value parameters while preserving the map input and captured threshold column"
+    },
+    {
+      "id": "lambda_transform_nested_subscript",
+      "file": "cases/lambda_transform_nested_subscript.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "enriched_items",
+          "sources": [
+            "ods.orders.items",
+            "ods.orders.base_score"
+          ]
+        }
+      ],
+      "description": "Spark transform lambda ignores nested lambda struct/subscript fields while preserving array input and captured columns"
+    },
+    {
       "id": "lateral_view_explode",
       "file": "cases/lateral_view_explode.sql",
       "statementType": "SELECT",
@@ -3073,6 +3131,36 @@
       "description": "INSERT target column list drives target column lineage names"
     },
     {
+      "id": "insert_column_list_skipped_constant",
+      "file": "cases/insert_column_list_skipped_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.load_dt",
+          "sources": []
+        },
+        {
+          "target": "ads.user_summary.user_id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "Spark INSERT target column list keeps source columns aligned when earlier SELECT items are generated constants"
+    },
+    {
       "id": "insert_column_list_expression_projection",
       "file": "cases/insert_column_list_expression_projection.sql",
       "statementType": "INSERT",
@@ -3573,6 +3661,30 @@
       ],
       "outputTables": [],
       "description": "Spark compatibility syntax for date_add with interval arithmetic"
+    },
+    {
+      "id": "add_file_resource",
+      "file": "cases/add_file_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "Spark ADD FILE resource command is parsed as a non-lineage statement"
+    },
+    {
+      "id": "list_jar_resource",
+      "file": "cases/list_jar_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "Spark LIST JAR resource command is parsed as a non-lineage statement"
+    },
+    {
+      "id": "list_file_resource",
+      "file": "cases/list_file_resource.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "Spark LIST FILE resource command is parsed as a non-lineage statement"
     }
   ]
 }

@@ -1,0 +1,2 @@
+ALTER SECURITY POLICY sec.sales_policy
+DROP FILTER PREDICATE ON dbo.orders;

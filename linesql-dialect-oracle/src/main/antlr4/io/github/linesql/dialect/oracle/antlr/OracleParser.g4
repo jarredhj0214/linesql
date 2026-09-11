@@ -20,6 +20,7 @@ statement
     | alterRoutineStatement                                          #alterRoutineStmt
     | anonymousBlockStatement                                        #anonymousBlockStmt
     | createTriggerStatement                                         #createTriggerStmt
+    | principalStatement                                             #principalStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
     | dropRoutineStatement                                           #dropRoutineStmt
@@ -379,9 +380,9 @@ primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
-    | functionName LPAREN STAR RPAREN keepClause? withinGroupClause? (OVER windowSpec)? #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList listaggOverflowClause? RPAREN keepClause? withinGroupClause? (OVER windowSpec)?  #functionCall
-    | functionName LPAREN RPAREN keepClause? withinGroupClause? (OVER windowSpec)?      #functionCallEmpty
+    | functionName LPAREN STAR RPAREN nullTreatmentClause? keepClause? withinGroupClause? (OVER windowSpec)? #functionCallStar
+    | functionName LPAREN setQuantifier? expressionList listaggOverflowClause? RPAREN nullTreatmentClause? keepClause? withinGroupClause? (OVER windowSpec)?  #functionCall
+    | functionName LPAREN RPAREN nullTreatmentClause? keepClause? withinGroupClause? (OVER windowSpec)?      #functionCallEmpty
     | DATE string                                                    #dateLiteral
     | TIMESTAMP string                                               #timestampLiteral
     | CONNECT_BY_ROOT primaryExpression                              #connectByRootExpression
@@ -412,6 +413,10 @@ windowSpec
 
 keepClause
     : KEEP LPAREN identifier (FIRST | LAST) ORDER BY sortItem (COMMA sortItem)* RPAREN
+    ;
+
+nullTreatmentClause
+    : (IGNORE | RESPECT) NULLS
     ;
 
 withinGroupClause
@@ -457,6 +462,7 @@ expressionList
 
 insertStatement
     : INSERT INTO? TABLE? multipartIdentifier
+      partitionExtensionClause?
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
       returningClause?
@@ -478,11 +484,11 @@ valuesClause
     ;
 
 updateStatement
-    : UPDATE multipartIdentifier tableAlias SET assignmentList whereClause? returningClause?
+    : UPDATE multipartIdentifier partitionExtensionClause? tableAlias SET assignmentList whereClause? returningClause?
     ;
 
 deleteStatement
-    : DELETE FROM multipartIdentifier tableAlias whereClause? returningClause?
+    : DELETE FROM multipartIdentifier partitionExtensionClause? tableAlias whereClause? returningClause?
     ;
 
 returningClause
@@ -666,6 +672,12 @@ dropTriggerStatement
     : DROP TRIGGER (IF EXISTS)? multipartIdentifier
     ;
 
+principalStatement
+    : CREATE (USER | ROLE) .+?
+    | ALTER USER .+?
+    | DROP (USER | ROLE) .+?
+    ;
+
 oracleSchemaObjectControlStatement
     : CREATE SEQUENCE multipartIdentifier .+?
     | ALTER SEQUENCE multipartIdentifier .+?
@@ -677,6 +689,20 @@ oracleSchemaObjectControlStatement
     | DROP PUBLIC? SYNONYM multipartIdentifier
     | CREATE PUBLIC? DATABASE LINK multipartIdentifier .+?
     | DROP PUBLIC? DATABASE LINK multipartIdentifier
+    | CREATE (OR REPLACE)? DIRECTORY multipartIdentifier AS string
+    | DROP DIRECTORY multipartIdentifier
+    | CREATE (BIGFILE | SMALLFILE)? TABLESPACE multipartIdentifier .+?
+    | ALTER TABLESPACE multipartIdentifier .+?
+    | DROP TABLESPACE multipartIdentifier .+?
+    | CREATE (OR REPLACE)? CONTEXT multipartIdentifier .+?
+    | DROP CONTEXT multipartIdentifier
+    | CREATE PROFILE multipartIdentifier .+?
+    | ALTER PROFILE multipartIdentifier .+?
+    | DROP PROFILE multipartIdentifier .+?
+    | CREATE AUDIT POLICY multipartIdentifier .+?
+    | DROP AUDIT POLICY multipartIdentifier
+    | AUDIT .+?
+    | NOAUDIT .+?
     ;
 
 flashbackTableStatement
@@ -895,18 +921,18 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ANALYZE | APPLY | ASC | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | DEFAULT
+    : ADD | ANALYZE | APPLY | ASC | AUDIT | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | CONTEXT | DEFAULT
     | BEFORE | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFERRABLE | DEFINER | DEMAND | DESCRIBE | DESC | DISABLE | DUAL | ENABLE | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
     | BULK | CHECK | COLLECT | COMPLETE | CONSTRAINT | FAST | FETCH | FIRST | FLASHBACK | FOR | FORCE | FOREIGN | FUNCTION | GRANT | IF | IMMEDIATE | INDEX | INITIALLY | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NORELY | NOVALIDATE | NULL
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
-    | KEY | NOCYCLE | NULLS | OBJECT | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PUBLIC | PURGE | READ | REFERENCES | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS
+    | KEY | NOAUDIT | NOCYCLE | NULLS | OBJECT | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | POLICY | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PROFILE | PUBLIC | PURGE | READ | REFERENCES | ROLE | USER | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS
     | CURRENT | UNBOUNDED | PRECEDING | FOLLOWING
     | POINT | RESTORE | RETURN | REVOKE | ROLLBACK | ROLLUP | SAVEPOINT | SEQUENCE | SESSION | SYSTEM | TRANSACTION | RESET | SET | SETS | SHOW | SIBLINGS | START | STATISTICS | STORAGE | STRUCTURE | SYNONYM | TABLE | TEMPORARY | TO | TRIGGER | TRUE
-    | TRUNCATE | TYPE | VALUES | VIEW | DATE | ESTIMATE | LINK | NOWAIT | OVERFLOW | RELY | RETURNING | SCN | TIES | TIMESTAMP | UNIQUE | VALIDATE | WAIT | WITHIN | WITHOUT
+    | TRUNCATE | TYPE | VALUES | VIEW | DATE | DIRECTORY | ESTIMATE | LINK | NOWAIT | OVERFLOW | RELY | RETURNING | SCN | TIES | TIMESTAMP | UNIQUE | VALIDATE | WAIT | WITHIN | WITHOUT
     | SKIP_KEYWORD | LOCK | LOCKED | MODE | SHARE | EXCLUSIVE
-    | PIVOT | UNPIVOT | MATCH_RECOGNIZE | MODEL | MEASURES | DIMENSION | RULES | UPSERT | UPDATED | IGNORE | KEEP | NAV
+    | PIVOT | UNPIVOT | MATCH_RECOGNIZE | MODEL | MEASURES | DIMENSION | RULES | UPSERT | UPDATED | IGNORE | RESPECT | KEEP | NAV
     | PATTERN | DEFINE | AFTER | MATCH | ONE | PER | PAST
-    | INCLUDE | EXCLUDE | XML | SAMPLE | BLOCK | SEED | TABLESPACE | ONLINE | SUBPARTITION
+    | BIGFILE | INCLUDE | EXCLUDE | XML | SAMPLE | BLOCK | SEED | SMALLFILE | TABLESPACE | ONLINE | SUBPARTITION
     | RANGE | HASH | LIST | LOCAL | LESS | THAN | MAXVALUE | PARTITIONS | GROUPING | CUBE
     | LOGGING | NOLOGGING | PARALLEL | NOPARALLEL | COMPRESS | NOCOMPRESS | ORGANIZATION | GLOBAL | COMMIT | PRESERVE | DEFINITION
     ;

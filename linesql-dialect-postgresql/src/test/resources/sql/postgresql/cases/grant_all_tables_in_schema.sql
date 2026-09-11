@@ -1,0 +1,1 @@
+GRANT SELECT ON ALL TABLES IN SCHEMA mart TO analyst_role;

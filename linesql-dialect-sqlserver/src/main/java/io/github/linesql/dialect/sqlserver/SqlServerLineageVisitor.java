@@ -3,12 +3,17 @@ package io.github.linesql.dialect.sqlserver;
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
+import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
+import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
 import io.github.linesql.dialect.sqlserver.antlr.SqlServerParser;
 import io.github.linesql.dialect.sqlserver.antlr.SqlServerParserBaseVisitor;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
@@ -20,8 +25,22 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
+    private static final String ROUTINE_IDENTIFIER = "(?:\\[[^\\]]+\\]|[A-Za-z_#@][A-Za-z0-9_@$#]*)(?:\\s*\\.\\s*(?:\\[[^\\]]+\\]|[A-Za-z_#@][A-Za-z0-9_@$#]*)){0,3}";
+    private static final Pattern ROUTINE_INPUT_TABLE_PATTERN = Pattern.compile(
+            "(?i)\\b(?:FROM|JOIN|USING)\\s+(" + ROUTINE_IDENTIFIER + ")");
+    private static final Pattern ROUTINE_INSERT_TARGET_PATTERN = Pattern.compile(
+            "(?i)\\bINSERT\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
+    private static final Pattern ROUTINE_UPDATE_TARGET_PATTERN = Pattern.compile(
+            "(?i)\\bUPDATE\\s+(" + ROUTINE_IDENTIFIER + ")");
+    private static final Pattern ROUTINE_DELETE_TARGET_PATTERN = Pattern.compile(
+            "(?i)\\bDELETE\\s+FROM\\s+(" + ROUTINE_IDENTIFIER + ")");
+    private static final Pattern ROUTINE_MERGE_TARGET_PATTERN = Pattern.compile(
+            "(?i)\\bMERGE\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
+
     private final LineageResult result;
     private final Set<TableRef> inputTables = new LinkedHashSet<>();
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
@@ -75,6 +94,19 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             suppressColumnLineage = true;
         }
         result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitBulkInsertStmt(SqlServerParser.BulkInsertStmtContext ctx) {
+        result.setStatementType(StatementType.LOAD_DATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitBulkInsertStatement(SqlServerParser.BulkInsertStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -257,7 +289,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
             if (clause.mergeMatchedAction() != null) {
                 SqlServerParser.MergeMatchedActionContext action = clause.mergeMatchedAction();
-                lineages.addAll(readAssignments(action.assignmentList(), target));
+                if (action.assignmentList() != null) {
+                    lineages.addAll(readAssignments(action.assignmentList(), target));
+                }
                 if (action.whereClause() != null) {
                     addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.whereClause().expression()));
                 }
@@ -482,6 +516,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitPrincipalStmt(SqlServerParser.PrincipalStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitAlterSchemaStmt(SqlServerParser.AlterSchemaStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_TABLE);
         return visitChildren(ctx);
@@ -504,6 +544,42 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitSequenceStmt(SqlServerParser.SequenceStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitSecurityObjectStmt(SqlServerParser.SecurityObjectStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitSecurityPolicyStmt(SqlServerParser.SecurityPolicyStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        collectSecurityPolicyTargets(ctx.securityPolicyStatement());
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    private void collectSecurityPolicyTargets(ParseTree tree) {
+        if (tree instanceof SqlServerParser.SecurityPredicateContext) {
+            outputTables.add(tableRef(((SqlServerParser.SecurityPredicateContext) tree).target));
+            return;
+        }
+        if (tree instanceof SqlServerParser.SecurityPolicyAlterBodyContext) {
+            SqlServerParser.SecurityPolicyAlterBodyContext alterBody = (SqlServerParser.SecurityPolicyAlterBodyContext) tree;
+            if (alterBody.multipartIdentifier() != null) {
+                outputTables.add(tableRef(alterBody.multipartIdentifier()));
+            }
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            collectSecurityPolicyTargets(tree.getChild(i));
+        }
+    }
+
+    @Override
     public Void visitCreateSynonymStmt(SqlServerParser.CreateSynonymStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return visitChildren(ctx);
@@ -520,20 +596,35 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitExternalObjectStmt(SqlServerParser.ExternalObjectStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitCreateProcedureStmt(SqlServerParser.CreateProcedureStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_ROUTINE);
+        collectStaticRoutineBodyLineage(originalText(ctx));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
     @Override
     public Void visitCreateFunctionStmt(SqlServerParser.CreateFunctionStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_ROUTINE);
+        collectStaticRoutineBodyLineage(originalText(ctx));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
     @Override
     public Void visitAlterFunctionStmt(SqlServerParser.AlterFunctionStmtContext ctx) {
         result.setStatementType(StatementType.ALTER_ROUTINE);
+        collectStaticRoutineBodyLineage(originalText(ctx));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
@@ -861,6 +952,14 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     @Override
     public Void visitScriptControlStmt(SqlServerParser.ScriptControlStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        SqlServerParser.QueryContext cursorQuery = ctx.scriptControlStatement().cursorQuery;
+        if (cursorQuery != null) {
+            LineageResult queryResult = lineageForQuery(cursorQuery);
+            inputTables.addAll(queryResult.getInputTables());
+            result.setInputTables(new ArrayList<>(inputTables));
+            result.setColumnLineage(queryResult.getColumnLineage());
+            result.setColumnUsages(queryResult.getColumnUsages());
+        }
         return null;
     }
 
@@ -985,6 +1084,15 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableValuedFunction(SqlServerParser.TableValuedFunctionContext ctx) {
+        if (tryVisitXmlNodesFunction(ctx)) {
+            return null;
+        }
+        if (tryVisitFullTextTableFunction(ctx)) {
+            return null;
+        }
+        if (tryVisitExternalQueryFunction(ctx)) {
+            return null;
+        }
         TableRef function = tableRef(ctx.multipartIdentifier());
         addInputTable(function, ctx.tableAlias(), true);
         if (ctx.expressionList() != null) {
@@ -993,6 +1101,144 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
         }
         return null;
+    }
+
+    private boolean tryVisitFullTextTableFunction(SqlServerParser.TableValuedFunctionContext ctx) {
+        List<String> parts = identifierParts(ctx.multipartIdentifier());
+        if (parts.size() != 1 || ctx.expressionList() == null) {
+            return false;
+        }
+        String functionName = parts.get(0).toLowerCase(Locale.ROOT);
+        if (!"containstable".equals(functionName) && !"freetexttable".equals(functionName)) {
+            return false;
+        }
+        List<SqlServerParser.ExpressionContext> expressions = ctx.expressionList().expression();
+        if (expressions.size() < 2) {
+            return false;
+        }
+        TableRef source = tableRefFromExpressionText(expressions.get(0).getText());
+        if (source == null) {
+            return false;
+        }
+        addInputTable(source, false);
+        addColumnUsages(ColumnUsageType.WHERE, fullTextSearchColumns(expressions.get(1), source));
+        registerFullTextTableRelation(functionName, ctx.tableAlias());
+        refreshColumnLineage();
+        return true;
+    }
+
+    private void registerFullTextTableRelation(String functionName, SqlServerParser.TableAliasContext aliasCtx) {
+        String alias = tableAlias(aliasCtx);
+        String relationName = (alias == null ? functionName : alias).toLowerCase(Locale.ROOT);
+        visibleRelationCount++;
+        visibleRelations.add(VisibleRelation.derived(relationName));
+        derivedReferences.add(relationName);
+        derivedAliases.put(relationName, relationName);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        columns.put("key", new ArrayList<>());
+        columns.put("rank", new ArrayList<>());
+        derivedColumnLineage.put(relationName, columns);
+    }
+
+    private List<SourceColumn> fullTextSearchColumns(SqlServerParser.ExpressionContext expression, TableRef source) {
+        List<SourceColumn> columns = sourceColumns(expression);
+        List<SourceColumn> scoped = new ArrayList<>();
+        for (SourceColumn column : columns) {
+            if (column.resolvedRef != null) {
+                scoped.add(column);
+            } else {
+                scoped.add(SourceColumn.resolved(new ColumnRef(source, column.name)));
+            }
+        }
+        return scoped;
+    }
+
+    private boolean tryVisitExternalQueryFunction(SqlServerParser.TableValuedFunctionContext ctx) {
+        List<String> parts = identifierParts(ctx.multipartIdentifier());
+        if (parts.size() != 1) {
+            return false;
+        }
+        String functionName = parts.get(0).toLowerCase(Locale.ROOT);
+        if (!"openquery".equals(functionName) && !"openrowset".equals(functionName)) {
+            return false;
+        }
+        TableRef function = tableRef(ctx.multipartIdentifier());
+        inputTables.add(function);
+
+        LineageResult remote = parseExternalQuery(ctx, functionName);
+        if (remote == null || hasErrors(remote)) {
+            addInputTable(function, ctx.tableAlias(), true);
+            return true;
+        }
+
+        inputTables.addAll(remote.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
+        LineageModelUtils.mergeColumnUsages(result, remote);
+        registerExternalQueryRelation(function.getName().toLowerCase(Locale.ROOT), ctx.tableAlias(), remote);
+        refreshColumnLineage();
+        return true;
+    }
+
+    private LineageResult parseExternalQuery(SqlServerParser.TableValuedFunctionContext ctx, String functionName) {
+        String remoteSql = externalQueryText(ctx, functionName);
+        if (remoteSql == null || remoteSql.trim().isEmpty()) {
+            return null;
+        }
+        return new SqlServerDialectParser().parse(remoteSql, ParseOptions.defaults(), new ParseContext());
+    }
+
+    private String externalQueryText(SqlServerParser.TableValuedFunctionContext ctx, String functionName) {
+        if (ctx.expressionList() == null) {
+            return null;
+        }
+        List<SqlServerParser.ExpressionContext> expressions = ctx.expressionList().expression();
+        int queryIndex = "openquery".equals(functionName) ? 1 : expressions.size() - 1;
+        if (queryIndex < 0 || queryIndex >= expressions.size()) {
+            return null;
+        }
+        return stringLiteralValue(expressions.get(queryIndex).getText());
+    }
+
+    private static boolean hasErrors(LineageResult result) {
+        return result.getDiagnostics().stream()
+                .anyMatch(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.ERROR);
+    }
+
+    private void registerExternalQueryRelation(
+            String fallbackName,
+            SqlServerParser.TableAliasContext aliasCtx,
+            LineageResult remote) {
+        String alias = tableAlias(aliasCtx);
+        String relationName = (alias == null ? fallbackName : alias).toLowerCase(Locale.ROOT);
+        visibleRelationCount++;
+        visibleRelations.add(VisibleRelation.derived(relationName));
+        derivedReferences.add(relationName);
+        derivedAliases.put(relationName, relationName);
+        if (alias != null) {
+            derivedAliases.put(alias.toLowerCase(Locale.ROOT), relationName);
+        }
+
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (ColumnLineage lineage : remote.getColumnLineage()) {
+            columns.put(lineage.getTarget().getName(), lineage.getSources());
+        }
+        derivedColumnLineage.put(relationName, columns);
+    }
+
+    private boolean tryVisitXmlNodesFunction(SqlServerParser.TableValuedFunctionContext ctx) {
+        List<String> parts = identifierParts(ctx.multipartIdentifier());
+        if (parts.size() != 3 || !"nodes".equalsIgnoreCase(parts.get(2))) {
+            return false;
+        }
+        TableRef table = tableAliases.get(parts.get(0).toLowerCase(Locale.ROOT));
+        if (table == null) {
+            return false;
+        }
+        LineageModelUtils.addColumnUsages(
+                result,
+                ColumnUsageType.JOIN_ON,
+                Collections.singletonList(new ColumnRef(table, parts.get(1))));
+        return true;
     }
 
     @Override
@@ -1017,6 +1263,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     public Void visitRelation(SqlServerParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        for (SqlServerParser.TableOperatorContext operator : ctx.tableOperator()) {
+            registerTableOperator(operator);
+        }
         for (SqlServerParser.JoinRelationContext join : ctx.joinRelation()) {
             visit(join.relationPrimary());
             if (join.joinCriteria() != null) {
@@ -1026,11 +1275,89 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return null;
     }
 
+    private void registerTableOperator(SqlServerParser.TableOperatorContext ctx) {
+        if (ctx.pivotClause() != null) {
+            registerPivotRelation(ctx.pivotClause());
+        } else if (ctx.unpivotClause() != null) {
+            registerUnpivotRelation(ctx.unpivotClause());
+        }
+    }
+
+    private void registerPivotRelation(SqlServerParser.PivotClauseContext ctx) {
+        String alias = tableAlias(ctx.tableAlias());
+        if (alias == null) {
+            return;
+        }
+        List<ColumnRef> aggregateRefs = resolveSources(sourceColumns(ctx.expression()));
+        List<ColumnRef> pivotKeyRefs = resolveSources(sourceColumns(ctx.multipartIdentifier()));
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (SqlServerParser.PivotInItemContext item : ctx.pivotInItem()) {
+            columns.put(cleanIdentifier(item.getText()), mergeRefs(aggregateRefs, pivotKeyRefs));
+        }
+        registerOperatorRelation(alias.toLowerCase(Locale.ROOT), columns, ctx.tableAlias());
+    }
+
+    private void registerUnpivotRelation(SqlServerParser.UnpivotClauseContext ctx) {
+        String alias = tableAlias(ctx.tableAlias());
+        if (alias == null) {
+            return;
+        }
+        List<ColumnRef> inputRefs = resolveSources(sourceColumns(ctx.identifierList()));
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        List<String> valueParts = identifierParts(ctx.multipartIdentifier(0));
+        List<String> labelParts = identifierParts(ctx.multipartIdentifier(1));
+        columns.put(valueParts.get(valueParts.size() - 1), inputRefs == null ? new ArrayList<>() : inputRefs);
+        columns.put(labelParts.get(labelParts.size() - 1), inputRefs == null ? new ArrayList<>() : inputRefs);
+        registerOperatorRelation(alias.toLowerCase(Locale.ROOT), columns, ctx.tableAlias());
+    }
+
+    private void registerOperatorRelation(String alias, Map<String, List<ColumnRef>> columns, SqlServerParser.TableAliasContext aliasCtx) {
+        derivedColumnLineage.put(alias, columns);
+        addDerivedReference(alias, aliasCtx);
+    }
+
+    private List<ColumnRef> mergeRefs(List<ColumnRef> left, List<ColumnRef> right) {
+        Map<String, ColumnRef> refs = new LinkedHashMap<>();
+        if (left != null) {
+            for (ColumnRef ref : left) {
+                refs.put(columnKey(ref), ref);
+            }
+        }
+        if (right != null) {
+            for (ColumnRef ref : right) {
+                refs.put(columnKey(ref), ref);
+            }
+        }
+        return new ArrayList<>(refs.values());
+    }
+
+    private List<SourceColumn> sourceColumns(SqlServerParser.MultipartIdentifierContext ctx) {
+        List<String> parts = identifierParts(ctx);
+        if (parts.isEmpty()) {
+            return new ArrayList<>();
+        }
+        String name = parts.get(parts.size() - 1);
+        String qualifier = parts.size() >= 2 ? parts.get(parts.size() - 2) : null;
+        List<SourceColumn> columns = new ArrayList<>();
+        columns.add(new SourceColumn(qualifier, name));
+        return columns;
+    }
+
+    private List<SourceColumn> sourceColumns(SqlServerParser.IdentifierListContext ctx) {
+        List<SourceColumn> columns = new ArrayList<>();
+        for (SqlServerParser.IdentifierContext identifier : ctx.identifier()) {
+            columns.add(new SourceColumn(null, cleanIdentifier(identifier)));
+        }
+        return columns;
+    }
+
     @Override
     public Void visitSelectClause(SqlServerParser.SelectClauseContext ctx) {
-        for (SqlServerParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
+        List<SqlServerParser.SelectItemContext> items = ctx.selectItemList().selectItem();
+        for (int i = 0; i < items.size(); i++) {
+            SqlServerParser.SelectItemContext item = items.get(i);
             if (item instanceof SqlServerParser.SelectExpressionContext) {
-                Projection projection = projection((SqlServerParser.SelectExpressionContext) item);
+                Projection projection = projection((SqlServerParser.SelectExpressionContext) item, i);
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -1179,6 +1506,14 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
+        if (cteNames.contains(name) && !columnAliases.isEmpty()) {
+            Map<String, List<ColumnRef>> recursiveColumns = new LinkedHashMap<>();
+            for (String columnAlias : columnAliases) {
+                recursiveColumns.put(columnAlias, new ArrayList<>());
+            }
+            relationVisitor.derivedColumnLineage.put(name, recursiveColumns);
+            relationVisitor.derivedAliases.put(name, name);
+        }
         relationVisitor.visit(query);
         relationVisitor.refreshColumnLineage();
 
@@ -1321,10 +1656,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private void refreshColumnLineage() {
+        refreshColumnLineage(outputTables.size() == 1 ? outputTables.iterator().next() : null);
+    }
+
+    private void refreshColumnLineage(TableRef targetTable) {
         if (suppressColumnLineage || projections.isEmpty()) {
             return;
         }
-        TableRef targetTable = outputTables.size() == 1 ? outputTables.iterator().next() : null;
         List<ColumnLineage> columnLineage = new ArrayList<>();
         for (int i = 0; i < projections.size(); i++) {
             Projection projection = projections.get(i);
@@ -1332,7 +1670,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             if (sources == null) {
                 continue;
             }
-            String targetColumn = targetColumn(projection, columnLineage.size());
+            String targetColumn = targetColumn(projection, projection.ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
@@ -1345,6 +1683,10 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private void retargetColumnLineage(TableRef targetTable) {
+        if (!projections.isEmpty()) {
+            refreshColumnLineage(targetTable);
+            return;
+        }
         result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
                 result.getColumnLineage(),
                 targetTable,
@@ -1352,7 +1694,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private String targetColumn(Projection projection, int index) {
-        if (index < insertTargetColumns.size()) {
+        if (index >= 0 && index < insertTargetColumns.size()) {
             return insertTargetColumns.get(index);
         }
         return projection.targetColumn;
@@ -1598,9 +1940,11 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (specification == null || specification.selectClause() == null) {
             return;
         }
-        for (SqlServerParser.SelectItemContext item : specification.selectClause().selectItemList().selectItem()) {
+        List<SqlServerParser.SelectItemContext> items = specification.selectClause().selectItemList().selectItem();
+        for (int i = 0; i < items.size(); i++) {
+            SqlServerParser.SelectItemContext item = items.get(i);
             if (item instanceof SqlServerParser.SelectExpressionContext) {
-                Projection projection = projection((SqlServerParser.SelectExpressionContext) item);
+                Projection projection = projection((SqlServerParser.SelectExpressionContext) item, i);
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -1620,8 +1964,11 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return ((SqlServerParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(SqlServerParser.SelectExpressionContext ctx) {
+    private Projection projection(SqlServerParser.SelectExpressionContext ctx, int ordinal) {
         String expression = ctx.expression().getText();
+        if (isVariableAssignmentExpression(expression)) {
+            return null;
+        }
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
                 ? unqualifiedName(sourceColumns.get(0).name)
@@ -1636,7 +1983,11 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, targetColumn, expression);
+        return new Projection(sourceColumns, targetColumn, expression, ordinal);
+    }
+
+    private static boolean isVariableAssignmentExpression(String expression) {
+        return expression != null && expression.startsWith("@") && expression.contains("=");
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
@@ -1704,7 +2055,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (tree instanceof SqlServerParser.ColumnReferenceContext) {
             SqlServerParser.ColumnReferenceContext colRef = (SqlServerParser.ColumnReferenceContext) tree;
             String column = cleanIdentifier(colRef.identifier());
-            if (!column.startsWith("@")) {
+            if (!isSqlServerGeneratedExpression(column)) {
                 columns.add(new SourceColumn(null, column));
             }
             return;
@@ -1715,9 +2066,14 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             if (parts.size() >= 2) {
                 String qualifier = parts.get(parts.size() - 2);
                 String name = parts.get(parts.size() - 1);
-                columns.add(new SourceColumn(qualifier, name));
+                if (!isSqlServerGeneratedExpression(name)) {
+                    columns.add(new SourceColumn(qualifier, name));
+                }
             } else if (parts.size() == 1) {
-                columns.add(new SourceColumn(null, parts.get(0)));
+                String column = parts.get(0);
+                if (!isSqlServerGeneratedExpression(column)) {
+                    columns.add(new SourceColumn(null, column));
+                }
             }
             return;
         }
@@ -1736,8 +2092,42 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                 if (function.windowSpec() != null) {
                     collectSourceColumns(function.windowSpec(), columns);
                 }
+                if (function.withinGroupClause() != null) {
+                    collectSourceColumns(function.withinGroupClause(), columns);
+                }
                 return;
             }
+        }
+        if (tree instanceof SqlServerParser.FunctionCallContext) {
+            SqlServerParser.FunctionCallContext function = (SqlServerParser.FunctionCallContext) tree;
+            collectSourceColumns(function.expressionList(), columns);
+            if (function.withinGroupClause() != null) {
+                collectSourceColumns(function.withinGroupClause(), columns);
+            }
+            if (function.windowSpec() != null) {
+                collectSourceColumns(function.windowSpec(), columns);
+            }
+            return;
+        }
+        if (tree instanceof SqlServerParser.FunctionCallEmptyContext) {
+            SqlServerParser.FunctionCallEmptyContext function = (SqlServerParser.FunctionCallEmptyContext) tree;
+            if (function.withinGroupClause() != null) {
+                collectSourceColumns(function.withinGroupClause(), columns);
+            }
+            if (function.windowSpec() != null) {
+                collectSourceColumns(function.windowSpec(), columns);
+            }
+            return;
+        }
+        if (tree instanceof SqlServerParser.FunctionCallStarContext) {
+            SqlServerParser.FunctionCallStarContext function = (SqlServerParser.FunctionCallStarContext) tree;
+            if (function.withinGroupClause() != null) {
+                collectSourceColumns(function.withinGroupClause(), columns);
+            }
+            if (function.windowSpec() != null) {
+                collectSourceColumns(function.windowSpec(), columns);
+            }
+            return;
         }
         if (tree instanceof SqlServerParser.CollateExpressionContext) {
             SqlServerParser.CollateExpressionContext collate = (SqlServerParser.CollateExpressionContext) tree;
@@ -1793,6 +2183,19 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                 || "date_bucket".equals(name);
     }
 
+    private static boolean isSqlServerGeneratedExpression(String column) {
+        String normalized = column.toLowerCase(Locale.ROOT);
+        return normalized.startsWith("@")
+                || "null".equals(normalized)
+                || "true".equals(normalized)
+                || "false".equals(normalized)
+                || "default".equals(normalized)
+                || "$action".equals(normalized)
+                || "@@rowcount".equals(normalized)
+                || "@@identity".equals(normalized)
+                || "@@spid".equals(normalized);
+    }
+
     private List<String> collectDereferenceParts(SqlServerParser.DereferenceContext ctx) {
         List<String> parts = new ArrayList<>();
         ParseTree base = ctx.primaryExpression();
@@ -1817,6 +2220,100 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private static TableRef tableRef(SqlServerParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
         return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private static TableRef tableRefFromExpressionText(String text) {
+        String trimmed = text == null ? "" : text.trim();
+        if (trimmed.isEmpty() || trimmed.contains("(") || trimmed.contains(")") || trimmed.contains(",")) {
+            return null;
+        }
+        List<String> parts = new ArrayList<>();
+        for (String part : trimmed.split("\\.")) {
+            String cleaned = cleanIdentifier(part);
+            if (cleaned.isEmpty()) {
+                return null;
+            }
+            parts.add(cleaned);
+        }
+        return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private void collectStaticRoutineBodyLineage(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return;
+        }
+        String sql = stripStringLiterals(text);
+        collectRoutineTables(sql, ROUTINE_INPUT_TABLE_PATTERN, inputTables);
+        collectRoutineTables(sql, ROUTINE_INSERT_TARGET_PATTERN, outputTables);
+        collectRoutineTables(sql, ROUTINE_UPDATE_TARGET_PATTERN, outputTables);
+        collectRoutineTables(sql, ROUTINE_DELETE_TARGET_PATTERN, outputTables);
+        collectRoutineTables(sql, ROUTINE_MERGE_TARGET_PATTERN, outputTables);
+    }
+
+    private static void collectRoutineTables(String text, Pattern pattern, Set<TableRef> tables) {
+        Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            TableRef table = routineTableRef(matcher.group(1));
+            if (table != null) {
+                tables.add(table);
+            }
+        }
+    }
+
+    private static TableRef routineTableRef(String rawName) {
+        if (rawName == null) {
+            return null;
+        }
+        List<String> parts = new ArrayList<>();
+        for (String part : rawName.split("\\.")) {
+            String cleaned = cleanIdentifier(part);
+            if (cleaned.isEmpty() || isIgnoredRoutineObjectName(cleaned)) {
+                return null;
+            }
+            parts.add(cleaned);
+        }
+        if (parts.isEmpty() || isIgnoredRoutineObjectName(parts.get(parts.size() - 1))) {
+            return null;
+        }
+        return LineageModelUtils.tableRefFromParts(parts);
+    }
+
+    private static boolean isIgnoredRoutineObjectName(String name) {
+        String normalized = name.toLowerCase(Locale.ROOT);
+        return normalized.startsWith("@")
+                || normalized.startsWith("#")
+                || "select".equals(normalized)
+                || "with".equals(normalized)
+                || "deleted".equals(normalized)
+                || "inserted".equals(normalized)
+                || "openjson".equals(normalized)
+                || "openquery".equals(normalized)
+                || "openrowset".equals(normalized)
+                || "string_split".equals(normalized);
+    }
+
+    private static String originalText(ParserRuleContext ctx) {
+        return ctx.start.getInputStream().getText(Interval.of(ctx.start.getStartIndex(), ctx.stop.getStopIndex()));
+    }
+
+    private static String stripStringLiterals(String text) {
+        StringBuilder builder = new StringBuilder(text.length());
+        boolean inString = false;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '\'') {
+                builder.append(' ');
+                if (inString && i + 1 < text.length() && text.charAt(i + 1) == '\'') {
+                    builder.append(' ');
+                    i++;
+                } else {
+                    inString = !inString;
+                }
+            } else {
+                builder.append(inString ? ' ' : ch);
+            }
+        }
+        return builder.toString();
     }
 
     private static TableRef tableInSchema(SqlServerParser.MultipartIdentifierContext ctx, String schema) {
@@ -1890,15 +2387,27 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return value;
     }
 
+    private static String stringLiteralValue(String text) {
+        String value = text == null ? "" : text.trim();
+        if (value.length() >= 2 && value.startsWith("'") && value.endsWith("'")) {
+            return value.substring(1, value.length() - 1)
+                    .replace("''", "'")
+                    .replace("\\\\'", "'");
+        }
+        return null;
+    }
+
     private static class Projection {
         final List<SourceColumn> sourceColumns;
         final String targetColumn;
         final String expression;
+        final int ordinal;
 
-        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, int ordinal) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
+            this.ordinal = ordinal;
         }
     }
 

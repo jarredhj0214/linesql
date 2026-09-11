@@ -441,7 +441,7 @@ expressionList
 // ============ DML Statements ============
 
 insertStatement
-    : EXECUTE? INSERT ((INTO TABLE?) | (OVERWRITE TABLE?)) multipartIdentifier
+    : ctes? EXECUTE? INSERT ((INTO TABLE?) | (OVERWRITE TABLE?)) multipartIdentifier
       (PARTITION partitionSpec (IF NOT existsKeyword)?)?
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
@@ -754,6 +754,7 @@ showStatement
     | SHOW MATERIALIZED TABLES ((FROM | IN) multipartIdentifier)? showLikeClause?
     | SHOW CREATE (OR ALTER)? MATERIALIZED TABLE multipartIdentifier
     | SHOW USER? FUNCTIONS ((FROM | IN) multipartIdentifier)? showLikeClause?
+    | SHOW CREATE FUNCTION multipartIdentifier
     | SHOW FULL? MODULES
     | SHOW JARS
     | SHOW JOBS
@@ -812,7 +813,7 @@ utilityStatement
     | SET (setAssignment | string EQ string | LPAREN property RPAREN)?
     | RESET (configKey | string | LPAREN (configKey | string) RPAREN)?
     | SHOW (CURRENT (CATALOG | DATABASE) | CATALOGS | DATABASES | TABLES | VIEWS | FUNCTIONS | MODULES | JARS)
-    | SHOW CREATE (TABLE | VIEW) multipartIdentifier
+    | SHOW CREATE (TABLE | VIEW | FUNCTION) multipartIdentifier
     ;
 
 callStatement
@@ -920,7 +921,7 @@ property
     ;
 
 likeClause
-    : LIKE source=multipartIdentifier (LPAREN likeOption (COMMA likeOption)* RPAREN)?
+    : LIKE source=multipartIdentifier (LPAREN likeOption (COMMA? likeOption)* RPAREN)?
     ;
 
 likeOption

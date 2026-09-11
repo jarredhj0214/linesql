@@ -1,0 +1,1 @@
+DROP EVENT TRIGGER IF EXISTS ddl_audit;

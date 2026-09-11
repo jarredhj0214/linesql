@@ -1678,6 +1678,30 @@
       "description": "StarRocks single derived subquery table and direct column propagation"
     },
     {
+      "id": "nested_derived_query_column_projection",
+      "file": "cases/nested_derived_query_column_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ],
+      "description": "StarRocks nested derived query direct column propagation"
+    },
+    {
       "id": "insert_from_cte",
       "file": "cases/insert_from_cte.sql",
       "statementType": "INSERT",
@@ -1971,6 +1995,32 @@
         }
       ],
       "description": "StarRocks INSERT target column list mapping"
+    },
+    {
+      "id": "insert_column_list_skipped_constant",
+      "file": "cases/insert_column_list_skipped_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "ads.user_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "ads.user_summary.uid",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.status"
+        }
+      ],
+      "description": "StarRocks INSERT target column list keeps source columns aligned when earlier SELECT items are generated expressions"
     },
     {
       "id": "insert_union_column_lineage",
@@ -6951,6 +7001,40 @@
       "description": "StarRocks FILES table function join preserves physical table projection lineage"
     },
     {
+      "id": "insert_from_files_alias_columns",
+      "file": "cases/insert_from_files_alias_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "ods.user_events"
+      ],
+      "columnLineage": [
+        {
+          "target": "ods.user_events.user_id",
+          "sources": [
+            "$files1.user_id"
+          ]
+        },
+        {
+          "target": "ods.user_events.event_name",
+          "sources": [
+            "$files1.event_name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "$files1.dt"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "$files1.user_id"
+        }
+      ],
+      "description": "StarRocks INSERT from FILES alias columns maps external file columns to target columns and clause usages"
+    },
+    {
       "id": "native_query_table_function",
       "file": "cases/native_query_table_function.sql",
       "statementType": "SELECT",
@@ -6998,6 +7082,40 @@
         }
       ],
       "description": "StarRocks native_query table function join preserves physical table projection lineage"
+    },
+    {
+      "id": "insert_from_native_query_alias_columns",
+      "file": "cases/insert_from_native_query_alias_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "ods.remote_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "ods.remote_users.user_id",
+          "sources": [
+            "$native_query1.user_id"
+          ]
+        },
+        {
+          "target": "ods.remote_users.user_name",
+          "sources": [
+            "$native_query1.user_name"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "$native_query1.status"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "$native_query1.user_id"
+        }
+      ],
+      "description": "StarRocks INSERT from native_query alias columns maps external query columns to target columns and clause usages"
     },
     {
       "id": "select_into_outfile",
@@ -8001,6 +8119,30 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "StarRocks EXPORT TABLE PARTITION source table lineage"
+    },
+    {
+      "id": "export_table_partition_columns",
+      "file": "cases/export_table_partition_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "order_id",
+          "sources": [
+            "mart.orders.order_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "mart.orders.amount"
+          ]
+        }
+      ],
+      "description": "StarRocks EXPORT TABLE with partition and explicit columns preserves unload column lineage"
     },
     {
       "id": "export_table_with_broker_basic",
@@ -9925,6 +10067,30 @@
         }
       ],
       "description": "StarRocks array subscript and element_at expression lineage"
+    },
+    {
+      "id": "array_struct_subscript_lineage",
+      "file": "cases/array_struct_subscript_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.user_events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "first_event_id",
+          "sources": [
+            "dwd.user_events.events"
+          ]
+        },
+        {
+          "target": "first_event_sku",
+          "sources": [
+            "dwd.user_events.events"
+          ]
+        }
+      ],
+      "description": "StarRocks chained array, struct, and map access resolves lineage to the base complex column"
     },
     {
       "id": "delete_partition_where",

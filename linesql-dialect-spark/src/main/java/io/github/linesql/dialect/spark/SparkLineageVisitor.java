@@ -985,14 +985,16 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (queryDepth > 1) {
             return visitChildren(ctx);
         }
-        for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.namedExpressionSeq().namedExpression()) {
+        List<SqlBaseParser.NamedExpressionContext> expressions = ctx.namedExpressionSeq().namedExpression();
+        for (int i = 0; i < expressions.size(); i++) {
+            SqlBaseParser.NamedExpressionContext namedExpression = expressions.get(i);
             selectExpressionCount++;
-            Projection projection = projection(namedExpression);
+            Projection projection = projection(namedExpression, i);
             if (projection != null) {
                 projection = withScalarSubquerySources(projection, namedExpression);
                 projections.add(projection);
             } else if (namedExpression.identifierList() != null) {
-                List<Projection> multiAliasProjections = multiAliasProjections(namedExpression);
+                List<Projection> multiAliasProjections = multiAliasProjections(namedExpression, i);
                 if (!multiAliasProjections.isEmpty()) {
                     projections.addAll(multiAliasProjections);
                 } else {
@@ -1016,7 +1018,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (sources.isEmpty()) {
             return projection;
         }
-        return new Projection(new ArrayList<>(sources), projection.targetColumn, projection.expression);
+        return new Projection(new ArrayList<>(sources), projection.targetColumn, projection.expression, projection.ordinal);
     }
 
     @Override
@@ -1625,7 +1627,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
                 }
                 skippedProjectionCount++;
             }
-            String targetColumn = targetColumn(projection, columnLineage.size());
+            String targetColumn = targetColumn(projection, projection.ordinal);
             ColumnLineage lineage = new ColumnLineage();
             lineage.setTarget(new ColumnRef(targetTable, targetColumn));
             lineage.setSources(sources);
@@ -1718,7 +1720,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private String targetColumn(Projection projection, int index) {
-        if (index < insertTargetColumns.size()) {
+        if (index >= 0 && index < insertTargetColumns.size()) {
             return insertTargetColumns.get(index);
         }
         return projection.targetColumn;
@@ -2353,8 +2355,12 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private static Projection projection(SqlBaseParser.NamedExpressionContext ctx) {
+        return projection(ctx, -1);
+    }
+
+    private static Projection projection(SqlBaseParser.NamedExpressionContext ctx, int ordinal) {
         String expression = ctx.expression().getText();
-        Projection star = starProjection(ctx.expression(), expression);
+        Projection star = starProjection(ctx.expression(), expression, ordinal);
         if (star != null) {
             return star;
         }
@@ -2365,7 +2371,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
                 ? inferredSingleSourceTargetColumn(expression, sourceColumns.get(0))
                 : null;
         if (sourceColumns.isEmpty() && ctx.name == null) {
-            return new Projection(sourceColumns, expression, expression);
+            return new Projection(sourceColumns, expression, expression, ordinal);
         }
         if (sourceColumns.size() > 1 && ctx.name == null) {
             return null;
@@ -2374,10 +2380,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, targetColumn, expression);
+        return new Projection(sourceColumns, targetColumn, expression, ordinal);
     }
 
     private static List<Projection> multiAliasProjections(SqlBaseParser.NamedExpressionContext ctx) {
+        return multiAliasProjections(ctx, -1);
+    }
+
+    private static List<Projection> multiAliasProjections(SqlBaseParser.NamedExpressionContext ctx, int ordinal) {
         List<Projection> projections = new ArrayList<>();
         List<String> aliases = identifierNames(ctx.identifierList());
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
@@ -2386,12 +2396,16 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         String expression = ctx.expression().getText();
         for (String alias : aliases) {
-            projections.add(new Projection(sourceColumns, alias, expression));
+            projections.add(new Projection(sourceColumns, alias, expression, ordinal));
         }
         return projections;
     }
 
     private static Projection starProjection(SqlBaseParser.ExpressionContext ctx, String expression) {
+        return starProjection(ctx, expression, -1);
+    }
+
+    private static Projection starProjection(SqlBaseParser.ExpressionContext ctx, String expression, int ordinal) {
         if (!isTopLevelStarExpression(expression)) {
             return null;
         }
@@ -2400,7 +2414,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             return null;
         }
         String qualifier = star.qualifiedName() == null ? null : cleanIdentifier(star.qualifiedName().getText());
-        return Projection.star(qualifier, expression);
+        return Projection.star(qualifier, expression, ordinal);
     }
 
     private static boolean isTopLevelStarExpression(String expression) {
@@ -2432,7 +2446,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (targetColumn == null) {
             return null;
         }
-        return new Projection(sourceColumns, targetColumn, expression);
+        return new Projection(sourceColumns, targetColumn, expression, -1);
     }
 
     private static String inferredSingleSourceTargetColumn(String expression, SourceColumn column) {
@@ -2593,25 +2607,36 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         final String expression;
         final boolean star;
         final String starQualifier;
+        final int ordinal;
 
         Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression) {
-            this(sourceColumns, targetColumn, expression, false, null);
+            this(sourceColumns, targetColumn, expression, -1);
+        }
+
+        Projection(List<SourceColumn> sourceColumns, String targetColumn, String expression, int ordinal) {
+            this(sourceColumns, targetColumn, expression, false, null, ordinal);
         }
 
         private Projection(List<SourceColumn> sourceColumns,
                            String targetColumn,
                            String expression,
                            boolean star,
-                           String starQualifier) {
+                           String starQualifier,
+                           int ordinal) {
             this.sourceColumns = sourceColumns;
             this.targetColumn = targetColumn;
             this.expression = expression;
             this.star = star;
             this.starQualifier = starQualifier;
+            this.ordinal = ordinal;
         }
 
         static Projection star(String qualifier, String expression) {
-            return new Projection(new ArrayList<SourceColumn>(), "*", expression, true, qualifier);
+            return star(qualifier, expression, -1);
+        }
+
+        static Projection star(String qualifier, String expression, int ordinal) {
+            return new Projection(new ArrayList<SourceColumn>(), "*", expression, true, qualifier, ordinal);
         }
     }
 

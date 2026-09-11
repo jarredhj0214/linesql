@@ -9,6 +9,7 @@ singleStatement
 statement
     : query                                                          #statementDefault
     | insertStatement                                                #insertStmt
+    | bulkInsertStatement                                            #bulkInsertStmt
     | updateStatisticsStatement                                      #updateStatisticsStmt
     | updateStatement                                                #updateStmt
     | deleteStatement                                                #deleteStmt
@@ -19,10 +20,15 @@ statement
     | dropStatisticsStatement                                        #dropStatisticsStmt
     | dropIndexStatement                                             #dropIndexStmt
     | databaseStatement                                              #databaseStmt
+    | principalStatement                                             #principalStmt
     | createSchemaStatement                                          #createSchemaStmt
     | alterSchemaStatement                                           #alterSchemaStmt
     | typeStatement                                                  #typeStmt
+    | sequenceStatement                                              #sequenceStmt
+    | securityObjectStatement                                        #securityObjectStmt
+    | securityPolicyStatement                                        #securityPolicyStmt
     | createSynonymStatement                                         #createSynonymStmt
+    | externalObjectStatement                                        #externalObjectStmt
     | createProcedureStatement                                       #createProcedureStmt
     | createFunctionStatement                                        #createFunctionStmt
     | createTriggerStatement                                         #createTriggerStmt
@@ -274,7 +280,7 @@ forOutputMode
     ;
 
 forOutputOption
-    : identifier
+    : identifier identifier?
     | ROOT LPAREN string RPAREN
     ;
 
@@ -327,12 +333,16 @@ primaryExpression
     | functionName LPAREN STAR RPAREN withinGroupClause? (OVER windowSpec)?             #functionCallStar
     | functionName LPAREN setQuantifier? expressionList RPAREN withinGroupClause? (OVER windowSpec)?  #functionCall
     | functionName LPAREN RPAREN withinGroupClause? (OVER windowSpec)?                  #functionCallEmpty
+    | NEXT VALUE FOR multipartIdentifier (OVER LPAREN ORDER BY sortItem (COMMA sortItem)* RPAREN)? #sequenceValueExpression
     | LPAREN query RPAREN                                            #scalarSubquery
+    | LPAREN expression COMMA expressionList RPAREN                  #rowExpression
     | LPAREN expression RPAREN                                       #parenthesizedExpression
+    | primaryExpression DOT identifier LPAREN expressionList? RPAREN #methodCall
     | primaryExpression DOT identifier                                #dereference
     | identifier                                                     #columnReference
     | number                                                         #numberLiteral
     | string                                                         #stringLiteral
+    | MERGE_ACTION                                                   #mergeActionLiteral
     | NULL                                                           #nullLiteral
     | TRUE                                                           #booleanTrue
     | FALSE                                                          #booleanFalse
@@ -369,10 +379,22 @@ expressionList
 // ============ DML Statements ============
 
 insertStatement
-    : ctes? INSERT INTO? TABLE? multipartIdentifier
+    : ctes? INSERT topClause? INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
       outputClause?
       (query | VALUES valuesClause (COMMA valuesClause)* | executeStatement)
+    ;
+
+bulkInsertStatement
+    : BULK INSERT multipartIdentifier FROM string (WITH LPAREN bulkInsertOptionList? RPAREN)?
+    ;
+
+bulkInsertOptionList
+    : bulkInsertOption (COMMA bulkInsertOption)*
+    ;
+
+bulkInsertOption
+    : identifier (EQ (identifier | number | string))?
     ;
 
 valuesClause
@@ -416,6 +438,7 @@ mergeClause
 
 mergeMatchedAction
     : UPDATE SET assignmentList whereClause?
+    | DELETE
     ;
 
 mergeNotMatchedAction
@@ -531,6 +554,19 @@ createTableStatement
     | CREATE TEMPORARY? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
     ;
 
+externalObjectStatement
+    : CREATE EXTERNAL DATA SOURCE multipartIdentifier .+?
+    | DROP EXTERNAL DATA SOURCE (IF EXISTS)? multipartIdentifier
+    | CREATE EXTERNAL FILE FORMAT multipartIdentifier .+?
+    | DROP EXTERNAL FILE FORMAT (IF EXISTS)? multipartIdentifier
+    | CREATE DATABASE SCOPED CREDENTIAL multipartIdentifier .+?
+    | ALTER DATABASE SCOPED CREDENTIAL multipartIdentifier .+?
+    | DROP DATABASE SCOPED CREDENTIAL (IF EXISTS)? multipartIdentifier
+    | CREATE CREDENTIAL multipartIdentifier .+?
+    | ALTER CREDENTIAL multipartIdentifier .+?
+    | DROP CREDENTIAL multipartIdentifier
+    ;
+
 externalTableOptionClause
     : WITH LPAREN externalTableOptionContent* RPAREN
     ;
@@ -566,6 +602,12 @@ databaseStatement
     | DROP DATABASE (IF EXISTS)? identifier
     ;
 
+principalStatement
+    : CREATE (LOGIN | USER | ROLE) .+?
+    | ALTER (LOGIN | USER | ROLE) .+?
+    | DROP (LOGIN | USER | ROLE) (IF EXISTS)? .+?
+    ;
+
 alterSchemaStatement
     : ALTER SCHEMA targetSchema=identifier TRANSFER objectScope? source=multipartIdentifier
     ;
@@ -574,6 +616,53 @@ typeStatement
     : CREATE TYPE multipartIdentifier FROM dataType (NULL | NOT NULL)?
     | CREATE TYPE multipartIdentifier AS TABLE LPAREN tableElementList RPAREN
     | DROP TYPE (IF EXISTS)? multipartIdentifier
+    ;
+
+sequenceStatement
+    : (CREATE | ALTER) SEQUENCE multipartIdentifier .+?
+    | DROP SEQUENCE (IF EXISTS)? multipartIdentifier
+    ;
+
+securityObjectStatement
+    : CREATE MASTER KEY .+?
+    | ALTER MASTER KEY .+?
+    | DROP MASTER KEY
+    | CREATE CERTIFICATE multipartIdentifier .+?
+    | ALTER CERTIFICATE multipartIdentifier .+?
+    | DROP CERTIFICATE multipartIdentifier
+    | CREATE (ASYMMETRIC | SYMMETRIC) KEY multipartIdentifier .+?
+    | ALTER (ASYMMETRIC | SYMMETRIC) KEY multipartIdentifier .+?
+    | DROP (ASYMMETRIC | SYMMETRIC) KEY multipartIdentifier
+    ;
+
+securityPolicyStatement
+    : CREATE SECURITY POLICY multipartIdentifier securityPolicyCreateBody?
+    | ALTER SECURITY POLICY multipartIdentifier securityPolicyAlterBody
+    | DROP SECURITY POLICY (IF EXISTS)? multipartIdentifier
+    ;
+
+securityPolicyCreateBody
+    : ADD securityPredicate (COMMA ADD? securityPredicate)* securityPolicyState?
+    | securityPolicyState
+    ;
+
+securityPolicyAlterBody
+    : ADD securityPredicate (COMMA ADD? securityPredicate)* securityPolicyState?
+    | DROP (FILTER | BLOCK) PREDICATE ON multipartIdentifier securityPredicateTiming?
+    | securityPolicyState
+    ;
+
+securityPredicate
+    : (FILTER | BLOCK) PREDICATE .+? ON target=multipartIdentifier securityPredicateTiming?
+    ;
+
+securityPredicateTiming
+    : AFTER (INSERT | UPDATE)
+    | BEFORE (UPDATE | DELETE)
+    ;
+
+securityPolicyState
+    : WITH LPAREN STATE EQ (ON | OFF) RPAREN
     ;
 
 createSynonymStatement
@@ -673,7 +762,21 @@ useStatement
 
 setStatement
     : SET optionName=identifier tableName=multipartIdentifier (ON | OFF) #setIdentityInsertStatement
-    | SET identifier (ON | OFF | EQ expression)?                         #setOptionStatement
+    | SET TRANSACTION identifier identifier identifier identifier?         #setTransactionIsolationStatement
+    | SET identifier EQ expression                                        #setOptionStatement
+    | SET identifier (ON | OFF)?                                          #setOptionStatement
+    | SET identifier setSessionOptionValue+                               #setSessionOptionStatement
+    ;
+
+setSessionOptionValue
+    : identifier
+    | ON
+    | OFF
+    | number
+    | string
+    | PLUS
+    | MINUS
+    | COMMA
     ;
 
 executeStatement
@@ -704,7 +807,35 @@ scriptControlStatement
     | PRINT .+?
     | THROW .+?
     | RAISERROR .+?
+    | WAITFOR (DELAY | TIME) string
+    | KILL (number | string | identifier) (WITH STATUSONLY)?
+    | DECLARE identifier CURSOR cursorOption* FOR cursorQuery=query
+    | OPEN identifier
+    | FETCH fetchDirection? FROM identifier (INTO identifierList)?
+    | CLOSE identifier
+    | DEALLOCATE identifier
     | RETURN .*?
+    ;
+
+cursorOption
+    : LOCAL
+    | GLOBAL
+    | FORWARD_ONLY
+    | SCROLL
+    | STATIC
+    | KEYSET
+    | DYNAMIC
+    | FAST_FORWARD
+    | READ_ONLY
+    ;
+
+fetchDirection
+    : NEXT
+    | PRIOR
+    | FIRST
+    | LAST
+    | ABSOLUTE number
+    | RELATIVE number
     ;
 
 grantStatement
@@ -767,8 +898,13 @@ property
     ;
 
 dataType
-    : identifier (LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN)?
+    : identifier (LPAREN dataTypeParameter (COMMA dataTypeParameter)* RPAREN)?
     | identifier LT dataType (COMMA dataType)* GT
+    ;
+
+dataTypeParameter
+    : NUMBER_LITERAL
+    | identifier
     ;
 
 // ============ Common ============
@@ -800,12 +936,12 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | APPLY | ASC | CAST | COLLATE | COLUMN | COMMENT | CONTAINED | DEFAULT
-    | BACKUP | BEGIN | CHECK | CHECKDB | CHECKTABLE | CLUSTERED | COLUMNSTORE | COMMIT | CONSTRAINT | DATABASE | DBCC | DECLARE | DESCRIBE | DESC | DISABLE | DISK | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE
-    | FOREIGN | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | LIKE | LIMIT | LOG | MAXDOP | NOLOCK | NONCLUSTERED | NULL | OFF | OPTION | OPTIMIZE
-    | FETCH | FIRST | FOR | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PERCENT_KEYWORD | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
-    | AFTER | CATCH | CUBE | FUNCTION | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLLBACK | SAVE | SCHEMA | SET | SETS | SHOW | SOURCE | STATISTICS | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | VALUES | VIEW
-    | CONVERT
+    : ADD | APPLY | ASC | ASYMMETRIC | BEFORE | BLOCK | CAST | CERTIFICATE | COLLATE | COLUMN | COMMENT | CONTAINED | CREDENTIAL | DATA | DEFAULT
+    | BACKUP | BEGIN | BULK | CHECK | CHECKDB | CHECKTABLE | CLUSTERED | COLUMNSTORE | COMMIT | CONSTRAINT | DATABASE | DBCC | DECLARE | DESCRIBE | DESC | DISABLE | DISK | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE | FILE | FILTER | FORMAT
+    | DEALLOCATE | DYNAMIC | ENCRYPTION | FOREIGN | GLOBAL | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | KEYSET | LIKE | LIMIT | LOCAL | LOG | LOGIN | MASTER | MAXDOP | MEMBER | NOLOCK | NONCLUSTERED | NULL | OFF | OPEN | OPTION | OPTIMIZE
+    | ABSOLUTE | CLOSE | CURSOR | FAST_FORWARD | FETCH | FIRST | FOR | FORWARD_ONLY | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PASSWORD | PERCENT_KEYWORD | POLICY | PREDICATE | PRIOR | READ_ONLY | RELATIVE | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
+    | AFTER | CATCH | CONTAINSTABLE | CUBE | DELAY | FREETEXTTABLE | FUNCTION | KILL | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLE | ROLLBACK | SAVE | SCHEMA | SCOPED | SECRET | SECURITY | SEQUENCE | SET | SETS | SHOW | SOURCE | STATE | STATISTICS | STATUSONLY | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TIME | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | USER | VALUE | VALUES | VIEW | WAITFOR
+    | CONVERT | SCROLL | STATIC | SYMMETRIC
     | UNIQUE | WITHIN | XML
     ;
 

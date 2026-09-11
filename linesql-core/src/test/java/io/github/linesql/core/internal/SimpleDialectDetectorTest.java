@@ -73,6 +73,16 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.STARROCKS, "load label mart.job (data infile (\"s3://bucket/*.csv\") into table ods.events)");
         assertFirst(SqlDialect.STARROCKS, "refresh materialized view mart.mv_events with sync mode");
         assertFirst(SqlDialect.STARROCKS, "show proc '/dbs/crs_starrocks'");
+        assertFirst(SqlDialect.STARROCKS, "show tablet from mart.orders partition(p202609) where state = 'NORMAL'");
+        assertFirst(SqlDialect.STARROCKS, "show create materialized view mart.mv_events");
+        assertFirst(SqlDialect.STARROCKS, "show load from mart where label = 'job_20260910'");
+        assertFirst(SqlDialect.STARROCKS, "show routine load task from mart where jobname = 'job_events'");
+        assertFirst(SqlDialect.STARROCKS, "admin show replica status from mart.orders partition(p202609)");
+        assertFirst(SqlDialect.STARROCKS, "cancel refresh materialized view mart.mv_events force");
+        assertFirst(SqlDialect.STARROCKS, "cancel alter table rollup from mart.orders (10001)");
+        assertFirst(SqlDialect.STARROCKS, "recover table mart.orders");
+        assertFirst(SqlDialect.STARROCKS, "submit task as insert into mart.t select id from ods.s");
+        assertFirst(SqlDialect.STARROCKS, "sync");
     }
 
     @Test
@@ -99,6 +109,10 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.SQLSERVER, "select top 10 id from dbo.users");
         assertFirst(SqlDialect.SQLSERVER, "select [用户ID] from [业务库].[用户表]");
         assertFirst(SqlDialect.SQLSERVER, "select id from dbo.users with (nolock)");
+        assertFirst(SqlDialect.SQLSERVER, "select j.value from dbo.events e cross apply openjson(e.payload) j");
+        assertFirst(SqlDialect.SQLSERVER, "select x.id from dbo.docs d cross apply openxml(d.handle, '/root/item') with (id int '@id') x");
+        assertFirst(SqlDialect.SQLSERVER, "select q.id from openquery(dw, 'select id from ods.orders') q");
+        assertFirst(SqlDialect.SQLSERVER, "select r.id from openrowset('SQLNCLI', 'server=dw', 'select id from ods.orders') r");
     }
 
     @Test
@@ -118,12 +132,26 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.OCEANBASE, "create resource pool pool1 unit = 'unit1'");
         assertFirst(SqlDialect.OCEANBASE, "create tablegroup tg1 sharding = 'partition'");
         assertFirst(SqlDialect.OCEANBASE, "alter system add server '127.0.0.1:2882' zone 'zone1'");
+        assertFirst(SqlDialect.OCEANBASE, "alter system start server '127.0.0.1:2882' zone = 'zone1'");
+        assertFirst(SqlDialect.OCEANBASE, "alter system cancel delete server '127.0.0.1:2882' zone = 'zone1'");
+        assertFirst(SqlDialect.OCEANBASE, "alter system add zone zone1 region = 'default_region'");
+        assertFirst(SqlDialect.OCEANBASE, "alter system start zone zone1");
+        assertFirst(SqlDialect.OCEANBASE, "alter system stop zone zone1");
+        assertFirst(SqlDialect.OCEANBASE, "alter system delete zone zone1");
+        assertFirst(SqlDialect.OCEANBASE, "alter system isolate zone zone1");
+        assertFirst(SqlDialect.OCEANBASE, "alter system force stop zone zone1");
         assertFirst(SqlDialect.OCEANBASE, "alter system set memory_limit = '10G' tenant = tenant_a");
         assertFirst(SqlDialect.OCEANBASE, "alter system reset enable_sql_audit");
         assertFirst(SqlDialect.OCEANBASE, "alter system major freeze tenant = all_user");
         assertFirst(SqlDialect.OCEANBASE, "alter system minor freeze");
+        assertFirst(SqlDialect.OCEANBASE, "alter system archivelog");
+        assertFirst(SqlDialect.OCEANBASE, "alter system noarchivelog");
+        assertFirst(SqlDialect.OCEANBASE, "alter system restore tenant tenant_restore from 'file:///data,file:///archive'");
         assertFirst(SqlDialect.OCEANBASE, "stop server '127.0.0.1:2882'");
         assertFirst(SqlDialect.OCEANBASE, "show tenant");
+        assertFirst(SqlDialect.OCEANBASE, "show servers");
+        assertFirst(SqlDialect.OCEANBASE, "show zone");
+        assertFirst(SqlDialect.OCEANBASE, "show restore preview");
         assertFirst(SqlDialect.OCEANBASE, "show tenant status");
         assertFirst(SqlDialect.OCEANBASE, "show create tenant tenant_a");
         assertFirst(SqlDialect.OCEANBASE, "show resource pool like 'pool%'");
@@ -143,6 +171,7 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.SPARK, "insert overwrite table ads.t select id from ods.s");
         assertFirst(SqlDialect.SPARK, "select id from ods.users lateral view explode(tags) x as tag");
         assertFirst(SqlDialect.SPARK, "create temporary view v as select id from ods.users");
+        assertFirst(SqlDialect.SPARK, "set spark.sql.autoBroadcastJoinThreshold = 128m");
         assertFirst(SqlDialect.SPARK, "select id from ods.users");
     }
 

@@ -5,6 +5,7 @@ import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
+import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.spi.DialectParser;
 import io.github.linesql.dialect.mysql.MySqlDialectParser;
 import io.github.linesql.dialect.oracle.OracleDialectParser;
@@ -29,6 +30,7 @@ public class OceanBaseDialectParser implements DialectParser {
                 ? oracleModeParser
                 : "mysql".equals(explicitMode) ? mysqlModeParser : looksLikeOracleMode(sql) ? oracleModeParser : mysqlModeParser;
         LineageResult result = delegate.parse(sql, options, context);
+        classifyOceanBaseNativeStatement(sql, result);
         result.setDialect(SqlDialect.OCEANBASE);
         result.setDialectConfidence(1.0d);
         result.getDiagnostics().add(Diagnostic.warning(
@@ -37,6 +39,20 @@ public class OceanBaseDialectParser implements DialectParser {
                         + (delegate.dialect() == SqlDialect.ORACLE ? "Oracle" : "MySQL")
                         + " compatibility mode."));
         return result;
+    }
+
+    private static void classifyOceanBaseNativeStatement(String sql, LineageResult result) {
+        if (result.getStatementType() != StatementType.UNKNOWN) {
+            return;
+        }
+        String normalized = sql == null ? "" : sql.toLowerCase(Locale.ROOT);
+        if (normalized.matches("(?s)^\\s*alter\\s+system\\s+((no)?archivelog|restore)\\b.*")) {
+            result.setStatementType(StatementType.CONTROL);
+            return;
+        }
+        if (normalized.matches("(?s)^\\s*show\\s+restore\\s+preview\\b.*")) {
+            result.setStatementType(StatementType.READ_METADATA);
+        }
     }
 
     private static String compatibilityMode(ParseOptions options) {
@@ -107,8 +123,24 @@ public class OceanBaseDialectParser implements DialectParser {
                 || normalized.matches("(?s)^\\s*drop\\s+index\\s+[a-z_][a-z0-9_$]*\\.[a-z_][a-z0-9_$]*\\b.*")
                 || normalized.matches("(?s)^\\s*alter\\s+sequence\\b.*")
                 || normalized.matches("(?s)^\\s*drop\\s+(public\\s+)?(sequence|synonym)\\b.*")
+                || normalized.matches("(?s)^\\s*create\\s+(user|role)\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+user\\b.*")
+                || normalized.matches("(?s)^\\s*drop\\s+(user|role)\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+(public\\s+)?database\\s+link\\b.*")
                 || normalized.matches("(?s)^\\s*drop\\s+(public\\s+)?database\\s+link\\b.*")
+                || normalized.matches("(?s)^\\s*create\\s+(or\\s+replace\\s+)?directory\\b.*")
+                || normalized.matches("(?s)^\\s*drop\\s+directory\\b.*")
+                || normalized.matches("(?s)^\\s*create\\s+(bigfile\\s+|smallfile\\s+)?tablespace\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+tablespace\\b.*")
+                || normalized.matches("(?s)^\\s*drop\\s+tablespace\\b.*")
+                || normalized.matches("(?s)^\\s*create\\s+(or\\s+replace\\s+)?context\\b.*")
+                || normalized.matches("(?s)^\\s*drop\\s+context\\b.*")
+                || normalized.matches("(?s)^\\s*create\\s+profile\\b.*")
+                || normalized.matches("(?s)^\\s*alter\\s+profile\\b.*")
+                || normalized.matches("(?s)^\\s*drop\\s+profile\\b.*")
+                || normalized.matches("(?s)^\\s*create\\s+audit\\s+policy\\b.*")
+                || normalized.matches("(?s)^\\s*drop\\s+audit\\s+policy\\b.*")
+                || normalized.matches("(?s)^\\s*(noaudit|audit)\\b.*")
                 || normalized.matches("(?s)^\\s*flashback\\s+table\\b.*\\bto\\s+(before\\s+drop|scn|timestamp|restore\\s+point)\\b.*")
                 || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
                 || normalized.matches("(?s).*\\bfor\\s+update\\s+of\\b.*\\bskip\\s+locked\\b.*")
