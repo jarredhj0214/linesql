@@ -1,0 +1,1 @@
+show schemas like 'mart*';

@@ -2029,6 +2029,14 @@
           "sources": [
             "ods.users.name"
           ]
+        },
+        {
+          "target": "audit.user_summary_changes.old_name",
+          "sources": ["ads.user_summary.user_name"]
+        },
+        {
+          "target": "audit.user_summary_changes.new_name",
+          "sources": ["ods.users.name"]
         }
       ],
       "columnUsages": [
@@ -2046,6 +2054,72 @@
         }
       ],
       "description": "SQL Server UPDATE OUTPUT INTO records audit output table while preserving update lineage"
+    },
+    {
+      "id": "update_output_into_expression",
+      "file": "cases/update_output_into_expression.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["dbo.users", "staging.user_delta"],
+      "outputTables": ["dbo.users", "audit.user_name_changes"],
+      "columnLineage": [
+        {"target": "dbo.users.display_name", "sources": ["staging.user_delta.name"]},
+        {"target": "audit.user_name_changes.old_name", "sources": ["dbo.users.display_name"]},
+        {"target": "audit.user_name_changes.normalized_name", "sources": ["staging.user_delta.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.users.id"},
+        {"type": "WHERE", "column": "staging.user_delta.id"}
+      ],
+      "description": "SQL Server OUTPUT INTO expression lineage propagates inserted assignments through scalar functions"
+    },
+    {
+      "id": "insert_output_result_lineage",
+      "file": "cases/insert_output_result_lineage.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.new_users"],
+      "outputTables": ["dbo.users"],
+      "columnLineage": [
+        {"target": "dbo.users.id", "sources": ["staging.new_users.id"]},
+        {"target": "dbo.users.display_name", "sources": ["staging.new_users.name"]},
+        {"target": "user_id", "sources": ["staging.new_users.id"]},
+        {"target": "user_name", "sources": ["staging.new_users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.new_users.enabled"}
+      ],
+      "description": "SQL Server INSERT OUTPUT result columns propagate inserted SELECT sources"
+    },
+    {
+      "id": "delete_output_result_lineage",
+      "file": "cases/delete_output_result_lineage.sql",
+      "statementType": "DELETE",
+      "inputTables": ["dbo.users"],
+      "outputTables": ["dbo.users"],
+      "columnLineage": [
+        {"target": "deleted_id", "sources": ["dbo.users.id"]},
+        {"target": "deleted_name", "sources": ["dbo.users.display_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.users.status"}
+      ],
+      "description": "SQL Server DELETE OUTPUT result columns preserve deleted target-column sources"
+    },
+    {
+      "id": "update_output_result_lineage",
+      "file": "cases/update_output_result_lineage.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["dbo.users", "staging.user_delta"],
+      "outputTables": ["dbo.users"],
+      "columnLineage": [
+        {"target": "dbo.users.display_name", "sources": ["staging.user_delta.name"]},
+        {"target": "old_name", "sources": ["dbo.users.display_name"]},
+        {"target": "new_name", "sources": ["staging.user_delta.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.users.id"},
+        {"type": "WHERE", "column": "staging.user_delta.id"}
+      ],
+      "description": "SQL Server UPDATE OUTPUT result columns preserve deleted values and inserted assignment sources"
     },
     {
       "id": "update_output_wildcard_into",
@@ -2101,6 +2175,14 @@
           "sources": [
             "ods.users.name"
           ]
+        },
+        {
+          "target": "@changed_users.old_name",
+          "sources": ["ads.user_summary.user_name"]
+        },
+        {
+          "target": "@changed_users.new_name",
+          "sources": ["ods.users.name"]
         }
       ],
       "columnUsages": [
@@ -2170,7 +2252,10 @@
         "dbo.users",
         "audit.deleted_users"
       ],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "audit.deleted_users.id", "sources": ["dbo.users.id"]},
+        {"target": "audit.deleted_users.name", "sources": ["dbo.users.name"]}
+      ],
       "columnUsages": [
         {
           "type": "JOIN_ON",
@@ -2198,7 +2283,9 @@
         "ads.user_summary",
         "audit.deleted_users"
       ],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "audit.deleted_users.user_id", "sources": ["ads.user_summary.user_id"]}
+      ],
       "columnUsages": [
         {
           "type": "WHERE",
@@ -2238,7 +2325,9 @@
         "ads.user_summary",
         "@deleted_users"
       ],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "@deleted_users.user_id", "sources": ["ads.user_summary.user_id"]}
+      ],
       "columnUsages": [
         {
           "type": "WHERE",
@@ -2258,7 +2347,10 @@
         "dbo.expired_sessions",
         "#deleted_sessions"
       ],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "#deleted_sessions.session_id", "sources": ["dbo.expired_sessions.session_id"]},
+        {"target": "#deleted_sessions.user_id", "sources": ["dbo.expired_sessions.user_id"]}
+      ],
       "columnUsages": [
         {
           "type": "WHERE",
@@ -2638,6 +2730,14 @@
           "sources": [
             "ods.users_delta.name"
           ]
+        },
+        {
+          "target": "audit.user_summary_merge.user_id",
+          "sources": ["ods.users_delta.id"]
+        },
+        {
+          "target": "audit.user_summary_merge.old_user_name",
+          "sources": ["ads.user_summary.user_name"]
         }
       ],
       "columnUsages": [
@@ -2682,6 +2782,18 @@
           "sources": [
             "ods.users_delta.name"
           ]
+        },
+        {
+          "target": "audit.user_summary_merge_actions.merge_action",
+          "sources": []
+        },
+        {
+          "target": "audit.user_summary_merge_actions.user_id",
+          "sources": ["ods.users_delta.id"]
+        },
+        {
+          "target": "audit.user_summary_merge_actions.old_user_name",
+          "sources": ["ads.user_summary.user_name"]
         }
       ],
       "columnUsages": [
@@ -2695,6 +2807,26 @@
         }
       ],
       "description": "SQL Server MERGE OUTPUT $action INTO records audit output table without treating $action as a source column"
+    },
+    {
+      "id": "merge_output_result_lineage",
+      "file": "cases/merge_output_result_lineage.sql",
+      "statementType": "MERGE",
+      "inputTables": ["ads.user_summary", "ods.users_delta"],
+      "outputTables": ["ads.user_summary"],
+      "columnLineage": [
+        {"target": "ads.user_summary.user_name", "sources": ["ods.users_delta.name"]},
+        {"target": "ads.user_summary.user_id", "sources": ["ods.users_delta.id"]},
+        {"target": "ads.user_summary.user_name", "sources": ["ods.users_delta.name"]},
+        {"target": "merge_action", "sources": []},
+        {"target": "user_id", "sources": ["ods.users_delta.id"]},
+        {"target": "old_user_name", "sources": ["ads.user_summary.user_name"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "ads.user_summary.user_id"},
+        {"type": "MERGE_ON", "column": "ods.users_delta.id"}
+      ],
+      "description": "SQL Server MERGE OUTPUT returns action, inserted-source, and deleted-target result lineage"
     },
     {
       "id": "cte_column_projection",
@@ -2839,16 +2971,20 @@
       ],
       "columnLineage": [
         {
-          "target": "user_id",
+          "target": "ads.user_summary.user_id",
           "sources": [
             "ods.users.id"
           ]
         },
         {
-          "target": "user_name",
+          "target": "ads.user_summary.user_name",
           "sources": [
             "ods.users.name"
           ]
+        },
+        {
+          "target": "audit.loaded_users.user_id",
+          "sources": ["ods.users.id"]
         }
       ],
       "description": "SQL Server INSERT OUTPUT INTO records the audit output table while preserving insert lineage"
@@ -2866,13 +3002,13 @@
       ],
       "columnLineage": [
         {
-          "target": "user_id",
+          "target": "ads.user_summary.user_id",
           "sources": [
             "ods.users.id"
           ]
         },
         {
-          "target": "user_name",
+          "target": "ads.user_summary.user_name",
           "sources": [
             "ods.users.name"
           ]
@@ -2893,16 +3029,24 @@
       ],
       "columnLineage": [
         {
-          "target": "user_id",
+          "target": "ads.user_summary.user_id",
           "sources": [
             "ods.users.id"
           ]
         },
         {
-          "target": "user_name",
+          "target": "ads.user_summary.user_name",
           "sources": [
             "ods.users.name"
           ]
+        },
+        {
+          "target": "@loaded_users.user_id",
+          "sources": ["ods.users.id"]
+        },
+        {
+          "target": "@loaded_users.user_name",
+          "sources": ["ods.users.name"]
         }
       ],
       "description": "SQL Server INSERT OUTPUT INTO table variable records audit output while preserving insert lineage"
@@ -4556,6 +4700,14 @@
           "sources": [
             "dbo.orders.amount"
           ]
+        },
+        {
+          "target": "audit.user_change_log.user_id",
+          "sources": ["dbo.users.id"]
+        },
+        {
+          "target": "audit.user_change_log.total_amount",
+          "sources": ["dbo.orders.amount"]
         }
       ],
       "columnUsages": [
@@ -5574,6 +5726,42 @@
       "description": "SQL Server DBCC CHECKTABLE records the checked table as a metadata read"
     },
     {
+      "id": "dbcc_show_statistics_metadata",
+      "file": "cases/dbcc_show_statistics_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.Users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DBCC SHOW_STATISTICS records the inspected table as a metadata read"
+    },
+    {
+      "id": "dbcc_show_statistics_string_metadata",
+      "file": "cases/dbcc_show_statistics_string_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.Users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DBCC SHOW_STATISTICS with string table name records the inspected table as a metadata read"
+    },
+    {
+      "id": "dbcc_checkident_string_metadata",
+      "file": "cases/dbcc_checkident_string_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.Users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server DBCC CHECKIDENT with string table name records the inspected table as a metadata read"
+    },
+    {
       "id": "create_sequence",
       "file": "cases/create_sequence.sql",
       "statementType": "CONTROL",
@@ -5925,6 +6113,128 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "SQL Server DROP ASYMMETRIC KEY is accepted as encryption key control"
+    },
+    {
+      "id": "execute_sp_help_table",
+      "file": "cases/execute_sp_help_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_help over a table is treated as table metadata read"
+    },
+    {
+      "id": "execute_sp_helptext_view",
+      "file": "cases/execute_sp_helptext_view.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.v_orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_helptext over a view is treated as object metadata read"
+    },
+    {
+      "id": "execute_sp_columns_named_args",
+      "file": "cases/execute_sp_columns_named_args.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_columns named table arguments are normalized into table metadata reads"
+    },
+    {
+      "id": "execute_sp_tables_metadata",
+      "file": "cases/execute_sp_tables_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_tables is accepted as table-free metadata read"
+    },
+    {
+      "id": "execute_sp_describe_first_result_set",
+      "file": "cases/execute_sp_describe_first_result_set.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_describe_first_result_set is accepted as result-set metadata read"
+    },
+    {
+      "id": "execute_sp_spaceused_table",
+      "file": "cases/execute_sp_spaceused_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_spaceused over a table is treated as table metadata read"
+    },
+    {
+      "id": "execute_sp_helpindex_table",
+      "file": "cases/execute_sp_helpindex_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_helpindex over a table is treated as table metadata read"
+    },
+    {
+      "id": "execute_sp_helpconstraint_table",
+      "file": "cases/execute_sp_helpconstraint_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "dbo.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_helpconstraint over a table is treated as table metadata read"
+    },
+    {
+      "id": "execute_sp_helpdb_metadata",
+      "file": "cases/execute_sp_helpdb_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_helpdb is accepted as table-free database metadata read"
+    },
+    {
+      "id": "execute_sp_helpserver_metadata",
+      "file": "cases/execute_sp_helpserver_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_helpserver is accepted as table-free server metadata read"
+    },
+    {
+      "id": "execute_sp_who_metadata",
+      "file": "cases/execute_sp_who_metadata.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server sp_who is accepted as table-free session metadata read"
     }
   ]
 }

@@ -1,0 +1,3 @@
+BEGIN
+  DBMS_STATS.GATHER_TABLE_STATS(ownname => 'MART', tabname => 'USERS');
+END;

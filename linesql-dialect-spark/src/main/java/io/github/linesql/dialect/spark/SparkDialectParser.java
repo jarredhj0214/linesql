@@ -46,6 +46,7 @@ public class SparkDialectParser implements DialectParser {
         SparkLineageVisitor visitor = new SparkLineageVisitor(result);
         visitor.setContext(context);
         visitor.visit(statement);
+        visitor.finalizeResult();
         visitor.addColumnLineageDiagnostics();
         if (visitor.shouldWarnMissingColumnLineage() && result.getColumnLineage().isEmpty()) {
             result.getDiagnostics().add(Diagnostic.warning(

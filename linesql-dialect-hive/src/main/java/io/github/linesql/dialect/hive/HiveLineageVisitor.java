@@ -100,6 +100,61 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitMultiInsertStmt(HiveParser.MultiInsertStmtContext ctx) {
+        result.setStatementType(StatementType.INSERT);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitMultiInsertStatement(HiveParser.MultiInsertStatementContext ctx) {
+        if (ctx.ctes() != null) {
+            visit(ctx.ctes());
+        }
+        visit(ctx.fromClause());
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (HiveParser.MultiInsertBodyContext body : ctx.multiInsertBody()) {
+            HiveLineageVisitor branch = branchVisitor();
+            branch.visit(body);
+            branch.finalizeResult();
+            inputTables.addAll(branch.inputTables);
+            outputTables.addAll(branch.outputTables);
+            lineages.addAll(branch.result.getColumnLineage());
+            LineageModelUtils.mergeColumnUsages(result, branch.result);
+        }
+        result.setColumnLineage(lineages);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitMultiInsertBody(HiveParser.MultiInsertBodyContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        addPartitionModelUsages(ctx, target);
+        if (ctx.columnList != null) {
+            for (HiveParser.IdentifierContext id : ctx.columnList.identifier()) {
+                insertTargetColumns.add(cleanIdentifier(id));
+            }
+        }
+        visit(ctx.selectClause());
+        if (ctx.whereClause() != null) {
+            visit(ctx.whereClause());
+        }
+        if (ctx.groupByClause() != null) {
+            visit(ctx.groupByClause());
+        }
+        if (ctx.havingClause() != null) {
+            visit(ctx.havingClause());
+        }
+        visit(ctx.queryOrganization());
+        refreshColumnLineage(target);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitInsertDirectoryStmt(HiveParser.InsertDirectoryStmtContext ctx) {
         result.setStatementType(StatementType.INSERT);
         return visitChildren(ctx);
@@ -120,6 +175,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         }
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
+        addPartitionModelUsages(ctx, target);
         if (ctx.columnList != null) {
             for (HiveParser.IdentifierContext id : ctx.columnList.identifier()) {
                 insertTargetColumns.add(cleanIdentifier(id));
@@ -266,6 +322,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         }
         TableRef target = tableRef(ctx.multipartIdentifier(0));
         outputTables.add(target);
+        addCreateTableModelUsages(ctx, target);
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
             visit(ctx.query());
@@ -277,6 +334,73 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void addCreateTableModelUsages(HiveParser.CreateTableStatementContext ctx, TableRef target) {
+        Set<String> columns = new LinkedHashSet<>();
+        if (ctx.tableDefinitionList() != null) {
+            for (HiveParser.TableDefinitionContext definition : ctx.tableDefinitionList().tableDefinition()) {
+                if (definition.tableElement() != null) {
+                    HiveParser.TableElementContext element = definition.tableElement();
+                    for (HiveParser.ColumnConstraintContext constraint : element.columnConstraint()) {
+                        if (constraint.PRIMARY() != null
+                                || constraint.UNIQUE() != null
+                                || constraint.CHECK() != null) {
+                            columns.add(cleanIdentifier(element.identifier()));
+                        }
+                    }
+                } else if (definition.tableConstraint() != null) {
+                    HiveParser.TableConstraintContext constraint = definition.tableConstraint();
+                    if (constraint.localColumns != null) {
+                        for (HiveParser.IdentifierContext identifier : constraint.localColumns.identifier()) {
+                            columns.add(cleanIdentifier(identifier));
+                        }
+                    }
+                    if (constraint.expression() != null) {
+                        for (SourceColumn source : sourceColumns(constraint.expression())) {
+                            columns.add(source.name);
+                        }
+                    }
+                    if (constraint.referencedTable != null) {
+                        TableRef referencedTable = tableRef(constraint.referencedTable);
+                        inputTables.add(referencedTable);
+                        List<ColumnRef> referencedColumns = new ArrayList<>();
+                        for (HiveParser.IdentifierContext identifier
+                                : constraint.referencedColumns.identifier()) {
+                            referencedColumns.add(new ColumnRef(referencedTable, cleanIdentifier(identifier)));
+                        }
+                        LineageModelUtils.addColumnUsages(
+                                result,
+                                ColumnUsageType.TABLE_MODEL,
+                                referencedColumns);
+                    }
+                }
+            }
+        }
+        if (ctx.partitionColumns != null) {
+            for (HiveParser.TableElementContext element : ctx.partitionColumns.tableElement()) {
+                columns.add(cleanIdentifier(element.identifier()));
+            }
+        }
+        if (ctx.clusteringClause() != null) {
+            for (HiveParser.IdentifierContext identifier
+                    : ctx.clusteringClause().bucketColumns.identifier()) {
+                columns.add(cleanIdentifier(identifier));
+            }
+            for (HiveParser.SortColumnContext sortColumn : ctx.clusteringClause().sortColumn()) {
+                columns.add(cleanIdentifier(sortColumn.identifier()));
+            }
+        }
+        if (ctx.skewedClause() != null) {
+            for (HiveParser.IdentifierContext identifier : ctx.skewedClause().skewColumns.identifier()) {
+                columns.add(cleanIdentifier(identifier));
+            }
+        }
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : columns) {
+            refs.add(new ColumnRef(target, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
     }
 
     @Override
@@ -303,6 +427,78 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateMaterializedViewStmt(HiveParser.CreateMaterializedViewStmtContext ctx) {
+        result.setStatementType(StatementType.CREATE_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitCreateMaterializedViewStatement(HiveParser.CreateMaterializedViewStatementContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        visit(ctx.query());
+        refreshColumnLineage();
+        retargetColumnLineage(target);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitDropViewStmt(HiveParser.DropViewStmtContext ctx) {
+        result.setStatementType(StatementType.DROP_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDropViewStatement(HiveParser.DropViewStatementContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterViewStmt(HiveParser.AlterViewStmtContext ctx) {
+        result.setStatementType(StatementType.ALTER_VIEW);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAlterViewAsQuery(HiveParser.AlterViewAsQueryContext ctx) {
+        TableRef target = tableRef(ctx.target);
+        outputTables.add(target);
+        visit(ctx.query());
+        refreshColumnLineage();
+        retargetColumnLineage(target);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterViewRename(HiveParser.AlterViewRenameContext ctx) {
+        inputTables.add(tableRef(ctx.target));
+        outputTables.add(tableRef(ctx.replacement));
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterViewProperties(HiveParser.AlterViewPropertiesContext ctx) {
+        outputTables.add(tableRef(ctx.target));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterMaterializedViewRewrite(HiveParser.AlterMaterializedViewRewriteContext ctx) {
+        outputTables.add(tableRef(ctx.target));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
     public Void visitDropTableStmt(HiveParser.DropTableStmtContext ctx) {
         result.setStatementType(StatementType.DROP_TABLE);
         return visitChildren(ctx);
@@ -323,8 +519,10 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitTruncateTableStatement(HiveParser.TruncateTableStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
         result.setOutputTables(new ArrayList<>(outputTables));
+        addPartitionModelUsages(ctx, target);
         return null;
     }
 
@@ -347,30 +545,135 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableAddColumn(HiveParser.AlterTableAddColumnContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
         result.setOutputTables(new ArrayList<>(outputTables));
+        Set<String> columns = new LinkedHashSet<>();
+        if (ctx.column != null) {
+            columns.add(cleanIdentifier(ctx.column));
+        }
+        if (ctx.columns != null) {
+            for (HiveParser.TableElementContext element : ctx.columns.tableElement()) {
+                columns.add(cleanIdentifier(element.identifier()));
+            }
+        }
+        addTableModelColumns(target, columns);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableChangeColumn(HiveParser.AlterTableChangeColumnContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        result.setOutputTables(new ArrayList<>(outputTables));
+        Set<String> columns = new LinkedHashSet<>();
+        columns.add(cleanIdentifier(ctx.oldColumn));
+        columns.add(cleanIdentifier(ctx.newColumn));
+        if (ctx.afterColumn != null) {
+            columns.add(cleanIdentifier(ctx.afterColumn));
+        }
+        addTableModelColumns(target, columns);
+        addPartitionModelUsages(ctx, target);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableReplaceColumns(HiveParser.AlterTableReplaceColumnsContext ctx) {
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        result.setOutputTables(new ArrayList<>(outputTables));
+        Set<String> columns = new LinkedHashSet<>();
+        for (HiveParser.TableElementContext element : ctx.columns.tableElement()) {
+            columns.add(cleanIdentifier(element.identifier()));
+        }
+        addTableModelColumns(target, columns);
+        addPartitionModelUsages(ctx, target);
         return null;
     }
 
     @Override
     public Void visitAlterTableExchangePartition(HiveParser.AlterTableExchangePartitionContext ctx) {
         inputTables.add(tableRef(ctx.source));
-        outputTables.add(tableRef(ctx.target));
+        TableRef target = tableRef(ctx.target);
+        outputTables.add(target);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
+        addPartitionModelUsages(ctx, target);
         return null;
     }
 
     @Override
     public Void visitAlterTableOther(HiveParser.AlterTableOtherContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
         result.setOutputTables(new ArrayList<>(outputTables));
+        addPartitionModelUsages(ctx, target);
+        if (ctx.alterTableAction().DROP() != null
+                && ctx.alterTableAction().COLUMN() != null
+                && ctx.alterTableAction().identifier() != null) {
+            addTableModelColumn(target, cleanIdentifier(ctx.alterTableAction().identifier()));
+        }
+        if (ctx.alterTableAction().clusteringClause() != null) {
+            Set<String> columns = new LinkedHashSet<>();
+            HiveParser.ClusteringClauseContext clustering =
+                    ctx.alterTableAction().clusteringClause();
+            for (HiveParser.IdentifierContext identifier : clustering.bucketColumns.identifier()) {
+                columns.add(cleanIdentifier(identifier));
+            }
+            for (HiveParser.SortColumnContext sortColumn : clustering.sortColumn()) {
+                columns.add(cleanIdentifier(sortColumn.identifier()));
+            }
+            addTableModelColumns(target, columns);
+        }
         return null;
+    }
+
+    private void addTableModelColumn(TableRef target, String column) {
+        Set<String> columns = new LinkedHashSet<>();
+        columns.add(column);
+        addTableModelColumns(target, columns);
+    }
+
+    private void addTableModelColumns(TableRef target, Set<String> columns) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : columns) {
+            refs.add(new ColumnRef(target, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+    }
+
+    private void addPartitionModelUsages(ParseTree tree, TableRef target) {
+        Set<String> columns = new LinkedHashSet<>();
+        collectPartitionColumns(tree, columns);
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : columns) {
+            refs.add(new ColumnRef(target, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+    }
+
+    private static void collectPartitionColumns(ParseTree tree, Set<String> columns) {
+        if (tree instanceof HiveParser.PartitionSpecContext) {
+            for (HiveParser.PartitionValContext value
+                    : ((HiveParser.PartitionSpecContext) tree).partitionVal()) {
+                columns.add(cleanIdentifier(value.identifier()));
+            }
+            return;
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            collectPartitionColumns(tree.getChild(i), columns);
+        }
     }
 
     @Override
     public Void visitCreateDatabaseStmt(HiveParser.CreateDatabaseStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_SCHEMA);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterDatabaseStmt(HiveParser.AlterDatabaseStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -388,6 +691,18 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitSetStmt(HiveParser.SetStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitResetStmt(HiveParser.ResetStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
+    public Void visitDfsStmt(HiveParser.DfsStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;
     }
@@ -419,6 +734,35 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     @Override
     public Void visitShowStmt(HiveParser.ShowStmtContext ctx) {
         result.setStatementType(StatementType.READ_METADATA);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitShowTableMetadata(HiveParser.ShowTableMetadataContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        inputTables.add(table);
+        result.setInputTables(new ArrayList<>(inputTables));
+        Set<String> columns = new LinkedHashSet<>();
+        collectPartitionColumns(ctx, columns);
+        addMetadataColumns(table, columns);
+        return null;
+    }
+
+    @Override
+    public Void visitShowLockMetadata(HiveParser.ShowLockMetadataContext ctx) {
+        if (ctx.target != null) {
+            inputTables.add(tableRef(ctx.target));
+            result.setInputTables(new ArrayList<>(inputTables));
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitShowGrantMetadata(HiveParser.ShowGrantMetadataContext ctx) {
+        if (ctx.privilegeObject() instanceof HiveParser.TablePrivilegeObjectContext) {
+            inputTables.add(tableRef(((HiveParser.TablePrivilegeObjectContext) ctx.privilegeObject()).multipartIdentifier()));
+            result.setInputTables(new ArrayList<>(inputTables));
+        }
         return null;
     }
 
@@ -455,8 +799,10 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitLoadDataStatement(HiveParser.LoadDataStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
         result.setOutputTables(new ArrayList<>(outputTables));
+        addPartitionModelUsages(ctx, target);
         return null;
     }
 
@@ -468,8 +814,12 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitExportTableStatement(HiveParser.ExportTableStatementContext ctx) {
-        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        inputTables.add(table);
         result.setInputTables(new ArrayList<>(inputTables));
+        Set<String> columns = new LinkedHashSet<>();
+        collectPartitionColumns(ctx, columns);
+        addMetadataColumns(table, columns);
         return null;
     }
 
@@ -509,9 +859,26 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitAnalyzeTableStatement(HiveParser.AnalyzeTableStatementContext ctx) {
-        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        inputTables.add(table);
         result.setInputTables(new ArrayList<>(inputTables));
+        Set<String> columns = new LinkedHashSet<>();
+        collectPartitionColumns(ctx, columns);
+        if (ctx.identifierList() != null) {
+            for (HiveParser.IdentifierContext identifier : ctx.identifierList().identifier()) {
+                columns.add(cleanIdentifier(identifier));
+            }
+        }
+        addMetadataColumns(table, columns);
         return null;
+    }
+
+    private void addMetadataColumns(TableRef table, Set<String> columns) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : columns) {
+            refs.add(new ColumnRef(table, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.READ_METADATA, refs);
     }
 
     @Override
@@ -524,6 +891,44 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     public Void visitLockTableStatement(HiveParser.LockTableStatementContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitGrantStmt(HiveParser.GrantStmtContext ctx) {
+        result.setStatementType(ctx.grantStatement().privilegeObject() instanceof HiveParser.TablePrivilegeObjectContext
+                ? StatementType.ALTER_TABLE : StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitGrantStatement(HiveParser.GrantStatementContext ctx) {
+        if (ctx.privilegeObject() instanceof HiveParser.TablePrivilegeObjectContext) {
+            outputTables.add(tableRef(((HiveParser.TablePrivilegeObjectContext) ctx.privilegeObject()).multipartIdentifier()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitRevokeStmt(HiveParser.RevokeStmtContext ctx) {
+        result.setStatementType(ctx.revokeStatement().privilegeObject() instanceof HiveParser.TablePrivilegeObjectContext
+                ? StatementType.ALTER_TABLE : StatementType.CONTROL);
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitRevokeStatement(HiveParser.RevokeStatementContext ctx) {
+        if (ctx.privilegeObject() instanceof HiveParser.TablePrivilegeObjectContext) {
+            outputTables.add(tableRef(((HiveParser.TablePrivilegeObjectContext) ctx.privilegeObject()).multipartIdentifier()));
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitRoleStmt(HiveParser.RoleStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
         return null;
     }
 
@@ -560,9 +965,23 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         TableRef table = tableRef(ctx.multipartIdentifier());
         if (isCteReference(table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
+            if (ctx.tableSampleClause() != null) {
+                visit(ctx.tableSampleClause());
+            }
             return null;
         }
         addInputTable(table, ctx.tableAlias(), true);
+        if (ctx.tableSampleClause() != null) {
+            visit(ctx.tableSampleClause());
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitTableSampleClause(HiveParser.TableSampleClauseContext ctx) {
+        if (ctx.sampleBy != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.sampleBy));
+        }
         return null;
     }
 
@@ -598,11 +1017,28 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             return null;
         }
         String relationAlias = cleanIdentifier(identifiers.get(0));
+        String functionName = cleanIdentifier(ctx.functionName().getText()).toLowerCase(Locale.ROOT);
         List<SourceColumn> sources = sourceColumns(ctx.expressionList());
+        int outputCount = identifiers.size() - 1;
         for (int i = 1; i < identifiers.size(); i++) {
-            registerGeneratedColumn(relationAlias, cleanIdentifier(identifiers.get(i)), sources);
+            List<SourceColumn> outputSources = "stack".equals(functionName)
+                    ? stackOutputSources(ctx.expressionList(), i - 1, outputCount)
+                    : sources;
+            registerGeneratedColumn(relationAlias, cleanIdentifier(identifiers.get(i)), outputSources);
         }
         return null;
+    }
+
+    private List<SourceColumn> stackOutputSources(
+            HiveParser.ExpressionListContext expressions,
+            int outputIndex,
+            int outputCount) {
+        List<SourceColumn> sources = new ArrayList<>();
+        List<HiveParser.ExpressionContext> values = expressions.expression();
+        for (int i = 1 + outputIndex; i < values.size(); i += outputCount) {
+            sources.addAll(sourceColumns(values.get(i)));
+        }
+        return sources;
     }
 
     @Override
@@ -666,6 +1102,22 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitWindowClause(HiveParser.WindowClauseContext ctx) {
+        Map<String, HiveParser.WindowSpecContext> definitions = new LinkedHashMap<>();
+        for (HiveParser.NamedWindowContext namedWindow : ctx.namedWindow()) {
+            definitions.put(cleanIdentifier(namedWindow.windowName().getText()).toLowerCase(Locale.ROOT),
+                    namedWindow.windowSpec());
+        }
+        Set<String> references = new LinkedHashSet<>();
+        collectWindowReferences(ctx.getParent(), references);
+        Set<String> resolved = new LinkedHashSet<>();
+        for (String reference : references) {
+            resolveNamedWindow(reference, definitions, resolved, new LinkedHashSet<>());
+        }
+        return null;
+    }
+
+    @Override
     public Void visitWindowSpec(HiveParser.WindowSpecContext ctx) {
         if (ctx.expressionList() != null) {
             for (HiveParser.ExpressionContext expression : ctx.expressionList().expression()) {
@@ -680,6 +1132,47 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
                     sourceColumns(sortItem.expression())));
         }
         return visitChildren(ctx);
+    }
+
+    private void collectWindowReferences(ParseTree tree, Set<String> references) {
+        if (tree instanceof HiveParser.WindowClauseContext) {
+            return;
+        }
+        if (tree instanceof HiveParser.WindowReferenceContext) {
+            HiveParser.WindowReferenceContext reference = (HiveParser.WindowReferenceContext) tree;
+            if (reference.windowName() != null) {
+                references.add(cleanIdentifier(reference.windowName().getText()).toLowerCase(Locale.ROOT));
+                return;
+            }
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            collectWindowReferences(tree.getChild(i), references);
+        }
+    }
+
+    private void resolveNamedWindow(
+            String name,
+            Map<String, HiveParser.WindowSpecContext> definitions,
+            Set<String> resolved,
+            Set<String> resolving) {
+        if (resolved.contains(name) || !resolving.add(name)) {
+            return;
+        }
+        HiveParser.WindowSpecContext specification = definitions.get(name);
+        if (specification == null) {
+            resolving.remove(name);
+            return;
+        }
+        if (specification.baseWindow != null) {
+            resolveNamedWindow(
+                    cleanIdentifier(specification.baseWindow.getText()).toLowerCase(Locale.ROOT),
+                    definitions,
+                    resolved,
+                    resolving);
+        }
+        visit(specification);
+        resolving.remove(name);
+        resolved.add(name);
     }
 
     @Override
@@ -709,6 +1202,20 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         if (result.getOutputTables().isEmpty()) {
             result.setOutputTables(new ArrayList<>(outputTables));
         }
+    }
+
+    private HiveLineageVisitor branchVisitor() {
+        HiveLineageVisitor branch = new HiveLineageVisitor(new LineageResult());
+        branch.inputTables.addAll(inputTables);
+        branch.tableAliases.putAll(tableAliases);
+        branch.cteNames.addAll(cteNames);
+        branch.derivedColumnLineage.putAll(derivedColumnLineage);
+        branch.derivedAliases.putAll(derivedAliases);
+        branch.generatedColumns.putAll(generatedColumns);
+        branch.derivedReferences.addAll(derivedReferences);
+        branch.visibleRelations.addAll(visibleRelations);
+        branch.visibleRelationCount = visibleRelationCount;
+        return branch;
     }
 
     private void addInputTable(TableRef table, boolean visibleRelation) {
@@ -1053,7 +1560,14 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        return columns.get(sourceColumn.name);
+        List<ColumnRef> refs = columns.get(sourceColumn.name);
+        if (refs == null) {
+            int dot = sourceColumn.name.indexOf('.');
+            if (dot > 0) {
+                refs = columns.get(sourceColumn.name.substring(0, dot));
+            }
+        }
+        return refs;
     }
 
     private boolean isCteReference(TableRef table) {
@@ -1251,16 +1765,21 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     private Projection projection(HiveParser.SelectExpressionContext ctx, int ordinal) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
+        String explicitTarget = ordinal >= 0 && ordinal < insertTargetColumns.size()
+                ? insertTargetColumns.get(ordinal)
+                : null;
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
                 ? unqualifiedName(sourceColumns.get(0).name)
                 : null;
         if (sourceColumns.isEmpty() && ctx.alias == null) {
             return null;
         }
-        if (sourceColumns.size() > 1 && ctx.alias == null) {
+        if (sourceColumns.size() > 1 && ctx.alias == null && explicitTarget == null) {
             return null;
         }
-        String targetColumn = ctx.alias == null ? directColumn : cleanIdentifier(ctx.alias);
+        String targetColumn = ctx.alias == null
+                ? (explicitTarget == null ? directColumn : explicitTarget)
+                : cleanIdentifier(ctx.alias);
         if (targetColumn == null) {
             return null;
         }
@@ -1340,12 +1859,8 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         if (tree instanceof HiveParser.DereferenceContext) {
             HiveParser.DereferenceContext deref = (HiveParser.DereferenceContext) tree;
             List<String> parts = collectDereferenceParts(deref);
-            if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2);
-                String name = parts.get(parts.size() - 1);
-                columns.add(new SourceColumn(qualifier, name));
-            } else if (parts.size() == 1) {
-                columns.add(new SourceColumn(null, parts.get(0)));
+            if (!parts.isEmpty()) {
+                columns.add(new SourceColumn(null, String.join(".", parts)));
             }
             return;
         }

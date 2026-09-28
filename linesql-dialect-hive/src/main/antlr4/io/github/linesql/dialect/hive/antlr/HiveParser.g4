@@ -8,6 +8,7 @@ singleStatement
 
 statement
     : query                                                          #statementDefault
+    | multiInsertStatement                                           #multiInsertStmt
     | explainStatement                                               #explainStmt
     | insertDirectoryStatement                                       #insertDirectoryStmt
     | insertStatement                                                #insertStmt
@@ -16,13 +17,19 @@ statement
     | mergeStatement                                                 #mergeStmt
     | createTableStatement                                           #createTableStmt
     | createViewStatement                                            #createViewStmt
+    | createMaterializedViewStatement                                #createMaterializedViewStmt
+    | dropViewStatement                                              #dropViewStmt
+    | alterViewStatement                                             #alterViewStmt
     | dropTableStatement                                             #dropTableStmt
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
     | createDatabaseStatement                                        #createDatabaseStmt
+    | alterDatabaseStatement                                         #alterDatabaseStmt
     | dropDatabaseStatement                                          #dropDatabaseStmt
     | useStatement                                                   #useStmt
     | setStatement                                                   #setStmt
+    | resetStatement                                                 #resetStmt
+    | dfsStatement                                                   #dfsStmt
     | resourceStatement                                              #resourceStmt
     | functionStatement                                              #functionStmt
     | showStatement                                                  #showStmt
@@ -34,6 +41,21 @@ statement
     | repairTableStatement                                           #repairTableStmt
     | analyzeTableStatement                                          #analyzeTableStmt
     | lockTableStatement                                             #lockTableStmt
+    | grantStatement                                                 #grantStmt
+    | revokeStatement                                                #revokeStmt
+    | roleStatement                                                  #roleStmt
+    ;
+
+multiInsertStatement
+    : ctes? fromClause multiInsertBody+
+    ;
+
+multiInsertBody
+    : INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
+      (PARTITION partitionSpec)?
+      (IF NOT EXISTS)?
+      (LPAREN columnList=identifierList RPAREN)?
+      selectClause whereClause? groupByClause? havingClause? queryOrganization
     ;
 
 explainStatement
@@ -90,7 +112,7 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause fromClause? whereClause? groupByClause? havingClause?
+    : selectClause fromClause? whereClause? groupByClause? havingClause? windowClause?
     ;
 
 selectClause
@@ -133,10 +155,18 @@ lateralView
     ;
 
 relationPrimary
-    : multipartIdentifier tableAlias                                 #tableName
+    : multipartIdentifier tableSampleClause? tableAlias              #tableName
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
+    ;
+
+tableSampleClause
+    : TABLESAMPLE LPAREN BUCKET bucketNumber=expression OUT OF bucketCount=expression
+      (ON sampleBy=expression)? RPAREN
+    | TABLESAMPLE LPAREN expression PERCENT_KW RPAREN
+    | TABLESAMPLE LPAREN expression ROWS RPAREN
+    | TABLESAMPLE LPAREN number identifier RPAREN
     ;
 
 joinRelation
@@ -145,6 +175,7 @@ joinRelation
 
 joinType
     : INNER
+    | LEFT SEMI_KW
     | LEFT OUTER?
     | RIGHT OUTER?
     | FULL OUTER?
@@ -208,7 +239,7 @@ expression
     ;
 
 booleanExpression
-    : NOT booleanExpression                                          #logicalNot
+    : (NOT | BANG) booleanExpression                                 #logicalNot
     | valueExpression predicate?                                     #predicatedExpr
     | left=booleanExpression AND right=booleanExpression              #logicalAnd
     | left=booleanExpression OR right=booleanExpression               #logicalOr
@@ -219,31 +250,34 @@ predicate
     : NOT? BETWEEN lower=valueExpression AND upper=valueExpression
     | NOT? IN LPAREN (expressionList | query) RPAREN
     | NOT? LIKE valueExpression
-    | IS NOT? NULL
+    | NOT? (RLIKE | REGEXP) valueExpression
+    | IS NOT? (NULL | TRUE | FALSE)
     ;
 
 valueExpression
     : primaryExpression                                              #valueExpressionDefault
-    | operator=(MINUS | PLUS) valueExpression                        #unaryExpression
-    | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
+    | operator=(MINUS | PLUS | TILDE) valueExpression                #unaryExpression
+    | left=valueExpression operator=(STAR | SLASH | PERCENT | DIV) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
+    | left=valueExpression operator=(AMP | PIPE | CARET) right=valueExpression        #bitwiseBinary
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
     | left=valueExpression comparisonOperator right=valueExpression  #comparison
     ;
 
 comparisonOperator
-    : EQ | NEQ | LT | GT | LTE | GTE
+    : EQ | NULL_SAFE_EQ | NEQ | LT | GT | LTE | GTE
     ;
 
 primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
-    | functionName LPAREN STAR RPAREN (OVER windowSpec)?             #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList RPAREN (OVER windowSpec)?  #functionCall
-    | functionName LPAREN RPAREN (OVER windowSpec)?                  #functionCallEmpty
+    | functionName LPAREN STAR RPAREN (OVER windowReference)?        #functionCallStar
+    | functionName LPAREN setQuantifier? expressionList RPAREN (OVER windowReference)?  #functionCall
+    | functionName LPAREN RPAREN (OVER windowReference)?             #functionCallEmpty
     | LPAREN query RPAREN                                            #scalarSubquery
     | LPAREN expression RPAREN                                       #parenthesizedExpression
+    | primaryExpression LBRACKET expression RBRACKET                 #subscriptExpression
     | primaryExpression DOT identifier                                #dereference
     | identifier                                                     #columnReference
     | number                                                         #numberLiteral
@@ -252,6 +286,8 @@ primaryExpression
     | TRUE                                                           #booleanTrue
     | FALSE                                                          #booleanFalse
     | INTERVAL expression identifier                                 #intervalLiteral
+    | DATE string                                                    #dateLiteral
+    | TIMESTAMP string                                               #timestampLiteral
     | DEFAULT                                                        #defaultLiteral
     ;
 
@@ -259,8 +295,38 @@ whenClause
     : WHEN condition=expression THEN result=expression
     ;
 
+windowReference
+    : windowSpec
+    | windowName
+    ;
+
+windowClause
+    : WINDOW namedWindow (COMMA namedWindow)*
+    ;
+
+namedWindow
+    : windowName AS windowSpec
+    ;
+
+windowName
+    : IDENTIFIER
+    | BACKQUOTED_IDENTIFIER
+    ;
+
 windowSpec
-    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? RPAREN
+    : LPAREN baseWindow=windowName? (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    ;
+
+windowFrame
+    : (ROWS | RANGE) (BETWEEN windowFrameBound AND windowFrameBound | windowFrameBound)
+    ;
+
+windowFrameBound
+    : UNBOUNDED PRECEDING
+    | UNBOUNDED FOLLOWING
+    | CURRENT ROW
+    | expression PRECEDING
+    | expression FOLLOWING
     ;
 
 functionName
@@ -283,6 +349,7 @@ expressionList
 insertStatement
     : ctes? INSERT (INTO | OVERWRITE) TABLE? multipartIdentifier
       (PARTITION partitionSpec)?
+      (IF NOT EXISTS)?
       (LPAREN columnList=identifierList RPAREN)?
       (query | VALUES valuesClause (COMMA valuesClause)*)
     ;
@@ -350,22 +417,73 @@ assignment
 // ============ DDL Statements ============
 
 createTableStatement
-    : CREATE EXTERNAL? TABLE (IF NOT EXISTS)? multipartIdentifier
-      (LPAREN tableElementList RPAREN)?
+    : CREATE TEMPORARY? EXTERNAL? TABLE (IF NOT EXISTS)? multipartIdentifier
+      (LPAREN tableDefinitionList RPAREN)?
       commentClause?
-      (PARTITIONED BY LPAREN tableElementList RPAREN)?
-      (STORED AS identifier)?
-      (ROW FORMAT identifier)?
+      (PARTITIONED BY LPAREN partitionColumns=tableElementList RPAREN)?
+      clusteringClause?
+      skewedClause?
+      tableStorageFormat*
       (LOCATION string)?
       (TBLPROPERTIES LPAREN propertyList RPAREN)?
       (AS query)?
     | CREATE TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
     ;
 
+tableStorageFormat
+    : STORED AS identifier
+    | STORED AS INPUTFORMAT string OUTPUTFORMAT string
+    | ROW FORMAT SERDE string (WITH SERDEPROPERTIES LPAREN propertyList RPAREN)?
+    | ROW FORMAT DELIMITED directoryDelimitedOption*
+    | ROW FORMAT identifier
+    ;
+
+clusteringClause
+    : CLUSTERED BY LPAREN bucketColumns=identifierList RPAREN
+      (SORTED BY LPAREN sortColumn (COMMA sortColumn)* RPAREN)?
+      INTO number BUCKETS
+    ;
+
+sortColumn
+    : identifier (ASC | DESC)?
+    ;
+
+skewedClause
+    : SKEWED BY LPAREN skewColumns=identifierList RPAREN
+      ON LPAREN skewedValue (COMMA skewedValue)* RPAREN
+      (STORED AS DIRECTORIES)?
+    ;
+
+skewedValue
+    : LPAREN expressionList RPAREN
+    | expression
+    ;
+
 createViewStatement
-    : CREATE (OR REPLACE)? VIEW (IF NOT EXISTS)? multipartIdentifier
+    : CREATE (OR REPLACE)? TEMPORARY? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       AS query
+    ;
+
+createMaterializedViewStatement
+    : CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
+      (DISABLE REWRITE)?
+      commentClause?
+      tableStorageFormat*
+      (LOCATION string)?
+      (TBLPROPERTIES LPAREN propertyList RPAREN)?
+      AS query
+    ;
+
+dropViewStatement
+    : DROP MATERIALIZED? VIEW (IF EXISTS)? multipartIdentifier
+    ;
+
+alterViewStatement
+    : ALTER VIEW target=multipartIdentifier AS query                              #alterViewAsQuery
+    | ALTER VIEW target=multipartIdentifier RENAME TO replacement=multipartIdentifier #alterViewRename
+    | ALTER VIEW target=multipartIdentifier SET TBLPROPERTIES LPAREN propertyList RPAREN #alterViewProperties
+    | ALTER MATERIALIZED VIEW target=multipartIdentifier (ENABLE | DISABLE) REWRITE #alterMaterializedViewRewrite
     ;
 
 createDatabaseStatement
@@ -376,6 +494,17 @@ databaseProperty
     : COMMENT string
     | LOCATION string
     | TBLPROPERTIES LPAREN propertyList RPAREN
+    | DBPROPERTIES LPAREN propertyList RPAREN
+    ;
+
+alterDatabaseStatement
+    : ALTER (DATABASE | SCHEMA) identifier SET alterDatabaseAction
+    ;
+
+alterDatabaseAction
+    : LOCATION string
+    | DBPROPERTIES LPAREN propertyList RPAREN
+    | OWNER (USER | ROLE)? identifier
     ;
 
 dropDatabaseStatement
@@ -390,6 +519,14 @@ setStatement
     : SET .+?
     ;
 
+resetStatement
+    : RESET .+?
+    ;
+
+dfsStatement
+    : DFS .+?
+    ;
+
 resourceStatement
     : ADD (JAR | FILE | ARCHIVE) .+?
     | DELETE (JAR | FILE | ARCHIVE) .+?
@@ -402,6 +539,11 @@ functionStatement
     | RELOAD FUNCTION                                                                                            #reloadFunction
     ;
 
+roleStatement
+    : CREATE ROLE identifier
+    | DROP ROLE identifier
+    ;
+
 dropTableStatement
     : DROP TABLE (IF EXISTS)? multipartIdentifier PURGE?
     ;
@@ -412,7 +554,14 @@ truncateTableStatement
 
 alterTableStatement
     : ALTER TABLE multipartIdentifier RENAME (TO)? multipartIdentifier   #alterTableRename
-    | ALTER TABLE multipartIdentifier ADD COLUMNS? identifier dataType   #alterTableAddColumn
+    | ALTER TABLE multipartIdentifier ADD
+      (COLUMNS LPAREN columns=tableElementList RPAREN
+      | COLUMN? column=identifier dataType)                              #alterTableAddColumn
+    | ALTER TABLE multipartIdentifier (PARTITION partitionSpec)? CHANGE COLUMN?
+      oldColumn=identifier newColumn=identifier dataType commentClause?
+      (FIRST | AFTER afterColumn=identifier)?                            #alterTableChangeColumn
+    | ALTER TABLE multipartIdentifier (PARTITION partitionSpec)? REPLACE COLUMNS
+      LPAREN columns=tableElementList RPAREN (CASCADE | RESTRICT)?       #alterTableReplaceColumns
     | ALTER TABLE target=multipartIdentifier EXCHANGE PARTITION partitionSpec WITH TABLE source=multipartIdentifier #alterTableExchangePartition
     | ALTER TABLE multipartIdentifier alterTableAction                   #alterTableOther
     ;
@@ -428,15 +577,39 @@ alterTableAction
     | PARTITION partitionSpec CONCATENATE
     | COMPACT string (AND WAIT)?
     | PARTITION partitionSpec COMPACT string (AND WAIT)?
+    | (ARCHIVE | UNARCHIVE) PARTITION partitionSpec
+    | clusteringClause
     | DROP COLUMN identifier
+    | (PARTITION partitionSpec)? SET FILEFORMAT identifier
+    | (PARTITION partitionSpec)? SET SERDE string (WITH SERDEPROPERTIES LPAREN propertyList RPAREN)?
+    | (PARTITION partitionSpec)? SET SERDEPROPERTIES LPAREN propertyList RPAREN
+    | SET TBLPROPERTIES LPAREN propertyList RPAREN
+    | UNSET TBLPROPERTIES LPAREN stringList RPAREN
     | SET LPAREN propertyList RPAREN
     | COMMENT EQ? string
     | .+?
     ;
 
 showStatement
-    : SHOW .+? TABLE multipartIdentifier
-    | SHOW .+?
+    : SHOW CREATE TABLE multipartIdentifier                          #showTableMetadata
+    | SHOW CREATE VIEW multipartIdentifier                           #showTableMetadata
+    | SHOW TBLPROPERTIES multipartIdentifier (LPAREN string RPAREN)? #showTableMetadata
+    | SHOW PARTITIONS multipartIdentifier (PARTITION partitionSpec)? #showTableMetadata
+    | SHOW COLUMNS (FROM | IN) multipartIdentifier                   #showTableMetadata
+    | SHOW FORMATTED? (INDEX | INDEXES) ON multipartIdentifier       #showTableMetadata
+    | SHOW TABLE EXTENDED ((FROM | IN) identifier)? LIKE string (PARTITION partitionSpec)? #showGenericMetadata
+    | SHOW TABLES ((FROM | IN) identifier)? (LIKE string)?           #showGenericMetadata
+    | SHOW VIEWS ((FROM | IN) identifier)? (LIKE string)?            #showGenericMetadata
+    | SHOW LOCKS target=multipartIdentifier? EXTENDED?               #showLockMetadata
+    | SHOW GRANT (USER | ROLE)? identifier ON privilegeObject        #showGrantMetadata
+    | SHOW CURRENT? ROLES                                            #showGenericMetadata
+    | SHOW ROLE GRANT (USER | ROLE) identifier                       #showGenericMetadata
+    | SHOW PRINCIPALS                                                #showGenericMetadata
+    | SHOW COMPACTIONS                                               #showGenericMetadata
+    | SHOW TRANSACTIONS                                              #showGenericMetadata
+    | SHOW CONF string                                               #showGenericMetadata
+    | SHOW .+? TABLE multipartIdentifier                             #showTableMetadata
+    | SHOW .+?                                                       #showGenericMetadata
     ;
 
 describeStatement
@@ -476,6 +649,33 @@ lockTableStatement
     | UNLOCK TABLE multipartIdentifier
     ;
 
+grantStatement
+    : GRANT privilegeList ON privilegeObject TO identifierList (WITH GRANT OPTION)?
+    ;
+
+revokeStatement
+    : REVOKE (GRANT OPTION FOR)? privilegeList ON privilegeObject FROM identifierList
+    ;
+
+privilegeObject
+    : TABLE? multipartIdentifier                                     #tablePrivilegeObject
+    | (DATABASE | SCHEMA) identifier                                 #databasePrivilegeObject
+    ;
+
+privilegeList
+    : privilege (COMMA privilege)*
+    ;
+
+privilege
+    : ALL
+    | SELECT
+    | INSERT
+    | UPDATE
+    | DELETE
+    | CREATE
+    | identifier
+    ;
+
 // ============ DDL Helpers ============
 
 partitionSpec
@@ -490,6 +690,15 @@ tableElementList
     : tableElement (COMMA tableElement)*
     ;
 
+tableDefinitionList
+    : tableDefinition (COMMA tableDefinition)*
+    ;
+
+tableDefinition
+    : tableElement
+    | tableConstraint
+    ;
+
 tableElement
     : identifier dataType columnConstraint*
     ;
@@ -499,6 +708,27 @@ columnConstraint
     | NULL
     | COMMENT string
     | DEFAULT expression
+    | (CONSTRAINT identifier)? (PRIMARY KEY | UNIQUE | CHECK LPAREN expression RPAREN) constraintOption*
+    ;
+
+tableConstraint
+    : (CONSTRAINT identifier)?
+      (PRIMARY KEY LPAREN localColumns=identifierList RPAREN
+      | UNIQUE LPAREN localColumns=identifierList RPAREN
+      | CHECK LPAREN expression RPAREN)
+      constraintOption*
+    | (CONSTRAINT identifier)? FOREIGN KEY LPAREN localColumns=identifierList RPAREN
+      REFERENCES referencedTable=multipartIdentifier LPAREN referencedColumns=identifierList RPAREN
+      constraintOption*
+    ;
+
+constraintOption
+    : ENABLE
+    | DISABLE
+    | VALIDATE
+    | NOVALIDATE
+    | RELY
+    | NORELY
     ;
 
 commentClause
@@ -513,9 +743,18 @@ property
     : string EQ string
     ;
 
+stringList
+    : string (COMMA string)*
+    ;
+
 dataType
     : identifier (LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN)?
-    | identifier LT dataType (COMMA dataType)* GT
+    | identifier LT dataTypeParameter (COMMA dataTypeParameter)* GT
+    ;
+
+dataTypeParameter
+    : identifier COLON dataType
+    | dataType
     ;
 
 // ============ Common ============
@@ -545,12 +784,12 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | ANALYZE | ARCHIVE | ASC | AUTHORIZATION | CASCADE | CAST | CLUSTER | COLLECTION | COLUMN | COLUMNS | COMMENT | COMPUTE | DATA | DATABASE | DATABASES | DEFAULT
-    | DELIMITED | DEPENDENCY | DESCRIBE | DESC | DIRECTORY | DISTRIBUTE | END | EXCLUSIVE | EXISTS | EXPLAIN | EXTENDED | EXTERNAL | FALSE | FIELDS | FILE | FOR | FORMAT | FORMATTED
-    | FUNCTION | FUNCTIONS | IF | INPUTFORMAT | INTERVAL | ITEMS | JAR | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | LOCK | MAP | NULL
-    | EXPORT | IMPORT | MATCHED | MERGE | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PURGE | REDUCE | RENAME
-    | COMPACT | CONCATENATE | EXCHANGE | OUTPUTFORMAT | RELOAD | REPAIR | REPLACE | RESTRICT | ROW | SCHEMA | SCHEMAS | SERDEPROPERTIES | SET | SHARED | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TBLPROPERTIES
-    | TEMPORARY | TERMINATED | TO | TOUCH | TRANSFORM | TRUE | TRUNCATE | UNLOCK | USE | VALUES | VIEW | WAIT
+    : ADD | AFTER | ANALYZE | ARCHIVE | ASC | AUTHORIZATION | CASCADE | CAST | CHANGE | CLUSTER | COLLECTION | COLUMN | COLUMNS | COMMENT | COMPUTE | DATA | DATABASE | DATABASES | DEFAULT
+    | DELIMITED | DEPENDENCY | DESCRIBE | DESC | DIRECTORY | DISTRIBUTE | END | EXCLUSIVE | EXISTS | EXPLAIN | EXTENDED | EXTERNAL | FALSE | FIELDS | FILE | FILEFORMAT | FOR | FORMAT | FORMATTED
+    | DATE | DBPROPERTIES | DFS | DIV | FIRST | FUNCTION | FUNCTIONS | GRANT | IF | INPUTFORMAT | INTERVAL | ITEMS | JAR | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | LOCK | LOCKS | MAP | NULL | OF | OPTION | OWNER | OUT
+    | EXPORT | FOLLOWING | IMPORT | INDEX | INDEXES | MATERIALIZED | MATCHED | MERGE | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PRECEDING | PURGE | RANGE | REDUCE | RENAME | REWRITE
+    | COMPACT | COMPACTIONS | CONCATENATE | CONF | CURRENT | EXCHANGE | OUTPUTFORMAT | PRINCIPALS | PRIVILEGES | REGEXP | RELOAD | REPAIR | REPLACE | RESET | RESTRICT | REVOKE | RLIKE | ROLE | ROLES | ROW | SCHEMA | SCHEMAS | SEMI_KW | SERDE | SERDEPROPERTIES | SET | SHARED | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TABLES | TBLPROPERTIES | TRANSACTIONS
+    | BUCKET | BUCKETS | CLUSTERED | DIRECTORIES | DISABLE | ENABLE | KEY | NORELY | NOVALIDATE | PERCENT_KW | RELY | ROWS | SKEWED | SORTED | TABLESAMPLE | TEMPORARY | TERMINATED | TIMESTAMP | TO | TOUCH | TRANSFORM | TRUE | TRUNCATE | UNARCHIVE | UNBOUNDED | UNLOCK | UNSET | USE | USER | VALIDATE | VALUES | VIEW | WAIT | WINDOW
     ;
 
 number

@@ -30,6 +30,11 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             "(?i)\\bINSERT\\s+(?:/\\*\\+.*?\\*/\\s*)?(?:INTO\\s+)?((?:\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_$#]*)(?:\\s*\\.\\s*(?:\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_$#]*)){0,2})");
     private static final Pattern ANONYMOUS_DELETE_TARGET_PATTERN = Pattern.compile(
             "(?i)\\bDELETE\\s+FROM\\s+((?:\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_$#]*)(?:\\s*\\.\\s*(?:\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_$#]*)){0,2})");
+    private static final Pattern DBMS_STATS_TABLE_CALL_PATTERN = Pattern.compile(
+            "(?is)\\bDBMS_STATS\\s*\\.\\s*(?:GATHER|DELETE|LOCK|UNLOCK)_TABLE_STATS\\s*\\((.*?)\\)");
+    private static final Pattern DBMS_STATS_OWNNAME_PATTERN = Pattern.compile("(?is)\\bownname\\s*=>\\s*'([^']+)'");
+    private static final Pattern DBMS_STATS_TABNAME_PATTERN = Pattern.compile("(?is)\\btabname\\s*=>\\s*'([^']+)'");
+    private static final Pattern STRING_ARGUMENT_PATTERN = Pattern.compile("'([^']*)'");
 
     private final LineageResult result;
     private final Set<TableRef> inputTables = new LinkedHashSet<>();
@@ -39,6 +44,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Set<String> matchPatternVariables = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
@@ -94,6 +100,23 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
+            List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
+            if (ctx.returningClause() != null) {
+                currentDmlTarget = target;
+                tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+                appendReturningIntoLineage(ctx.returningClause(), target, lineages);
+            }
+            result.setColumnLineage(lineages);
+        } else if (ctx.VALUES() != null) {
+            List<ColumnLineage> lineages = readInsertedValueColumns(ctx.valuesClause(), target);
+            if (ctx.returningClause() != null) {
+                currentDmlTarget = target;
+                tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+                appendReturningIntoLineage(ctx.returningClause(), target, lineages);
+            } else {
+                suppressColumnLineage = true;
+            }
+            result.setColumnLineage(lineages);
         } else {
             suppressColumnLineage = true;
         }
@@ -126,6 +149,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), table);
+        appendReturningIntoLineage(ctx.returningClause(), table, assignments);
         result.setColumnLineage(assignments);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -154,9 +178,50 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             collectSubqueryInputs(ctx.whereClause());
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
+        List<ColumnLineage> lineages = new ArrayList<>();
+        appendReturningIntoLineage(ctx.returningClause(), target, lineages);
+        result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void appendReturningIntoLineage(
+            OracleParser.ReturningClauseContext returning,
+            TableRef target,
+            List<ColumnLineage> lineages) {
+        if (returning == null || target == null) {
+            return;
+        }
+        Map<String, List<ColumnRef>> writtenSources = new LinkedHashMap<>();
+        for (ColumnLineage lineage : lineages) {
+            if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
+                writtenSources.put(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources());
+            }
+        }
+        List<OracleParser.ExpressionContext> expressions = returning.expressionList().expression();
+        List<OracleParser.IdentifierContext> variables = returning.identifierList().identifier();
+        int count = Math.min(expressions.size(), variables.size());
+        for (int i = 0; i < count; i++) {
+            OracleParser.ExpressionContext expression = expressions.get(i);
+            List<ColumnRef> sources = resolveSources(sourceColumns(expression));
+            if (sources == null) {
+                sources = new ArrayList<>();
+            }
+            List<ColumnRef> propagated = new ArrayList<>();
+            for (ColumnRef source : sources) {
+                List<ColumnRef> written = writtenSources.get(LineageModelUtils.columnKey(source));
+                propagated.addAll(written == null
+                        ? java.util.Collections.singletonList(source)
+                        : written);
+            }
+            lineages.add(LineageModelUtils.columnLineage(
+                    null,
+                    cleanIdentifier(variables.get(i)),
+                    propagated,
+                    expression.getText()));
+        }
+        suppressColumnLineage = true;
     }
 
     @Override
@@ -298,9 +363,11 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitAnonymousBlockStmt(OracleParser.AnonymousBlockStmtContext ctx) {
-        result.setStatementType(StatementType.CONTROL);
-        collectStaticAnonymousBlockLineage(ctx.start.getInputStream()
+        boolean metadataOnly = collectStaticAnonymousBlockLineage(ctx.start.getInputStream()
                 .getText(Interval.of(ctx.start.getStartIndex(), ctx.stop.getStopIndex())));
+        result.setStatementType(metadataOnly && outputTables.isEmpty()
+                ? StatementType.READ_METADATA
+                : StatementType.CONTROL);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -589,6 +656,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     @Override
     public Void visitAlterTableDropConstraint(OracleParser.AlterTableDropConstraintContext ctx) {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableExchangePartition(OracleParser.AlterTableExchangePartitionContext ctx) {
+        outputTables.add(tableRef(ctx.target));
+        inputTables.add(tableRef(ctx.source));
+        result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -1116,6 +1192,25 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitMatchRecognizeClause(OracleParser.MatchRecognizeClauseContext ctx) {
+        Set<String> previous = new LinkedHashSet<>(matchPatternVariables);
+        for (OracleParser.MatchRecognizeOptionContext option : ctx.matchRecognizeOption()) {
+            for (OracleParser.MatchDefinitionContext definition : option.matchDefinition()) {
+                matchPatternVariables.add(cleanIdentifier(definition.identifier()).toLowerCase(Locale.ROOT));
+            }
+            for (OracleParser.MatchPatternItemContext item : option.matchPatternItem()) {
+                if (item.identifier() != null) {
+                    matchPatternVariables.add(cleanIdentifier(item.identifier()).toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        visitChildren(ctx);
+        matchPatternVariables.clear();
+        matchPatternVariables.addAll(previous);
+        return null;
+    }
+
+    @Override
     public Void visitMatchRecognizeOption(OracleParser.MatchRecognizeOptionContext ctx) {
         if (ctx.PARTITION() != null && ctx.expressionList() != null) {
             for (OracleParser.ExpressionContext expression : ctx.expressionList().expression()) {
@@ -1128,12 +1223,33 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             }
         }
         for (OracleParser.MatchMeasureContext measure : ctx.matchMeasure()) {
-            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(measure.expression()));
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, matchSourceColumns(measure.expression()));
         }
         for (OracleParser.MatchDefinitionContext definition : ctx.matchDefinition()) {
-            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(definition.expression()));
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, matchSourceColumns(definition.expression()));
         }
         return visitChildren(ctx);
+    }
+
+    private List<SourceColumn> matchSourceColumns(ParseTree tree) {
+        List<SourceColumn> normalized = new ArrayList<>();
+        for (SourceColumn source : sourceColumns(tree)) {
+            if (source.qualifier != null
+                    && matchPatternVariables.contains(source.qualifier.toLowerCase(Locale.ROOT))) {
+                normalized.add(new SourceColumn(null, source.name));
+                continue;
+            }
+            if (source.qualifier == null) {
+                int dot = source.name.indexOf('.');
+                if (dot > 0
+                        && matchPatternVariables.contains(source.name.substring(0, dot).toLowerCase(Locale.ROOT))) {
+                    normalized.add(new SourceColumn(null, source.name.substring(dot + 1)));
+                    continue;
+                }
+            }
+            normalized.add(source);
+        }
+        return normalized;
     }
 
     private void registerModelDerivedRelation(OracleParser.ModelClauseContext ctx) {
@@ -1580,6 +1696,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (tableAliases.containsKey(possibleQualifier) || derivedAliases.containsKey(possibleQualifier)) {
             return new SourceColumn(sourceColumn.name.substring(0, dot), sourceColumn.name.substring(dot + 1));
         }
+        int lastDot = sourceColumn.name.lastIndexOf('.');
+        if (lastDot > dot) {
+            int previousDot = sourceColumn.name.lastIndexOf('.', lastDot - 1);
+            String tableQualifier = sourceColumn.name.substring(previousDot + 1, lastDot);
+            String tableKey = tableQualifier.toLowerCase(Locale.ROOT);
+            if (tableAliases.containsKey(tableKey) || derivedAliases.containsKey(tableKey)) {
+                return new SourceColumn(tableQualifier, sourceColumn.name.substring(lastDot + 1));
+            }
+        }
         return sourceColumn;
     }
 
@@ -1597,7 +1722,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        return columns.get(sourceColumn.name);
+        List<ColumnRef> refs = columns.get(sourceColumn.name);
+        if (refs == null) {
+            int dot = sourceColumn.name.indexOf('.');
+            if (dot > 0) {
+                refs = columns.get(sourceColumn.name.substring(0, dot));
+            }
+        }
+        return refs;
     }
 
     private boolean isCteReference(TableRef table) {
@@ -1657,6 +1789,41 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             lineage.setSources(sources);
             lineage.setExpression(expression.getText());
             lineages.add(lineage);
+        }
+        return lineages;
+    }
+
+    private List<ColumnLineage> readInsertedValueColumns(
+            List<OracleParser.ValuesClauseContext> rows,
+            TableRef target) {
+        List<ColumnLineage> lineages = new ArrayList<>();
+        if (insertTargetColumns.isEmpty()) {
+            return lineages;
+        }
+        List<Map<String, ColumnRef>> sourcesByPosition = new ArrayList<>();
+        for (int i = 0; i < insertTargetColumns.size(); i++) {
+            sourcesByPosition.add(new LinkedHashMap<String, ColumnRef>());
+        }
+        for (OracleParser.ValuesClauseContext row : rows) {
+            List<OracleParser.ExpressionContext> expressions = row.expressionList().expression();
+            for (int i = 0; i < expressions.size() && i < sourcesByPosition.size(); i++) {
+                OracleParser.ExpressionContext expression = expressions.get(i);
+                collectSubqueryInputs(expression);
+                List<ColumnRef> sources = resolveSources(sourceColumns(expression));
+                if (sources == null) {
+                    continue;
+                }
+                for (ColumnRef source : sources) {
+                    sourcesByPosition.get(i).put(columnKey(source), source);
+                }
+            }
+        }
+        for (int i = 0; i < insertTargetColumns.size(); i++) {
+            lineages.add(LineageModelUtils.columnLineage(
+                    target,
+                    insertTargetColumns.get(i),
+                    new ArrayList<>(sourcesByPosition.get(i).values()),
+                    null));
         }
         return lineages;
     }
@@ -1919,17 +2086,8 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (tree instanceof OracleParser.DereferenceContext) {
             OracleParser.DereferenceContext deref = (OracleParser.DereferenceContext) tree;
             List<String> parts = collectDereferenceParts(deref);
-            if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2);
-                String name = parts.get(parts.size() - 1);
-                if (!isOracleGeneratedExpression(name)) {
-                    columns.add(new SourceColumn(qualifier, name));
-                }
-            } else if (parts.size() == 1) {
-                String column = parts.get(0);
-                if (!isOracleGeneratedExpression(column)) {
-                    columns.add(new SourceColumn(null, column));
-                }
+            if (!parts.isEmpty() && !isOracleGeneratedExpression(parts.get(parts.size() - 1))) {
+                columns.add(new SourceColumn(null, String.join(".", parts)));
             }
             return;
         }
@@ -2052,11 +2210,46 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         return LineageModelUtils.tableRefFromParts(parts);
     }
 
-    private void collectStaticAnonymousBlockLineage(String text) {
+    private boolean collectStaticAnonymousBlockLineage(String text) {
+        boolean dbmsStatsMetadata = collectDbmsStatsMetadataTables(text);
         String normalized = stripStringLiterals(text).replaceAll("\\s+", " ");
         collectAnonymousOutputTables(normalized, ANONYMOUS_INSERT_TARGET_PATTERN);
         collectAnonymousOutputTables(normalized, ANONYMOUS_DELETE_TARGET_PATTERN);
         collectAnonymousInputTables(normalized, ANONYMOUS_INPUT_TABLE_PATTERN);
+        return dbmsStatsMetadata;
+    }
+
+    private boolean collectDbmsStatsMetadataTables(String text) {
+        boolean found = false;
+        Matcher call = DBMS_STATS_TABLE_CALL_PATTERN.matcher(text);
+        while (call.find()) {
+            TableRef table = dbmsStatsTableRef(call.group(1));
+            if (table != null && !isDualTable(table)) {
+                inputTables.add(table);
+                found = true;
+            }
+        }
+        return found;
+    }
+
+    private static TableRef dbmsStatsTableRef(String arguments) {
+        Matcher tabname = DBMS_STATS_TABNAME_PATTERN.matcher(arguments);
+        if (tabname.find()) {
+            Matcher ownname = DBMS_STATS_OWNNAME_PATTERN.matcher(arguments);
+            if (ownname.find()) {
+                return anonymousTableRef(ownname.group(1) + "." + tabname.group(1));
+            }
+            return anonymousTableRef(tabname.group(1));
+        }
+        Matcher stringArg = STRING_ARGUMENT_PATTERN.matcher(arguments);
+        List<String> values = new ArrayList<>();
+        while (stringArg.find()) {
+            values.add(stringArg.group(1));
+        }
+        if (values.size() >= 2) {
+            return anonymousTableRef(values.get(0) + "." + values.get(1));
+        }
+        return null;
     }
 
     private void collectAnonymousInputTables(String text, Pattern pattern) {

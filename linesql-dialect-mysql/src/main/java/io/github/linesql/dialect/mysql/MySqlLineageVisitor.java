@@ -1091,6 +1091,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitHelpStmt(MySqlParser.HelpStmtContext ctx) {
+        result.setStatementType(StatementType.READ_METADATA);
+        return null;
+    }
+
+    @Override
     public Void visitDoStmt(MySqlParser.DoStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         collectSubqueryInputs(ctx.doStatement());

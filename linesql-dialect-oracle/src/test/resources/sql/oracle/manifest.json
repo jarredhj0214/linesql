@@ -247,6 +247,62 @@
       "description": "Oracle JOIN table lineage and alias-qualified column lineage"
     },
     {
+      "id": "derived_object_field_projection",
+      "file": "cases/derived_object_field_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["app.events.user_id"]}
+      ],
+      "description": "Oracle object field access on a derived expression resolves to the inner source column"
+    },
+    {
+      "id": "insert_values_returning_into",
+      "file": "cases/insert_values_returning_into.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["app.users"],
+      "columnLineage": [
+        {"target": "app.users.id", "sources": []},
+        {"target": "app.users.display_name", "sources": []},
+        {"target": "v_id", "sources": []},
+        {"target": "v_name", "sources": []}
+      ],
+      "description": "Oracle INSERT VALUES RETURNING INTO maps inserted target columns and returned local variables"
+    },
+    {
+      "id": "update_returning_into",
+      "file": "cases/update_returning_into.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["app.users"],
+      "outputTables": ["app.users"],
+      "columnLineage": [
+        {"target": "app.users.display_name", "sources": ["app.users.pending_name"]},
+        {"target": "v_id", "sources": ["app.users.id"]},
+        {"target": "v_name", "sources": ["app.users.pending_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.id"}
+      ],
+      "description": "Oracle UPDATE RETURNING INTO maps returned post-update fields through assignment sources"
+    },
+    {
+      "id": "delete_returning_into",
+      "file": "cases/delete_returning_into.sql",
+      "statementType": "DELETE",
+      "inputTables": ["app.users"],
+      "outputTables": ["app.users"],
+      "columnLineage": [
+        {"target": "v_id", "sources": ["app.users.id"]},
+        {"target": "v_name", "sources": ["app.users.display_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "Oracle DELETE RETURNING INTO preserves deleted target-column sources"
+    },
+    {
       "id": "clause_column_usage",
       "file": "cases/clause_column_usage.sql",
       "statementType": "SELECT",
@@ -2262,6 +2318,30 @@
       "description": "Oracle ALTER TABLE TRUNCATE PARTITION records the affected table"
     },
     {
+      "id": "alter_table_exchange_partition",
+      "file": "cases/alter_table_exchange_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "staging.sales_p"
+      ],
+      "outputTables": [
+        "mart.sales"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE EXCHANGE PARTITION records the target table and exchanged staging table"
+    },
+    {
+      "id": "alter_table_move_partition",
+      "file": "cases/alter_table_move_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.sales"
+      ],
+      "columnLineage": [],
+      "description": "Oracle ALTER TABLE MOVE PARTITION records the affected table"
+    },
+    {
       "id": "comment_table",
       "file": "cases/comment_table.sql",
       "statementType": "ALTER_TABLE",
@@ -2291,8 +2371,11 @@
       "outputTables": [
         "ads.user_flags"
       ],
-      "columnLineage": [],
-      "description": "Oracle INSERT INTO VALUES target table lineage"
+      "columnLineage": [
+        {"target": "ads.user_flags.user_id", "sources": []},
+        {"target": "ads.user_flags.flag", "sources": []}
+      ],
+      "description": "Oracle INSERT INTO VALUES target column lineage"
     },
     {
       "id": "union_column_projection",
@@ -4406,6 +4489,42 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Oracle anonymous DECLARE/BEGIN block is accepted as control syntax"
+    },
+    {
+      "id": "anonymous_dbms_stats_gather_table",
+      "file": "cases/anonymous_dbms_stats_gather_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["MART.USERS"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DBMS_STATS.GATHER_TABLE_STATS named arguments are treated as table metadata reads"
+    },
+    {
+      "id": "anonymous_dbms_stats_delete_table",
+      "file": "cases/anonymous_dbms_stats_delete_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["MART.USERS"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DBMS_STATS.DELETE_TABLE_STATS positional arguments are treated as table metadata reads"
+    },
+    {
+      "id": "anonymous_dbms_stats_lock_table",
+      "file": "cases/anonymous_dbms_stats_lock_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["MART.USERS"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DBMS_STATS.LOCK_TABLE_STATS named arguments are treated as table metadata reads"
+    },
+    {
+      "id": "anonymous_dbms_stats_unlock_table",
+      "file": "cases/anonymous_dbms_stats_unlock_table.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["MART.USERS"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Oracle DBMS_STATS.UNLOCK_TABLE_STATS positional arguments are treated as table metadata reads"
     },
     {
       "id": "commit_statement",

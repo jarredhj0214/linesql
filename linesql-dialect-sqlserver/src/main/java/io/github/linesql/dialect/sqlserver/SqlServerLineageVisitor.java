@@ -40,6 +40,29 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             "(?i)\\bDELETE\\s+FROM\\s+(" + ROUTINE_IDENTIFIER + ")");
     private static final Pattern ROUTINE_MERGE_TARGET_PATTERN = Pattern.compile(
             "(?i)\\bMERGE\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
+    private static final Set<String> METADATA_EXEC_ROUTINES = new LinkedHashSet<>();
+    private static final Pattern EXEC_STRING_ARGUMENT_PATTERN = Pattern.compile("'([^']+)'");
+    private static final Pattern EXEC_TABLE_NAME_ARGUMENT_PATTERN = Pattern.compile(
+            "(?i)@table_name\\s*=\\s*'([^']+)'");
+    private static final Pattern EXEC_TABLE_OWNER_ARGUMENT_PATTERN = Pattern.compile(
+            "(?i)@table_owner\\s*=\\s*'([^']+)'");
+    private static final Pattern DBCC_TABLE_STRING_ARGUMENT_PATTERN = Pattern.compile(
+            "(?i)\\bDBCC\\s+(?:CHECKIDENT|SHOW_STATISTICS)\\s*\\(\\s*'([^']+)'");
+
+    static {
+        Collections.addAll(METADATA_EXEC_ROUTINES,
+                "sp_help",
+                "sp_helptext",
+                "sp_columns",
+                "sp_tables",
+                "sp_spaceused",
+                "sp_helpindex",
+                "sp_helpconstraint",
+                "sp_helpdb",
+                "sp_helpserver",
+                "sp_who",
+                "sp_describe_first_result_set");
+    }
 
     private final LineageResult result;
     private final Set<TableRef> inputTables = new LinkedHashSet<>();
@@ -93,6 +116,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         } else {
             suppressColumnLineage = true;
         }
+        List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
+        appendOutputResultLineage(ctx.outputClause(), target, lineages);
+        result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -163,10 +189,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
         }
 
+        List<ColumnLineage> lineages = new ArrayList<>();
         if (!hasSubquery) {
-            List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), target);
-            result.setColumnLineage(assignments);
+            lineages.addAll(readAssignments(ctx.assignmentList(), target));
         }
+        appendOutputResultLineage(ctx.outputClause(), target, lineages);
+        result.setColumnLineage(lineages);
 
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -206,6 +234,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
             collectSubqueryInputs(ctx.whereClause());
         }
+        List<ColumnLineage> lineages = new ArrayList<>();
+        appendOutputResultLineage(ctx.outputClause(), target, lineages);
+        result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -229,6 +260,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
+        List<ColumnLineage> lineages = new ArrayList<>();
+        appendOutputResultLineage(ctx.outputClause(), target, lineages);
+        result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -314,6 +348,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
         }
         addOutputIntoTable(ctx.outputClause());
+        appendOutputResultLineage(ctx.outputClause(), target, lineages);
         result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -421,6 +456,64 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (outputClause != null && outputClause.multipartIdentifier() != null) {
             outputTables.add(tableRef(outputClause.multipartIdentifier()));
         }
+    }
+
+    private void appendOutputResultLineage(
+            SqlServerParser.OutputClauseContext outputClause,
+            TableRef target,
+            List<ColumnLineage> lineages) {
+        if (outputClause == null || target == null) {
+            return;
+        }
+        TableRef outputTarget = outputClause.multipartIdentifier() == null
+                ? null
+                : tableRef(outputClause.multipartIdentifier());
+        List<String> outputColumns = outputClause.identifierList() == null
+                ? java.util.Collections.<String>emptyList()
+                : identifierNames(outputClause.identifierList());
+        Map<String, List<ColumnRef>> writtenSources = new LinkedHashMap<>();
+        for (ColumnLineage lineage : lineages) {
+            if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
+                writtenSources.put(lineage.getTarget().getName().toLowerCase(Locale.ROOT), lineage.getSources());
+            }
+        }
+        List<SqlServerParser.OutputItemContext> outputItems = outputClause.outputItemList().outputItem();
+        for (int i = 0; i < outputItems.size(); i++) {
+            SqlServerParser.OutputItemContext item = outputItems.get(i);
+            if (item.expression() == null) {
+                continue;
+            }
+            List<ColumnRef> sources = new ArrayList<>();
+            for (SourceColumn source : sourceColumns(item.expression())) {
+                String qualifier = source.qualifier == null ? "" : source.qualifier.toLowerCase(Locale.ROOT);
+                if ("inserted".equals(qualifier)) {
+                    List<ColumnRef> written = writtenSources.get(source.name.toLowerCase(Locale.ROOT));
+                    sources.addAll(written == null
+                            ? java.util.Collections.singletonList(new ColumnRef(target, source.name))
+                            : written);
+                } else if ("deleted".equals(qualifier)) {
+                    sources.add(new ColumnRef(target, source.name));
+                } else {
+                    List<ColumnRef> resolved = resolveSources(java.util.Collections.singletonList(source));
+                    if (resolved != null) {
+                        sources.addAll(resolved);
+                    }
+                }
+            }
+            String outputName;
+            if (i < outputColumns.size()) {
+                outputName = outputColumns.get(i);
+            } else if (outputTarget != null) {
+                continue;
+            } else {
+                outputName = item.alias == null
+                        ? unqualifiedName(item.expression().getText())
+                        : cleanIdentifier(item.alias);
+            }
+            lineages.add(LineageModelUtils.columnLineage(
+                    outputTarget, outputName, sources, item.expression().getText()));
+        }
+        suppressColumnLineage = true;
     }
 
     private void visitRelationPrimaryForDml(SqlServerParser.RelationPrimaryContext primary) {
@@ -920,6 +1013,17 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitExecuteStmt(SqlServerParser.ExecuteStmtContext ctx) {
+        String text = originalText(ctx);
+        String routine = firstExecuteRoutine(text);
+        if (METADATA_EXEC_ROUTINES.contains(routine)) {
+            result.setStatementType(StatementType.READ_METADATA);
+            TableRef metadataObject = metadataExecObject(routine, text);
+            if (metadataObject != null) {
+                inputTables.add(metadataObject);
+                result.setInputTables(new ArrayList<>(inputTables));
+            }
+            return null;
+        }
         result.setStatementType(StatementType.CONTROL);
         return null;
     }
@@ -942,6 +1046,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (statement.multipartIdentifier() != null) {
             result.setStatementType(StatementType.READ_METADATA);
             inputTables.add(tableRef(statement.multipartIdentifier()));
+            result.setInputTables(new ArrayList<>(inputTables));
+            return null;
+        }
+        TableRef dbccObject = dbccMetadataObject(originalText(ctx));
+        if (dbccObject != null) {
+            result.setStatementType(StatementType.READ_METADATA);
+            inputTables.add(dbccObject);
             result.setInputTables(new ArrayList<>(inputTables));
             return null;
         }
@@ -2294,6 +2405,72 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     private static String originalText(ParserRuleContext ctx) {
         return ctx.start.getInputStream().getText(Interval.of(ctx.start.getStartIndex(), ctx.stop.getStopIndex()));
+    }
+
+    private static String firstExecuteRoutine(String text) {
+        if (text == null) {
+            return "";
+        }
+        String normalized = text.replace("[", "").replace("]", "")
+                .replaceAll("(?i)^\\s*EXEC(?:UTE)?\\s+", "")
+                .trim()
+                .toLowerCase(Locale.ROOT);
+        int whitespace = firstIndexOfWhitespace(normalized);
+        String head = whitespace < 0 ? normalized : normalized.substring(0, whitespace);
+        int paren = head.indexOf('(');
+        if (paren >= 0) {
+            head = head.substring(0, paren);
+        }
+        String[] parts = head.split("\\.");
+        return parts.length == 0 ? "" : parts[parts.length - 1].trim();
+    }
+
+    private static int firstIndexOfWhitespace(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            if (Character.isWhitespace(text.charAt(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static TableRef metadataExecObject(String routine, String text) {
+        if ("sp_tables".equals(routine)
+                || "sp_helpdb".equals(routine)
+                || "sp_helpserver".equals(routine)
+                || "sp_who".equals(routine)
+                || "sp_describe_first_result_set".equals(routine)) {
+            return null;
+        }
+        if ("sp_columns".equals(routine)) {
+            Matcher tableName = EXEC_TABLE_NAME_ARGUMENT_PATTERN.matcher(text);
+            if (tableName.find()) {
+                Matcher tableOwner = EXEC_TABLE_OWNER_ARGUMENT_PATTERN.matcher(text);
+                String name = tableName.group(1);
+                if (tableOwner.find()) {
+                    return tableRefFromExpressionText(tableOwner.group(1) + "." + name);
+                }
+                return tableRefFromExpressionText(name);
+            }
+        }
+        Matcher firstString = EXEC_STRING_ARGUMENT_PATTERN.matcher(text);
+        if (!firstString.find()) {
+            return null;
+        }
+        String value = firstString.group(1);
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty() || normalized.startsWith("select ")) {
+            return null;
+        }
+        return tableRefFromExpressionText(value);
+    }
+
+    private static TableRef dbccMetadataObject(String text) {
+        Matcher matcher = DBCC_TABLE_STRING_ARGUMENT_PATTERN.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+        return tableRefFromExpressionText(matcher.group(1));
     }
 
     private static String stripStringLiterals(String text) {

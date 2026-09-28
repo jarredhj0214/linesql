@@ -58,7 +58,10 @@ statement
     | defaultPrivilegesStatement                                     #defaultPrivilegesStmt
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
+    | roleGrantStatement                                             #roleGrantStmt
     | setStatement                                                   #setStmt
+    | resetStatement                                                 #resetStmt
+    | discardStatement                                               #discardStmt
     ;
 
 // ============ Query ============
@@ -72,7 +75,15 @@ ctes
     ;
 
 namedQuery
-    : name=identifier (LPAREN columnAliases=identifierList RPAREN)? AS (NOT? MATERIALIZED)? LPAREN query RPAREN
+    : name=identifier (LPAREN columnAliases=identifierList RPAREN)? AS (NOT? MATERIALIZED)? LPAREN cteBody RPAREN
+    ;
+
+cteBody
+    : query
+    | insertStatement
+    | updateStatement
+    | deleteStatement
+    | mergeStatement
     ;
 
 queryTerm
@@ -159,6 +170,7 @@ tableSampleClause
 
 joinRelation
     : joinType? JOIN relationPrimary joinCriteria?
+    | NATURAL naturalJoinType? JOIN relationPrimary
     ;
 
 joinType
@@ -167,6 +179,13 @@ joinType
     | RIGHT OUTER?
     | FULL OUTER?
     | CROSS
+    ;
+
+naturalJoinType
+    : INNER
+    | LEFT OUTER?
+    | RIGHT OUTER?
+    | FULL OUTER?
     ;
 
 joinCriteria
@@ -204,9 +223,20 @@ havingClause
 
 queryOrganization
     : (ORDER BY sortItem (COMMA sortItem)*)?
-      (LIMIT expression (COMMA expression)?)?
-      (OFFSET expression)?
+      (limitClause offsetClause? | offsetClause? fetchClause?)
       lockingClause*
+    ;
+
+limitClause
+    : LIMIT (ALL | expression (COMMA expression)?)
+    ;
+
+offsetClause
+    : OFFSET expression (ROW | ROWS)?
+    ;
+
+fetchClause
+    : FETCH (FIRST | NEXT) expression? (ROW | ROWS) (ONLY | WITH TIES)
     ;
 
 lockingClause
@@ -243,7 +273,9 @@ predicate
     | NOT? IN LPAREN (expressionList | query) RPAREN
     | NOT? LIKE valueExpression
     | NOT? ILIKE valueExpression
+    | NOT? SIMILAR TO valueExpression
     | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
+    | IS NOT? DISTINCT FROM valueExpression
     ;
 
 valueExpression
@@ -252,8 +284,11 @@ valueExpression
     | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
-    | left=valueExpression operator=(ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | CONTAINS | CONTAINED_BY | QUESTION | QUESTION_PIPE | QUESTION_AMP) right=valueExpression #postgresOperatorExpression
+    | left=valueExpression operator=(ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | CONTAINS | CONTAINED_BY | TS_MATCH | ARRAY_OVERLAP | QUESTION | QUESTION_PIPE | QUESTION_AMP | TILDE | TILDE_STAR | BANG_TILDE | BANG_TILDE_STAR) right=valueExpression #postgresOperatorExpression
     | valueExpression COLON COLON dataType                            #postgresCast
+    | valueExpression AT TIME ZONE valueExpression                   #atTimeZoneExpression
+    | valueExpression COLLATE multipartIdentifier                    #collateExpression
+    | left=valueExpression comparisonOperator (ANY | SOME | ALL) LPAREN expressionList RPAREN #quantifiedComparison
     | left=valueExpression comparisonOperator right=valueExpression  #comparison
     ;
 
@@ -265,6 +300,14 @@ primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
+    | ARRAY LBRACKET expressionList? RBRACKET                        #arrayConstructor
+    | ARRAY LPAREN query RPAREN                                      #arraySubqueryConstructor
+    | ROW LPAREN expressionList? RPAREN                              #rowConstructor
+    | EXTRACT LPAREN identifier FROM expression RPAREN               #extractExpression
+    | POSITION LPAREN expression IN expression RPAREN                #positionExpression
+    | SUBSTRING LPAREN expression FROM expression (FOR expression)? RPAREN #substringExpression
+    | TRIM LPAREN ((BOTH | LEADING | TRAILING) expression? FROM)? expression RPAREN #trimExpression
+    | OVERLAY LPAREN expression PLACING expression FROM expression (FOR expression)? RPAREN #overlayExpression
     | functionName LPAREN STAR RPAREN aggregateSuffix?               #functionCallStar
     | functionName LPAREN setQuantifier? expressionList functionSeparator? RPAREN aggregateSuffix?  #functionCall
     | functionName LPAREN RPAREN aggregateSuffix?                    #functionCallEmpty
@@ -278,7 +321,8 @@ primaryExpression
     | NULL                                                           #nullLiteral
     | TRUE                                                           #booleanTrue
     | FALSE                                                          #booleanFalse
-    | INTERVAL expression identifier                                 #intervalLiteral
+    | (DATE | TIME | TIMESTAMP) string                               #dateTimeLiteral
+    | INTERVAL string identifier?                                    #intervalLiteral
     | DEFAULT                                                        #defaultLiteral
     ;
 
@@ -376,7 +420,11 @@ conflictWhereClause
     ;
 
 returningClause
-    : RETURNING (STAR | expression (COMMA expression)*)
+    : RETURNING (STAR | returningItem (COMMA returningItem)*)
+    ;
+
+returningItem
+    : expression (AS? alias=identifier)?
     ;
 
 valuesClause
@@ -426,7 +474,7 @@ assignmentList
 
 assignment
     : multipartIdentifier EQ expression
-    | LPAREN identifierList RPAREN EQ LPAREN expressionList RPAREN
+    | LPAREN identifierList RPAREN EQ LPAREN (expressionList | query) RPAREN
     ;
 
 // ============ DDL Statements ============
@@ -558,6 +606,7 @@ publicationStatement
 
 publicationTarget
     : TABLE publicationTableList
+    | TABLES IN SCHEMA identifierList
     | ALL TABLES
     ;
 
@@ -688,7 +737,7 @@ dropFunctionStatement
     ;
 
 refreshMaterializedViewStatement
-    : REFRESH MATERIALIZED VIEW CONCURRENTLY? multipartIdentifier
+    : REFRESH MATERIALIZED VIEW CONCURRENTLY? multipartIdentifier withDataClause?
     ;
 
 alterViewStatement
@@ -938,6 +987,11 @@ revokeStatement
     : REVOKE .+? ON privilegeTarget FROM .+?
     ;
 
+roleGrantStatement
+    : GRANT identifierList TO identifierList
+    | REVOKE identifierList FROM identifierList
+    ;
+
 privilegeTarget
     : TABLE? multipartIdentifier                                     #tablePrivilegeTarget
     | SEQUENCE multipartIdentifier                                   #namedControlPrivilegeTarget
@@ -948,6 +1002,14 @@ privilegeTarget
 
 setStatement
     : SET (SEARCH_PATH | identifier) (TO | EQ) expressionList
+    ;
+
+resetStatement
+    : RESET (SEARCH_PATH | identifier | ALL)
+    ;
+
+discardStatement
+    : DISCARD (ALL | PLANS | SEQUENCES | TEMP | TEMPORARY)
     ;
 
 // ============ DDL Helpers ============
@@ -1052,11 +1114,12 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ACCESS | ADD | AFTER | ALSO | ALWAYS | ASC | AUTO_INCREMENT | BEFORE | BUFFERS | CALL | CAST | CASCADE | CHARSET | CHARACTER | CLUSTER | COLLATE | CONCURRENTLY | COSTS
-    | ANALYZE | BINARY | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | CURSOR | DATABASE | DEALLOCATE | DECLARE | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
-    | ATTACH | BACKWARD | CHECK | CLOSE | CUBE | DETACH | ENGINE | ENUM | EVENT | EXCLUDING | EXECUTE | EXISTS | EXPLAIN | EXTENSION | EXTERNAL | FALSE | FETCH | FILTER | FIRST | FOLLOWING | FOR | FORWARD | FOREIGN | FORMAT | FUNCTION | FUNCTIONS | GENERATED | GRANT | GROUPING | GROUPS | HEADER | HOLD | IF | ILIKE | IDENTITY | IMPORT | INCLUDE | INCLUDING | INDEX | INHERITS | INSENSITIVE | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LIMIT | MAPPING | MATCHED | MATERIALIZED | MOVE | NEXT | NULL | NULLS
-    | LABEL | LISTEN | LOCK | LOCKED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OPTIONS | ORDINALITY | OVERRIDING | OVER | PARTITION | PERMISSIVE | POLICY | PRECEDING | PRIVILEGES | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROLE | ROW | ROWS | RULE | SECURITY | SEPARATOR | SERVER | SHARE | SKIP_
-    | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER
+    : ACCESS | ADD | AFTER | ALSO | ALWAYS | ARRAY | ASC | AT | AUTO_INCREMENT | BEFORE | BOTH | BUFFERS | CALL | CAST | CASCADE | CHARSET | CHARACTER | CLUSTER | COLLATE | CONCURRENTLY | COSTS
+    | ANALYZE | ANY | BINARY | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | CURSOR | DATABASE | DEALLOCATE | DECLARE | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
+    | ATTACH | BACKWARD | CHECK | CLOSE | CUBE | DETACH | ENGINE | ENUM | EVENT | EXCLUDING | EXECUTE | EXISTS | EXPLAIN | EXTENSION | EXTERNAL | EXTRACT | FALSE | FETCH | FILTER | FIRST | FOLLOWING | FOR | FORWARD | FOREIGN | FORMAT | FUNCTION | FUNCTIONS | GENERATED | GRANT | GROUPING | GROUPS | HEADER | HOLD | IF | ILIKE | IDENTITY | IMPORT | INCLUDE | INCLUDING | INDEX | INHERITS | INSENSITIVE | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LEADING | LIMIT | MAPPING | MATCHED | MATERIALIZED | MOVE | NEXT | NULL | NULLS
+    | DATE | LABEL | LISTEN | LOCK | LOCKED | LOGGED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OPTIONS | ORDINALITY | OVERLAY | OVERRIDING | OVER | PARTITION | PERMISSIVE | PLACING | POLICY | POSITION | PRECEDING | PRIVILEGES | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROLE | ROW | ROWS | RULE | SECURITY | SEPARATOR | SERVER | SHARE | SIMILAR | SKIP_ | SUBSTRING | TIME | TIMESTAMP | TRAILING | TRIM
+    | ENABLE | DISABLE | FORCE | SOME
+    | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RESET | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMP | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER | ZONE | DISCARD | PLANS
     ;
 
 number

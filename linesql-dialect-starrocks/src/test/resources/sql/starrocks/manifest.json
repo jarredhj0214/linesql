@@ -10966,6 +10966,15 @@
       "description": "StarRocks SHOW BACKENDS cluster metadata statement"
     },
     {
+      "id": "show_frontends",
+      "file": "cases/show_frontends.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks SHOW FRONTENDS cluster metadata statement"
+    },
+    {
       "id": "show_broker",
       "file": "cases/show_broker.sql",
       "statementType": "READ_METADATA",

@@ -88,7 +88,7 @@ System.out.println(result.getColumnLineage());    // ods.users.id -> ads.user_su
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-all</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -145,7 +145,7 @@ LineSQL 1.0 is the first stable release line for the public API and lineage resu
 Current development version:
 
 ```text
-1.0.0
+1.1.0
 ```
 
 Java compatibility:
@@ -162,14 +162,14 @@ Case coverage and benchmark methodology are tracked in [Benchmark and Coverage](
 
 | Dialect | Status | Auto Detection | Table Lineage | Column Lineage | Column Usage |
 | --- | --- | --- | --- | --- | --- |
-| Spark | Active parser | Yes | Broad production SQL coverage | Broad production SQL coverage | `WHERE`, `GROUP_BY`, `HAVING`, `ORDER_BY` |
+| Spark | Active parser | Yes | Broad production SQL coverage | Broad production SQL coverage including inline and named windows | Predicate, join, merge, grouping, ordering, and named/inline window usages |
 | MySQL | Active parser | Yes | Broad SELECT, DML, DDL, transaction, account, admin, and lifecycle statement coverage | Direct mappings and common expressions | Common predicate and clause usages |
-| Hive | Active parser | Yes | Common SELECT, DML, MERGE, EXPLAIN wrappers, resource/session/function script control, directory export, table export/import, DDL, database lifecycle, repair/statistics statements, lateral view UDTF, Hive grouping extensions, Hive query organization | Direct mappings, MERGE update/insert mappings, lateral-view generated columns, directory export columns, aggregate/grouping expressions, and common expressions | Predicate, merge, grouping sets, ordering, window, sort/distribute/cluster usages |
+| Hive | Active parser | Yes | SELECT, DML, multi-insert, view/materialized-view lifecycle, metadata/control, storage/layout DDL, constraints, maintenance, lateral view, sampling, grouping, and named-window coverage | Direct mappings, branch-specific multi-insert mappings, view/CTAS mappings, lateral-view generated columns, collections, aggregates, and common expressions | Predicate, merge, sampling, grouping, ordering, named window, table-model, and layout usages |
 | Flink | Active parser | Yes | SELECT, DML, default/Hive-compatible DDL, connector/CDC DDL, materialized table, SQL Client utility, temporal join, window TVF, and MATCH_RECOGNIZE coverage | Direct mappings, common expressions, TVF generated columns, window TVF sink mappings, pattern measures | Common predicate, grouping, window descriptor, temporal join, pattern, and clause usages |
 | StarRocks | Active parser | Yes | Broad SELECT, DML, DDL, load, `FILES`, `native_query`, warehouse, lifecycle, proc-path, and vertical-output metadata statement coverage | Direct mappings and common expressions, including external table-function alias-column load mappings | Predicate, clause, metadata/statistics, index, and table-model usages |
-| Oracle | Active parser | Yes | Common SELECT, data dictionary views, TABLE(function)/JSON_TABLE/XMLTABLE sources, MATCH_RECOGNIZE, Oracle Text search, DML, DDL, ALTER TABLE maintenance, locking read/control, synonym/DBLink/directory object references, table privilege grants, routine/package lifecycle, and PL/SQL block envelope coverage | Direct mappings, common expressions, and MATCH_RECOGNIZE measures | Common predicate, text-search predicate, clause, window, and pattern usages |
-| SQL Server | Active parser | Yes | Common SELECT, temporal-table reads, DML, table variables, table-valued/external query functions, external table/data-source/file-format objects, OPENJSON/OPENXML schema columns, DML OUTPUT capture, PIVOT/UNPIVOT relation and generated-column lineage, transaction/session control, backup/restore utilities, DBCC metadata/control handling, privilege DDL, synonym object references, sequence/routine/trigger lifecycle with static routine-body table references, and index option coverage | Direct mappings, common expressions, sequence generated values, PIVOT aggregate columns, OPENJSON/OPENXML derived columns, and UNPIVOT generated columns | Common predicate, full-text predicate, and clause usages |
-| PostgreSQL | Active parser | Yes | SELECT, DML, EXPLAIN wrappers, CTAS, VIEW, `ON CONFLICT`, `RETURNING`, `MERGE`, generated columns, table constraints, partition/inheritance DDL, ALTER TABLE column/constraint maintenance, schema/routine/trigger/extension DDL, privilege/default-privilege statements, foreign data wrapper objects, table maintenance/locking, routine and notification control, LATERAL relations, JSON/array expressions | Direct mappings, generated column expressions, common expressions, `DISTINCT ON`, aggregate `FILTER`, ordered-set aggregates, grouping extensions, lateral derived columns, window frames, named windows | Predicate, merge, grouping, window, table-model, and clause usages |
+| Oracle | Active parser | Yes | Common SELECT, data dictionary views, TABLE(function)/JSON_TABLE/XMLTABLE sources, MATCH_RECOGNIZE, Oracle Text search, DML, DDL, ALTER TABLE maintenance, locking read/control, synonym/DBLink/directory object references, table privilege grants, routine/package lifecycle, DBMS_STATS metadata calls, and PL/SQL block envelope coverage | Direct mappings, common expressions, and MATCH_RECOGNIZE measures | Common predicate, text-search predicate, clause, window, and pattern usages |
+| SQL Server | Active parser | Yes | Common SELECT, temporal-table reads, DML, table variables, table-valued/external query functions, external table/data-source/file-format objects, OPENJSON/OPENXML schema columns, DML OUTPUT capture, PIVOT/UNPIVOT relation and generated-column lineage, transaction/session control, backup/restore utilities, DBCC and `sp_*` metadata handling, privilege DDL, synonym object references, sequence/routine/trigger lifecycle with static routine-body table references, and index option coverage | Direct mappings, common expressions, sequence generated values, PIVOT aggregate columns, OPENJSON/OPENXML derived columns, and UNPIVOT generated columns | Common predicate, full-text predicate, and clause usages |
+| PostgreSQL | Active parser | Yes | SELECT, DML, EXPLAIN wrappers, CTAS, VIEW, `ON CONFLICT`, `RETURNING`, `MERGE`, result limiting/pagination, natural and lateral joins, generated columns, table constraints, partition/inheritance DDL, ALTER TABLE column/constraint maintenance, schema/routine/trigger/extension DDL, privilege/default-privilege statements, foreign data wrapper objects, table maintenance/locking, routine, notification, and session control, JSON/array expressions | Direct mappings, generated column expressions, common expressions, `DISTINCT ON`, aggregate `FILTER`, ordered-set aggregates, grouping extensions, lateral derived columns, window frames, named windows | Predicate, merge, grouping, window, table-model, and clause usages |
 | OceanBase | Compatibility-mode parser | Yes | MySQL-mode and Oracle-mode SELECT, DML, DDL, constraints, DBLink, directory, sequence, synonym, package/block envelopes, flashback query, OUTFILE export, locking read, transaction control, EXPLAIN, outline, partition, set-operation, CTE, aggregate, window, hint, MERGE, resource, tenant, tablegroup, cluster zone/server, backup/restore control, and proxy-control coverage | Direct mappings and common expressions through compatibility modes | Predicate, join, merge, DBLink, flashback, and compatibility-mode clause usages |
 
 Automatic detection is anchor-based. Dialect-neutral SQL currently falls back to Spark; callers can pass an explicit dialect when the execution engine is known.
@@ -179,8 +179,8 @@ Current regression corpus:
 | Metric | Current value |
 | --- | ---: |
 | Dialects | 9 |
-| SQL cases | 3094 |
-| Column-lineage cases | 1369 |
+| SQL cases | 3329 |
+| Column-lineage cases | 1458 |
 | Diagnostic cases | 14 |
 
 The corpus is intentionally transparent: SQL case files and manifest expectations live under each dialect module, so contributors can inspect exactly what a release claims to support.
@@ -210,7 +210,7 @@ Most applications can depend on `linesql-all`. It brings in the public API and a
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-all</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -220,13 +220,13 @@ For smaller deployments, use `linesql-core` plus only the dialect modules you ne
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-core</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-dialect-spark</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -396,14 +396,14 @@ Build the CLI:
 Run with auto detection:
 
 ```bash
-java -jar linesql-cli/target/linesql-cli-1.0.0.jar \
+java -jar linesql-cli/target/linesql-cli-1.1.0.jar \
   "insert overwrite table ads.user_summary select id from ods.users"
 ```
 
 Run with explicit dialect:
 
 ```bash
-java -jar linesql-cli/target/linesql-cli-1.0.0.jar \
+java -jar linesql-cli/target/linesql-cli-1.1.0.jar \
   --dialect HIVE \
   "select id from ods.users"
 ```

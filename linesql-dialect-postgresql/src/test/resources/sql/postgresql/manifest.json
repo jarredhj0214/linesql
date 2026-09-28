@@ -133,9 +133,10 @@
       "outputTables": ["mart.user_orders"],
       "columnLineage": [
         {"target": "mart.user_orders.user_id", "sources": ["public.users.id"]},
-        {"target": "mart.user_orders.amount", "sources": ["sales.orders.amount"]}
+        {"target": "mart.user_orders.amount", "sources": ["sales.orders.amount"]},
+        {"target": "user_id", "sources": ["mart.user_orders.user_id"]}
       ],
-      "description": "PostgreSQL INSERT SELECT with RETURNING normalized for lineage"
+      "description": "PostgreSQL INSERT SELECT preserves write mappings and RETURNING result-column lineage"
     },
     {
       "id": "explain_analyze_insert_select",
@@ -164,6 +165,24 @@
         {"type": "TABLE_MODEL", "column": "mart.users.id"}
       ],
       "description": "PostgreSQL INSERT SELECT with ON CONFLICT target, insert source lineage, and excluded-column update lineage"
+    },
+    {
+      "id": "insert_on_conflict_returning",
+      "file": "cases/insert_on_conflict_returning.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "id", "sources": ["mart.users.id"]},
+        {"target": "normalized_name", "sources": ["mart.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.id"}
+      ],
+      "description": "PostgreSQL ON CONFLICT keeps insert, excluded-update, and RETURNING expression lineage"
     },
     {
       "id": "insert_on_conflict_row_assignment",
@@ -369,9 +388,26 @@
       "inputTables": ["mart.users", "staging.users_delta"],
       "outputTables": ["mart.users"],
       "columnLineage": [
-        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "id", "sources": ["mart.users.id"]}
       ],
-      "description": "PostgreSQL UPDATE FROM with RETURNING normalized for assignment lineage"
+      "description": "PostgreSQL UPDATE FROM preserves assignment and RETURNING result-column lineage"
+    },
+    {
+      "id": "update_returning_expression_alias",
+      "file": "cases/update_returning_expression_alias.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["mart.users.name"]},
+        {"target": "user_id", "sources": ["mart.users.id"]},
+        {"target": "normalized_name", "sources": ["mart.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.id"}
+      ],
+      "description": "PostgreSQL RETURNING preserves aliases and expression dependencies"
     },
     {
       "id": "explain_verbose_update_from",
@@ -405,12 +441,50 @@
       "description": "PostgreSQL UPDATE FROM row assignment maps target columns to positional source expressions"
     },
     {
+      "id": "update_row_assignment_subquery",
+      "file": "cases/update_row_assignment_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.user_summary", "staging.users", "sales.orders"],
+      "outputTables": ["mart.user_summary"],
+      "columnLineage": [
+        {"target": "mart.user_summary.user_name", "sources": ["staging.users.name"]},
+        {"target": "mart.user_summary.order_total", "sources": ["sales.orders.amount"]},
+        {"target": "user_id", "sources": ["mart.user_summary.user_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.user_summary.status"},
+        {"type": "JOIN_ON", "column": "sales.orders.user_id"},
+        {"type": "JOIN_ON", "column": "staging.users.id"},
+        {"type": "WHERE", "column": "staging.users.id"},
+        {"type": "WHERE", "column": "mart.user_summary.user_id"},
+        {"type": "GROUP_BY", "column": "staging.users.name"}
+      ],
+      "description": "PostgreSQL UPDATE row assignment from a single-row subquery maps projected sources positionally"
+    },
+    {
       "id": "delete_using_returning",
       "file": "cases/delete_using_returning.sql",
       "statementType": "DELETE",
       "inputTables": ["mart.users", "staging.deleted_users"],
       "outputTables": ["mart.users"],
-      "description": "PostgreSQL DELETE with subquery source and RETURNING normalized for table lineage"
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.users.id"]}
+      ],
+      "description": "PostgreSQL DELETE preserves RETURNING result-column lineage"
+    },
+    {
+      "id": "delete_returning_star",
+      "file": "cases/delete_returning_star.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.expired_sessions"],
+      "outputTables": ["mart.expired_sessions"],
+      "columnLineage": [
+        {"target": "*", "sources": ["mart.expired_sessions.*"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.expired_sessions.expires_at"}
+      ],
+      "description": "PostgreSQL DELETE RETURNING wildcard preserves target-table wildcard lineage"
     },
     {
       "id": "clause_column_usage",
@@ -529,6 +603,21 @@
       "description": "PostgreSQL MERGE matched DELETE and DO NOTHING branches keep merge table and predicate usage"
     },
     {
+      "id": "merge_returning_alias",
+      "file": "cases/merge_returning_alias.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["mart.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.users.id"},
+        {"type": "MERGE_ON", "column": "staging.users_delta.id"}
+      ],
+      "description": "PostgreSQL MERGE RETURNING preserves aliased target-column lineage"
+    },
+    {
       "id": "with_insert_select",
       "file": "cases/with_insert_select.sql",
       "statementType": "INSERT",
@@ -536,7 +625,8 @@
       "outputTables": ["mart.user_order_summary"],
       "columnLineage": [
         {"target": "mart.user_order_summary.user_id", "sources": ["sales.orders.user_id"]},
-        {"target": "mart.user_order_summary.total_amount", "sources": ["sales.orders.amount"]}
+        {"target": "mart.user_order_summary.total_amount", "sources": ["sales.orders.amount"]},
+        {"target": "user_id", "sources": ["mart.user_order_summary.user_id"]}
       ],
       "columnUsages": [
         {"type": "WHERE", "column": "sales.orders.status"}
@@ -550,7 +640,8 @@
       "inputTables": ["staging.users_delta", "mart.users"],
       "outputTables": ["mart.users"],
       "columnLineage": [
-        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]}
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "id", "sources": ["mart.users.id"]}
       ],
       "columnUsages": [
         {"type": "WHERE", "column": "staging.users_delta.op"},
@@ -565,13 +656,91 @@
       "statementType": "DELETE",
       "inputTables": ["staging.deleted_users", "mart.users"],
       "outputTables": ["mart.users"],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.users.id"]}
+      ],
       "columnUsages": [
         {"type": "WHERE", "column": "staging.deleted_users.reason"},
         {"type": "WHERE", "column": "mart.users.id"},
         {"type": "WHERE", "column": "staging.deleted_users.id"}
       ],
-      "description": "PostgreSQL WITH before DELETE USING resolves CTE relation inputs and predicates"
+      "description": "PostgreSQL WITH before DELETE USING resolves CTE predicates and RETURNING lineage"
+    },
+    {
+      "id": "data_modifying_cte_delete_insert",
+      "file": "cases/data_modifying_cte_delete_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": ["sales.orders"],
+      "outputTables": ["sales.orders", "archive.orders"],
+      "columnLineage": [
+        {"target": "archive.orders.id", "sources": ["sales.orders.id"]},
+        {"target": "archive.orders.customer_id", "sources": ["sales.orders.customer_id"]},
+        {"target": "archive.orders.amount", "sources": ["sales.orders.amount"]},
+        {"target": "id", "sources": ["archive.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.created_at"}
+      ],
+      "description": "PostgreSQL data-modifying DELETE CTE propagates RETURNING columns into an outer INSERT"
+    },
+    {
+      "id": "data_modifying_cte_update_returning",
+      "file": "cases/data_modifying_cte_update_returning.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.users", "staging.user_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["mart.users.id"]},
+        {"target": "new_status", "sources": ["staging.user_delta.status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.users.id"},
+        {"type": "WHERE", "column": "staging.user_delta.id"}
+      ],
+      "description": "PostgreSQL UPDATE CTE propagates assigned sources through RETURNING aliases"
+    },
+    {
+      "id": "data_modifying_cte_insert_returning",
+      "file": "cases/data_modifying_cte_insert_returning.sql",
+      "statementType": "SELECT",
+      "inputTables": ["staging.new_users"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["staging.new_users.id"]},
+        {"target": "user_name", "sources": ["staging.new_users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.new_users.enabled"}
+      ],
+      "description": "PostgreSQL INSERT CTE propagates SELECT sources through RETURNING aliases"
+    },
+    {
+      "id": "date_time_interval_literals",
+      "file": "cases/date_time_interval_literals.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.events.id"]},
+        {"target": "next_run", "sources": ["app.events.scheduled_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.events.event_date"},
+        {"type": "WHERE", "column": "app.events.created_at"},
+        {"type": "WHERE", "column": "app.events.start_time"}
+      ],
+      "description": "PostgreSQL DATE, TIME, TIMESTAMP, and INTERVAL literals preserve surrounding column lineage"
+    },
+    {
+      "id": "derived_composite_field_projection",
+      "file": "cases/derived_composite_field_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["app.events.user_id"]}
+      ],
+      "description": "PostgreSQL composite field access on a derived expression resolves to the inner source column"
     },
     {
       "id": "with_merge",
@@ -608,6 +777,9 @@
       "inputTables": [],
       "outputTables": ["mart.users"],
       "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.email"}
+      ],
       "description": "PostgreSQL COMMENT ON COLUMN affected table lineage"
     },
     {
@@ -716,6 +888,51 @@
       "description": "PostgreSQL ALTER TABLE RENAME COLUMN records affected table and source column usage"
     },
     {
+      "id": "alter_table_owner_to",
+      "file": "cases/alter_table_owner_to.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE OWNER TO records the affected table"
+    },
+    {
+      "id": "alter_table_set_schema",
+      "file": "cases/alter_table_set_schema.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE SET SCHEMA records the affected table"
+    },
+    {
+      "id": "alter_table_set_tablespace",
+      "file": "cases/alter_table_set_tablespace.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE SET TABLESPACE records the affected table"
+    },
+    {
+      "id": "alter_table_set_logged",
+      "file": "cases/alter_table_set_logged.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE SET LOGGED records the affected table"
+    },
+    {
+      "id": "alter_table_set_unlogged",
+      "file": "cases/alter_table_set_unlogged.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE SET UNLOGGED records the affected table"
+    },
+    {
       "id": "alter_table_alter_column_set_default",
       "file": "cases/alter_table_alter_column_set_default.sql",
       "statementType": "ALTER_TABLE",
@@ -811,6 +1028,11 @@
         {"target": "mart.users.name", "sources": []},
         {"target": "mart.users.created_at", "sources": []}
       ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.id"},
+        {"type": "TABLE_MODEL", "column": "mart.users.name"},
+        {"type": "TABLE_MODEL", "column": "mart.users.created_at"}
+      ],
       "description": "PostgreSQL COPY FROM file records target table and target column list"
     },
     {
@@ -822,6 +1044,10 @@
       "columnLineage": [
         {"target": "mart.server_logs.host", "sources": []},
         {"target": "mart.server_logs.line", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.server_logs.host"},
+        {"type": "TABLE_MODEL", "column": "mart.server_logs.line"}
       ],
       "description": "PostgreSQL COPY FROM PROGRAM records target table and target columns without inventing a source table"
     },
@@ -852,6 +1078,10 @@
         {"target": "id", "sources": ["mart.users.id"]},
         {"target": "name", "sources": ["mart.users.name"]}
       ],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.users.name"}
+      ],
       "description": "PostgreSQL COPY table TO file records exported table and column lineage"
     },
     {
@@ -863,6 +1093,10 @@
       "columnLineage": [
         {"target": "id", "sources": ["mart.users.id"]},
         {"target": "name", "sources": ["mart.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.users.name"}
       ],
       "description": "PostgreSQL COPY table TO PROGRAM records exported table and column lineage"
     },
@@ -964,6 +1198,24 @@
       "description": "PostgreSQL REFRESH MATERIALIZED VIEW records the affected materialized view"
     },
     {
+      "id": "refresh_materialized_view_with_no_data",
+      "file": "cases/refresh_materialized_view_with_no_data.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": [],
+      "outputTables": ["mart.mv_user_orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL REFRESH MATERIALIZED VIEW WITH NO DATA records the affected materialized view"
+    },
+    {
+      "id": "refresh_materialized_view_with_data",
+      "file": "cases/refresh_materialized_view_with_data.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": [],
+      "outputTables": ["mart.mv_user_orders"],
+      "columnLineage": [],
+      "description": "PostgreSQL REFRESH MATERIALIZED VIEW CONCURRENTLY WITH DATA records the affected materialized view"
+    },
+    {
       "id": "analyze_table",
       "file": "cases/analyze_table.sql",
       "statementType": "READ_METADATA",
@@ -1042,6 +1294,114 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL SET search_path is classified as session control"
+    },
+    {
+      "id": "show_search_path",
+      "file": "cases/show_search_path.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SHOW search_path is classified as metadata/session inspection"
+    },
+    {
+      "id": "show_all",
+      "file": "cases/show_all.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SHOW ALL is classified as metadata/session inspection"
+    },
+    {
+      "id": "show_server_version",
+      "file": "cases/show_server_version.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SHOW server_version is classified as metadata/session inspection"
+    },
+    {
+      "id": "show_work_mem",
+      "file": "cases/show_work_mem.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SHOW work_mem is classified as metadata/session inspection"
+    },
+    {
+      "id": "show_timezone",
+      "file": "cases/show_timezone.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SHOW timezone is classified as metadata/session inspection"
+    },
+    {
+      "id": "show_transaction_isolation",
+      "file": "cases/show_transaction_isolation.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL SHOW transaction_isolation is classified as metadata/session inspection"
+    },
+    {
+      "id": "reset_search_path",
+      "file": "cases/reset_search_path.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL RESET search_path is classified as session control"
+    },
+    {
+      "id": "reset_all",
+      "file": "cases/reset_all.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL RESET ALL is classified as session control"
+    },
+    {
+      "id": "discard_all",
+      "file": "cases/discard_all.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DISCARD ALL is classified as session cleanup control"
+    },
+    {
+      "id": "discard_plans",
+      "file": "cases/discard_plans.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DISCARD PLANS is classified as session cleanup control"
+    },
+    {
+      "id": "discard_sequences",
+      "file": "cases/discard_sequences.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DISCARD SEQUENCES is classified as session cleanup control"
+    },
+    {
+      "id": "discard_temp",
+      "file": "cases/discard_temp.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL DISCARD TEMP is classified as session cleanup control"
     },
     {
       "id": "begin_transaction",
@@ -1141,6 +1501,33 @@
       "outputTables": ["mart.users"],
       "columnLineage": [],
       "description": "PostgreSQL DROP TRIGGER ON table records the affected table"
+    },
+    {
+      "id": "alter_table_enable_trigger",
+      "file": "cases/alter_table_enable_trigger.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE ENABLE TRIGGER records the affected table"
+    },
+    {
+      "id": "alter_table_disable_trigger_all",
+      "file": "cases/alter_table_disable_trigger_all.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE DISABLE TRIGGER ALL records the affected table"
+    },
+    {
+      "id": "alter_table_enable_always_trigger",
+      "file": "cases/alter_table_enable_always_trigger.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE ENABLE ALWAYS TRIGGER records the affected table"
     },
     {
       "id": "distinct_on_order_nulls",
@@ -1312,6 +1699,83 @@
       "description": "PostgreSQL JSON path functions preserve payload column lineage and predicate usage"
     },
     {
+      "id": "full_text_search_operator_lineage",
+      "file": "cases/full_text_search_operator_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.documents"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.documents.id"]},
+        {"target": "rank_score", "sources": ["app.documents.body", "app.documents.search_text"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.documents.body"},
+        {"type": "WHERE", "column": "app.documents.search_text"}
+      ],
+      "description": "PostgreSQL full-text search @@ operator keeps tsvector and tsquery column dependencies"
+    },
+    {
+      "id": "regex_operator_predicate_usage",
+      "file": "cases/regex_operator_predicate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.documents"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.documents.id"]},
+        {"target": "title_matches", "sources": ["app.documents.title"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.documents.title"},
+        {"type": "WHERE", "column": "app.documents.author"}
+      ],
+      "description": "PostgreSQL regex operators and SIMILAR TO predicates preserve predicate column usage"
+    },
+    {
+      "id": "array_overlap_operator_lineage",
+      "file": "cases/array_overlap_operator_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.documents"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.documents.id"]},
+        {"target": "has_priority_tag", "sources": ["app.documents.tags"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.documents.tags"}
+      ],
+      "description": "PostgreSQL array overlap operator keeps projection lineage and predicate usage"
+    },
+    {
+      "id": "any_array_predicate_usage",
+      "file": "cases/any_array_predicate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.document_acl"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.document_acl.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.document_acl.actor_id"},
+        {"type": "WHERE", "column": "app.document_acl.allowed_actor_ids"}
+      ],
+      "description": "PostgreSQL = ANY(array_column) predicates preserve both scalar and array column usage"
+    },
+    {
+      "id": "some_array_predicate_usage",
+      "file": "cases/some_array_predicate_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.document_acl"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["app.document_acl.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.document_acl.denied_actor_id"},
+        {"type": "WHERE", "column": "app.document_acl.blocked_actor_ids"}
+      ],
+      "description": "PostgreSQL <> SOME(array_column) predicates preserve quantified comparison column usage"
+    },
+    {
       "id": "with_recursive_select",
       "file": "cases/with_recursive_select.sql",
       "statementType": "SELECT",
@@ -1417,6 +1881,24 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL GRANT ON ALL TABLES IN SCHEMA is accepted as schema-wide privilege control"
+    },
+    {
+      "id": "grant_role_to_user",
+      "file": "cases/grant_role_to_user.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL GRANT role TO user is accepted as role membership control"
+    },
+    {
+      "id": "revoke_role_from_user",
+      "file": "cases/revoke_role_from_user.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL REVOKE role FROM user is accepted as role membership control"
     },
     {
       "id": "create_unlogged_partitioned_table",
@@ -1771,6 +2253,42 @@
       "description": "PostgreSQL DROP POLICY records the affected table without inventing column lineage"
     },
     {
+      "id": "alter_table_enable_row_level_security",
+      "file": "cases/alter_table_enable_row_level_security.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE ENABLE ROW LEVEL SECURITY records the affected table"
+    },
+    {
+      "id": "alter_table_disable_row_level_security",
+      "file": "cases/alter_table_disable_row_level_security.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE DISABLE ROW LEVEL SECURITY records the affected table"
+    },
+    {
+      "id": "alter_table_force_row_level_security",
+      "file": "cases/alter_table_force_row_level_security.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE FORCE ROW LEVEL SECURITY records the affected table"
+    },
+    {
+      "id": "alter_table_no_force_row_level_security",
+      "file": "cases/alter_table_no_force_row_level_security.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER TABLE NO FORCE ROW LEVEL SECURITY records the affected table"
+    },
+    {
       "id": "create_publication_for_tables",
       "file": "cases/create_publication_for_tables.sql",
       "statementType": "READ_METADATA",
@@ -1805,6 +2323,24 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL ALTER PUBLICATION DROP TABLE records the removed table"
+    },
+    {
+      "id": "create_publication_for_tables_in_schema",
+      "file": "cases/create_publication_for_tables_in_schema.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL CREATE PUBLICATION FOR TABLES IN SCHEMA is accepted as schema-scoped logical-replication control"
+    },
+    {
+      "id": "alter_publication_set_tables_in_schema",
+      "file": "cases/alter_publication_set_tables_in_schema.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER PUBLICATION SET TABLES IN SCHEMA is accepted as schema-scoped logical-replication control"
     },
     {
       "id": "create_publication_all_tables",
@@ -2224,6 +2760,24 @@
       "description": "PostgreSQL ALTER ROLE is accepted as principal control"
     },
     {
+      "id": "alter_role_reset_all",
+      "file": "cases/alter_role_reset_all.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER ROLE RESET ALL is accepted as principal configuration control"
+    },
+    {
+      "id": "alter_user_set_statement_timeout",
+      "file": "cases/alter_user_set_statement_timeout.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL ALTER USER SET parameter is accepted as principal configuration control"
+    },
+    {
       "id": "drop_role_if_exists_control",
       "file": "cases/drop_role_if_exists_control.sql",
       "statementType": "CONTROL",
@@ -2383,6 +2937,265 @@
       "description": "PostgreSQL DROP EVENT TRIGGER is accepted as database-level trigger control"
     },
     {
+      "id": "extract_expression_projection",
+      "file": "cases/extract_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_year", "sources": ["mart.events.created_at"]}
+      ],
+      "description": "PostgreSQL EXTRACT keyword function preserves the temporal source column"
+    },
+    {
+      "id": "position_expression_projection",
+      "file": "cases/position_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "match_position", "sources": ["mart.events.needle", "mart.events.haystack"]}
+      ],
+      "description": "PostgreSQL POSITION keyword function preserves needle and haystack dependencies"
+    },
+    {
+      "id": "substring_expression_projection",
+      "file": "cases/substring_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "payload_slice", "sources": ["mart.events.payload", "mart.events.start_pos", "mart.events.slice_length"]}
+      ],
+      "description": "PostgreSQL SUBSTRING FROM FOR form preserves value, start, and length dependencies"
+    },
+    {
+      "id": "trim_expression_projection",
+      "file": "cases/trim_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "normalized_value", "sources": ["mart.events.trim_chars", "mart.events.raw_value"]}
+      ],
+      "description": "PostgreSQL TRIM BOTH FROM form preserves trim-character and input dependencies"
+    },
+    {
+      "id": "overlay_expression_projection",
+      "file": "cases/overlay_expression_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "patched_payload", "sources": ["mart.events.payload", "mart.events.replacement", "mart.events.start_pos", "mart.events.replace_length"]}
+      ],
+      "description": "PostgreSQL OVERLAY PLACING FROM FOR form preserves all input dependencies"
+    },
+    {
+      "id": "array_constructor_projection",
+      "file": "cases/array_constructor_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "labels", "sources": ["mart.events.tag", "mart.events.category"]}
+      ],
+      "description": "PostgreSQL ARRAY constructor projection preserves every element column dependency"
+    },
+    {
+      "id": "any_array_constructor_predicate",
+      "file": "cases/any_array_constructor_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.jobs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.jobs.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.jobs.status"}
+      ],
+      "description": "PostgreSQL ANY with an ARRAY constructor preserves the compared predicate column"
+    },
+    {
+      "id": "at_time_zone_projection",
+      "file": "cases/at_time_zone_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "local_created_at", "sources": ["mart.events.created_at", "mart.events.timezone_name"]}
+      ],
+      "description": "PostgreSQL AT TIME ZONE projection preserves timestamp and dynamic zone dependencies"
+    },
+    {
+      "id": "collate_projection_order",
+      "file": "cases/collate_projection_order.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "binary_name", "sources": ["mart.events.display_name"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "mart.events.display_name"}
+      ],
+      "description": "PostgreSQL COLLATE preserves projection and ordering column lineage without treating the collation as a column"
+    },
+    {
+      "id": "row_constructor_predicate",
+      "file": "cases/row_constructor_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.events.tenant_id"},
+        {"type": "WHERE", "column": "mart.events.event_key"},
+        {"type": "WHERE", "column": "mart.events.expected_tenant_id"},
+        {"type": "WHERE", "column": "mart.events.expected_event_key"}
+      ],
+      "description": "PostgreSQL ROW constructor comparison preserves every compared predicate column"
+    },
+    {
+      "id": "is_distinct_from_predicate",
+      "file": "cases/is_distinct_from_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": ["audit.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["audit.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "audit.events.payload"},
+        {"type": "WHERE", "column": "audit.events.previous_payload"}
+      ],
+      "description": "PostgreSQL IS DISTINCT FROM preserves both predicate column usages"
+    },
+    {
+      "id": "is_not_distinct_from_join",
+      "file": "cases/is_not_distinct_from_join.sql",
+      "statementType": "SELECT",
+      "inputTables": ["stage.left_rows", "stage.right_rows"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "left_id", "sources": ["stage.left_rows.id"]},
+        {"target": "right_value", "sources": ["stage.right_rows.value"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "stage.left_rows.match_key"},
+        {"type": "JOIN_ON", "column": "stage.right_rows.match_key"}
+      ],
+      "description": "PostgreSQL IS NOT DISTINCT FROM in a JOIN preserves both join-key usages"
+    },
+    {
+      "id": "is_not_distinct_from_projection",
+      "file": "cases/is_not_distinct_from_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["audit.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "values_match", "sources": ["audit.events.current_value", "audit.events.expected_value"]}
+      ],
+      "description": "PostgreSQL IS NOT DISTINCT FROM projection preserves dependencies on both compared columns"
+    },
+    {
+      "id": "natural_join_projection",
+      "file": "cases/natural_join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users", "sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["app.users.id"]},
+        {"target": "amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "app.users.status"}
+      ],
+      "description": "PostgreSQL NATURAL JOIN preserves both tables and qualified projection lineage without guessing implicit join keys"
+    },
+    {
+      "id": "natural_left_join_projection",
+      "file": "cases/natural_left_join_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["app.users", "billing.plans"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["app.users.id"]},
+        {"target": "plan_name", "sources": ["billing.plans.plan_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "billing.plans.enabled"}
+      ],
+      "description": "PostgreSQL NATURAL LEFT OUTER JOIN preserves both tables and qualified column lineage"
+    },
+    {
+      "id": "select_limit_all_offset_rows",
+      "file": "cases/select_limit_all_offset_rows.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.orders.id"]},
+        {"target": "created_at", "sources": ["mart.orders.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.status"},
+        {"type": "ORDER_BY", "column": "mart.orders.created_at"}
+      ],
+      "description": "PostgreSQL LIMIT ALL with OFFSET ROWS preserves query lineage and clause usages"
+    },
+    {
+      "id": "select_fetch_first_row_only",
+      "file": "cases/select_fetch_first_row_only.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.orders.id"]},
+        {"target": "amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.amount"},
+        {"type": "ORDER_BY", "column": "mart.orders.id"}
+      ],
+      "description": "PostgreSQL FETCH FIRST ROW ONLY accepts the implicit row count and preserves lineage"
+    },
+    {
+      "id": "select_fetch_next_with_ties",
+      "file": "cases/select_fetch_next_with_ties.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "customer_id", "sources": ["mart.orders.customer_id"]},
+        {"target": "amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.status"},
+        {"type": "ORDER_BY", "column": "mart.orders.amount"}
+      ],
+      "description": "PostgreSQL OFFSET ROWS with FETCH NEXT ROWS WITH TIES preserves query lineage"
+    },
+    {
+      "id": "derived_query_fetch_first",
+      "file": "cases/derived_query_fetch_first.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "customer_id", "sources": ["mart.orders.customer_id"]},
+        {"target": "amount", "sources": ["mart.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.status"},
+        {"type": "ORDER_BY", "column": "mart.orders.created_at"},
+        {"type": "WHERE", "column": "mart.orders.amount"}
+      ],
+      "description": "PostgreSQL FETCH FIRST inside a derived query preserves projected and clause lineage"
+    },
+    {
       "id": "security_label_table",
       "file": "cases/security_label_table.sql",
       "statementType": "ALTER_TABLE",
@@ -2402,6 +3215,9 @@
         "mart.orders"
       ],
       "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.customer_id"}
+      ],
       "description": "PostgreSQL SECURITY LABEL ON COLUMN records the owning table"
     }
   ]

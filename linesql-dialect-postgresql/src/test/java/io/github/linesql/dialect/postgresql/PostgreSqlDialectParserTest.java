@@ -45,7 +45,11 @@ public class PostgreSqlDialectParserTest {
             LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
 
             assertEquals(caseId, SqlDialect.POSTGRESQL, result.getDialect());
-            assertEquals(caseId, StatementType.valueOf(sqlCase.get("statementType").asText()), result.getStatementType());
+            String diagnostics = result.getDiagnostics().stream()
+                    .map(diagnostic -> diagnostic.getCode() + ": " + diagnostic.getMessage())
+                    .collect(Collectors.joining("; "));
+            assertEquals(caseId + " diagnostics=" + diagnostics,
+                    StatementType.valueOf(sqlCase.get("statementType").asText()), result.getStatementType());
             assertTables(caseId, sqlCase.get("inputTables"), tableNames(result.getInputTables()));
             assertTables(caseId, sqlCase.get("outputTables"), tableNames(result.getOutputTables()));
             if (sqlCase.has("columnLineage")) {
@@ -92,7 +96,13 @@ public class PostgreSqlDialectParserTest {
     }
 
     private static void assertColumnLineage(String caseId, JsonNode expectedNode, LineageResult result) {
-        assertEquals(caseId, expectedNode.size(), result.getColumnLineage().size());
+        List<String> actualSummary = result.getColumnLineage().stream()
+                .map(lineage -> columnName(lineage.getTarget()) + " <- " + lineage.getSources().stream()
+                        .map(PostgreSqlDialectParserTest::columnName)
+                        .collect(Collectors.toList()))
+                .collect(Collectors.toList());
+        assertEquals(caseId + " actual=" + actualSummary,
+                expectedNode.size(), result.getColumnLineage().size());
         for (int i = 0; i < expectedNode.size(); i++) {
             JsonNode expected = expectedNode.get(i);
             io.github.linesql.core.model.ColumnLineage actual = result.getColumnLineage().get(i);

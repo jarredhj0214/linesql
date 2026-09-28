@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.jarredhj0214</groupId>
         <artifactId>linesql</artifactId>
-        <version>1.0.0</version>
+        <version>1.1.0</version>
     </parent>
 
     <artifactId>linesql-cli</artifactId>

@@ -996,6 +996,76 @@
       "description": "OceanBase MySQL mode SHOW COUNT(*) ERRORS is accepted as table-free diagnostic metadata"
     },
     {
+      "id": "mysql_mode_help_contents",
+      "file": "cases/mysql_mode_help_contents.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode HELP topic lookup is accepted as table-free metadata"
+    },
+    {
+      "id": "mysql_mode_show_databases_like",
+      "file": "cases/mysql_mode_show_databases_like.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW DATABASES LIKE is accepted as filtered schema metadata"
+    },
+    {
+      "id": "mysql_mode_show_schemas_where",
+      "file": "cases/mysql_mode_show_schemas_where.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW SCHEMAS WHERE is accepted as filtered schema metadata"
+    },
+    {
+      "id": "mysql_mode_show_character_set",
+      "file": "cases/mysql_mode_show_character_set.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW CHARACTER SET is accepted as table-free character-set metadata"
+    },
+    {
+      "id": "mysql_mode_show_character_set_like",
+      "file": "cases/mysql_mode_show_character_set_like.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW CHARACTER SET LIKE is accepted as filtered character-set metadata"
+    },
+    {
+      "id": "mysql_mode_show_collation",
+      "file": "cases/mysql_mode_show_collation.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW COLLATION is accepted as table-free collation metadata"
+    },
+    {
+      "id": "mysql_mode_show_collation_where",
+      "file": "cases/mysql_mode_show_collation_where.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "mysql",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase MySQL mode SHOW COLLATION WHERE is accepted as filtered collation metadata"
+    },
+    {
       "id": "mysql_mode_get_diagnostics",
       "file": "cases/mysql_mode_get_diagnostics.sql",
       "statementType": "CONTROL",
@@ -3437,8 +3507,12 @@
       "statementType": "INSERT",
       "inputTables": [],
       "outputTables": ["ods.orders"],
-      "columnLineage": [],
-      "description": "OceanBase Oracle mode INSERT VALUES RETURNING INTO keeps affected table lineage without modeling local variables as table outputs"
+      "columnLineage": [
+        {"target": "ods.orders.id", "sources": []},
+        {"target": "ods.orders.status", "sources": []},
+        {"target": "v_order_id", "sources": []}
+      ],
+      "description": "OceanBase Oracle mode INSERT VALUES RETURNING INTO maps inserted target columns and returned local variables"
     },
     {
       "id": "oracle_mode_insert_all",
@@ -3547,12 +3621,13 @@
       "inputTables": ["ods.orders"],
       "outputTables": ["ods.orders"],
       "columnLineage": [
-        {"target": "ods.orders.status", "sources": []}
+        {"target": "ods.orders.status", "sources": []},
+        {"target": "v_status", "sources": []}
       ],
       "columnUsages": [
         {"type": "WHERE", "column": "ods.orders.id"}
       ],
-      "description": "OceanBase Oracle mode UPDATE RETURNING INTO keeps affected table and assignment lineage without modeling local variables as table outputs"
+      "description": "OceanBase Oracle mode UPDATE RETURNING INTO keeps assignment lineage and models returned local variables as lineage targets"
     },
     {
       "id": "oracle_mode_update_where_exists",
@@ -3601,11 +3676,13 @@
       "statementType": "DELETE",
       "inputTables": ["ods.orders"],
       "outputTables": ["ods.orders"],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "v_order_id", "sources": ["ods.orders.id"]}
+      ],
       "columnUsages": [
         {"type": "WHERE", "column": "ods.orders.status"}
       ],
-      "description": "OceanBase Oracle mode DELETE RETURNING INTO keeps affected table and predicate usage without modeling local variables as table outputs"
+      "description": "OceanBase Oracle mode DELETE RETURNING INTO maps returned local variables to deleted target columns"
     },
     {
       "id": "oracle_mode_merge_using_subquery",
@@ -4457,8 +4534,11 @@
       "statementType": "INSERT",
       "inputTables": [],
       "outputTables": ["ods.remote_orders"],
-      "columnLineage": [],
-      "description": "OceanBase Oracle mode INSERT VALUES into table@dblink records the affected remote table identity"
+      "columnLineage": [
+        {"target": "ods.remote_orders.c1", "sources": []},
+        {"target": "ods.remote_orders.c2", "sources": []}
+      ],
+      "description": "OceanBase Oracle mode INSERT VALUES into table@dblink records the affected remote target columns"
     },
     {
       "id": "oracle_mode_insert_dblink_select",
@@ -5266,6 +5346,26 @@
       "description": "OceanBase Oracle mode anonymous DECLARE/BEGIN block is accepted as control syntax"
     },
     {
+      "id": "oracle_mode_anonymous_dbms_stats_gather_table",
+      "file": "cases/oracle_mode_anonymous_dbms_stats_gather_table.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "oracle",
+      "inputTables": ["MART.USERS"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DBMS_STATS.GATHER_TABLE_STATS named arguments are treated as table metadata reads"
+    },
+    {
+      "id": "oracle_mode_anonymous_dbms_stats_delete_table",
+      "file": "cases/oracle_mode_anonymous_dbms_stats_delete_table.sql",
+      "statementType": "READ_METADATA",
+      "compatibilityMode": "oracle",
+      "inputTables": ["MART.USERS"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode DBMS_STATS.DELETE_TABLE_STATS positional arguments are treated as table metadata reads"
+    },
+    {
       "id": "oracle_mode_commit_statement",
       "file": "cases/oracle_mode_commit_statement.sql",
       "statementType": "CONTROL",
@@ -5993,6 +6093,32 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "OceanBase Oracle mode NOAUDIT table statement is accepted as audit control"
+    },
+    {
+      "id": "oracle_mode_alter_table_exchange_partition",
+      "file": "cases/oracle_mode_alter_table_exchange_partition.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "staging.sales_p"
+      ],
+      "outputTables": [
+        "mart.sales"
+      ],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER TABLE EXCHANGE PARTITION records the target and exchanged staging table"
+    },
+    {
+      "id": "oracle_mode_alter_table_move_partition",
+      "file": "cases/oracle_mode_alter_table_move_partition.sql",
+      "compatibilityMode": "oracle",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.sales"
+      ],
+      "columnLineage": [],
+      "description": "OceanBase Oracle mode ALTER TABLE MOVE PARTITION records the affected table"
     }
   ]
 }

@@ -797,6 +797,7 @@ backupRestoreStatement
 
 dbccStatement
     : DBCC CHECKTABLE LPAREN multipartIdentifier RPAREN .*?
+    | DBCC identifier LPAREN multipartIdentifier COMMA (identifier | string) RPAREN .*?
     | DBCC CHECKDB LPAREN? (identifier | string)? RPAREN? .*?
     | DBCC .+?
     ;

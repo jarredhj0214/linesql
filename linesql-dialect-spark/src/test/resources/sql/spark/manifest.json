@@ -824,6 +824,9 @@
       "outputTables": [
         "ads.users"
       ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "ads.users.dt"}
+      ],
       "description": "TRUNCATE TABLE affected table lineage"
     },
     {
@@ -846,6 +849,10 @@
       "outputTables": [
         "mart.users"
       ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.age"},
+        {"type": "TABLE_MODEL", "column": "mart.users.source"}
+      ],
       "description": "ALTER TABLE ADD COLUMNS affected table lineage"
     },
     {
@@ -866,6 +873,9 @@
       "outputTables": [
         "mart.users"
       ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.dt"}
+      ],
       "description": "ALTER TABLE DROP PARTITION affected table lineage"
     },
     {
@@ -875,6 +885,9 @@
       "inputTables": [],
       "outputTables": [
         "ssai_ods.video_album_map_test"
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "ssai_ods.video_album_map_test.dt"}
       ],
       "description": "ALTER TABLE DROP PARTITION predicate affected table lineage"
     },
@@ -896,7 +909,11 @@
         "mart.users"
       ],
       "outputTables": [],
-      "description": "ANALYZE TABLE metadata read table lineage"
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.users.name"}
+      ],
+      "description": "ANALYZE TABLE metadata read table and explicit-column lineage"
     },
     {
       "id": "analyze_table_all_columns",
@@ -916,7 +933,12 @@
         "mart.users"
       ],
       "outputTables": [],
-      "description": "Spark ANALYZE TABLE partition FOR COLUMNS preserves metadata table lineage"
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.dt"},
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.users.name"}
+      ],
+      "description": "Spark ANALYZE TABLE partition FOR COLUMNS preserves metadata table and column lineage"
     },
     {
       "id": "describe_table",
@@ -926,7 +948,10 @@
         "mart.users"
       ],
       "outputTables": [],
-      "description": "DESCRIBE TABLE metadata read table lineage"
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.dt"}
+      ],
+      "description": "DESCRIBE TABLE partition metadata read retains the partition column"
     },
     {
       "id": "show_create_table",
@@ -939,6 +964,16 @@
       "description": "SHOW CREATE TABLE metadata read table lineage"
     },
     {
+      "id": "show_tblproperties_key",
+      "file": "cases/show_tblproperties_key.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.users"
+      ],
+      "outputTables": [],
+      "description": "SHOW TBLPROPERTIES key lookup metadata read table lineage"
+    },
+    {
       "id": "show_columns",
       "file": "cases/show_columns.sql",
       "statementType": "READ_METADATA",
@@ -947,6 +982,14 @@
       ],
       "outputTables": [],
       "description": "SHOW COLUMNS metadata read table lineage"
+    },
+    {
+      "id": "show_table_extended_like",
+      "file": "cases/show_table_extended_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW TABLE EXTENDED LIKE is parsed as table-free metadata read"
     },
     {
       "id": "show_partitions",
@@ -967,6 +1010,14 @@
       ],
       "outputTables": [],
       "description": "REFRESH TABLE metadata read table lineage"
+    },
+    {
+      "id": "refresh_function",
+      "file": "cases/refresh_function.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "REFRESH FUNCTION is parsed as table-free metadata read"
     },
     {
       "id": "repair_table",
@@ -1483,6 +1534,18 @@
         "cached_users"
       ],
       "description": "Spark CACHE TABLE AS SELECT parses and extracts query input table"
+    },
+    {
+      "id": "cache_lazy_table_options_as_select",
+      "file": "cases/cache_lazy_table_options_as_select.sql",
+      "statementType": "CACHE_TABLE",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [
+        "cached_active_users"
+      ],
+      "description": "Spark CACHE LAZY TABLE OPTIONS AS SELECT parses cache target and query source table"
     },
     {
       "id": "cte_basic",
@@ -2026,6 +2089,10 @@
             "ods.orders.user_id"
           ]
         }
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.orders.user_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.orders.created_at"}
       ],
       "description": "Window function argument, partition, and order column lineage"
     },
@@ -2894,6 +2961,30 @@
       "description": "DROP NAMESPACE is parsed as a non-lineage statement"
     },
     {
+      "id": "alter_namespace_set_properties",
+      "file": "cases/alter_namespace_set_properties.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "ALTER NAMESPACE SET PROPERTIES is parsed as schema maintenance control"
+    },
+    {
+      "id": "alter_namespace_unset_properties",
+      "file": "cases/alter_namespace_unset_properties.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "ALTER NAMESPACE UNSET PROPERTIES is parsed as schema maintenance control"
+    },
+    {
+      "id": "alter_namespace_set_location",
+      "file": "cases/alter_namespace_set_location.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "ALTER NAMESPACE SET LOCATION is parsed as schema maintenance control"
+    },
+    {
       "id": "show_namespaces",
       "file": "cases/show_namespaces.sql",
       "statementType": "READ_METADATA",
@@ -2958,12 +3049,36 @@
       "description": "SHOW FUNCTIONS is parsed as a table-free metadata read"
     },
     {
+      "id": "show_procedures",
+      "file": "cases/show_procedures.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW PROCEDURES is parsed as a table-free metadata read"
+    },
+    {
+      "id": "show_current_namespace",
+      "file": "cases/show_current_namespace.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "SHOW CURRENT NAMESPACE is parsed as a table-free metadata read"
+    },
+    {
       "id": "describe_function",
       "file": "cases/describe_function.sql",
       "statementType": "READ_METADATA",
       "inputTables": [],
       "outputTables": [],
       "description": "DESCRIBE FUNCTION is parsed as a table-free metadata read"
+    },
+    {
+      "id": "describe_procedure",
+      "file": "cases/describe_procedure.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "DESCRIBE PROCEDURE is parsed as a table-free metadata read"
     },
     {
       "id": "create_variable",
@@ -3569,6 +3684,36 @@
       "description": "Spark GROUPING SETS with GROUPING__ID bitwise XOR expression"
     },
     {
+      "id": "group_by_rollup",
+      "file": "cases/group_by_rollup.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.user_events"
+      ],
+      "outputTables": [],
+      "description": "Spark GROUP BY ROLLUP parses grouping analytics over source table"
+    },
+    {
+      "id": "group_by_cube",
+      "file": "cases/group_by_cube.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.user_events"
+      ],
+      "outputTables": [],
+      "description": "Spark GROUP BY CUBE parses grouping analytics over source table"
+    },
+    {
+      "id": "group_by_with_rollup",
+      "file": "cases/group_by_with_rollup.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.user_events"
+      ],
+      "outputTables": [],
+      "description": "Spark GROUP BY ... WITH ROLLUP parses legacy grouping analytics"
+    },
+    {
       "id": "bang_logical_not",
       "file": "cases/bang_logical_not.sql",
       "statementType": "SELECT",
@@ -3586,7 +3731,39 @@
         "ods.request_logs"
       ],
       "outputTables": [],
-      "description": "Spark stack function with multi-column aliases"
+      "columnLineage": [
+        {"target": "candidate", "sources": []},
+        {"target": "id", "sources": ["ods.request_logs.trace_id", "ods.request_logs.request_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.request_logs.trace_id"},
+        {"type": "WHERE", "column": "ods.request_logs.request_id"}
+      ],
+      "description": "Spark stack function maps multi-column aliases to matching positional inputs"
+    },
+    {
+      "id": "stack_function_nested_expressions",
+      "file": "cases/stack_function_nested_expressions.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "kind", "sources": ["ods.events.primary_type", "ods.events.secondary_type"]},
+        {"target": "value", "sources": ["ods.events.primary_value", "ods.events.secondary_value"]}
+      ],
+      "description": "Spark stack positional lineage remains precise when arguments contain nested scalar functions"
+    },
+    {
+      "id": "lateral_view_stack_lineage",
+      "file": "cases/lateral_view_stack_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.request_logs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "candidate", "sources": ["ods.request_logs.trace_type", "ods.request_logs.request_type"]},
+        {"target": "id", "sources": ["ods.request_logs.trace_id", "ods.request_logs.request_id"]}
+      ],
+      "description": "Spark LATERAL VIEW stack maps generated columns to matching positional input expressions"
     },
     {
       "id": "posexplode_function_aliases",
@@ -3596,7 +3773,10 @@
         "ods.seed_rows"
       ],
       "outputTables": [],
-      "description": "Spark posexplode function with multi-column aliases through CTE"
+      "columnLineage": [
+        {"target": "d", "sources": ["ods.seed_rows.base_date", "ods.seed_rows.offsets"]}
+      ],
+      "description": "Spark posexplode multi-column aliases propagate collection sources through a CTE expression"
     },
     {
       "id": "null_safe_equal_operator",
@@ -3677,6 +3857,139 @@
       "inputTables": [],
       "outputTables": [],
       "description": "Spark LIST JAR resource command is parsed as a non-lineage statement"
+    },
+    {
+      "id": "create_table_partition_cluster_model",
+      "file": "cases/create_table_partition_cluster_model.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.events.event_time"},
+        {"type": "TABLE_MODEL", "column": "mart.events.region"},
+        {"type": "TABLE_MODEL", "column": "mart.events.user_id"}
+      ],
+      "description": "Spark partition transforms and liquid-clustering columns are exposed as table-model usages"
+    },
+    {
+      "id": "create_table_bucket_skew_model",
+      "file": "cases/create_table_bucket_skew_model.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.bucketed_events"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.bucketed_events.user_id"},
+        {"type": "TABLE_MODEL", "column": "mart.bucketed_events.event_time"},
+        {"type": "TABLE_MODEL", "column": "mart.bucketed_events.region"}
+      ],
+      "description": "Spark Hive-style bucket, sort, and skew columns are exposed as table-model usages"
+    },
+    {
+      "id": "create_table_constraints_model",
+      "file": "cases/create_table_constraints_model.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": ["mart.order_headers"],
+      "outputTables": ["mart.constrained_orders"],
+      "columnLineage": [
+        {"target": "mart.constrained_orders.tax", "sources": ["mart.constrained_orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.constrained_orders.tax"},
+        {"type": "TABLE_MODEL", "column": "mart.constrained_orders.amount"},
+        {"type": "TABLE_MODEL", "column": "mart.constrained_orders.id"},
+        {"type": "TABLE_MODEL", "column": "mart.order_headers.id"}
+      ],
+      "description": "Spark generated, primary-key, check, and foreign-key model columns retain referenced-table dependency"
+    },
+    {
+      "id": "named_window_column_usage",
+      "file": "cases/named_window_column_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["ods.orders.user_id"]},
+        {"target": "running_amount", "sources": ["ods.orders.amount", "ods.orders.user_id", "ods.orders.event_time"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.orders.user_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.orders.event_time"}
+      ],
+      "description": "Spark named windows expose referenced partition/order columns without leaking unused definitions"
+    },
+    {
+      "id": "alter_table_cluster_by_model",
+      "file": "cases/alter_table_cluster_by_model.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.events.user_id"},
+        {"type": "TABLE_MODEL", "column": "mart.events.event_time"}
+      ],
+      "description": "Spark ALTER TABLE liquid-clustering columns are exposed as table-model usages"
+    },
+    {
+      "id": "alter_table_rename_column_model",
+      "file": "cases/alter_table_rename_column_model.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.source"},
+        {"type": "TABLE_MODEL", "column": "mart.users.source_system"}
+      ],
+      "description": "Spark ALTER TABLE rename retains old and new model-column names"
+    },
+    {
+      "id": "alter_table_drop_columns_model",
+      "file": "cases/alter_table_drop_columns_model.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.age"},
+        {"type": "TABLE_MODEL", "column": "mart.users.source"}
+      ],
+      "description": "Spark ALTER TABLE drop retains affected model columns"
+    },
+    {
+      "id": "alter_table_alter_column_model",
+      "file": "cases/alter_table_alter_column_model.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.source"},
+        {"type": "TABLE_MODEL", "column": "mart.users.user_id"}
+      ],
+      "description": "Spark ALTER TABLE column actions retain affected and positional model columns"
+    },
+    {
+      "id": "alter_table_add_check_constraint",
+      "file": "cases/alter_table_add_check_constraint.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.amount"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.tax"}
+      ],
+      "description": "Spark ALTER TABLE check expressions retain their table-model columns"
+    },
+    {
+      "id": "alter_table_add_foreign_key",
+      "file": "cases/alter_table_add_foreign_key.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.order_items"],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.id"},
+        {"type": "TABLE_MODEL", "column": "mart.order_items.order_id"}
+      ],
+      "description": "Spark ALTER TABLE foreign keys retain local columns and referenced-table dependency"
     },
     {
       "id": "list_file_resource",

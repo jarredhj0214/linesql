@@ -1,0 +1,1 @@
+SHOW work_mem;

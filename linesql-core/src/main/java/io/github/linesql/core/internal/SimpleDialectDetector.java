@@ -205,7 +205,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || sql.contains("create temporary view")
                 || sql.matches("(?s).*\\bqualify\\b.*")
                 || sql.matches("(?s).*\\b(distribute|cluster|sort)\\s+by\\b.*")
-                || sql.contains(" using ");
+                || sql.matches("(?s).*\\busing\\b.*");
     }
 
     private static DialectCandidate candidate(SqlDialect dialect, double confidence, String reason) {

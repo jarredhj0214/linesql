@@ -5358,6 +5358,24 @@
       "description": "MySQL SHOW DATABASES is accepted as table-free metadata"
     },
     {
+      "id": "show_databases_like",
+      "file": "cases/show_databases_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW DATABASES LIKE is accepted as filtered schema metadata"
+    },
+    {
+      "id": "show_schemas_where",
+      "file": "cases/show_schemas_where.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW SCHEMAS WHERE is accepted as filtered schema metadata"
+    },
+    {
       "id": "show_variables",
       "file": "cases/show_variables.sql",
       "statementType": "READ_METADATA",
@@ -5419,6 +5437,87 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "MySQL SHOW ENGINES is accepted as table-free server metadata"
+    },
+    {
+      "id": "show_character_set",
+      "file": "cases/show_character_set.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW CHARACTER SET is accepted as table-free character-set metadata"
+    },
+    {
+      "id": "show_character_set_like",
+      "file": "cases/show_character_set_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW CHARACTER SET LIKE is accepted as filtered character-set metadata"
+    },
+    {
+      "id": "show_collation",
+      "file": "cases/show_collation.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW COLLATION is accepted as table-free collation metadata"
+    },
+    {
+      "id": "show_collation_where",
+      "file": "cases/show_collation_where.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW COLLATION WHERE is accepted as filtered collation metadata"
+    },
+    {
+      "id": "show_privileges",
+      "file": "cases/show_privileges.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW PRIVILEGES is accepted as table-free privilege metadata"
+    },
+    {
+      "id": "show_plugins",
+      "file": "cases/show_plugins.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW PLUGINS is accepted as table-free plugin metadata"
+    },
+    {
+      "id": "show_profiles",
+      "file": "cases/show_profiles.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW PROFILES is accepted as table-free profiling metadata"
+    },
+    {
+      "id": "show_profile_for_query",
+      "file": "cases/show_profile_for_query.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL SHOW PROFILE ... FOR QUERY is accepted as table-free profiling metadata"
+    },
+    {
+      "id": "help_contents",
+      "file": "cases/help_contents.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "MySQL HELP topic lookup is accepted as table-free metadata"
     },
     {
       "id": "get_diagnostics",

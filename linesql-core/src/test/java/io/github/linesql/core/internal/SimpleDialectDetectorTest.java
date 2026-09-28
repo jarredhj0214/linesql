@@ -172,6 +172,8 @@ public class SimpleDialectDetectorTest {
         assertFirst(SqlDialect.SPARK, "select id from ods.users lateral view explode(tags) x as tag");
         assertFirst(SqlDialect.SPARK, "create temporary view v as select id from ods.users");
         assertFirst(SqlDialect.SPARK, "set spark.sql.autoBroadcastJoinThreshold = 128m");
+        assertFirst(SqlDialect.SPARK,
+                "create table mart.t(id bigint)\nusing parquet\nclustered by (id) into 8 buckets");
         assertFirst(SqlDialect.SPARK, "select id from ods.users");
     }
 
