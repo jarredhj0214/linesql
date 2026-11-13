@@ -127,6 +127,8 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P2 |
 | Spark extensions | PARTIAL | PARTIAL | PARTIAL | PARTIAL | P1 |
 
+Spark inline `VALUES` maps explicit INSERT targets by position. The parser records `QUALIFY` window dependencies through direct expressions and projection aliases.
+
 ### MySQL
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -155,6 +157,8 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 
 MySQL routine cursor controls are accepted; `DECLARE CURSOR FOR SELECT` preserves embedded query lineage while `OPEN`, `FETCH`, and `CLOSE` remain control statements.
 
+MySQL `VALUES ROW(...)` resolves default and explicit output names, scalar subqueries across rows, and sorting by output alias.
+
 ### StarRocks
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -180,6 +184,8 @@ MySQL routine cursor controls are accepted; `DECLARE CURSOR FOR SELECT` preserve
 | Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 | StarRocks extensions | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
+
+StarRocks tracks local `ORDER BY` in `ARRAY_AGG` and `GROUP_CONCAT`, and supports positional `UNNEST` outputs from multiple arrays.
 
 ### Hive
 
@@ -209,6 +215,8 @@ MySQL routine cursor controls are accepted; `DECLARE CURSOR FOR SELECT` preserve
 
 Hive script coverage includes database lifecycle statements including `ALTER DATABASE ... SET LOCATION/DBPROPERTIES/OWNER`, `USE` schema switching, `SET` / `RESET`, `DFS`, table metadata reads such as `SHOW CREATE TABLE`, `SHOW TBLPROPERTIES`, `SHOW PARTITIONS`, `SHOW COLUMNS`, `SHOW TABLES`, and `SHOW VIEWS`, database metadata reads such as `SHOW DATABASES` and `SHOW CREATE DATABASE`, function metadata reads such as `SHOW FUNCTIONS`, lock metadata/control statements such as `SHOW LOCKS`, `LOCK TABLE`, and `UNLOCK TABLE`, authorization controls such as `GRANT`, `REVOKE`, `SHOW GRANT ON TABLE`, `CREATE ROLE`, `DROP ROLE`, and `SHOW ROLES`, resource controls such as `ADD` / `DELETE` / `LIST` for JAR, FILE, and ARCHIVE resources, UDF lifecycle controls such as `CREATE FUNCTION`, `DROP FUNCTION`, and `RELOAD FUNCTION`, regular/materialized view creation and drop, CREATE TABLE storage formats including `ROW FORMAT SERDE` and explicit `INPUTFORMAT` / `OUTPUTFORMAT`, nested `STRUCT`/`ARRAY`/`MAP`/`UNIONTYPE` definitions, primary/unique/check/foreign-key constraints, partition/bucket/sort/skew table models through `PARTITIONED BY`, `CLUSTERED BY`, `SORTED BY`, and `SKEWED BY`, `ALTER TABLE SET/UNSET TBLPROPERTIES`, `MSCK REPAIR TABLE`, `ANALYZE TABLE ... COMPUTE STATISTICS`, `DROP TABLE ... PURGE`, partition maintenance with `ADD` / `DROP` / `RENAME` / `SET LOCATION` / `TOUCH` / `CONCATENATE` / `COMPACT` / `EXCHANGE PARTITION`, guarded partition inserts, `INSERT OVERWRITE [LOCAL] DIRECTORY` export queries, FROM-first multi-insert with branch-specific column mappings, `LEFT SEMI JOIN` with base or derived right relations, `LATERAL VIEW` propagation for `explode`, `posexplode`, `inline`, chained UDTFs, and positional `stack` outputs, Hive `TABLESAMPLE` bucket/percentage/row/byte forms, analytic `ROWS`/`RANGE` window frames and referenced named-window inheritance, `DATE`/`TIMESTAMP` typed literals, array/Map subscripts, integer/bitwise operators, bang/keyword boolean negation, `IS TRUE/FALSE`, `RLIKE`/`REGEXP` and `<=>` predicates, and Hive query organization forms including `SORT BY`, `DISTRIBUTE BY`, `CLUSTER BY`, and `LIMIT offset, rows`.
 
+Hive tracks inherited named-window references in projections and filter dependencies in `QUALIFY`.
+
 ### Flink
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -234,6 +242,8 @@ Hive script coverage includes database lifecycle statements including `ALTER DAT
 | Control statements | PARTIAL | COVERED | N/A | N/A | P1 |
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P1 |
 | Flink extensions | PARTIAL | COVERED | COVERED | COVERED | P1 |
+
+Flink window table functions trace generated time fields to descriptors and partition keys, including CTE and script-defined inputs. `UNNEST WITH ORDINALITY` distinguishes generated ordinality from input-derived values.
 
 ### Oracle
 
@@ -263,6 +273,8 @@ Hive script coverage includes database lifecycle statements including `ALTER DAT
 
 Oracle extensions currently include hierarchical queries, `DATE`/`TIMESTAMP` typed literals, flashback reads, `FLASHBACK TABLE` object recovery, DBLink table references, sequence pseudocolumns, TABLE(function), CROSS/OUTER APPLY table functions, JSON_TABLE/XMLTABLE relation sources, `ROLLUP`/`CUBE`/`GROUPING SETS`, `GROUPING_ID`, `DECODE`/`NVL2` expression dependencies, analytic window frames, analytic `IGNORE NULLS` / `RESPECT NULLS`, `KEEP (DENSE_RANK ... ORDER BY ...)`, ordered aggregates with `WITHIN GROUP`, `LISTAGG ON OVERFLOW`, and `PERCENTILE_CONT` analytic forms, `SELECT INTO` and `BULK COLLECT INTO` variable targets, MATCH_RECOGNIZE relation usage, MODEL clause usage, materialized-view lifecycle DDL, PIVOT/UNPIVOT, SAMPLE, partition table extensions, column/table maintenance DDL, transaction controls, user/role principal DDL, `FOR UPDATE NOWAIT/WAIT/SKIP LOCKED`, `LOCK TABLE ... IN ... MODE`, table object `GRANT`/`REVOKE`, package DDL, DBMS_STATS table metadata calls, and anonymous PL/SQL block envelopes with conservative static table-reference extraction.
 
+Oracle `JSON_TABLE` and `XMLTABLE` trace generated columns to the input expressions. Qualified wildcards expand known document columns and preserve explicit write positions.
+
 ### SQL Server
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -290,6 +302,8 @@ Oracle extensions currently include hierarchical queries, `DATE`/`TIMESTAMP` typ
 | SQL Server extensions | PARTIAL | COVERED | PARTIAL | PARTIAL | P1 |
 
 SQL Server relation coverage includes regular table references, derived tables, `VALUES` derived tables, `CROSS/OUTER APPLY`, `CROSS APPLY (VALUES ...)`, table-valued functions, XML `nodes()` APPLY, external query functions such as `OPENQUERY`/`OPENROWSET` with parseable embedded remote SQL lineage, local/global temporary tables, table variables, parameterized table hints, query `OPTION` hints, `TOP PERCENT WITH TIES`, and PIVOT/UNPIVOT source table preservation. T-SQL expression/control/DML/DDL coverage includes `ROLLUP`/`CUBE`/`GROUPING SETS`, `GROUPING_ID`, legacy `GROUP BY ... WITH ROLLUP`, `TRY_CAST`, `CONVERT`, `TRY_CONVERT`, `NEXT VALUE FOR` sequence expressions, datepart functions such as `DATEADD`/`DATEDIFF`/`DATEPART`, `COLLATE`, `IIF`, `CHOOSE`, ordered aggregates with `WITHIN GROUP`, scalar variable `DECLARE`, cursor lifecycle control with `DECLARE CURSOR FOR SELECT` query lineage, `SET` variable reads from scalar subqueries, session `SET` options, `SET TRANSACTION ISOLATION LEVEL`, `BULK INSERT`, sequence lifecycle control, principal lifecycle DDL, `CREATE VIEW WITH SCHEMABINDING`, `ALTER VIEW`, `UPDATE TOP`, alias-target `UPDATE ... FROM`, `DELETE TOP`, alias-target `DELETE ... OUTPUT ... FROM`, MERGE `WHEN MATCHED AND` predicates, matched `DELETE`, `MERGE WHEN NOT MATCHED BY SOURCE`, bare `OUTPUT` result lineage, `OUTPUT INTO` audit-column lineage including inserted/deleted expressions, `OUTPUT $action`, conservative static table-reference extraction from procedure/function bodies, transaction controls, procedure execution, `THROW`, `WAITFOR`, `KILL`, backup/restore utilities, DBCC metadata/control handling, SQL Server `sp_*` metadata procedures, trigger lifecycle DDL, synonym object references, table object grants/revokes, `DROP INDEX IF EXISTS`, partition-scoped `TRUNCATE TABLE`, identity columns, and computed columns.
+
+SQL Server `OPENJSON` and `STRING_SPLIT` trace generated columns to input expressions. `TABLESAMPLE` preserves source aliases and join dependencies.
 
 ### PostgreSQL
 
@@ -319,9 +333,9 @@ SQL Server relation coverage includes regular table references, derived tables, 
 
 Initial PostgreSQL extension focus:
 
-- `INSERT ... ON CONFLICT ... DO UPDATE` baseline table/column lineage is covered by the PostgreSQL grammar.
+- `INSERT ... ON CONFLICT ... DO UPDATE` covers target aliases, proposed-row dependencies in expressions and action predicates, and expression-index conflict targets.
 - `INSERT ... OVERRIDING SYSTEM/USER VALUE`, `INSERT ... DEFAULT VALUES`, and `ON CONFLICT ON CONSTRAINT ... WHERE ...` are covered for PostgreSQL INSERT compatibility.
-- `RETURNING` on `INSERT`, `UPDATE`, and `DELETE` preserves direct and aliased result-column lineage alongside write mappings.
+- `RETURNING` on `INSERT`, `UPDATE`, `DELETE`, and `MERGE` preserves direct and aliased result-column lineage, including relation-qualified wildcards.
 - `WITH` before top-level `INSERT`, `UPDATE`, `DELETE`, and `MERGE`; data-modifying CTE `RETURNING` propagation; baseline `WITH RECURSIVE` SELECT lineage; and `MATERIALIZED` / `NOT MATERIALIZED` CTE hints
 - `UPDATE ... FROM` baseline assignment lineage is covered.
 - `UPDATE ONLY`, `DELETE ... USING`, and `DELETE FROM ONLY ... USING`
@@ -341,10 +355,12 @@ Initial PostgreSQL extension focus:
 - PostgreSQL NULL-safe comparison with `IS [NOT] DISTINCT FROM` preserves both operands in projection lineage and predicate/join usages.
 - PostgreSQL native expressions include `ARRAY[...]`, `ROW(...)`, quantified comparisons against array constructors, `AT TIME ZONE`, and `COLLATE`, with operand dependencies preserved.
 - PostgreSQL keyword function forms include `EXTRACT`, `POSITION`, `SUBSTRING ... FROM ... FOR`, `TRIM ... FROM`, and `OVERLAY ... PLACING ... FROM ... FOR` with all semantic operands preserved.
-- PostgreSQL `MERGE` baseline target/source table lineage, update assignment lineage, insert value lineage, and merge predicate usages are covered.
+- PostgreSQL `MERGE` covers inherited relations, `BY SOURCE` update/delete actions, `BY TARGET` insert actions, explicit and default insert values, and merge predicate usages.
 - PostgreSQL cursor and prepared-statement controls are accepted; `DECLARE CURSOR FOR SELECT` and `PREPARE ... AS SELECT` preserve the embedded query lineage while `FETCH`, `MOVE`, `CLOSE`, `EXECUTE`, and `DEALLOCATE PREPARE` remain control statements. Standard `ALTER TABLE ... ALTER COLUMN` default/nullability/type changes are tracked as table-model maintenance.
 - PostgreSQL session configuration inspection/control accepts `SET search_path`, `SHOW search_path`, `SHOW ALL`, `RESET search_path`, and `RESET ALL` without producing unsupported lineage guesses.
 - PostgreSQL principal configuration controls accept `ALTER ROLE ... SET/RESET` and `ALTER USER ... SET` as non-lineage control statements.
+
+PostgreSQL `VALUES` traces scalar subqueries across rows and resolves CTE aliases and set ordering. Type and domain DDL includes range types, enum renames, named domain constraints, and deferred validation.
 
 ### OceanBase
 

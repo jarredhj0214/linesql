@@ -1466,6 +1466,36 @@
       "description": "Hive INSERT INTO VALUES target table lineage"
     },
     {
+      "id": "union_output_alias_order_by",
+      "file": "cases/union_output_alias_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events",
+        "ods.events_archive"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id",
+            "ods.events_archive.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events_archive.id"
+        }
+      ],
+      "description": "Hive UNION ORDER BY resolves the output alias across both branches"
+    },
+    {
       "id": "union_column_projection",
       "file": "cases/union_column_projection.sql",
       "statementType": "SELECT",
@@ -4033,6 +4063,24 @@
       "description": "Hive bang negation and boolean IS predicates preserve all filter-column usages"
     },
     {
+      "id": "qualify_named_window_alias",
+      "file": "cases/qualify_named_window_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.events.id"]},
+        {"target": "seq", "sources": ["ods.events.user_id", "ods.events.event_time"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.user_id"},
+        {"type": "WHERE", "column": "ods.events.event_time"},
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.events.user_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.events.event_time"}
+      ],
+      "description": "Hive QUALIFY resolves a named-window projection alias to its input keys"
+    },
+    {
       "id": "named_window_inheritance",
       "file": "cases/named_window_inheritance.sql",
       "statementType": "SELECT",
@@ -4040,7 +4088,7 @@
       "outputTables": [],
       "columnLineage": [
         {"target": "user_id", "sources": ["ods.events.user_id"]},
-        {"target": "event_rank", "sources": []}
+        {"target": "event_rank", "sources": ["ods.events.user_id", "ods.events.event_time"]}
       ],
       "columnUsages": [
         {"type": "WINDOW_PARTITION_BY", "column": "ods.events.user_id"},

@@ -77,14 +77,8 @@ namedQuery
 
 queryTerm
     : queryPrimary                                                   #queryTermDefault
-    | left=queryTerm setOperator right=queryTerm                     #setOperation
-    ;
-
-setOperator
-    : UNION ALL
-    | UNION DISTINCT?
-    | EXCEPT (ALL | DISTINCT)?
-    | INTERSECT (ALL | DISTINCT)?
+    | left=queryTerm INTERSECT setQuantifier? right=queryTerm        #setOperation
+    | left=queryTerm (UNION | EXCEPT) setQuantifier? right=queryTerm #setOperation
     ;
 
 queryPrimary
@@ -157,12 +151,17 @@ relation
     ;
 
 relationPrimary
-    : multipartIdentifier FOR SYSTEM_TIME temporalTablePeriod tableHint? tableAlias #temporalTableName
+    : multipartIdentifier FOR SYSTEM_TIME temporalTablePeriod tableHint? tableAlias tableSampleClause? tableHint? #temporalTableName
     | multipartIdentifier LPAREN expressionList? RPAREN tableFunctionSchema? tableAlias #tableValuedFunction
-    | multipartIdentifier tableHint? tableAlias                      #tableName
+    | multipartIdentifier tableHint? tableAlias tableSampleClause? tableHint? #tableName
     | LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
+    ;
+
+tableSampleClause
+    : TABLESAMPLE SYSTEM? LPAREN expression (PERCENT_KEYWORD | ROWS)? RPAREN
+      (REPEATABLE LPAREN expression RPAREN)?
     ;
 
 temporalTablePeriod
@@ -190,8 +189,12 @@ tableHintItem
     ;
 
 joinRelation
-    : joinType? JOIN relationPrimary joinCriteria?
+    : joinType? joinHint? JOIN relationPrimary joinCriteria?
     | applyType relationPrimary
+    ;
+
+joinHint
+    : LOOP | HASH | MERGE | REMOTE
     ;
 
 joinType
@@ -239,6 +242,10 @@ whereClause
     : WHERE expression
     ;
 
+cursorWhereClause
+    : WHERE CURRENT OF GLOBAL? identifier
+    ;
+
 groupByClause
     : GROUP BY groupByItem (COMMA groupByItem)* legacyGroupByModifier?
     ;
@@ -266,8 +273,8 @@ havingClause
 queryOrganization
     : (ORDER BY sortItem (COMMA sortItem)*)?
       (LIMIT expression)?
-      (OFFSET expression ROWS?)?
-      (FETCH (FIRST | NEXT) expression ROWS ONLY)?
+      (OFFSET expression (ROW | ROWS)?)?
+      (FETCH (FIRST | NEXT) expression (ROW | ROWS) ONLY)?
       forOutputClause?
     ;
 
@@ -307,6 +314,7 @@ predicate
     | NOT? IN LPAREN (expressionList | query) RPAREN
     | NOT? LIKE valueExpression
     | IS NOT? NULL
+    | IS NOT? DISTINCT FROM valueExpression
     ;
 
 valueExpression
@@ -330,6 +338,10 @@ primaryExpression
     | TRY_CAST LPAREN expression AS dataType RPAREN                  #tryCastExpr
     | CONVERT LPAREN dataType COMMA expression (COMMA expression)? RPAREN #convertExpr
     | TRY_CONVERT LPAREN dataType COMMA expression (COMMA expression)? RPAREN #tryConvertExpr
+    | JSON_ARRAYAGG LPAREN expression jsonAggregateOrderBy? jsonNullClause?
+      (RETURNING JSON)? RPAREN                                       #jsonArrayAggregate
+    | JSON_OBJECTAGG LPAREN expression COLON expression jsonNullClause?
+      (RETURNING JSON)? RPAREN                                       #jsonObjectAggregate
     | functionName LPAREN STAR RPAREN withinGroupClause? (OVER windowSpec)?             #functionCallStar
     | functionName LPAREN setQuantifier? expressionList RPAREN withinGroupClause? (OVER windowSpec)?  #functionCall
     | functionName LPAREN RPAREN withinGroupClause? (OVER windowSpec)?                  #functionCallEmpty
@@ -358,6 +370,14 @@ windowSpec
     : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? RPAREN
     ;
 
+jsonAggregateOrderBy
+    : ORDER BY sortItem (COMMA sortItem)*
+    ;
+
+jsonNullClause
+    : (NULL | ABSENT) ON NULL
+    ;
+
 withinGroupClause
     : WITHIN GROUP LPAREN ORDER BY sortItem (COMMA sortItem)* RPAREN
     ;
@@ -382,7 +402,7 @@ insertStatement
     : ctes? INSERT topClause? INTO? TABLE? multipartIdentifier
       (LPAREN columnList=identifierList RPAREN)?
       outputClause?
-      (query | VALUES valuesClause (COMMA valuesClause)* | executeStatement)
+      (query | VALUES valuesClause (COMMA valuesClause)* | DEFAULT VALUES | executeStatement)
     ;
 
 bulkInsertStatement
@@ -402,12 +422,12 @@ valuesClause
     ;
 
 updateStatement
-    : ctes? UPDATE topClause? multipartIdentifier tableAlias SET assignmentList outputClause? fromClause? whereClause?
+    : ctes? UPDATE topClause? multipartIdentifier tableAlias SET assignmentList outputClause? fromClause? (whereClause | cursorWhereClause)? queryHintClause?
     ;
 
 deleteStatement
-    : ctes? DELETE topClause? FROM multipartIdentifier tableAlias outputClause? whereClause?  #deleteSimple
-    | ctes? DELETE topClause? multipartIdentifier outputClause? FROM relationList whereClause? #deleteFromJoin
+    : ctes? DELETE topClause? FROM multipartIdentifier tableAlias outputClause? (whereClause | cursorWhereClause)? queryHintClause? #deleteSimple
+    | ctes? DELETE topClause? multipartIdentifier outputClause? FROM relationList (whereClause | cursorWhereClause)? queryHintClause? #deleteFromJoin
     ;
 
 outputClause
@@ -423,11 +443,11 @@ outputItem
     ;
 
 mergeStatement
-    : ctes? MERGE INTO? multipartIdentifier tableHint? tableAlias
-      USING (multipartIdentifier tableAlias | LPAREN query RPAREN tableAlias)
+    : ctes? MERGE topClause? INTO? multipartIdentifier tableHint? tableAlias
+      USING relation
       ON expression
       mergeClause+
-      outputClause?
+      outputClause? queryHintClause?
     ;
 
 mergeClause
@@ -442,7 +462,7 @@ mergeMatchedAction
     ;
 
 mergeNotMatchedAction
-    : INSERT (LPAREN identifierList RPAREN)? VALUES LPAREN expressionList RPAREN whereClause?
+    : INSERT (LPAREN identifierList RPAREN)? (VALUES LPAREN expressionList RPAREN | DEFAULT VALUES) whereClause?
     ;
 
 mergeMatchedBySourceAction
@@ -455,7 +475,7 @@ assignmentList
     ;
 
 assignment
-    : multipartIdentifier EQ expression
+    : multipartIdentifier (EQ | COMPOUND_ASSIGNMENT) expression
     ;
 
 // ============ DDL Statements ============
@@ -689,14 +709,14 @@ createViewStatement
     : CREATE (OR (REPLACE | ALTER))? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       viewOptionClause?
-      AS query
+      AS query (WITH CHECK OPTION)?
     ;
 
 alterViewStatement
     : ALTER VIEW multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
       viewOptionClause?
-      AS query
+      AS query (WITH CHECK OPTION)?
     ;
 
 viewOptionClause
@@ -937,9 +957,9 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ADD | APPLY | ASC | ASYMMETRIC | BEFORE | BLOCK | CAST | CERTIFICATE | COLLATE | COLUMN | COMMENT | CONTAINED | CREDENTIAL | DATA | DEFAULT
+    : ADD | APPLY | ASC | ASYMMETRIC | BEFORE | BLOCK | CAST | CERTIFICATE | COLLATE | COLUMN | COMMENT | CONTAINED | CREDENTIAL | SYSTEM | REPEATABLE | TABLESAMPLE | CURRENT | DATA | DEFAULT
     | BACKUP | BEGIN | BULK | CHECK | CHECKDB | CHECKTABLE | CLUSTERED | COLUMNSTORE | COMMIT | CONSTRAINT | DATABASE | DBCC | DECLARE | DESCRIBE | DESC | DISABLE | DISK | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE | FILE | FILTER | FORMAT
-    | DEALLOCATE | DYNAMIC | ENCRYPTION | FOREIGN | GLOBAL | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | KEY | KEYSET | LIKE | LIMIT | LOCAL | LOG | LOGIN | MASTER | MAXDOP | MEMBER | NOLOCK | NONCLUSTERED | NULL | OFF | OPEN | OPTION | OPTIMIZE
+    | DEALLOCATE | DYNAMIC | ENCRYPTION | FOREIGN | GLOBAL | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | JSON_ARRAYAGG | JSON_OBJECTAGG | RETURNING | ABSENT | KEY | KEYSET | LIKE | LIMIT | LOCAL | LOG | LOGIN | LOOP | HASH | REMOTE | MASTER | MAXDOP | MEMBER | NOLOCK | NONCLUSTERED | NULL | OFF | OPEN | OPTION | OPTIMIZE
     | ABSOLUTE | CLOSE | CURSOR | FAST_FORWARD | FETCH | FIRST | FOR | FORWARD_ONLY | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PASSWORD | PERCENT_KEYWORD | POLICY | PREDICATE | PRIOR | READ_ONLY | RELATIVE | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
     | AFTER | CATCH | CONTAINSTABLE | CUBE | DELAY | FREETEXTTABLE | FUNCTION | KILL | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLE | ROLLBACK | SAVE | SCHEMA | SCOPED | SECRET | SECURITY | SEQUENCE | SET | SETS | SHOW | SOURCE | STATE | STATISTICS | STATUSONLY | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TIME | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | USER | VALUE | VALUES | VIEW | WAITFOR
     | CONVERT | SCROLL | STATIC | SYMMETRIC

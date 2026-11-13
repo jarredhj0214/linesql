@@ -9,6 +9,10 @@ import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
+import io.github.linesql.dialect.mysql.antlr.MySqlLineageLexer;
+import io.github.linesql.dialect.mysql.antlr.MySqlParser;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -24,6 +28,22 @@ import static org.junit.Assert.assertTrue;
 
 public class MySqlDialectParserTest {
     private final MySqlDialectParser parser = new MySqlDialectParser();
+
+    @Test
+    public void intersectBindsMoreTightlyThanUnionAndExcept() {
+        String sql = "SELECT a FROM t1 UNION SELECT b FROM t2 INTERSECT ALL SELECT c FROM t3 EXCEPT SELECT d FROM t4";
+        MySqlLineageLexer lexer = new MySqlLineageLexer(CharStreams.fromString(sql));
+        MySqlParser grammar = new MySqlParser(new CommonTokenStream(lexer));
+        MySqlParser.SetOperationContext except = (MySqlParser.SetOperationContext) grammar.query().queryTerm();
+        MySqlParser.SetOperationContext union = (MySqlParser.SetOperationContext) except.left;
+        MySqlParser.SetOperationContext intersect = (MySqlParser.SetOperationContext) union.right;
+
+        assertEquals(0, grammar.getNumberOfSyntaxErrors());
+        assertTrue(except.EXCEPT() != null);
+        assertTrue(union.UNION() != null);
+        assertTrue(intersect.INTERSECT() != null);
+        assertEquals("ALL", intersect.setQuantifier().getText());
+    }
 
     @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {

@@ -112,7 +112,7 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause fromClause? whereClause? groupByClause? havingClause? windowClause?
+    : selectClause fromClause? whereClause? groupByClause? havingClause? windowClause? qualifyClause?
     ;
 
 selectClause
@@ -298,6 +298,10 @@ whenClause
 windowReference
     : windowSpec
     | windowName
+    ;
+
+qualifyClause
+    : QUALIFY expression
     ;
 
 windowClause
@@ -637,7 +641,7 @@ importTableStatement
     ;
 
 repairTableStatement
-    : MSCK? REPAIR TABLE multipartIdentifier (SYNC? PARTITIONS?)?
+    : MSCK? REPAIR TABLE multipartIdentifier (SYNC PARTITIONS? | PARTITIONS)?
     ;
 
 analyzeTableStatement

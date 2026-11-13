@@ -1,0 +1,4 @@
+MERGE INTO mart.users AS t
+USING staging.users_delta AS s ON t.id = s.id
+WHEN NOT MATCHED BY TARGET THEN INSERT DEFAULT VALUES
+RETURNING t.id;

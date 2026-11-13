@@ -1,0 +1,2 @@
+INSERT INTO mart.users AS u DEFAULT VALUES
+RETURNING u.id AS user_id;

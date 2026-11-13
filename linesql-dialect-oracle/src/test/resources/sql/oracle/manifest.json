@@ -2378,6 +2378,36 @@
       "description": "Oracle INSERT INTO VALUES target column lineage"
     },
     {
+      "id": "union_output_alias_order_by",
+      "file": "cases/union_output_alias_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events",
+        "ods.events_archive"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id",
+            "ods.events_archive.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events_archive.id"
+        }
+      ],
+      "description": "Oracle UNION ORDER BY resolves the output alias across both branches"
+    },
+    {
       "id": "union_column_projection",
       "file": "cases/union_column_projection.sql",
       "statementType": "SELECT",
@@ -4228,6 +4258,20 @@
       "description": "Oracle PARTITION table extension keeps source table, projection, and predicate lineage"
     },
     {
+      "id": "partition_for_value_source",
+      "file": "cases/partition_for_value_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.status"}
+      ],
+      "description": "PARTITION FOR literal keys preserves table, output, and filter dependencies"
+    },
+    {
       "id": "subpartition_table_source",
       "file": "cases/subpartition_table_source.sql",
       "statementType": "SELECT",
@@ -4619,22 +4663,67 @@
       "description": "Oracle TABLE(function()) relation is treated as a source relation"
     },
     {
-      "id": "json_table_relation",
-      "file": "cases/json_table_relation.sql",
+      "id": "json_table_default_paths",
+      "file": "cases/json_table_default_paths.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.events", "json_table"],
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "order_id", "sources": ["ods.orders.payload"]}, {"target": "customer", "sources": ["ods.orders.payload"]}],
+      "columnUsages": [{"type": "JOIN_ON", "column": "ods.orders.payload"}],
+      "description": "Oracle JSON_TABLE tracks output columns through JSON path and behavior options"
+    },
+    {
+      "id": "json_table_error_empty_clauses",
+      "file": "cases/json_table_error_empty_clauses.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "order_id", "sources": ["ods.orders.payload"]}, {"target": "has_items", "sources": ["ods.orders.payload"]}, {"target": "items", "sources": ["ods.orders.payload"]}],
+      "columnUsages": [{"type": "JOIN_ON", "column": "ods.orders.payload"}],
+      "description": "Oracle JSON_TABLE tracks output columns through JSON path and behavior options"
+    },
+    {
+      "id": "json_table_wildcard_insert",
+      "file": "cases/json_table_wildcard_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.events"],
+      "outputTables": ["mart.order_items"],
+      "columnLineage": [{"target": "mart.order_items.item_id", "sources": ["ods.events.payload"]}, {"target": "mart.order_items.amount", "sources": ["ods.events.payload"]}, {"target": "mart.order_items.event_id", "sources": ["ods.events.event_id"]}],
+      "description": "Expands the known output columns of a document table function"
+    },
+    {
+      "id": "json_table_nested_columns",
+      "file": "cases/json_table_nested_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
       "outputTables": [],
       "columnLineage": [
         {"target": "event_id", "sources": ["ods.events.event_id"]},
-        {"target": "user_id", "sources": ["json_table.user_id"]},
-        {"target": "amount", "sources": ["json_table.amount"]}
+        {"target": "sku", "sources": ["ods.events.payload"]},
+        {"target": "ord", "sources": []}
       ],
       "columnUsages": [
         {"type": "JOIN_ON", "column": "ods.events.payload"},
-        {"type": "JOIN_ON", "column": "json_table.user_id"},
+        {"type": "WHERE", "column": "ods.events.payload"}
+      ],
+      "description": "Oracle JSON_TABLE nested fields and filters trace to payload while ordinality is generated"
+    },
+    {
+      "id": "json_table_relation",
+      "file": "cases/json_table_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.events.event_id"]},
+        {"target": "user_id", "sources": ["ods.events.payload"]},
+        {"target": "amount", "sources": ["ods.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.payload"},
         {"type": "JOIN_ON", "column": "ods.events.user_id"}
       ],
-      "description": "Oracle JSON_TABLE relation keeps base table, JSON table-valued source, and correlated payload usage"
+      "description": "Oracle JSON_TABLE relation traces projected fields and join predicates to the payload input"
     },
     {
       "id": "json_scalar_function_lineage",
@@ -4653,20 +4742,40 @@
       "description": "Oracle SQL/JSON scalar functions map projection and predicate lineage to the payload column"
     },
     {
+      "id": "xml_table_namespaces",
+      "file": "cases/xml_table_namespaces.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.order_payloads"],
+      "outputTables": [],
+      "columnLineage": [{"target": "ord", "sources": []}, {"target": "amount", "sources": ["ods.order_payloads.payload", "ods.order_payloads.order_id"]}],
+      "columnUsages": [{"type": "JOIN_ON", "column": "ods.order_payloads.payload"}, {"type": "JOIN_ON", "column": "ods.order_payloads.order_id"}, {"type": "WHERE", "column": "ods.order_payloads.payload"}, {"type": "WHERE", "column": "ods.order_payloads.order_id"}],
+      "description": "XMLTABLE supports namespaces, variable bindings, and generated row numbers"
+    },
+    {
+      "id": "xml_table_column_value",
+      "file": "cases/xml_table_column_value.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.order_payloads"],
+      "outputTables": [],
+      "columnLineage": [{"target": "column_value", "sources": ["ods.order_payloads.payload"]}],
+      "columnUsages": [{"type": "JOIN_ON", "column": "ods.order_payloads.payload"}],
+      "description": "XMLTABLE without a COLUMNS clause exposes COLUMN_VALUE"
+    },
+    {
       "id": "xml_table_relation",
       "file": "cases/xml_table_relation.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.order_payloads", "xmltable"],
+      "inputTables": ["ods.order_payloads"],
       "outputTables": [],
       "columnLineage": [
-        {"target": "order_id", "sources": ["xmltable.order_id"]},
-        {"target": "amount", "sources": ["xmltable.amount"]}
+        {"target": "order_id", "sources": ["ods.order_payloads.payload"]},
+        {"target": "amount", "sources": ["ods.order_payloads.payload"]}
       ],
       "columnUsages": [
         {"type": "JOIN_ON", "column": "ods.order_payloads.payload"},
         {"type": "WHERE", "column": "ods.order_payloads.dt"}
       ],
-      "description": "Oracle XMLTABLE relation keeps base table, XML table-valued source, and PASSING column usage"
+      "description": "XMLTABLE outputs trace to the PASSING expression"
     },
     {
       "id": "lateral_inline_view",

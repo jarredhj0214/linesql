@@ -118,6 +118,7 @@ public class SimpleDialectDetectorTest {
     @Test
     public void detectsPostgreSqlAnchors() {
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1) on conflict (id) do nothing");
+        assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1)\non conflict (id) do nothing");
         assertFirst(SqlDialect.POSTGRESQL, "update public.users set name = 'a' returning id");
         assertFirst(SqlDialect.POSTGRESQL, "select id::text from public.users where name ilike 'a%'");
     }

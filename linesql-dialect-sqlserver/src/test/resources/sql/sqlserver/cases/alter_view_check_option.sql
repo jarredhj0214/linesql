@@ -1,0 +1,4 @@
+ALTER VIEW dbo.active_jobs (job_id)
+WITH SCHEMABINDING
+AS SELECT j.id FROM dbo.jobs AS j WHERE j.active = 1
+WITH CHECK OPTION;

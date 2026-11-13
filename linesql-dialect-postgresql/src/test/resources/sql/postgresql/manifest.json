@@ -41,6 +41,20 @@
       "description": "PostgreSQL JOIN source tables and projection lineage"
     },
     {
+      "id": "select_tablesample_alias",
+      "file": "cases/select_tablesample_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.active"}
+      ],
+      "description": "Aliases preceding TABLESAMPLE and schema-qualified methods preserve source lineage"
+    },
+    {
       "id": "select_tablesample_system",
       "file": "cases/select_tablesample_system.sql",
       "statementType": "SELECT",
@@ -66,6 +80,147 @@
         {"target": "event_time", "sources": ["ods.events.event_time"]}
       ],
       "description": "PostgreSQL TABLESAMPLE BERNOULLI preserves sampled table and projection lineage"
+    },
+    {
+      "id": "select_union_order_by_position",
+      "file": "cases/select_union_order_by_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders", "sales.orders_archive"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id", "sales.orders_archive.id"]},
+        {"target": "amount", "sources": ["sales.orders.amount", "sales.orders_archive.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "sales.orders.amount"},
+        {"type": "ORDER_BY", "column": "sales.orders_archive.amount"}
+      ],
+      "description": "Set operation ORDER BY position resolves the corresponding output column across branches"
+    },
+    {
+      "id": "select_union_ordered_alias",
+      "file": "cases/select_union_ordered_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders", "sales.orders_archive"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "total", "sources": ["sales.orders.amount", "sales.orders.active", "sales.orders_archive.amount", "sales.orders_archive.active"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.active"},
+        {"type": "WHERE", "column": "sales.orders_archive.active"},
+        {"type": "ORDER_BY", "column": "sales.orders.amount"},
+        {"type": "ORDER_BY", "column": "sales.orders.active"},
+        {"type": "ORDER_BY", "column": "sales.orders_archive.amount"},
+        {"type": "ORDER_BY", "column": "sales.orders_archive.active"}
+      ],
+      "description": "Set operation ordering uses all branch sources and retains aggregate filters"
+    },
+    {
+      "id": "select_join_using_alias",
+      "file": "cases/select_join_using_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users", "public.plans"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["public.users.id", "public.plans.id"]},
+        {"target": "name", "sources": ["public.users.name"]},
+        {"target": "plan", "sources": ["public.plans.plan"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.users.id"},
+        {"type": "JOIN_ON", "column": "public.plans.id"},
+        {"type": "WHERE", "column": "public.users.id"},
+        {"type": "WHERE", "column": "public.plans.id"}
+      ],
+      "description": "A JOIN USING alias exposes the merged column and preserves the joined table aliases"
+    },
+    {
+      "id": "select_inheritance_relations",
+      "file": "cases/select_inheritance_relations.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events", "public.event_details"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "parent_id", "sources": ["public.events.id"]},
+        {"target": "status", "sources": ["public.event_details.status"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.event_details.event_id"}
+      ],
+      "description": "Inheritance syntax preserves source aliases and join predicate lineage"
+    },
+    {
+      "id": "table_inheritance_star",
+      "file": "cases/table_inheritance_star.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events"],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "TABLE with an explicit inheritance marker preserves the named source table"
+    },
+    {
+      "id": "update_inheritance_star",
+      "file": "cases/update_inheritance_star.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.events", "staging.event_updates"],
+      "outputTables": ["mart.events"],
+      "columnLineage": [
+        {"target": "mart.events.status", "sources": ["staging.event_updates.status"]},
+        {"target": "id", "sources": ["mart.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.events.id"},
+        {"type": "WHERE", "column": "staging.event_updates.id"}
+      ],
+      "description": "UPDATE with an inheritance marker preserves assignments, predicates, and RETURNING lineage"
+    },
+    {
+      "id": "delete_only_parenthesized",
+      "file": "cases/delete_only_parenthesized.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.events", "staging.expired_events"],
+      "outputTables": ["mart.events"],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.events.id"},
+        {"type": "WHERE", "column": "staging.expired_events.id"}
+      ],
+      "description": "DELETE FROM ONLY with parentheses preserves USING, predicate, and RETURNING lineage"
+    },
+    {
+      "id": "insert_cte_window_usages",
+      "file": "cases/insert_cte_window_usages.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.events"],
+      "outputTables": ["mart.ranked_events"],
+      "columnLineage": [
+        {"target": "mart.ranked_events.event_id", "sources": ["ods.events.id"]},
+        {"target": "mart.ranked_events.seq", "sources": ["ods.events.tenant_id", "ods.events.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.events.tenant_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.events.created_at"}
+      ],
+      "description": "CTE window column usages survive propagation into INSERT SELECT"
+    },
+    {
+      "id": "table_cte_query",
+      "file": "cases/table_cte_query.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["sales.orders.id"]},
+        {"target": "amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.active"}
+      ],
+      "description": "TABLE of a CTE resolves its known output columns to the underlying physical relation"
     },
     {
       "id": "table_query",
@@ -165,6 +320,75 @@
         {"type": "TABLE_MODEL", "column": "mart.users.id"}
       ],
       "description": "PostgreSQL INSERT SELECT with ON CONFLICT target, insert source lineage, and excluded-column update lineage"
+    },
+    {
+      "id": "insert_conflict_target_alias",
+      "file": "cases/insert_conflict_target_alias.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.users_delta"],
+      "outputTables": ["mart.excluded"],
+      "columnLineage": [
+        {"target": "mart.excluded.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.excluded.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.excluded.previous_name", "sources": ["staging.users_delta.previous_name"]},
+        {"target": "mart.excluded.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.excluded.previous_name", "sources": ["mart.excluded.name"]},
+        {"target": "user_id", "sources": ["mart.excluded.id"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.excluded.id"},
+        {"type": "WHERE", "column": "mart.excluded.active"}
+      ],
+      "description": "INSERT target alias resolves existing row columns and preserves excluded proposal lineage"
+    },
+    {
+      "id": "insert_default_values_target_alias",
+      "file": "cases/insert_default_values_target_alias.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "user_id", "sources": ["mart.users.id"]}
+      ],
+      "description": "INSERT DEFAULT VALUES resolves aliased RETURNING columns to the target table"
+    },
+    {
+      "id": "insert_on_conflict_expression_index",
+      "file": "cases/insert_on_conflict_expression_index.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.tenant_id", "sources": ["staging.users_delta.tenant_id"]},
+        {"target": "mart.users.email", "sources": ["staging.users_delta.email"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.tenant_id"},
+        {"type": "TABLE_MODEL", "column": "mart.users.email"},
+        {"type": "WHERE", "column": "mart.users.deleted_at"}
+      ],
+      "description": "Conflict inference resolves expression index inputs and the partial index predicate"
+    },
+    {
+      "id": "insert_on_conflict_excluded_expression",
+      "file": "cases/insert_on_conflict_excluded_expression.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "mart.users.updated_at", "sources": ["staging.users_delta.updated_at"]},
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name", "mart.users.name"]},
+        {"target": "id", "sources": ["mart.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.id"},
+        {"type": "WHERE", "column": "mart.users.deleted_at"},
+        {"type": "WHERE", "column": "staging.users_delta.updated_at"},
+        {"type": "WHERE", "column": "mart.users.updated_at"}
+      ],
+      "description": "Conflict action expressions preserve proposed and existing row dependencies"
     },
     {
       "id": "insert_on_conflict_returning",
@@ -315,6 +539,34 @@
       "description": "PostgreSQL CTAS column aliases retarget SELECT projections"
     },
     {
+      "id": "create_temp_view_check_option",
+      "file": "cases/create_temp_view_check_option.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["public.users"],
+      "outputTables": ["active_users"],
+      "columnLineage": [
+        {"target": "active_users.user_id", "sources": ["public.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "public.users.active"}
+      ],
+      "description": "Temporary view options and check clause preserve the defining query lineage"
+    },
+    {
+      "id": "create_materialized_view_storage",
+      "file": "cases/create_materialized_view_storage.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": ["public.users"],
+      "outputTables": ["mart.active_users"],
+      "columnLineage": [
+        {"target": "mart.active_users.user_id", "sources": ["public.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "public.users.active"}
+      ],
+      "description": "Materialized view storage options preserve the defining query lineage"
+    },
+    {
       "id": "create_view",
       "file": "cases/create_view.sql",
       "statementType": "CREATE_VIEW",
@@ -382,6 +634,31 @@
       "description": "PostgreSQL nested derived query direct column propagation"
     },
     {
+      "id": "update_where_current_of",
+      "file": "cases/update_where_current_of.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.jobs"],
+      "outputTables": ["mart.jobs"],
+      "columnLineage": [
+        {"target": "mart.jobs.attempts", "sources": ["mart.jobs.attempts"]},
+        {"target": "id", "sources": ["mart.jobs.id"]}
+      ],
+      "columnUsages": [],
+      "description": "Positioned UPDATE preserves assignment and result dependencies"
+    },
+    {
+      "id": "delete_where_current_of",
+      "file": "cases/delete_where_current_of.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.jobs"],
+      "outputTables": ["mart.jobs"],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.jobs.id"]}
+      ],
+      "columnUsages": [],
+      "description": "Positioned DELETE preserves table and result dependencies"
+    },
+    {
       "id": "update_from_returning",
       "file": "cases/update_from_returning.sql",
       "statementType": "UPDATE",
@@ -392,6 +669,20 @@
         {"target": "id", "sources": ["mart.users.id"]}
       ],
       "description": "PostgreSQL UPDATE FROM preserves assignment and RETURNING result-column lineage"
+    },
+    {
+      "id": "update_returning_qualified_wildcards",
+      "file": "cases/update_returning_qualified_wildcards.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.name", "sources": ["staging.users_delta.name"]},
+        {"target": "*", "sources": ["mart.users.*"]},
+        {"target": "*", "sources": ["staging.users_delta.*"]},
+        {"target": "user_id", "sources": ["mart.users.id"]}
+      ],
+      "description": "RETURNING preserves target and source wildcards alongside explicit output expressions"
     },
     {
       "id": "update_returning_expression_alias",
@@ -524,6 +815,31 @@
       "description": "PostgreSQL boolean and NULL literals are not reported as predicate columns"
     },
     {
+      "id": "postgres_multiword_type_cast",
+      "file": "cases/postgres_multiword_type_cast.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "observed_at", "sources": ["ods.events.observed_at"]},
+        {"target": "ratio", "sources": ["ods.events.ratio"]},
+        {"target": "label", "sources": ["ods.events.label"]}
+      ],
+      "description": "Multiword PostgreSQL cast types preserve their operand dependencies"
+    },
+    {
+      "id": "postgres_array_domain_cast",
+      "file": "cases/postgres_array_domain_cast.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "codes", "sources": ["ods.events.tags"]},
+        {"target": "matrix", "sources": ["ods.events.metrics"]}
+      ],
+      "description": "Array casts preserve input columns and accept schema-qualified element types and multiple dimensions"
+    },
+    {
       "id": "postgres_cast_ilike",
       "file": "cases/postgres_cast_ilike.sql",
       "statementType": "SELECT",
@@ -601,6 +917,38 @@
         {"type": "MERGE_WHEN", "column": "staging.users_delta.op"}
       ],
       "description": "PostgreSQL MERGE matched DELETE and DO NOTHING branches keep merge table and predicate usage"
+    },
+    {
+      "id": "merge_not_matched_by_source_target",
+      "file": "cases/merge_not_matched_by_source_target.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "mart.users.status", "sources": ["mart.users.fallback_status"]},
+        {"target": "mart.users.id", "sources": ["staging.users_delta.id"]},
+        {"target": "mart.users.status", "sources": ["staging.users_delta.status"]},
+        {"target": "user_id", "sources": ["mart.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.users.id"},
+        {"type": "MERGE_ON", "column": "staging.users_delta.id"},
+        {"type": "MERGE_WHEN", "column": "mart.users.expired"},
+        {"type": "MERGE_WHEN", "column": "mart.users.active"},
+        {"type": "MERGE_WHEN", "column": "staging.users_delta.active"}
+      ],
+      "description": "MERGE BY SOURCE and BY TARGET preserve predicates and write mappings with inherited relations"
+    },
+    {
+      "id": "merge_insert_default_values",
+      "file": "cases/merge_insert_default_values.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.users", "staging.users_delta"],
+      "outputTables": ["mart.users"],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.users.id"]}
+      ],
+      "description": "MERGE DEFAULT VALUES preserves target and RETURNING lineage"
     },
     {
       "id": "merge_returning_alias",
@@ -846,6 +1194,15 @@
       "description": "PostgreSQL DROP INDEX CONCURRENTLY is accepted as an index lifecycle statement without synthetic table lineage"
     },
     {
+      "id": "truncate_multiple_tables",
+      "file": "cases/truncate_multiple_tables.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users", "mart.events"],
+      "columnLineage": [],
+      "description": "TRUNCATE inheritance and identity modifiers preserve the explicitly named affected tables"
+    },
+    {
       "id": "truncate_table",
       "file": "cases/truncate_table.sql",
       "statementType": "TRUNCATE_TABLE",
@@ -853,6 +1210,20 @@
       "outputTables": ["mart.users"],
       "columnLineage": [],
       "description": "PostgreSQL TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "alter_table_add_generated_column",
+      "file": "cases/alter_table_add_generated_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.total", "sources": ["mart.orders.unit_price", "mart.orders.quantity"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.total"}
+      ],
+      "description": "ALTER TABLE ADD COLUMN preserves generated expression lineage and the affected column"
     },
     {
       "id": "alter_table_add_column",
@@ -1018,6 +1389,49 @@
       "description": "PostgreSQL ALTER TABLE ADD CHECK records predicate columns as table-model usage"
     },
     {
+      "id": "copy_to_csv_force_quote",
+      "file": "cases/copy_to_csv_force_quote.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.users"],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.name"},
+        {"type": "READ_METADATA", "column": "mart.users.email"}
+      ],
+      "description": "COPY TO CSV reports columns named by FORCE_QUOTE"
+    },
+    {
+      "id": "copy_from_csv_force_null",
+      "file": "cases/copy_from_csv_force_null.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.users.email"},
+        {"type": "TABLE_MODEL", "column": "mart.users.name"}
+      ],
+      "description": "COPY FROM CSV reports columns named by FORCE_NULL and FORCE_NOT_NULL"
+    },
+    {
+      "id": "copy_from_where",
+      "file": "cases/copy_from_where.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [
+        {"target": "mart.events.id", "sources": []},
+        {"target": "mart.events.status", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.events.id"},
+        {"type": "TABLE_MODEL", "column": "mart.events.status"},
+        {"type": "WHERE", "column": "mart.events.status"}
+      ],
+      "description": "COPY FROM WHERE reports filtering columns in the incoming row"
+    },
+    {
       "id": "copy_from_csv",
       "file": "cases/copy_from_csv.sql",
       "statementType": "LOAD_DATA",
@@ -1050,6 +1464,20 @@
         {"type": "TABLE_MODEL", "column": "mart.server_logs.line"}
       ],
       "description": "PostgreSQL COPY FROM PROGRAM records target table and target columns without inventing a source table"
+    },
+    {
+      "id": "copy_delete_returning_stdout",
+      "file": "cases/copy_delete_returning_stdout.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.expired_sessions"],
+      "outputTables": ["mart.expired_sessions"],
+      "columnLineage": [
+        {"target": "session_id", "sources": ["mart.expired_sessions.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.expired_sessions.expires_at"}
+      ],
+      "description": "COPY TO exports DML RETURNING and retains the table modified by the embedded statement"
     },
     {
       "id": "copy_query_to_stdout",
@@ -1159,6 +1587,20 @@
       "description": "PostgreSQL CREATE TABLE with LIKE INCLUDING records source and target tables"
     },
     {
+      "id": "create_index_storage_options",
+      "file": "cases/create_index_storage_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "INDEX", "column": "mart.users.email"},
+        {"type": "INDEX", "column": "mart.users.id"},
+        {"type": "WHERE", "column": "mart.users.active"}
+      ],
+      "description": "Unnamed expression index with collation, operator class, and storage options preserves dependencies"
+    },
+    {
       "id": "create_index_partial",
       "file": "cases/create_index_partial.sql",
       "statementType": "ALTER_TABLE",
@@ -1229,6 +1671,33 @@
       "description": "PostgreSQL ANALYZE records the inspected table and selected statistic columns without inventing write lineage"
     },
     {
+      "id": "vacuum_multiple_relations",
+      "file": "cases/vacuum_multiple_relations.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users", "mart.sessions"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.sessions.user_id"},
+        {"type": "READ_METADATA", "column": "mart.sessions.expires_at"}
+      ],
+      "description": "VACUUM options and multiple relations keep the per-table maintenance columns"
+    },
+    {
+      "id": "analyze_multiple_relations",
+      "file": "cases/analyze_multiple_relations.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["mart.users", "mart.sessions"],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "mart.users.id"},
+        {"type": "READ_METADATA", "column": "mart.sessions.user_id"}
+      ],
+      "description": "ANALYZE options and multiple relations keep the per-table statistics columns"
+    },
+    {
       "id": "vacuum_table",
       "file": "cases/vacuum_table.sql",
       "statementType": "ALTER_TABLE",
@@ -1240,6 +1709,24 @@
         {"type": "READ_METADATA", "column": "mart.users.status"}
       ],
       "description": "PostgreSQL VACUUM records the maintained table and selected columns as metadata usage"
+    },
+    {
+      "id": "reindex_table_storage_options",
+      "file": "cases/reindex_table_storage_options.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.users"],
+      "columnLineage": [],
+      "description": "REINDEX storage and verbosity options preserve the affected table"
+    },
+    {
+      "id": "reindex_schema",
+      "file": "cases/reindex_schema.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Schema-wide reindexing does not imply a concrete table dependency"
     },
     {
       "id": "reindex_table",
@@ -1413,6 +1900,33 @@
       "description": "PostgreSQL BEGIN TRANSACTION is classified as transaction control"
     },
     {
+      "id": "begin_transaction_modes",
+      "file": "cases/begin_transaction_modes.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "BEGIN accepts transaction modes as control syntax"
+    },
+    {
+      "id": "commit_and_chain",
+      "file": "cases/commit_and_chain.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "COMMIT accepts chaining as control syntax"
+    },
+    {
+      "id": "rollback_and_no_chain",
+      "file": "cases/rollback_and_no_chain.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "ROLLBACK accepts an explicit no-chain modifier"
+    },
+    {
       "id": "start_transaction_isolation",
       "file": "cases/start_transaction_isolation.sql",
       "statementType": "CONTROL",
@@ -1566,6 +2080,40 @@
       "description": "PostgreSQL aggregate FILTER and ordered-set aggregate WITHIN GROUP column lineage"
     },
     {
+      "id": "select_aggregate_inline_order_by",
+      "file": "cases/select_aggregate_inline_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "customer_id", "sources": ["sales.orders.customer_id"]},
+        {"target": "ordered_skus", "sources": ["sales.orders.sku", "sales.orders.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.customer_id"},
+        {"type": "ORDER_BY", "column": "sales.orders.created_at"}
+      ],
+      "description": "Inline aggregate ORDER BY preserves value and ordering dependencies"
+    },
+    {
+      "id": "select_group_by_distinct_sort_operator",
+      "file": "cases/select_group_by_distinct_sort_operator.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "region", "sources": ["sales.orders.region"]},
+        {"target": "channel", "sources": ["sales.orders.channel"]},
+        {"target": "total", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.region"},
+        {"type": "GROUP_BY", "column": "sales.orders.channel"},
+        {"type": "ORDER_BY", "column": "sales.orders.amount"}
+      ],
+      "description": "Distinct nested grouping sets and an explicit sort operator retain grouping and ordering dependencies"
+    },
+    {
       "id": "grouping_sets_column_usage",
       "file": "cases/grouping_sets_column_usage.sql",
       "statementType": "SELECT",
@@ -1618,6 +2166,21 @@
       "description": "PostgreSQL CUBE records grouping columns as GROUP_BY usages"
     },
     {
+      "id": "select_named_window_exclusion",
+      "file": "cases/select_named_window_exclusion.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "running_total", "sources": ["sales.orders.amount", "sales.orders.customer_id", "sales.orders.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WINDOW_PARTITION_BY", "column": "sales.orders.customer_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "sales.orders.created_at"}
+      ],
+      "description": "Named and inherited windows include partition and sort dependencies and support frame exclusion"
+    },
+    {
       "id": "window_frame_projection",
       "file": "cases/window_frame_projection.sql",
       "statementType": "SELECT",
@@ -1641,7 +2204,7 @@
       "outputTables": [],
       "columnLineage": [
         {"target": "user_id", "sources": ["sales.orders.user_id"]},
-        {"target": "total_amount", "sources": ["sales.orders.amount"]}
+        {"target": "total_amount", "sources": ["sales.orders.amount", "sales.orders.user_id", "sales.orders.created_at"]}
       ],
       "columnUsages": [
         {"type": "WINDOW_PARTITION_BY", "column": "sales.orders.user_id"},
@@ -1657,13 +2220,74 @@
       "outputTables": [],
       "columnLineage": [
         {"target": "user_id", "sources": ["sales.orders.user_id"]},
-        {"target": "avg_amount", "sources": ["sales.orders.amount"]}
+        {"target": "avg_amount", "sources": ["sales.orders.amount", "sales.orders.user_id", "sales.orders.created_at"]}
       ],
       "columnUsages": [
         {"type": "WINDOW_PARTITION_BY", "column": "sales.orders.user_id"},
         {"type": "WINDOW_ORDER_BY", "column": "sales.orders.created_at"}
       ],
       "description": "PostgreSQL named WINDOW inheritance records inherited and extended window column usages"
+    },
+    {
+      "id": "merge_json_table_source",
+      "file": "cases/merge_json_table_source.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.qty", "sources": []},
+        {"target": "mart.orders.id", "sources": []},
+        {"target": "mart.orders.qty", "sources": []},
+        {"target": "id", "sources": ["mart.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.orders.id"}
+      ],
+      "description": "MERGE accepts a JSON_TABLE source and preserves write and predicate lineage"
+    },
+    {
+      "id": "sql_json_table_nested_lineage",
+      "file": "cases/sql_json_table_nested_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.events.id"]},
+        {"target": "sku", "sources": ["ods.events.payload"]},
+        {"target": "qty", "sources": ["ods.events.payload"]},
+        {"target": "ord", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.payload"},
+        {"type": "WHERE", "column": "ods.events.payload"}
+      ],
+      "description": "JSON_TABLE nested paths map projected fields and predicates to the JSON source while ordinality has no column dependency"
+    },
+    {
+      "id": "sql_json_query_wrapper",
+      "file": "cases/sql_json_query_wrapper.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "items", "sources": ["ods.events.payload", "ods.events.fallback_items"]}
+      ],
+      "description": "JSON_QUERY preserves context and default expression dependencies with wrapper options"
+    },
+    {
+      "id": "sql_json_value_exists_lineage",
+      "file": "cases/sql_json_value_exists_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "amount", "sources": ["ods.events.payload", "ods.events.fallback_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.payload"},
+        {"type": "WHERE", "column": "ods.events.item_id"}
+      ],
+      "description": "SQL/JSON returning, defaults, and path variables preserve the underlying source dependencies"
     },
     {
       "id": "json_array_operator_projection",
@@ -1746,6 +2370,22 @@
       "description": "PostgreSQL array overlap operator keeps projection lineage and predicate usage"
     },
     {
+      "id": "select_quantified_subquery",
+      "file": "cases/select_quantified_subquery.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events", "auth.permissions"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.actor_id"},
+        {"type": "WHERE", "column": "auth.permissions.actor_id"},
+        {"type": "WHERE", "column": "auth.permissions.active"}
+      ],
+      "description": "ANY subqueries preserve comparison, source projection, and subquery predicate dependencies"
+    },
+    {
       "id": "any_array_predicate_usage",
       "file": "cases/any_array_predicate_usage.sql",
       "statementType": "SELECT",
@@ -1774,6 +2414,20 @@
         {"type": "WHERE", "column": "app.document_acl.blocked_actor_ids"}
       ],
       "description": "PostgreSQL <> SOME(array_column) predicates preserve quantified comparison column usage"
+    },
+    {
+      "id": "recursive_cte_search_cycle",
+      "file": "cases/recursive_cte_search_cycle.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.users"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.users.id"]},
+        {"target": "visit_order", "sources": ["public.users.id"]},
+        {"target": "is_cycle", "sources": ["public.users.id"]},
+        {"target": "cycle_path", "sources": ["public.users.id"]}
+      ],
+      "description": "Recursive SEARCH and CYCLE columns trace to their recursive CTE keys"
     },
     {
       "id": "with_recursive_select",
@@ -1907,7 +2561,19 @@
       "inputTables": [],
       "outputTables": ["mart.orders"],
       "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.created_at"}
+      ],
       "description": "PostgreSQL CREATE UNLOGGED TABLE with PARTITION BY records the created table"
+    },
+    {
+      "id": "create_hash_partition_of_table",
+      "file": "cases/create_hash_partition_of_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": ["mart.events"],
+      "outputTables": ["mart.events_p2"],
+      "columnLineage": [],
+      "description": "Hash partition bounds preserve the named parent and child tables"
     },
     {
       "id": "create_partition_of_table",
@@ -1926,6 +2592,24 @@
       "outputTables": ["mart.event_child"],
       "columnLineage": [],
       "description": "PostgreSQL CREATE TABLE INHERITS records inherited parent table lineage"
+    },
+    {
+      "id": "alter_table_attach_default_partition",
+      "file": "cases/alter_table_attach_default_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["mart.orders_default"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "description": "Attaching a default partition keeps child and parent table roles"
+    },
+    {
+      "id": "alter_table_detach_partition_finalize",
+      "file": "cases/alter_table_detach_partition_finalize.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders", "mart.orders_y2025"],
+      "columnLineage": [],
+      "description": "DETACH PARTITION FINALIZE keeps both affected tables"
     },
     {
       "id": "alter_table_attach_partition",
@@ -2014,12 +2698,42 @@
       "description": "PostgreSQL INSERT DEFAULT VALUES records the target table without inventing column lineage"
     },
     {
+      "id": "values_union_ordinal",
+      "file": "cases/values_union_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "column1", "sources": ["ods.orders.id"]}, {"target": "column2", "sources": ["ods.orders.amount"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.orders.amount"}],
+      "description": "PostgreSQL VALUES preserves positional column dependencies across rows"
+    },
+    {
+      "id": "values_query_scalar_subqueries",
+      "file": "cases/values_query_scalar_subqueries.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.archive"],
+      "outputTables": [],
+      "columnLineage": [{"target": "column1", "sources": ["ods.orders.amount", "ods.archive.amount"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.orders.amount"}, {"type": "ORDER_BY", "column": "ods.archive.amount"}],
+      "description": "PostgreSQL VALUES preserves positional column dependencies across rows"
+    },
+    {
+      "id": "values_cte_alias",
+      "file": "cases/values_cte_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.archive"],
+      "outputTables": [],
+      "columnLineage": [{"target": "max_amount", "sources": ["ods.orders.amount", "ods.archive.amount"]}],
+      "columnUsages": [],
+      "description": "PostgreSQL VALUES preserves positional column dependencies across rows"
+    },
+    {
       "id": "values_query",
       "file": "cases/values_query.sql",
       "statementType": "SELECT",
       "inputTables": [],
       "outputTables": [],
-      "columnLineage": [],
+      "columnLineage": [{"target": "column1", "sources": []}, {"target": "column2", "sources": []}],
       "description": "PostgreSQL standalone VALUES query is accepted without inventing table lineage"
     },
     {
@@ -2094,6 +2808,68 @@
       "description": "PostgreSQL LATERAL subquery column alias list retargets derived columns by position"
     },
     {
+      "id": "select_lateral_values_column_lineage",
+      "file": "cases/select_lateral_values_column_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "price", "sources": ["sales.orders.unit_price", "sales.orders.discount"]},
+        {"target": "charge", "sources": ["sales.orders.tax", "sales.orders.shipping"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.tax"},
+        {"type": "WHERE", "column": "sales.orders.shipping"}
+      ],
+      "description": "Lateral VALUES tracks source columns by position across rows, including default column names"
+    },
+    {
+      "id": "select_qualified_named_function",
+      "file": "cases/select_qualified_named_function.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_date", "sources": ["ods.events.event_year", "ods.events.event_month", "ods.events.event_day"]}
+      ],
+      "description": "Schema-qualified calls with named arguments resolve argument values to source columns"
+    },
+    {
+      "id": "select_lateral_jsonb_record",
+      "file": "cases/select_lateral_jsonb_record.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "sku", "sources": ["ods.orders.payload"]},
+        {"target": "quantity", "sources": ["ods.orders.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.payload"},
+        {"type": "WHERE", "column": "ods.orders.payload"}
+      ],
+      "description": "Typed lateral record function fields resolve to the JSON argument"
+    },
+    {
+      "id": "select_typed_rows_from_lineage",
+      "file": "cases/select_typed_rows_from_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "sku", "sources": ["ods.orders.item"]},
+        {"target": "qty", "sources": ["ods.orders.detail"]},
+        {"target": "ordinality", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.item"},
+        {"type": "JOIN_ON", "column": "ods.orders.detail"},
+        {"type": "WHERE", "column": "ods.orders.detail"}
+      ],
+      "description": "Typed ROWS FROM output columns trace to the arguments of their own function"
+    },
+    {
       "id": "rows_from_functions_with_ordinality",
       "file": "cases/rows_from_functions_with_ordinality.sql",
       "statementType": "SELECT",
@@ -2126,6 +2902,32 @@
         {"type": "WHERE", "column": "public.users.status"}
       ],
       "description": "PostgreSQL SELECT INTO creates a table while preserving source-to-target column lineage"
+    },
+    {
+      "id": "create_temp_table_on_commit_as_select",
+      "file": "cases/create_temp_table_on_commit_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": ["tmp_customer_totals"],
+      "columnLineage": [
+        {"target": "tmp_customer_totals.customer", "sources": ["sales.orders.customer_id"]},
+        {"target": "tmp_customer_totals.total", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "sales.orders.customer_id"}
+      ],
+      "description": "Temporary CTAS supports access methods, storage options, and ON COMMIT while preserving renamed columns"
+    },
+    {
+      "id": "select_into_temp",
+      "file": "cases/select_into_temp.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": ["tmp_order_ids"],
+      "columnLineage": [
+        {"target": "tmp_order_ids.id", "sources": ["sales.orders.id"]}
+      ],
+      "description": "SELECT INTO TEMP preserves write column lineage"
     },
     {
       "id": "select_into_temporary_table",
@@ -2469,6 +3271,54 @@
       "description": "PostgreSQL ALTER INDEX SET TABLESPACE records the affected index object"
     },
     {
+      "id": "create_type_range",
+      "file": "cases/create_type_range.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "PostgreSQL type lifecycle DDL: create type range"
+    },
+    {
+      "id": "create_type_shell",
+      "file": "cases/create_type_shell.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "PostgreSQL type lifecycle DDL: create type shell"
+    },
+    {
+      "id": "create_type_collated_composite",
+      "file": "cases/create_type_collated_composite.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "PostgreSQL type lifecycle DDL: create type collated composite"
+    },
+    {
+      "id": "alter_type_rename_enum_value",
+      "file": "cases/alter_type_rename_enum_value.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "PostgreSQL type lifecycle DDL: alter type rename enum value"
+    },
+    {
+      "id": "alter_type_composite_attributes",
+      "file": "cases/alter_type_composite_attributes.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "PostgreSQL type lifecycle DDL: alter type composite attributes"
+    },
+    {
+      "id": "alter_type_set_base_properties",
+      "file": "cases/alter_type_set_base_properties.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "PostgreSQL type lifecycle DDL: alter type set base properties"
+    },
+    {
       "id": "create_type_enum",
       "file": "cases/create_type_enum.sql",
       "statementType": "CONTROL",
@@ -2503,6 +3353,46 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL DROP TYPE IF EXISTS is accepted as type control DDL"
+    },
+    {
+      "id": "create_domain_unconstrained_array",
+      "file": "cases/create_domain_unconstrained_array.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "An unconstrained array domain is classified as control DDL"
+    },
+    {
+      "id": "create_domain_named_constraints",
+      "file": "cases/create_domain_named_constraints.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "Multiple named domain constraints are parsed after the default"
+    },
+    {
+      "id": "alter_domain_add_not_valid",
+      "file": "cases/alter_domain_add_not_valid.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "alter domain mart.score add constraint score_limit check (value <= 100) not valid"
+    },
+    {
+      "id": "alter_domain_validate_constraint",
+      "file": "cases/alter_domain_validate_constraint.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "alter domain mart.score validate constraint score_limit"
+    },
+    {
+      "id": "alter_domain_rename_constraint",
+      "file": "cases/alter_domain_rename_constraint.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "description": "alter domain mart.score rename constraint score_limit to score_max"
     },
     {
       "id": "create_domain_email",
@@ -2654,6 +3544,37 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "PostgreSQL CLOSE cursor command is accepted as cursor control"
+    },
+    {
+      "id": "prepare_update_returning",
+      "file": "cases/prepare_update_returning.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["mart.jobs"],
+      "outputTables": ["mart.jobs"],
+      "columnLineage": [
+        {"target": "mart.jobs.attempts", "sources": ["mart.jobs.attempts"]},
+        {"target": "id", "sources": ["mart.jobs.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.jobs.id"}
+      ],
+      "description": "PREPARE UPDATE exposes potential write, predicate, and RETURNING dependencies"
+    },
+    {
+      "id": "prepare_select_positional_parameters",
+      "file": "cases/prepare_select_positional_parameters.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id"]},
+        {"target": "adjusted_amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.customer_id"},
+        {"type": "ORDER_BY", "column": "sales.orders.created_at"}
+      ],
+      "description": "Positional bind parameters preserve real projection and filter dependencies"
     },
     {
       "id": "prepare_select_statement",
@@ -3059,6 +3980,26 @@
       "description": "PostgreSQL ROW constructor comparison preserves every compared predicate column"
     },
     {
+      "id": "select_pattern_escape_symmetric",
+      "file": "cases/select_pattern_escape_symmetric.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.products"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.products.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.products.name"},
+        {"type": "WHERE", "column": "ods.products.pattern"},
+        {"type": "WHERE", "column": "ods.products.escape_char"},
+        {"type": "WHERE", "column": "ods.products.price"},
+        {"type": "WHERE", "column": "ods.products.lower_price"},
+        {"type": "WHERE", "column": "ods.products.upper_price"},
+        {"type": "WHERE", "column": "ods.products.removed_at"}
+      ],
+      "description": "Pattern escape, symmetric bounds, and compact null tests preserve predicate dependencies"
+    },
+    {
       "id": "is_distinct_from_predicate",
       "file": "cases/is_distinct_from_predicate.sql",
       "statementType": "SELECT",
@@ -3145,6 +4086,35 @@
         {"type": "ORDER_BY", "column": "mart.orders.created_at"}
       ],
       "description": "PostgreSQL LIMIT ALL with OFFSET ROWS preserves query lineage and clause usages"
+    },
+    {
+      "id": "select_locking_before_pagination",
+      "file": "cases/select_locking_before_pagination.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.jobs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.jobs.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.jobs.status"},
+        {"type": "ORDER_BY", "column": "mart.jobs.id"}
+      ],
+      "description": "PostgreSQL locking before OFFSET LIMIT preserves query lineage"
+    },
+    {
+      "id": "select_fetch_before_offset",
+      "file": "cases/select_fetch_before_offset.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.jobs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.jobs.id"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "mart.jobs.id"}
+      ],
+      "description": "PostgreSQL FETCH before OFFSET preserves projection and sort dependencies"
     },
     {
       "id": "select_fetch_first_row_only",

@@ -9,6 +9,10 @@ import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
+import io.github.linesql.dialect.flink.antlr.FlinkLineageLexer;
+import io.github.linesql.dialect.flink.antlr.FlinkParser;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -24,6 +28,22 @@ import static org.junit.Assert.assertTrue;
 
 public class FlinkDialectParserTest {
     private final FlinkDialectParser parser = new FlinkDialectParser();
+
+    @Test
+    public void intersectBindsMoreTightlyThanUnionAndExcept() {
+        String sql = "SELECT a FROM t1 UNION SELECT b FROM t2 INTERSECT ALL SELECT c FROM t3 EXCEPT SELECT d FROM t4";
+        FlinkLineageLexer lexer = new FlinkLineageLexer(CharStreams.fromString(sql));
+        FlinkParser grammar = new FlinkParser(new CommonTokenStream(lexer));
+        FlinkParser.SetOperationContext except = (FlinkParser.SetOperationContext) grammar.query().queryTerm();
+        FlinkParser.SetOperationContext union = (FlinkParser.SetOperationContext) except.left;
+        FlinkParser.SetOperationContext intersect = (FlinkParser.SetOperationContext) union.right;
+
+        assertEquals(0, grammar.getNumberOfSyntaxErrors());
+        assertTrue(except.EXCEPT() != null);
+        assertTrue(union.UNION() != null);
+        assertTrue(intersect.INTERSECT() != null);
+        assertEquals("ALL", intersect.setQuantifier().getText());
+    }
 
     @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {
@@ -92,6 +112,27 @@ public class FlinkDialectParserTest {
                 .map(FlinkDialectParserTest::columnName)
                 .collect(Collectors.toList());
         assertEquals(list("ods.orders.id"), sources);
+    }
+
+    @Test
+    public void resolvesWindowTvfColumnsFromScriptSchema() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TEMPORARY TABLE orders (id BIGINT, ts TIMESTAMP(3));"
+                        + "SELECT w.order_id, w.start_time FROM "
+                        + "TUMBLE(TABLE orders, DESCRIPTOR(ts), INTERVAL '1' HOUR) "
+                        + "AS w(order_id, event_time, start_time, end_time, window_time);",
+                SqlDialect.FLINK);
+
+        assertEquals(2, results.size());
+        LineageResult query = results.get(1);
+        assertEquals(list("orders"), tableNames(query.getInputTables()));
+        assertEquals(list("order_id", "start_time"), query.getColumnLineage().stream()
+                .map(lineage -> columnName(lineage.getTarget()))
+                .collect(Collectors.toList()));
+        assertEquals(list("orders.id", "orders.ts"), query.getColumnLineage().stream()
+                .flatMap(lineage -> lineage.getSources().stream())
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList()));
     }
 
     @Test

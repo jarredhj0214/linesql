@@ -1,0 +1,1 @@
+TABLE public.events *;

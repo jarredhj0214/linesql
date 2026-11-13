@@ -5073,6 +5073,20 @@
       "description": "OceanBase Oracle mode PARTITION table extension keeps source table, projection, and predicate lineage"
     },
     {
+      "id": "oracle_mode_partition_for_value_source",
+      "file": "cases/oracle_mode_partition_for_value_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["sales.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.status"}
+      ],
+      "description": "PARTITION FOR literal keys preserves table, output, and filter dependencies"
+    },
+    {
       "id": "oracle_mode_subpartition_table_source",
       "file": "cases/oracle_mode_subpartition_table_source.sql",
       "statementType": "SELECT",
@@ -5606,17 +5620,17 @@
       "id": "oracle_mode_xml_table_relation",
       "file": "cases/oracle_mode_xml_table_relation.sql",
       "statementType": "SELECT",
-      "inputTables": ["ods.order_payloads", "xmltable"],
+      "inputTables": ["ods.order_payloads"],
       "outputTables": [],
       "columnLineage": [
-        {"target": "order_id", "sources": ["xmltable.order_id"]},
-        {"target": "amount", "sources": ["xmltable.amount"]}
+        {"target": "order_id", "sources": ["ods.order_payloads.payload"]},
+        {"target": "amount", "sources": ["ods.order_payloads.payload"]}
       ],
       "columnUsages": [
         {"type": "JOIN_ON", "column": "ods.order_payloads.payload"},
         {"type": "WHERE", "column": "ods.order_payloads.dt"}
       ],
-      "description": "OceanBase Oracle mode XMLTABLE relation keeps base table, table-valued source, and PASSING column usage"
+      "description": "XMLTABLE outputs trace to the PASSING expression"
     },
     {
       "id": "oracle_mode_lateral_inline_view",

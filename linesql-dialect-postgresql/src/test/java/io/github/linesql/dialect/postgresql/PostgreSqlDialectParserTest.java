@@ -8,6 +8,10 @@ import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.ColumnUsage;
+import io.github.linesql.dialect.postgresql.antlr.PostgreSqlLineageLexer;
+import io.github.linesql.dialect.postgresql.antlr.PostgreSqlParser;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -23,6 +27,23 @@ import static org.junit.Assert.assertTrue;
 
 public class PostgreSqlDialectParserTest {
     private final PostgreSqlDialectParser parser = new PostgreSqlDialectParser();
+
+    @Test
+    public void intersectBindsMoreTightlyThanUnionAndExcept() {
+        String sql = "SELECT a FROM t1 UNION SELECT b FROM t2 INTERSECT ALL SELECT c FROM t3 EXCEPT SELECT d FROM t4";
+        PostgreSqlLineageLexer lexer = new PostgreSqlLineageLexer(CharStreams.fromString(sql));
+        PostgreSqlParser grammar = new PostgreSqlParser(new CommonTokenStream(lexer));
+        PostgreSqlParser.SetOperationContext except =
+                (PostgreSqlParser.SetOperationContext) grammar.query().queryTerm();
+        PostgreSqlParser.SetOperationContext union = (PostgreSqlParser.SetOperationContext) except.left;
+        PostgreSqlParser.SetOperationContext intersect = (PostgreSqlParser.SetOperationContext) union.right;
+
+        assertEquals(0, grammar.getNumberOfSyntaxErrors());
+        assertTrue(except.EXCEPT() != null);
+        assertTrue(union.UNION() != null);
+        assertTrue(intersect.INTERSECT() != null);
+        assertEquals("ALL", intersect.setQuantifier().getText());
+    }
 
     @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {

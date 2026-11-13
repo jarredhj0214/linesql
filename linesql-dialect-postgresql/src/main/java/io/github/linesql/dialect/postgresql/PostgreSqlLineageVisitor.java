@@ -12,6 +12,7 @@ import io.github.linesql.dialect.postgresql.antlr.PostgreSqlParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -26,6 +27,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
     private final Set<String> cteNames = new LinkedHashSet<>();
+    private final Map<String, Set<SourceColumn>> namedWindowSources = new LinkedHashMap<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
@@ -107,31 +109,44 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             suppressColumnLineage = true;
         }
         currentDmlTarget = target;
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-        if (ctx.onConflictClause() != null
-                && ctx.onConflictClause().assignmentList() != null) {
-            List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
-            List<ColumnLineage> duplicateAssignments = readDuplicateKeyAssignments(
-                    ctx.onConflictClause().assignmentList(),
-                    target,
-                    insertedSourcesByColumn());
-            lineages.addAll(duplicateAssignments);
-            result.setColumnLineage(lineages);
-            suppressColumnLineage = true;
-        }
+        String targetName = ctx.targetAlias == null ? target.getName() : cleanIdentifier(ctx.targetAlias.getText());
+        tableAliases.put(targetName.toLowerCase(Locale.ROOT), target);
         if (ctx.onConflictClause() != null) {
-            PostgreSqlParser.ConflictTargetContext targetColumns = ctx.onConflictClause().conflictTarget();
-            if (targetColumns != null && targetColumns.identifierList() != null) {
-                addIdentifierListUsages(target, targetColumns.identifierList(), ColumnUsageType.TABLE_MODEL);
-            }
-            for (PostgreSqlParser.ConflictWhereClauseContext conflictWhere : ctx.onConflictClause().conflictWhereClause()) {
-                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(conflictWhere.expression()));
-            }
+            applyConflictLineage(ctx.onConflictClause(), target);
         }
         appendReturningLineage(ctx.returningClause(), target);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void applyConflictLineage(PostgreSqlParser.OnConflictClauseContext conflict, TableRef target) {
+        PostgreSqlParser.ConflictTargetContext conflictTarget = conflict.conflictTarget();
+        if (conflictTarget != null) {
+            for (PostgreSqlParser.ConflictIndexElementContext element : conflictTarget.conflictIndexElement()) {
+                if (element.identifier() != null) {
+                    LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL,
+                            Collections.singletonList(new ColumnRef(target, cleanIdentifier(element.identifier()))));
+                } else {
+                    addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(element.expression()));
+                }
+            }
+        }
+        if (conflict.indexPredicate != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(conflict.indexPredicate.expression()));
+        }
+        if (conflict.assignmentList() == null) {
+            return;
+        }
+        Map<String, List<ColumnRef>> insertedSources = insertedSourcesByColumn();
+        List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
+        lineages.addAll(readDuplicateKeyAssignments(conflict.assignmentList(), target, insertedSources));
+        result.setColumnLineage(lineages);
+        suppressColumnLineage = true;
+        if (conflict.actionPredicate != null) {
+            addColumnUsages(ColumnUsageType.WHERE, conflictSourceColumns(
+                    conflict.actionPredicate.expression(), insertedSources));
+        }
     }
 
     @Override
@@ -184,7 +199,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        TableRef target = tableRef(ctx.multipartIdentifier());
+        TableRef target = tableRef(ctx.inheritanceRelation().multipartIdentifier());
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
@@ -213,14 +228,18 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return;
         }
         List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
-        if (returning.STAR() != null) {
-            List<ColumnRef> sources = new ArrayList<>();
-            sources.add(new ColumnRef(targetTable, "*"));
-            lineages.add(LineageModelUtils.columnLineage(null, "*", sources, "*"));
-            result.setColumnLineage(lineages);
-            return;
-        }
         for (PostgreSqlParser.ReturningItemContext item : returning.returningItem()) {
+            if (item.STAR() != null) {
+                List<ColumnRef> sources = item.qualifiedName() == null
+                        ? Collections.singletonList(new ColumnRef(targetTable, "*"))
+                        : resolveSources(Collections.singletonList(
+                                new SourceColumn(cleanIdentifier(item.qualifiedName().identifier(
+                                        item.qualifiedName().identifier().size() - 1)), "*")));
+                if (sources != null) {
+                    lineages.add(LineageModelUtils.columnLineage(null, "*", sources, item.getText()));
+                }
+                continue;
+            }
             List<SourceColumn> sourceColumns = sourceColumns(item.expression());
             List<ColumnRef> sources = resolveSources(sourceColumns);
             if (sources == null) {
@@ -280,34 +299,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        TableRef target = tableRef(ctx.multipartIdentifier(0));
+        TableRef target = tableRef(ctx.targetRelation.multipartIdentifier());
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
         tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-        String targetAlias = tableAlias(ctx.tableAlias(0));
+        String targetAlias = tableAlias(ctx.tableAlias());
         if (targetAlias != null) {
             tableAliases.put(targetAlias.toLowerCase(Locale.ROOT), target);
         }
 
-        if (ctx.multipartIdentifier().size() > 1) {
-            TableRef source = tableRef(ctx.multipartIdentifier(1));
-            if (isCteReference(source)) {
-                addDerivedReference(source.getName(), ctx.tableAlias(1));
-            } else {
-                inputTables.add(source);
-                tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
-                String sourceAlias = tableAlias(ctx.tableAlias(1));
-                if (sourceAlias != null) {
-                    tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
-                }
-            }
-        } else if (ctx.query() != null) {
-            String alias = tableAlias(ctx.tableAlias(1));
-            String relationName = alias == null ? "$merge_source" : alias;
-            registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), new ArrayList<>());
-            addDerivedReference(relationName, ctx.tableAlias(1));
-        }
+        visit(ctx.relationPrimary());
 
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
 
@@ -348,7 +350,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private void visitRelationPrimaryForDml(PostgreSqlParser.RelationPrimaryContext primary, boolean output) {
         if (primary instanceof PostgreSqlParser.TableNameContext) {
             PostgreSqlParser.TableNameContext tableName = (PostgreSqlParser.TableNameContext) primary;
-            TableRef table = tableRef(tableName.multipartIdentifier());
+            TableRef table = tableRef(tableName.inheritanceRelation().multipartIdentifier());
             if (isCteReference(table)) {
                 addDerivedReference(table.getName(), tableName.tableAlias());
                 return;
@@ -370,7 +372,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
             registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), query.query(), new ArrayList<>());
             addDerivedReference(relationName, query.tableAlias());
+            return;
         }
+        visit(primary);
     }
 
     @Override
@@ -381,19 +385,18 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateIndexStatement(PostgreSqlParser.CreateIndexStatementContext ctx) {
-        List<PostgreSqlParser.MultipartIdentifierContext> identifiers = ctx.multipartIdentifier();
-        if (identifiers.size() > 1) {
-            TableRef table = tableRef(identifiers.get(1));
-            outputTables.add(table);
-            currentDmlTarget = table;
-            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
-            addColumnUsages(ColumnUsageType.INDEX, sourceColumns(ctx.indexElementList()));
-            if (ctx.includeColumns != null) {
-                addIdentifierListUsages(table, ctx.includeColumns, ColumnUsageType.INDEX);
-            }
-            if (ctx.expression() != null) {
-                addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
-            }
+        TableRef table = tableRef(ctx.target);
+        outputTables.add(table);
+        currentDmlTarget = table;
+        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+        for (PostgreSqlParser.IndexElementContext element : ctx.indexElementList().indexElement()) {
+            addColumnUsages(ColumnUsageType.INDEX, sourceColumns(element.expression()));
+        }
+        if (ctx.includeColumns != null) {
+            addIdentifierListUsages(table, ctx.includeColumns, ColumnUsageType.INDEX);
+        }
+        if (ctx.expression() != null) {
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
         }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -694,6 +697,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             currentDmlTarget = target;
             collectCreateTableElements(ctx.tableElementList(), target);
         }
+        if (ctx.partitionByClause() != null) {
+            currentDmlTarget = target;
+            addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.partitionByClause().expressionList()));
+        }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -857,7 +864,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitTruncateTableStatement(PostgreSqlParser.TruncateTableStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        for (PostgreSqlParser.InheritanceRelationContext relation : ctx.inheritanceRelation()) {
+            outputTables.add(tableRef(relation.multipartIdentifier()));
+        }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -911,7 +920,16 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableAddColumn(PostgreSqlParser.AlterTableAddColumnContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        String column = cleanIdentifier(ctx.columnName);
+        currentDmlTarget = table;
+        recordAlterColumnUsage(table, column);
+        List<ColumnLineage> generated = new ArrayList<>();
+        for (PostgreSqlParser.ColumnConstraintContext constraint : ctx.columnConstraint()) {
+            collectColumnConstraint(constraint, table, column, generated);
+        }
+        result.setColumnLineage(generated);
+        result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -1106,6 +1124,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             result.setColumnLineage(readCopyColumns(ctx.columnList, target));
             addIdentifierListUsages(target, ctx.columnList, ColumnUsageType.TABLE_MODEL);
         }
+        if (ctx.whereClause() != null) {
+            currentDmlTarget = target;
+            tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+            addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
+        }
+        addCopyOptionColumnUsages(ctx.copyOptions(), target, ColumnUsageType.TABLE_MODEL);
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -1120,14 +1144,39 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             result.setColumnLineage(readCopyTableColumns(ctx.columnList, source));
             addIdentifierListUsages(source, ctx.columnList, ColumnUsageType.READ_METADATA);
         }
+        addCopyOptionColumnUsages(ctx.copyOptions(), source, ColumnUsageType.READ_METADATA);
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
+    }
+
+    private void addCopyOptionColumnUsages(PostgreSqlParser.CopyOptionsContext options,
+                                           TableRef table, ColumnUsageType type) {
+        if (options == null) {
+            return;
+        }
+        for (PostgreSqlParser.CopyOptionContext option : options.copyOption()) {
+            String name = cleanIdentifier(option.identifier()).toLowerCase(Locale.ROOT);
+            switch (name) {
+                case "force_quote":
+                case "force_not_null":
+                case "force_null":
+                    if (option.identifierList() != null) {
+                        addIdentifierListUsages(table, option.identifierList(), type);
+                    } else if (option.STAR() != null) {
+                        LineageModelUtils.addColumnUsages(result, type,
+                                Collections.singletonList(new ColumnRef(table, "*")));
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     @Override
     public Void visitCopyToQuery(PostgreSqlParser.CopyToQueryContext ctx) {
         result.setStatementType(StatementType.SELECT);
-        visit(ctx.query());
+        visit(ctx.cteBody());
         refreshColumnLineage();
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
@@ -1141,10 +1190,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitVacuumStatement(PostgreSqlParser.VacuumStatementContext ctx) {
-        if (ctx.multipartIdentifier() != null) {
-            TableRef table = tableRef(ctx.multipartIdentifier());
+        for (PostgreSqlParser.MaintenanceRelationContext relation : ctx.maintenanceRelation()) {
+            TableRef table = tableRef(relation.multipartIdentifier());
             outputTables.add(table);
-            addIdentifierListUsages(table, ctx.identifierList(), ColumnUsageType.READ_METADATA);
+            addIdentifierListUsages(table, relation.identifierList(), ColumnUsageType.READ_METADATA);
         }
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -1158,10 +1207,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitAnalyzeStatement(PostgreSqlParser.AnalyzeStatementContext ctx) {
-        if (ctx.multipartIdentifier() != null) {
-            TableRef table = tableRef(ctx.multipartIdentifier());
+        for (PostgreSqlParser.MaintenanceRelationContext relation : ctx.maintenanceRelation()) {
+            TableRef table = tableRef(relation.multipartIdentifier());
             inputTables.add(table);
-            addIdentifierListUsages(table, ctx.identifierList(), ColumnUsageType.READ_METADATA);
+            addIdentifierListUsages(table, relation.identifierList(), ColumnUsageType.READ_METADATA);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
@@ -1214,9 +1263,13 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     public Void visitRoutineControlStmt(PostgreSqlParser.RoutineControlStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         PostgreSqlParser.RoutineControlStatementContext statement = ctx.routineControlStatement();
+        if (statement.preparedStatement != null && statement.preparedStatement.query() == null) {
+            visit(statement.preparedStatement);
+            return null;
+        }
         PostgreSqlParser.QueryContext query = statement.cursorQuery != null
                 ? statement.cursorQuery
-                : statement.preparedQuery;
+                : statement.preparedStatement == null ? null : statement.preparedStatement.query();
         if (query != null) {
             LineageResult queryResult = lineageForQuery(query);
             inputTables.addAll(queryResult.getInputTables());
@@ -1311,11 +1364,31 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             PostgreSqlParser.CteBodyContext body = namedQuery.cteBody();
             if (body.query() != null) {
                 registerDerivedRelation(cteName, body.query(), cteColumnAliases(namedQuery));
+                Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(cteName);
+                if (namedQuery.searchClause() != null) {
+                    PostgreSqlParser.SearchClauseContext search = namedQuery.searchClause();
+                    columns.put(cleanIdentifier(search.sequenceColumn), cteKeySources(columns, search.identifierList()));
+                }
+                if (namedQuery.cycleClause() != null) {
+                    PostgreSqlParser.CycleClauseContext cycle = namedQuery.cycleClause();
+                    List<ColumnRef> keys = cteKeySources(columns, cycle.identifierList());
+                    columns.put(cleanIdentifier(cycle.markColumn), keys);
+                    columns.put(cleanIdentifier(cycle.pathColumn), keys);
+                }
             } else {
                 registerDataModifyingCte(cteName, body, cteColumnAliases(namedQuery));
             }
         }
         return null;
+    }
+
+    private static List<ColumnRef> cteKeySources(Map<String, List<ColumnRef>> columns,
+                                                PostgreSqlParser.IdentifierListContext keys) {
+        List<ColumnRef> sources = new ArrayList<>();
+        for (String key : identifierNames(keys)) {
+            sources.addAll(columns.getOrDefault(key, Collections.emptyList()));
+        }
+        return LineageModelUtils.mergeColumnRefs(Collections.emptyList(), sources);
     }
 
     @Override
@@ -1335,14 +1408,41 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQuantifiedComparison(PostgreSqlParser.QuantifiedComparisonContext ctx) {
+        if (ctx.query() == null) {
+            return visitChildren(ctx);
+        }
+        LineageResult queryResult = lineageForQuery(ctx.query());
+        for (TableRef table : queryResult.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, queryResult);
+        visit(ctx.left);
+        return null;
+    }
+
+    @Override
     public Void visitTableQuery(PostgreSqlParser.TableQueryContext ctx) {
-        addInputTable(tableRef(ctx.multipartIdentifier()), false);
+        TableRef table = tableRef(ctx.inheritanceRelation().multipartIdentifier());
+        if (ctx.inheritanceRelation().ONLY() == null && ctx.inheritanceRelation().STAR() == null
+                && isCteReference(table)) {
+            String name = table.getName().toLowerCase(Locale.ROOT);
+            addDerivedInputTables(name);
+            Map<String, List<ColumnRef>> columns = derivedColumnLineage.getOrDefault(name, Collections.emptyMap());
+            List<ColumnLineage> lineages = new ArrayList<>();
+            for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
+                lineages.add(LineageModelUtils.columnLineage(null, column.getKey(), column.getValue(), column.getKey()));
+            }
+            result.setColumnLineage(lineages);
+        } else {
+            addInputTable(table, false);
+        }
         return null;
     }
 
     @Override
     public Void visitTableName(PostgreSqlParser.TableNameContext ctx) {
-        TableRef table = tableRef(ctx.multipartIdentifier());
+        TableRef table = tableRef(ctx.inheritanceRelation().multipartIdentifier());
         if (isCteReference(table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
@@ -1370,32 +1470,156 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitJsonTableRelation(PostgreSqlParser.JsonTableRelationContext ctx) {
+        List<SourceColumn> rowSources = sourceColumns(ctx.expression(0));
+        rowSources.addAll(sourceColumns(ctx.expression(1)));
+        if (ctx.jsonPassingClause() != null) {
+            rowSources.addAll(sourceColumns(ctx.jsonPassingClause()));
+        }
+        addColumnUsages(ColumnUsageType.JOIN_ON, rowSources);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        collectJsonTableColumns(ctx.jsonTableColumns(), rowSources, columns);
+        registerNamedFunctionColumns(ctx.tableAlias(), "json_table", columns);
+        return null;
+    }
+
+    private void registerNamedFunctionColumns(PostgreSqlParser.TableAliasContext aliasContext,
+                                              String defaultName, Map<String, List<ColumnRef>> columns) {
+        List<String> aliasColumns = tableAliasColumnNames(aliasContext);
+        Map<String, List<ColumnRef>> namedColumns = new LinkedHashMap<>();
+        int index = 0;
+        for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
+            String name = index < aliasColumns.size() ? aliasColumns.get(index) : entry.getKey();
+            namedColumns.put(name, entry.getValue());
+            index++;
+        }
+        String alias = tableAlias(aliasContext);
+        String name = alias == null ? defaultName : alias;
+        derivedColumnLineage.put(name.toLowerCase(Locale.ROOT), namedColumns);
+        addDerivedReference(name, null);
+    }
+
+    private void collectJsonTableColumns(PostgreSqlParser.JsonTableColumnsContext ctx,
+                                         List<SourceColumn> rowSources,
+                                         Map<String, List<ColumnRef>> columns) {
+        for (PostgreSqlParser.JsonTableColumnContext column : ctx.jsonTableColumn()) {
+            if (column.ORDINALITY() != null) {
+                columns.put(cleanIdentifier(column.name), Collections.emptyList());
+                continue;
+            }
+            List<SourceColumn> sources = new ArrayList<>(rowSources);
+            if (column.expression() != null) {
+                sources.addAll(sourceColumns(column.expression()));
+            }
+            if (column.jsonTableColumns() != null) {
+                collectJsonTableColumns(column.jsonTableColumns(), sources, columns);
+                continue;
+            }
+            for (PostgreSqlParser.JsonQueryBehaviorContext behavior : column.jsonQueryBehavior()) {
+                sources.addAll(sourceColumns(behavior));
+            }
+            List<ColumnRef> refs = columnUsageRefs(sources);
+            columns.put(cleanIdentifier(column.name), refs == null
+                    ? Collections.emptyList()
+                    : LineageModelUtils.mergeColumnRefs(Collections.emptyList(), refs));
+        }
+    }
+
+    @Override
     public Void visitTableFunction(PostgreSqlParser.TableFunctionContext ctx) {
-        List<SourceColumn> sources = ctx.expressionList() == null
+        List<SourceColumn> sources = ctx.functionArguments() == null
                 ? new ArrayList<>()
-                : sourceColumns(ctx.expressionList());
+                : sourceColumns(ctx.functionArguments());
         addColumnUsages(ColumnUsageType.JOIN_ON, sources);
-        registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
+        if (ctx.recordColumn().isEmpty()) {
+            registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
+        } else {
+            String alias = ctx.recordAlias == null
+                    ? unqualifiedName(cleanIdentifier(ctx.functionName().getText()))
+                    : cleanIdentifier(ctx.recordAlias.getText());
+            List<String> columnNames = new ArrayList<>();
+            for (PostgreSqlParser.RecordColumnContext column : ctx.recordColumn()) {
+                columnNames.add(cleanIdentifier(column.identifier()));
+            }
+            registerGeneratedRelation(alias, columnNames, sources, false);
+        }
         return null;
     }
 
     @Override
     public Void visitRowsFromTableFunction(PostgreSqlParser.RowsFromTableFunctionContext ctx) {
         List<SourceColumn> sources = new ArrayList<>();
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        boolean allTyped = true;
         for (PostgreSqlParser.RowsFromItemContext item : ctx.rowsFromItem()) {
-            if (item.expressionList() != null) {
-                sources.addAll(sourceColumns(item.expressionList()));
+            List<SourceColumn> itemSources = sourceColumns(item.functionArguments());
+            sources.addAll(itemSources);
+            if (item.recordColumn().isEmpty()) {
+                allTyped = false;
+                continue;
+            }
+            List<ColumnRef> refs = columnUsageRefs(itemSources);
+            for (PostgreSqlParser.RecordColumnContext column : item.recordColumn()) {
+                columns.put(cleanIdentifier(column.identifier()), refs == null ? Collections.emptyList() : refs);
             }
         }
         addColumnUsages(ColumnUsageType.JOIN_ON, sources);
-        registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
+        if (allTyped) {
+            if (ctx.ORDINALITY() != null) {
+                columns.put("ordinality", Collections.emptyList());
+            }
+            registerNamedFunctionColumns(ctx.tableAlias(), "rows_from", columns);
+        } else {
+            registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitValuesQuery(PostgreSqlParser.ValuesQueryContext ctx) {
+        Map<String, List<ColumnRef>> columns = valueColumns(ctx.valuesClause(), Collections.emptyList());
+        List<ColumnLineage> lineage = new ArrayList<>();
+        for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
+            lineage.add(LineageModelUtils.columnLineage(null, column.getKey(), column.getValue(), null));
+        }
+        result.setColumnLineage(lineage);
         return null;
     }
 
     @Override
     public Void visitValuesTable(PostgreSqlParser.ValuesTableContext ctx) {
-        registerGeneratedRelation(ctx.tableAlias(), new ArrayList<>());
+        String alias = tableAlias(ctx.tableAlias());
+        String name = alias == null ? "$values" + derivedColumnLineage.size() : alias;
+        Map<String, List<ColumnRef>> columns = valueColumns(ctx.valuesClause(), tableAliasColumnNames(ctx.tableAlias()));
+        derivedColumnLineage.put(name.toLowerCase(Locale.ROOT), columns);
+        addDerivedReference(name, null);
         return null;
+    }
+
+    private Map<String, List<ColumnRef>> valueColumns(List<PostgreSqlParser.ValuesClauseContext> rows,
+                                                      List<String> names) {
+        int width = rows.get(0).expressionList().expression().size();
+        List<List<ColumnRef>> refs = new ArrayList<>();
+        for (int i = 0; i < width; i++) {
+            refs.add(Collections.emptyList());
+        }
+        for (PostgreSqlParser.ValuesClauseContext row : rows) {
+            List<PostgreSqlParser.ExpressionContext> expressions = row.expressionList().expression();
+            for (int i = 0; i < Math.min(width, expressions.size()); i++) {
+                PostgreSqlParser.ExpressionContext expression = expressions.get(i);
+                collectSubqueryInputs(expression);
+                List<ColumnRef> sources = columnRefs(sourceColumns(expression));
+                if (sources != null) {
+                    refs.set(i, LineageModelUtils.mergeColumnRefs(refs.get(i), sources));
+                }
+            }
+        }
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int i = 0; i < width; i++) {
+            String name = i < names.size() ? names.get(i) : "column" + (i + 1);
+            columns.put(name, refs.get(i));
+        }
+        return columns;
     }
 
     @Override
@@ -1461,6 +1685,25 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQuerySpecification(PostgreSqlParser.QuerySpecificationContext ctx) {
+        Map<String, Set<SourceColumn>> previousWindows = new LinkedHashMap<>(namedWindowSources);
+        namedWindowSources.clear();
+        if (ctx.windowClause() != null) {
+            for (PostgreSqlParser.NamedWindowContext window : ctx.windowClause().namedWindow()) {
+                Set<SourceColumn> columns = new LinkedHashSet<>();
+                collectSourceColumns(window.windowSpec(), columns);
+                namedWindowSources.put(cleanIdentifier(window.identifier()).toLowerCase(Locale.ROOT), columns);
+            }
+        }
+        try {
+            return visitChildren(ctx);
+        } finally {
+            namedWindowSources.clear();
+            namedWindowSources.putAll(previousWindows);
+        }
+    }
+
+    @Override
     public Void visitWindowSpec(PostgreSqlParser.WindowSpecContext ctx) {
         if (ctx.expressionList() != null) {
             for (PostgreSqlParser.ExpressionContext expression : ctx.expressionList().expression()) {
@@ -1472,6 +1715,16 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         for (PostgreSqlParser.SortItemContext sortItem : ctx.sortItem()) {
             pendingColumnUsages.add(new PendingColumnUsage(
                     ColumnUsageType.WINDOW_ORDER_BY,
+                    sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAggregateOrderBy(PostgreSqlParser.AggregateOrderByContext ctx) {
+        for (PostgreSqlParser.SortItemContext sortItem : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(
+                    ColumnUsageType.ORDER_BY,
                     sourceColumns(sortItem.expression())));
         }
         return visitChildren(ctx);
@@ -1497,10 +1750,65 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(PostgreSqlParser.QueryOrganizationContext ctx) {
+        PostgreSqlParser.QueryContext query = (PostgreSqlParser.QueryContext) ctx.getParent();
+        boolean outputOrder = query.queryTerm() instanceof PostgreSqlParser.SetOperationContext
+                || !valuesQueryRows(query).isEmpty();
         for (PostgreSqlParser.SortItemContext sortItem : ctx.sortItem()) {
-            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            String sortKey = sortItem.expression().getText();
+            int ordinal = sortOrdinal(sortKey);
+            if (outputOrder) {
+                List<ColumnLineage> lineages = result.getColumnLineage();
+                if (ordinal >= 0 && ordinal < lineages.size()
+                        && lineages.size() == setOutputWidth(query.queryTerm())) {
+                    LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, lineages.get(ordinal).getSources());
+                } else if (ordinal < 0) {
+                    LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
+                }
+            } else if (ordinal >= 0) {
+                for (Projection projection : projections) {
+                    if (projection.ordinal == ordinal) {
+                        addColumnUsages(ColumnUsageType.ORDER_BY, projection.sourceColumns);
+                        break;
+                    }
+                }
+            } else {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            }
         }
         return visitChildren(ctx);
+    }
+
+    private static int setOutputWidth(PostgreSqlParser.QueryTermContext term) {
+        if (term instanceof PostgreSqlParser.SetOperationContext) {
+            return setOutputWidth(((PostgreSqlParser.SetOperationContext) term).left);
+        }
+        PostgreSqlParser.QueryPrimaryContext primary =
+                ((PostgreSqlParser.QueryTermDefaultContext) term).queryPrimary();
+        if (primary instanceof PostgreSqlParser.SubqueryPrimaryContext) {
+            return setOutputWidth(((PostgreSqlParser.SubqueryPrimaryContext) primary).query().queryTerm());
+        }
+        if (primary instanceof PostgreSqlParser.ValuesQueryContext) {
+            return ((PostgreSqlParser.ValuesQueryContext) primary).valuesClause(0).expressionList().expression().size();
+        }
+        if (!(primary instanceof PostgreSqlParser.QueryPrimaryDefaultContext)) {
+            return -1;
+        }
+        List<PostgreSqlParser.SelectItemContext> items = ((PostgreSqlParser.QueryPrimaryDefaultContext) primary)
+                .querySpecification().selectClause().selectItemList().selectItem();
+        for (PostgreSqlParser.SelectItemContext item : items) {
+            if (!(item instanceof PostgreSqlParser.SelectExpressionContext)) {
+                return -1;
+            }
+        }
+        return items.size();
+    }
+
+    private static int sortOrdinal(String expression) {
+        try {
+            return Integer.parseInt(expression) - 1;
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
     }
 
     // ============ Internal helpers ============
@@ -1553,27 +1861,26 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         refreshColumnLineage();
     }
 
-    private void registerGeneratedRelation(PostgreSqlParser.TableAliasContext aliasCtx, List<SourceColumn> sources) {
-        registerGeneratedRelation(aliasCtx, sources, false);
-    }
-
     private void registerGeneratedRelation(PostgreSqlParser.TableAliasContext aliasCtx,
                                            List<SourceColumn> sources,
                                            boolean withOrdinality) {
-        String alias = tableAlias(aliasCtx);
+        registerGeneratedRelation(tableAlias(aliasCtx), tableAliasColumnNames(aliasCtx), sources, withOrdinality);
+    }
+
+    private void registerGeneratedRelation(String alias, List<String> aliasColumns,
+                                           List<SourceColumn> sources, boolean withOrdinality) {
         if (alias == null) {
             return;
         }
         String derivedName = alias.toLowerCase(Locale.ROOT);
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         List<ColumnRef> refs = columnUsageRefs(sources);
-        List<String> aliasColumns = tableAliasColumnNames(aliasCtx);
         for (int i = 0; i < aliasColumns.size(); i++) {
             boolean ordinalityColumn = withOrdinality && i == aliasColumns.size() - 1;
             columns.put(aliasColumns.get(i), ordinalityColumn || refs == null ? new ArrayList<>() : new ArrayList<>(refs));
         }
         derivedColumnLineage.put(derivedName, columns);
-        addDerivedReference(alias, aliasCtx);
+        addDerivedReference(alias, null);
     }
 
     private static List<String> tableAliasColumnNames(PostgreSqlParser.TableAliasContext ctx) {
@@ -1607,7 +1914,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         relationVisitor.derivedAliases.putAll(derivedAliases);
         relationVisitor.derivedReferences.addAll(derivedReferences);
         relationVisitor.visit(query);
-        relationVisitor.refreshColumnLineage();
+        relationVisitor.finalizeResult();
 
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         List<ColumnLineage> lineages = relationResult.getColumnLineage();
@@ -1677,7 +1984,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(queryTerm);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 
@@ -1727,22 +2034,30 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx.expression() != null) {
             addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
         } else {
-            addUsingColumnUsages(ctx.identifierList(), relationStart);
+            addUsingColumnUsages(ctx, relationStart);
         }
     }
 
-    private void addUsingColumnUsages(PostgreSqlParser.IdentifierListContext ctx, int relationStart) {
+    private void addUsingColumnUsages(PostgreSqlParser.JoinCriteriaContext ctx, int relationStart) {
         List<VisibleRelation> relations = visibleRelationsSince(relationStart);
-        if (ctx == null || relations.size() < 2) {
+        if (ctx.identifierList() == null || relations.size() < 2) {
             return;
         }
-        List<ColumnRef> refs = new ArrayList<>();
-        for (String columnName : identifierNames(ctx)) {
+        Map<String, List<ColumnRef>> joinColumns = new LinkedHashMap<>();
+        for (String columnName : identifierNames(ctx.identifierList())) {
+            List<ColumnRef> refs = new ArrayList<>();
             for (VisibleRelation relation : relations) {
                 refs.addAll(usingColumnRefs(relation, columnName));
             }
+            joinColumns.put(columnName, refs);
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, refs);
         }
-        LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, refs);
+        if (ctx.usingAlias != null) {
+            String alias = cleanIdentifier(ctx.usingAlias.getText()).toLowerCase(Locale.ROOT);
+            String name = "$join_using_" + derivedColumnLineage.size();
+            derivedColumnLineage.put(name, joinColumns);
+            derivedAliases.put(alias, name);
+        }
     }
 
     private List<VisibleRelation> visibleRelationsSince(int relationStart) {
@@ -2106,26 +2421,29 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private List<ColumnRef> duplicateKeySources(PostgreSqlParser.ExpressionContext expression,
                                                 Map<String, List<ColumnRef>> insertedSourcesByColumn) {
-        String excludedColumn = excludedColumn(expression);
-        if (excludedColumn != null) {
-            List<ColumnRef> sources = insertedSourcesByColumn.get(excludedColumn.toLowerCase(Locale.ROOT));
-            return sources == null ? new ArrayList<ColumnRef>() : new ArrayList<>(sources);
-        }
         String valuesColumn = valuesFunctionColumn(expression);
         if (valuesColumn != null) {
             List<ColumnRef> sources = insertedSourcesByColumn.get(valuesColumn.toLowerCase(Locale.ROOT));
             return sources == null ? new ArrayList<ColumnRef>() : new ArrayList<>(sources);
         }
-        return resolveSources(sourceColumns(expression));
+        return resolveSources(conflictSourceColumns(expression, insertedSourcesByColumn));
     }
 
-    private static String excludedColumn(PostgreSqlParser.ExpressionContext expression) {
-        String text = expression.getText().trim();
-        String lower = text.toLowerCase(Locale.ROOT);
-        if (!lower.startsWith("excluded.") || text.indexOf('.') != text.lastIndexOf('.')) {
-            return null;
+    private List<SourceColumn> conflictSourceColumns(PostgreSqlParser.ExpressionContext expression,
+                                                     Map<String, List<ColumnRef>> insertedSources) {
+        List<SourceColumn> columns = new ArrayList<>();
+        for (SourceColumn source : sourceColumns(expression)) {
+            String name = source.name.toLowerCase(Locale.ROOT);
+            if (source.resolvedRef == null && name.startsWith("excluded.")) {
+                for (ColumnRef ref : insertedSources.getOrDefault(name.substring("excluded.".length()),
+                        Collections.emptyList())) {
+                    columns.add(SourceColumn.resolved(ref));
+                }
+            } else {
+                columns.add(source);
+            }
         }
-        return cleanIdentifier(text.substring(text.indexOf('.') + 1));
+        return columns;
     }
 
     private static String valuesFunctionColumn(PostgreSqlParser.ExpressionContext expression) {
@@ -2356,6 +2674,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             inputTables.addAll(subResult.getInputTables());
             return;
         }
+        if (tree instanceof PostgreSqlParser.QuantifiedComparisonContext) {
+            PostgreSqlParser.QueryContext query = ((PostgreSqlParser.QuantifiedComparisonContext) tree).query();
+            if (query != null) {
+                inputTables.addAll(lineageForQuery(query).getInputTables());
+                collectSubqueryInputs(((PostgreSqlParser.QuantifiedComparisonContext) tree).left);
+                return;
+            }
+        }
         if (tree instanceof PostgreSqlParser.PredicateContext) {
             PostgreSqlParser.PredicateContext predicate = (PostgreSqlParser.PredicateContext) tree;
             if (predicate.query() != null) {
@@ -2399,7 +2725,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 
@@ -2412,11 +2738,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
+        queryVisitor.finalizeResult();
         inputTables.addAll(queryResult.getInputTables());
         LineageModelUtils.mergeColumnUsages(result, queryResult);
 
         if (queryVisitor.projections.isEmpty()) {
-            queryVisitor.refreshColumnLineage();
             result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
                     queryResult.getColumnLineage(),
                     target,
@@ -2583,6 +2909,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
             return;
         }
+        if (tree instanceof PostgreSqlParser.QuantifiedComparisonContext) {
+            PostgreSqlParser.QuantifiedComparisonContext comparison =
+                    (PostgreSqlParser.QuantifiedComparisonContext) tree;
+            if (comparison.query() != null) {
+                collectSourceColumns(comparison.left, columns);
+                addScalarSubquerySourceColumns(comparison.query(), columns);
+                return;
+            }
+        }
         if (tree instanceof PostgreSqlParser.PredicateContext) {
             PostgreSqlParser.PredicateContext predicate = (PostgreSqlParser.PredicateContext) tree;
             if (predicate.query() != null) {
@@ -2609,7 +2944,16 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (tree instanceof PostgreSqlParser.WindowRefContext) {
             PostgreSqlParser.WindowRefContext windowRef = (PostgreSqlParser.WindowRefContext) tree;
             if (windowRef.identifier() != null) {
+                String name = cleanIdentifier(windowRef.identifier()).toLowerCase(Locale.ROOT);
+                columns.addAll(namedWindowSources.getOrDefault(name, Collections.emptySet()));
                 return;
+            }
+        }
+        if (tree instanceof PostgreSqlParser.WindowSpecContext) {
+            PostgreSqlParser.WindowSpecContext spec = (PostgreSqlParser.WindowSpecContext) tree;
+            if (spec.identifier() != null) {
+                String name = cleanIdentifier(spec.identifier()).toLowerCase(Locale.ROOT);
+                columns.addAll(namedWindowSources.getOrDefault(name, Collections.emptySet()));
             }
         }
         for (int i = 0; i < tree.getChildCount(); i++) {

@@ -9,6 +9,10 @@ import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
+import io.github.linesql.dialect.starrocks.antlr.StarRocksLineageLexer;
+import io.github.linesql.dialect.starrocks.antlr.StarRocksParser;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -25,6 +29,21 @@ import static org.junit.Assert.assertTrue;
 
 public class StarRocksDialectParserTest {
     private final StarRocksDialectParser parser = new StarRocksDialectParser();
+
+    @Test
+    public void intersectBindsMoreTightlyThanUnionAndMinus() {
+        String sql = "SELECT a FROM t1 UNION SELECT b FROM t2 INTERSECT SELECT c FROM t3 MINUS SELECT d FROM t4";
+        StarRocksLineageLexer lexer = new StarRocksLineageLexer(CharStreams.fromString(sql));
+        StarRocksParser grammar = new StarRocksParser(new CommonTokenStream(lexer));
+        StarRocksParser.SetOperationContext minus = (StarRocksParser.SetOperationContext) grammar.query().queryTerm();
+        StarRocksParser.SetOperationContext union = (StarRocksParser.SetOperationContext) minus.left;
+        StarRocksParser.SetOperationContext intersect = (StarRocksParser.SetOperationContext) union.right;
+
+        assertEquals(0, grammar.getNumberOfSyntaxErrors());
+        assertTrue(minus.MINUS_KW() != null);
+        assertTrue(union.UNION() != null);
+        assertTrue(intersect.INTERSECT() != null);
+    }
 
     @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {

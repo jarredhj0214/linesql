@@ -89,7 +89,7 @@ public class SimpleDialectDetector implements DialectDetector {
         if (normalized.contains("_ob_")) {
             candidates.add(candidate(SqlDialect.OCEANBASE, 0.45, "Weak OceanBase-style identifier anchor"));
         }
-        if (normalized.contains(" on conflict ")
+        if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")
                 || normalized.matches("(?s).*\\breturning\\b.*")
                 || normalized.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
                 || normalized.matches("(?s).*\\bilike\\b.*")) {

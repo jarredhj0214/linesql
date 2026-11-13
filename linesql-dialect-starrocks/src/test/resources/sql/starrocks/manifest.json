@@ -1286,6 +1286,37 @@
       "description": "StarRocks CREATE MATERIALIZED VIEW bloom filter properties return index column usages"
     },
     {
+      "id": "update_null_safe_from",
+      "file": "cases/update_null_safe_from.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "dwd.orders",
+        "staging.order_status"
+      ],
+      "outputTables": [
+        "dwd.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "dwd.orders.status",
+          "sources": [
+            "staging.order_status.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.external_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "staging.order_status.external_id"
+        }
+      ],
+      "description": "Null-safe comparison preserves both operands in an UPDATE FROM predicate"
+    },
+    {
       "id": "update_from",
       "file": "cases/update_from.sql",
       "statementType": "UPDATE",
@@ -4175,6 +4206,121 @@
       "description": "StarRocks MINUS DISTINCT set operation merges source table and column lineage"
     },
     {
+      "id": "union_ordered_aggregate_alias",
+      "file": "cases/union_ordered_aggregate_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders",
+        "dwd.orders_archive"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "items",
+          "sources": [
+            "dwd.orders.sku",
+            "dwd.orders.created_at",
+            "dwd.orders_archive.sku",
+            "dwd.orders_archive.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.created_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders_archive.created_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.sku"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders_archive.sku"
+        }
+      ],
+      "description": "UNION ordering by the output alias traces both branch values and aggregate ordering columns"
+    },
+    {
+      "id": "aggregate_inline_order_by",
+      "file": "cases/aggregate_inline_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ordered_skus",
+          "sources": [
+            "dwd.orders.sku",
+            "dwd.orders.created_at",
+            "dwd.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.created_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.id"
+        }
+      ],
+      "description": "Ordered ARRAY_AGG captures value and sort dependencies"
+    },
+    {
+      "id": "group_concat_order_by_separator",
+      "file": "cases/group_concat_order_by_separator.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "ordered_skus",
+          "sources": [
+            "dwd.orders.sku",
+            "dwd.orders.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.created_at"
+        }
+      ],
+      "description": "GROUP_CONCAT DISTINCT supports local ordering and separator with column lineage"
+    },
+    {
       "id": "aggregate_filter_where_lineage",
       "file": "cases/aggregate_filter_where_lineage.sql",
       "statementType": "SELECT",
@@ -5350,6 +5496,114 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "StarRocks ROLLBACK control statement"
+    },
+    {
+      "id": "select_bitwise_integer_arithmetic",
+      "file": "cases/select_bitwise_integer_arithmetic.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dwd.orders.id"
+          ]
+        },
+        {
+          "target": "flags",
+          "sources": [
+            "dwd.orders.flags",
+            "dwd.orders.mask",
+            "dwd.orders.extra_flags"
+          ]
+        },
+        {
+          "target": "bucket",
+          "sources": [
+            "dwd.orders.total",
+            "dwd.orders.unit_size",
+            "dwd.orders.buckets"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.flags"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.previous_flags"
+        }
+      ],
+      "description": "Bitwise and integer arithmetic operators preserve all input operands"
+    },
+    {
+      "id": "select_parameter_markers",
+      "file": "cases/select_parameter_markers.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dwd.orders.id"
+          ]
+        },
+        {
+          "target": "adjusted",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.tenant_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dwd.orders.created_at"
+        }
+      ],
+      "description": "Parameter markers in projections, filters, and limits preserve real column references"
+    },
+    {
+      "id": "prepare_direct_query_lineage",
+      "file": "cases/prepare_direct_query_lineage.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dwd.orders.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.tenant_id"
+        }
+      ],
+      "description": "Direct PREPARE query preserves projected and filtered columns"
     },
     {
       "id": "prepare_select_statement",
@@ -9623,6 +9877,42 @@
         }
       ],
       "description": "StarRocks CREATE TABLE with multi-column list partition style"
+    },
+    {
+      "id": "unnest_multiple_arrays_positional",
+      "file": "cases/unnest_multiple_arrays_positional.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "dwd.orders.id"
+          ]
+        },
+        {
+          "target": "sku",
+          "sources": [
+            "dwd.orders.skus"
+          ]
+        },
+        {
+          "target": "quantity",
+          "sources": [
+            "dwd.orders.quantities"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.quantities"
+        }
+      ],
+      "description": "Each multi-array UNNEST output and filter resolves to its corresponding argument"
     },
     {
       "id": "unnest_table_function_lineage",

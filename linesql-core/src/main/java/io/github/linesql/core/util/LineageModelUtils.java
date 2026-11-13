@@ -71,6 +71,15 @@ public final class LineageModelUtils {
         return new ArrayList<ColumnRef>(refs.values());
     }
 
+    public static void addSetOrderByUsage(LineageResult result, String outputName) {
+        for (ColumnLineage lineage : result.getColumnLineage()) {
+            ColumnRef target = lineage.getTarget();
+            if (target != null && outputName.equalsIgnoreCase(target.getName())) {
+                addColumnUsages(result, ColumnUsageType.ORDER_BY, lineage.getSources());
+            }
+        }
+    }
+
     public static void addColumnUsages(LineageResult result, ColumnUsageType type, List<ColumnRef> columns) {
         Map<String, ColumnUsage> usages = columnUsageMap(result);
         for (ColumnRef column : columns) {

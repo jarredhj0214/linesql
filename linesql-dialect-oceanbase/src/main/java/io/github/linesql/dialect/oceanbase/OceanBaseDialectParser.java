@@ -84,7 +84,7 @@ public class OceanBaseDialectParser implements DialectParser {
                 || normalized.matches("(?s).*\\blateral\\s*\\(.*")
                 || normalized.matches("(?s).*\\b(from|join)\\s+table\\s*\\(.*")
                 || normalized.matches("(?s).*\\bxmltable\\s*\\(.*\\bpassing\\b.*")
-                || normalized.matches("(?s)^(?!\\s*explain\\s+partitions\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*")
+                || normalized.matches("(?s)^(?!\\s*explain\\s+partitions\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*(for\\s*)?\\(.*")
                 || normalized.matches("(?s)^\\s*comment\\s+on\\s+(table|column)\\b.*")
                 || normalized.matches("(?s).*\\bmerge\\s+into\\b.*")
                 || normalized.matches("(?s)^\\s*insert\\s+(all|first)\\b.*")

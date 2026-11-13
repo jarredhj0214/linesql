@@ -9,6 +9,10 @@ import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
+import io.github.linesql.dialect.sqlserver.antlr.SqlServerLineageLexer;
+import io.github.linesql.dialect.sqlserver.antlr.SqlServerParser;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -24,6 +28,22 @@ import static org.junit.Assert.assertTrue;
 
 public class SqlServerDialectParserTest {
     private final SqlServerDialectParser parser = new SqlServerDialectParser();
+
+    @Test
+    public void intersectBindsMoreTightlyThanUnionAndExcept() {
+        String sql = "SELECT a FROM t1 UNION SELECT b FROM t2 INTERSECT SELECT c FROM t3 EXCEPT SELECT d FROM t4";
+        SqlServerLineageLexer lexer = new SqlServerLineageLexer(CharStreams.fromString(sql));
+        SqlServerParser grammar = new SqlServerParser(new CommonTokenStream(lexer));
+        SqlServerParser.SetOperationContext except =
+                (SqlServerParser.SetOperationContext) grammar.query().queryTerm();
+        SqlServerParser.SetOperationContext union = (SqlServerParser.SetOperationContext) except.left;
+        SqlServerParser.SetOperationContext intersect = (SqlServerParser.SetOperationContext) union.right;
+
+        assertEquals(0, grammar.getNumberOfSyntaxErrors());
+        assertTrue(except.EXCEPT() != null);
+        assertTrue(union.UNION() != null);
+        assertTrue(intersect.INTERSECT() != null);
+    }
 
     @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {

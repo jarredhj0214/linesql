@@ -13,6 +13,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.misc.Interval;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +42,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
     private final Set<String> cteNames = new LinkedHashSet<>();
+    private final Set<String> documentTableRelations = new LinkedHashSet<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
@@ -810,8 +812,47 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableFunctionRelation(OracleParser.TableFunctionRelationContext ctx) {
-        TableRef function = tableRef(ctx.qualifiedName());
-        addInputTable(function, ctx.tableAlias(), true);
+        String functionName = ctx.XMLTABLE() == null ? tableRef(ctx.qualifiedName()).getName() : "xmltable";
+        if (ctx.jsonTableArgumentList() != null && "json_table".equalsIgnoreCase(functionName)) {
+            List<SourceColumn> sources = sourceColumns(ctx.jsonTableArgumentList().expression());
+            addColumnUsages(ColumnUsageType.JOIN_ON, sources);
+            List<ColumnRef> refs = columnUsageRefs(sources);
+            Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+            collectJsonTableColumns(ctx.jsonTableArgumentList().jsonTableColumns(),
+                    refs == null ? Collections.emptyList() : refs, columns);
+            registerTableFunctionColumns(ctx.tableAlias(), functionName, columns);
+            return null;
+        }
+        if (ctx.xmlTableArgumentList() != null) {
+            OracleParser.XmlTableArgumentListContext xml = ctx.xmlTableArgumentList();
+            List<SourceColumn> sources = new ArrayList<>();
+            for (OracleParser.XmlPassingArgumentContext argument : xml.xmlPassingArgument()) {
+                sources.addAll(sourceColumns(argument.expression()));
+            }
+            addColumnUsages(ColumnUsageType.JOIN_ON, sources);
+            List<ColumnRef> refs = columnUsageRefs(sources);
+            List<ColumnRef> passingRefs = refs == null ? Collections.emptyList() : refs;
+            Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+            for (OracleParser.XmlTableColumnContext column : xml.xmlTableColumn()) {
+                List<ColumnRef> columnRefs = new ArrayList<>();
+                if (column.ORDINALITY() == null) {
+                    columnRefs.addAll(passingRefs);
+                    if (column.expression() != null) {
+                        List<ColumnRef> defaultRefs = columnUsageRefs(sourceColumns(column.expression()));
+                        if (defaultRefs != null) {
+                            columnRefs.addAll(defaultRefs);
+                        }
+                    }
+                }
+                columns.put(cleanIdentifier(column.name), columnRefs);
+            }
+            if (columns.isEmpty()) {
+                columns.put("column_value", passingRefs);
+            }
+            registerTableFunctionColumns(ctx.tableAlias(), functionName, columns);
+            return null;
+        }
+        addInputTable(tableRef(ctx.qualifiedName()), ctx.tableAlias(), true);
         if (ctx.expressionList() != null) {
             for (OracleParser.ExpressionContext expression : ctx.expressionList().expression()) {
                 addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(expression));
@@ -820,10 +861,29 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (ctx.jsonTableArgumentList() != null) {
             addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.jsonTableArgumentList().expression()));
         }
-        if (ctx.xmlTableArgumentList() != null) {
-            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.xmlTableArgumentList().expression()));
-        }
         return null;
+    }
+
+    private void registerTableFunctionColumns(OracleParser.TableAliasContext tableAlias, String functionName,
+                                              Map<String, List<ColumnRef>> columns) {
+        String alias = tableAlias(tableAlias);
+        String name = alias == null ? functionName : alias;
+        String normalizedName = name.toLowerCase(Locale.ROOT);
+        documentTableRelations.add(normalizedName);
+        derivedColumnLineage.put(normalizedName, columns);
+        addDerivedReference(name, tableAlias);
+    }
+
+    private void collectJsonTableColumns(OracleParser.JsonTableColumnsContext ctx, List<ColumnRef> sources,
+                                         Map<String, List<ColumnRef>> columns) {
+        for (OracleParser.JsonTableColumnContext column : ctx.jsonTableColumn()) {
+            if (column.jsonTableColumns() != null) {
+                collectJsonTableColumns(column.jsonTableColumns(), sources, columns);
+            } else {
+                columns.put(cleanIdentifier(column.name),
+                        column.ORDINALITY() == null ? sources : Collections.emptyList());
+            }
+        }
     }
 
     @Override
@@ -1128,6 +1188,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 if (projection != null) {
                     projections.add(projection);
                 }
+            } else if (item instanceof OracleParser.SelectQualifiedStarContext) {
+                OracleParser.SelectQualifiedStarContext star = (OracleParser.SelectQualifiedStarContext) item;
+                List<OracleParser.IdentifierContext> parts = star.qualifiedName().identifier();
+                String qualifier = cleanIdentifier(parts.get(parts.size() - 1));
+                projections.add(new Projection(Collections.singletonList(new SourceColumn(qualifier, "*")),
+                        "*", item.getText(), i));
+            } else if (item instanceof OracleParser.SelectStarContext) {
+                projections.add(new Projection(Collections.singletonList(new SourceColumn(null, "*")),
+                        "*", item.getText(), i));
             }
         }
         return visitChildren(ctx);
@@ -1342,8 +1411,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(OracleParser.QueryOrganizationContext ctx) {
+        boolean setQuery = ctx.getParent() instanceof OracleParser.QueryContext
+                && ((OracleParser.QueryContext) ctx.getParent()).queryTerm() instanceof OracleParser.SetOperationContext;
         for (OracleParser.SortItemContext sortItem : ctx.sortItem()) {
-            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            if (setQuery) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            } else {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            }
         }
         return visitChildren(ctx);
     }
@@ -1471,7 +1546,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(queryTerm);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 
@@ -1592,8 +1667,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             return;
         }
         List<ColumnLineage> columnLineage = new ArrayList<>();
-        for (int i = 0; i < projections.size(); i++) {
-            Projection projection = projections.get(i);
+        int expandedColumns = 0;
+        for (Projection projection : projections) {
+            if (projection.wildcard()) {
+                expandedColumns += expandDerivedWildcard(projection, targetTable, columnLineage, expandedColumns);
+                continue;
+            }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
                 continue;
@@ -1604,10 +1683,31 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                     && !isSequencePseudocolumnExpression(projection.expression)) {
                 continue;
             }
-            String targetColumn = targetColumn(projection, projection.ordinal);
+            String targetColumn = targetColumn(projection.targetColumn, projection.ordinal + expandedColumns);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
+    }
+
+    private int expandDerivedWildcard(Projection projection, TableRef targetTable, List<ColumnLineage> lineage,
+                                      int expandedColumns) {
+        String qualifier = projection.sourceColumns.get(0).qualifier;
+        String relation = qualifier == null
+                ? visibleRelations.size() == 1 ? visibleRelations.get(0).derivedName : null
+                : derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
+        if (!documentTableRelations.contains(relation)) {
+            return 0;
+        }
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation);
+        if (columns == null || columns.isEmpty()) {
+            return 0;
+        }
+        int position = projection.ordinal + expandedColumns;
+        for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
+            lineage.add(LineageModelUtils.columnLineage(
+                    targetTable, targetColumn(column.getKey(), position++), column.getValue(), projection.expression));
+        }
+        return columns.size() - 1;
     }
 
     private void flushPendingColumnUsages() {
@@ -1627,11 +1727,11 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 insertTargetColumns));
     }
 
-    private String targetColumn(Projection projection, int index) {
+    private String targetColumn(String name, int index) {
         if (index >= 0 && index < insertTargetColumns.size()) {
             return insertTargetColumns.get(index);
         }
-        return projection.targetColumn;
+        return name;
     }
 
     private List<ColumnRef> columnRefs(Projection projection) {
@@ -2391,6 +2491,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             this.targetColumn = targetColumn;
             this.expression = expression;
             this.ordinal = ordinal;
+        }
+        boolean wildcard() {
+            return "*".equals(targetColumn) && sourceColumns.size() == 1 && "*".equals(sourceColumns.get(0).name);
         }
     }
 

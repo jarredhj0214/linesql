@@ -79,8 +79,26 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitValuesStmt(MySqlParser.ValuesStmtContext ctx) {
-        result.setStatementType(StatementType.SELECT);
+    public Void visitValuesPrimary(MySqlParser.ValuesPrimaryContext ctx) {
+        List<Set<SourceColumn>> sourcesByPosition = new ArrayList<>();
+        for (MySqlParser.ValuesClauseContext row : ctx.valueTable().valuesClause()) {
+            if (row.expressionList() == null) {
+                continue;
+            }
+            List<MySqlParser.ExpressionContext> expressions = row.expressionList().expression();
+            for (int i = 0; i < expressions.size(); i++) {
+                if (i == sourcesByPosition.size()) {
+                    sourcesByPosition.add(new LinkedHashSet<>());
+                }
+                collectSubqueryInputs(expressions.get(i));
+                sourcesByPosition.get(i).addAll(sourceColumns(expressions.get(i)));
+            }
+        }
+        for (int i = 0; i < sourcesByPosition.size(); i++) {
+            projections.add(new Projection(new ArrayList<>(sourcesByPosition.get(i)),
+                    "column_" + i, null, null, i));
+        }
+        refreshColumnLineage();
         return null;
     }
 
@@ -1458,6 +1476,14 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitFunctionOrderBy(MySqlParser.FunctionOrderByContext ctx) {
+        for (MySqlParser.SortItemContext item : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(ColumnUsageType.ORDER_BY, sourceColumns(item.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitWindowSpec(MySqlParser.WindowSpecContext ctx) {
         addWindowSpecUsages(ctx, new LinkedHashSet<String>());
         return visitChildren(ctx);
@@ -1496,8 +1522,20 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(MySqlParser.QueryOrganizationContext ctx) {
+        boolean orderByOutput = false;
+        if (ctx.getParent() instanceof MySqlParser.QueryContext) {
+            MySqlParser.QueryTermContext term = ((MySqlParser.QueryContext) ctx.getParent()).queryTerm();
+            orderByOutput = term instanceof MySqlParser.SetOperationContext
+                    || term instanceof MySqlParser.QueryTermDefaultContext
+                    && ((MySqlParser.QueryTermDefaultContext) term).queryPrimary()
+                            instanceof MySqlParser.ValuesPrimaryContext;
+        }
         for (MySqlParser.SortItemContext sortItem : ctx.sortItem()) {
-            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            if (orderByOutput) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            } else {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            }
         }
         return null;
     }
@@ -1705,7 +1743,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(queryTerm);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 

@@ -1189,8 +1189,87 @@
       "outputTables": [
         "ads_user_flags"
       ],
-      "columnLineage": [],
+      "columnLineage": [{"target": "ads_user_flags.user_id", "sources": []}, {"target": "ads_user_flags.flag", "sources": []}],
       "description": "Flink INSERT INTO VALUES target table lineage"
+    },
+    {
+      "id": "select_null_safe_symmetric_predicates",
+      "file": "cases/select_null_safe_symmetric_predicates.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "orders",
+        "customers"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "orders.customer_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "customers.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "orders.amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "customers.lower_amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "customers.upper_amount"
+        },
+        {
+          "type": "WHERE",
+          "column": "orders.code"
+        },
+        {
+          "type": "WHERE",
+          "column": "customers.code_pattern"
+        }
+      ],
+      "description": "Null-safe joins, symmetric ranges, and escaped patterns preserve each predicate operand"
+    },
+    {
+      "id": "union_output_alias_order_by",
+      "file": "cases/union_output_alias_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events",
+        "ods.events_archive"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id",
+            "ods.events_archive.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events_archive.id"
+        }
+      ],
+      "description": "Flink UNION ORDER BY resolves the output alias across both branches"
     },
     {
       "id": "union_column_projection",
@@ -2739,7 +2818,7 @@
         {
           "target": "window_start",
           "sources": [
-            "ods.orders.window_start"
+            "ods.orders.ts"
           ]
         },
         {
@@ -2762,7 +2841,7 @@
         },
         {
           "type": "GROUP_BY",
-          "column": "ods.orders.window_start"
+          "column": "ods.orders.ts"
         },
         {
           "type": "GROUP_BY",
@@ -2785,7 +2864,7 @@
         {
           "target": "ads_window_orders.window_start",
           "sources": [
-            "ods.orders.window_start"
+            "ods.orders.ts"
           ]
         },
         {
@@ -2808,7 +2887,7 @@
         },
         {
           "type": "GROUP_BY",
-          "column": "ods.orders.window_start"
+          "column": "ods.orders.ts"
         },
         {
           "type": "GROUP_BY",
@@ -2981,6 +3060,7 @@
         "dwd.orders_with_watermark"
       ],
       "columnLineage": [],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "dwd.orders_with_watermark.rowtime"}],
       "description": "Flink CREATE TABLE LIKE with include/exclude options and additional watermark"
     },
     {
@@ -3719,13 +3799,13 @@
         {
           "target": "window_start",
           "sources": [
-            "dwd.orders.window_start"
+            "dwd.orders.rowtime"
           ]
         },
         {
           "target": "window_end",
           "sources": [
-            "dwd.orders.window_end"
+            "dwd.orders.rowtime"
           ]
         },
         {
@@ -3748,11 +3828,7 @@
         },
         {
           "type": "GROUP_BY",
-          "column": "dwd.orders.window_start"
-        },
-        {
-          "type": "GROUP_BY",
-          "column": "dwd.orders.window_end"
+          "column": "dwd.orders.rowtime"
         },
         {
           "type": "GROUP_BY",
@@ -3775,13 +3851,13 @@
         {
           "target": "ads_hop_orders.window_start",
           "sources": [
-            "dwd.orders.window_start"
+            "dwd.orders.rowtime"
           ]
         },
         {
           "target": "ads_hop_orders.window_end",
           "sources": [
-            "dwd.orders.window_end"
+            "dwd.orders.rowtime"
           ]
         },
         {
@@ -3804,11 +3880,7 @@
         },
         {
           "type": "GROUP_BY",
-          "column": "dwd.orders.window_start"
-        },
-        {
-          "type": "GROUP_BY",
-          "column": "dwd.orders.window_end"
+          "column": "dwd.orders.rowtime"
         },
         {
           "type": "GROUP_BY",
@@ -3829,13 +3901,13 @@
         {
           "target": "window_start",
           "sources": [
-            "dwd.orders.window_start"
+            "dwd.orders.rowtime"
           ]
         },
         {
           "target": "window_end",
           "sources": [
-            "dwd.orders.window_end"
+            "dwd.orders.rowtime"
           ]
         },
         {
@@ -3858,11 +3930,7 @@
         },
         {
           "type": "GROUP_BY",
-          "column": "dwd.orders.window_start"
-        },
-        {
-          "type": "GROUP_BY",
-          "column": "dwd.orders.window_end"
+          "column": "dwd.orders.rowtime"
         },
         {
           "type": "GROUP_BY",
@@ -3870,6 +3938,36 @@
         }
       ],
       "description": "Flink CUMULATE table-valued function table lineage, projected dependencies, and window time usage"
+    },
+    {
+      "id": "session_window_partition_keys",
+      "file": "cases/session_window_partition_keys.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "window_start", "sources": ["ods.orders.event_ts", "ods.orders.user_id", "ods.orders.region"]}, {"target": "window_time", "sources": ["ods.orders.event_ts", "ods.orders.user_id", "ods.orders.region"]}, {"target": "user_id", "sources": ["ods.orders.user_id"]}, {"target": "order_id", "sources": ["ods.orders.order_id"]}],
+      "columnUsages": [{"type": "WINDOW_ORDER_BY", "column": "ods.orders.event_ts"}, {"type": "WINDOW_PARTITION_BY", "column": "ods.orders.user_id"}, {"type": "WINDOW_PARTITION_BY", "column": "ods.orders.region"}],
+      "description": "Flink window TVF traces generated window fields to the time descriptor"
+    },
+    {
+      "id": "tumble_window_cte",
+      "file": "cases/tumble_window_cte.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "order_id", "sources": ["ods.orders.order_id"]}, {"target": "window_end", "sources": ["ods.orders.event_ts"]}],
+      "columnUsages": [{"type": "WINDOW_ORDER_BY", "column": "ods.orders.event_ts"}],
+      "description": "Flink window TVF traces generated window fields to the time descriptor"
+    },
+    {
+      "id": "tumble_window_wildcard",
+      "file": "cases/tumble_window_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "*", "sources": ["ods.orders.*"]}, {"target": "window_start", "sources": ["ods.orders.ts"]}, {"target": "window_end", "sources": ["ods.orders.ts"]}, {"target": "window_time", "sources": ["ods.orders.ts"]}],
+      "columnUsages": [{"type": "WINDOW_ORDER_BY", "column": "ods.orders.ts"}],
+      "description": "Flink window TVF traces generated window fields to the time descriptor"
     },
     {
       "id": "session_window",
@@ -3883,13 +3981,13 @@
         {
           "target": "window_start",
           "sources": [
-            "dwd.orders.window_start"
+            "dwd.orders.rowtime"
           ]
         },
         {
           "target": "window_end",
           "sources": [
-            "dwd.orders.window_end"
+            "dwd.orders.rowtime"
           ]
         },
         {
@@ -3912,11 +4010,7 @@
         },
         {
           "type": "GROUP_BY",
-          "column": "dwd.orders.window_start"
-        },
-        {
-          "type": "GROUP_BY",
-          "column": "dwd.orders.window_end"
+          "column": "dwd.orders.rowtime"
         },
         {
           "type": "GROUP_BY",
@@ -4354,7 +4448,9 @@
         {
           "target": "rolling_amount",
           "sources": [
-            "dwd.orders.amount"
+            "dwd.orders.amount",
+            "dwd.orders.user_id",
+            "dwd.orders.rowtime"
           ]
         }
       ],
@@ -4506,12 +4602,30 @@
       "description": "Flink quantified ALL/ANY subquery predicates preserve subquery source tables"
     },
     {
+      "id": "select_derived_values_aliases",
+      "file": "cases/select_derived_values_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": []
+        },
+        {
+          "target": "status",
+          "sources": []
+        }
+      ],
+      "description": "Derived VALUES preserves explicit column aliases and constant output lineage"
+    },
+    {
       "id": "values_query",
       "file": "cases/values_query.sql",
       "statementType": "SELECT",
       "inputTables": [],
       "outputTables": [],
-      "columnLineage": [],
+      "columnLineage": [{"target": "EXPR$0", "sources": []}, {"target": "EXPR$1", "sources": []}],
       "description": "Flink VALUES query is recognized without table lineage"
     },
     {
@@ -4859,6 +4973,65 @@
         }
       ],
       "description": "Flink CDC source to sink INSERT aggregate lineage"
+    },
+    {
+      "id": "cross_join_unnest_with_ordinality",
+      "file": "cases/cross_join_unnest_with_ordinality.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "orders.id"
+          ]
+        },
+        {
+          "target": "item",
+          "sources": [
+            "orders.items"
+          ]
+        },
+        {
+          "target": "ord",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "orders.items"
+        }
+      ],
+      "description": "Flink lateral function syntax preserves output and predicate column dependencies"
+    },
+    {
+      "id": "left_join_direct_lateral_table_function",
+      "file": "cases/left_join_direct_lateral_table_function.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "orders.id"
+          ]
+        },
+        {
+          "target": "part",
+          "sources": [
+            "orders.code"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Flink lateral function syntax preserves output and predicate column dependencies"
     },
     {
       "id": "cross_join_unnest_lineage",
@@ -5546,7 +5719,7 @@
         {
           "target": "window_start",
           "sources": [
-            "ods.clicks.window_start"
+            "ods.clicks.ts"
           ]
         },
         {

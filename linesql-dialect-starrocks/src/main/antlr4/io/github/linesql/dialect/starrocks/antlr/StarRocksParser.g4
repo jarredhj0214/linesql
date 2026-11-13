@@ -103,15 +103,8 @@ namedQuery
 
 queryTerm
     : queryPrimary                                                   #queryTermDefault
-    | left=queryTerm setOperator right=queryTerm                     #setOperation
-    ;
-
-setOperator
-    : UNION ALL
-    | UNION DISTINCT?
-    | EXCEPT (ALL | DISTINCT)?
-    | MINUS_KW DISTINCT?
-    | INTERSECT (ALL | DISTINCT)?
+    | left=queryTerm INTERSECT setQuantifier? right=queryTerm                #setOperation
+    | left=queryTerm ((UNION | EXCEPT) setQuantifier? | MINUS_KW DISTINCT?) right=queryTerm #setOperation
     ;
 
 queryPrimary
@@ -284,15 +277,18 @@ predicate
 
 valueExpression
     : primaryExpression                                              #valueExpressionDefault
-    | operator=(MINUS | PLUS) valueExpression                        #unaryExpression
-    | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
+    | operator=(MINUS | PLUS | BIT_NOT) valueExpression                        #unaryExpression
+    | left=valueExpression BIT_XOR right=valueExpression            #bitwiseXor
+    | left=valueExpression operator=(STAR | SLASH | PERCENT | DIV | MOD) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
+    | left=valueExpression BIT_AND right=valueExpression            #bitwiseAnd
+    | left=valueExpression BIT_OR right=valueExpression             #bitwiseOr
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
     | left=valueExpression comparisonOperator right=valueExpression  #comparison
     ;
 
 comparisonOperator
-    : EQ | NEQ | LT | GT | LTE | GTE
+    : EQ | NEQ | LT | GT | LTE | GTE | NULL_SAFE_EQ
     ;
 
 primaryExpression
@@ -300,7 +296,7 @@ primaryExpression
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
     | functionName LPAREN STAR RPAREN functionFilterClause? (OVER windowSpec)?             #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList RPAREN functionFilterClause? (OVER windowSpec)?  #functionCall
+    | functionName LPAREN setQuantifier? expressionList aggregateOrderBy? (SEPARATOR expression)? RPAREN functionFilterClause? (OVER windowSpec)?  #functionCall
     | functionName LPAREN RPAREN functionFilterClause? (OVER windowSpec)?                  #functionCallEmpty
     | identifier ARROW expression                                   #lambdaExpression
     | LPAREN identifierList RPAREN ARROW expression                  #lambdaExpressionList
@@ -311,6 +307,7 @@ primaryExpression
     | identifier LBRACE mapEntryList? RBRACE                         #mapLiteral
     | primaryExpression DOT identifier                                #dereference
     | primaryExpression LBRACKET expression RBRACKET                  #subscriptExpression
+    | QUESTION                                                       #parameterMarker
     | identifier                                                     #columnReference
     | userVariable                                                   #variableReference
     | number                                                         #numberLiteral
@@ -355,6 +352,10 @@ functionName
     | REPLACE
     | IF
     | CAST
+    ;
+
+aggregateOrderBy
+    : ORDER BY sortItem (COMMA sortItem)*
     ;
 
 functionFilterClause
@@ -1126,7 +1127,7 @@ transactionControlStatement
     ;
 
 preparedStatement
-    : PREPARE identifier FROM string
+    : PREPARE identifier FROM (string | query)
     | EXECUTE identifier (USING userVariable (COMMA userVariable)*)?
     | (DROP | DEALLOCATE) PREPARE identifier
     ;
@@ -1417,10 +1418,10 @@ strictIdentifier
 nonReservedKeyword
     : ACTIVE | ADD | ADMIN | AFTER | AGGREGATE | ANALYZE | ASC | AUTHENTICATION | AUTO_INCREMENT | BACKEND | BACKUP | BASE | BEGIN | BLACKLIST | BUCKETS | BUILD | BUILTIN | CACHE | CANCEL | CAST | CHECK | COLUMN | COLUMNS | COMMENT | COMMIT | COMPUTE | CONFIG | CUMULATIVE | DATABASES | DEALLOCATE | DECOMMISSION | DEFAULT
     | ANTI | ANY | ASOF | BRANCH | BROKER | CONNECTION | COSTS | CURRENT | DATA | DATABASE | DAYS | DESCRIBE | DESC | DICTIONARY | DISTRIBUTED | DISTRIBUTION | DROP | DUPLICATE | DYNAMIC | END | ENGINE | ESCAPE | EXISTS | EXCLUDE | EXPLAIN | EXPORT | EXTERNAL | FALSE | FOLLOWER
-    | DEFERRED | EXECUTE | FIELD | FILTER | FUNCTIONS | GRANT | GRANTS | GROUPS | IMMEDIATE | INACTIVE
+    | DEFERRED | EXECUTE | DIV | MOD | FIELD | FILTER | FUNCTIONS | GRANT | GRANTS | GROUPS | IMMEDIATE | INACTIVE
     | ASYNC | BACKENDS | BITMAP_UNION | CUBE | EVERY | FIRST | FOLLOWING | FOR | FORCE | FORMAT | FRONTEND | FRONTENDS | FUNCTION | GLOBAL | GROUPING | HASH | HISTOGRAM | HLL_UNION | HOURS | IF | IMAGE | INDEX | INDEXES | INFILE | INTERVAL | JOB | KEY | KEYS | KILL | LABEL | LAST | LATERAL | LESS | LIKE | LIMIT | LOAD | LOGICAL | MATERIALIZED | MINUTES
     | INVOKER | MANUAL | MATCH | MATCH_ALL | MATCH_ANY | MATCHED | MAX | MERGE | META | MIN | MINUS_KW | MODE | MULTIPLE | NEGATIVE | NODE | NODES | NONE | NULL | NULLS | OBSERVER | OLAP
-    | OF | OFFSET | ONLY | OPTIMIZE | OUTFILE | OVER | OVERWRITE | PARTITION | PARTITIONS | PAUSE | PREPARE | PRIMARY | PROPERTIES | QUALIFY | QUOTA
+    | OF | OFFSET | ONLY | OPTIMIZE | OUTFILE | OVER | OVERWRITE | PARTITION | PARTITIONS | PAUSE | PREPARE | PRIMARY | PROPERTIES | QUALIFY | QUOTA | SEPARATOR
     | NAME | PATH | PRECEDING | PROC | PROCESSLIST | QUERIES | QUERY | RANDOM | RANGE | READ | RECURSIVE | REFRESH | REGEXP | RENAME | REPAIR | REPLACE | REPLACE_IF_NOT_NULL | REPLICA | REPOSITORIES | REPOSITORY | RESET | RESUME | RESTORE | RETURNS | REVOKE | RLIKE | ROLLBACK | ROLE | ROLES | ROLLUP | ROUTINE | ROW | ROWS | RUNNING | SAMPLE | SCHEDULE | SECURITY | SEMI_JOIN | SESSION | SETS | SHOW | SNAPSHOT | SOME | SQLBLACKLIST | START | STATUS | STATS | STOP | STORED | SUBMIT | SUM | SWAP | SYNC | SYSTEM | TABLE | TABLES | TASK | TRANSACTION | UNBOUNDED | USER | USERS | VARIABLES | VIEWS
     | CATALOG | CATALOGS | FILE | FILES | PIPE | PIPES | PIVOT | PROPERTY | RETRY | SUSPEND | SUSPENDED | VOLUMES | WAREHOUSE | WAREHOUSES
     | RETAIN | SPLIT | STRUCT | TABLET | TAG | TEMPORARY | TERMINATED | THAN | TIMESTAMP | TO | TRUE | TRUNCATE | UNIQUE | USAGE | VALUE | VALUES | VERSION | VERBOSE | VIEW

@@ -9,7 +9,6 @@ singleStatement
 statement
     : query                                                          #statementDefault
     | tableStatement                                                 #tableStmt
-    | valuesStatement                                                #valuesStmt
     | insertStatement                                                #insertStmt
     | replaceStatement                                               #replaceStmt
     | loadDataStatement                                              #loadDataStmt
@@ -81,10 +80,6 @@ tableStatement
     : TABLE multipartIdentifier queryOrganization
     ;
 
-valuesStatement
-    : valueTable queryOrganization
-    ;
-
 valueTable
     : VALUES valuesClause (COMMA valuesClause)*
     ;
@@ -123,15 +118,8 @@ namedQuery
 
 queryTerm
     : queryPrimary                                                   #queryTermDefault
-    | left=queryTerm setOperator right=queryTerm                     #setOperation
-    ;
-
-setOperator
-    : UNION ALL
-    | UNION DISTINCT?
-    | EXCEPT (ALL | DISTINCT)?
-    | INTERSECT (ALL | DISTINCT)?
-    | MINUS_SET (ALL | DISTINCT)?
+    | left=queryTerm INTERSECT setQuantifier? right=queryTerm                 #setOperation
+    | left=queryTerm (UNION | EXCEPT | MINUS_SET) setQuantifier? right=queryTerm #setOperation
     ;
 
 queryPrimary

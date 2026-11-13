@@ -1,0 +1,2 @@
+REINDEX (VERBOSE true, TABLESPACE fast_index)
+TABLE CONCURRENTLY mart.users;

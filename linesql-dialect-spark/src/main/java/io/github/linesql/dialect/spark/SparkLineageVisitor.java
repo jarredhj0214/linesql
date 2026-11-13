@@ -1106,7 +1106,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitAliasedQuery(SqlBaseParser.AliasedQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
-        registerDerivedRelation(relationName.toLowerCase(java.util.Locale.ROOT), ctx.query());
+        registerDerivedRelation(relationName.toLowerCase(java.util.Locale.ROOT), ctx.query(),
+                tableAliasColumnNames(ctx.tableAlias()));
         addDerivedReference(relationName, ctx.tableAlias());
         return null;
     }
@@ -1282,6 +1283,80 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitInlineTableDefault1(SqlBaseParser.InlineTableDefault1Context ctx) {
+        SqlBaseParser.InlineTableContext table = ctx.inlineTable();
+        if (queryDepth > 1 || result.getStatementType() == StatementType.INSERT && insertTargetColumns.isEmpty()) {
+            return visitChildren(ctx);
+        }
+        List<String> aliases = tableAliasColumnNames(table.tableAlias());
+        List<List<SourceColumn>> columns = inlineTableSources(table);
+        for (int i = 0; i < columns.size(); i++) {
+            String name = i < aliases.size() ? aliases.get(i) : "col" + (i + 1);
+            projections.add(new Projection(columns.get(i), name, null, i));
+        }
+        refreshColumnLineage();
+        return null;
+    }
+
+    @Override
+    public Void visitInlineTableDefault2(SqlBaseParser.InlineTableDefault2Context ctx) {
+        SqlBaseParser.InlineTableContext table = ctx.inlineTable();
+        List<String> aliases = tableAliasColumnNames(table.tableAlias());
+        List<List<SourceColumn>> sources = inlineTableSources(table);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int i = 0; i < sources.size(); i++) {
+            String name = i < aliases.size() ? aliases.get(i) : "col" + (i + 1);
+            columns.put(name, strictPartialColumnRefs(sources.get(i)));
+        }
+        String alias = tableAlias(table.tableAlias());
+        String name = alias == null ? "$values" + derivedColumnLineage.size() : alias;
+        derivedColumnLineage.put(name.toLowerCase(java.util.Locale.ROOT), columns);
+        addDerivedReference(name, table.tableAlias());
+        return null;
+    }
+
+    private List<List<SourceColumn>> inlineTableSources(SqlBaseParser.InlineTableContext table) {
+        List<Set<SourceColumn>> columns = new ArrayList<>();
+        for (SqlBaseParser.ExpressionContext row : table.expression()) {
+            List<SqlBaseParser.ExpressionContext> fields = inlineTableFields(row);
+            for (int i = 0; i < fields.size(); i++) {
+                if (i == columns.size()) {
+                    columns.add(new LinkedHashSet<>());
+                }
+                SqlBaseParser.ExpressionContext field = fields.get(i);
+                columns.get(i).addAll(sourceColumnsExcludingSubqueries(field));
+                columns.get(i).addAll(queryProjectionSourceColumns(field));
+                collectSubqueryInputs(field);
+            }
+        }
+        List<List<SourceColumn>> sources = new ArrayList<>();
+        for (Set<SourceColumn> column : columns) {
+            sources.add(new ArrayList<>(column));
+        }
+        return sources;
+    }
+
+    private static List<SqlBaseParser.ExpressionContext> inlineTableFields(SqlBaseParser.ExpressionContext row) {
+        if (row.booleanExpression() instanceof SqlBaseParser.PredicatedContext) {
+            SqlBaseParser.PredicatedContext predicate = (SqlBaseParser.PredicatedContext) row.booleanExpression();
+            if (predicate.predicate() == null
+                    && predicate.valueExpression() instanceof SqlBaseParser.ValueExpressionDefaultContext) {
+                SqlBaseParser.PrimaryExpressionContext primary =
+                        ((SqlBaseParser.ValueExpressionDefaultContext) predicate.valueExpression()).primaryExpression();
+                if (primary instanceof SqlBaseParser.RowConstructorContext) {
+                    List<SqlBaseParser.ExpressionContext> fields = new ArrayList<>();
+                    for (SqlBaseParser.NamedExpressionContext field
+                            : ((SqlBaseParser.RowConstructorContext) primary).namedExpression()) {
+                        fields.add(field.expression());
+                    }
+                    return fields;
+                }
+            }
+        }
+        return java.util.Collections.singletonList(row);
+    }
+
+    @Override
     public Void visitTableValuedFunction(SqlBaseParser.TableValuedFunctionContext ctx) {
         SqlBaseParser.TableFunctionCallWithTrailingClausesContext callWithClauses =
                 ctx.tableFunctionCallWithTrailingClauses();
@@ -1401,21 +1476,51 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQualifyClause(SqlBaseParser.QualifyClauseContext ctx) {
+        Set<SourceColumn> sources = new LinkedHashSet<>(sourceColumnsExcludingSubqueries(ctx.booleanExpression()));
+        if (ctx.getParent() instanceof SqlBaseParser.RegularQuerySpecificationContext) {
+            SqlBaseParser.RegularQuerySpecificationContext query =
+                    (SqlBaseParser.RegularQuerySpecificationContext) ctx.getParent();
+            if (query.windowClause() != null) {
+                Map<String, SqlBaseParser.WindowSpecContext> definitions = namedWindowDefinitions(query.windowClause());
+                Set<String> references = new LinkedHashSet<>();
+                collectWindowReferences(ctx.booleanExpression(), references);
+                for (String reference : references) {
+                    sources.addAll(namedWindowSourceColumns(reference, definitions, new LinkedHashSet<>()));
+                }
+            }
+        }
+        for (SourceColumn source : sources) {
+            List<ColumnRef> projectionRefs = columnRefsFromProjection(source);
+            if (projectionRefs != null) {
+                LineageModelUtils.addColumnUsages(result, ColumnUsageType.WHERE, projectionRefs);
+            } else {
+                addColumnUsages(ColumnUsageType.WHERE, java.util.Collections.singletonList(source));
+            }
+        }
+        addColumnUsages(ColumnUsageType.WHERE, queryProjectionSourceColumns(ctx.booleanExpression()));
+        collectInlineWindowUsages(ctx.booleanExpression());
+        collectSubqueryInputs(ctx.booleanExpression());
+        return null;
+    }
+
+    @Override
     public Void visitQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
+        boolean setQuery = ctx.getParent() instanceof SqlBaseParser.QueryContext
+                && ((SqlBaseParser.QueryContext) ctx.getParent()).queryTerm() instanceof SqlBaseParser.SetOperationContext;
         for (SqlBaseParser.SortItemContext sortItem : ctx.order) {
-            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            if (setQuery) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            } else {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            }
         }
         return visitChildren(ctx);
     }
 
     @Override
     public Void visitWindowClause(SqlBaseParser.WindowClauseContext ctx) {
-        Map<String, SqlBaseParser.WindowSpecContext> definitions = new LinkedHashMap<>();
-        for (SqlBaseParser.NamedWindowContext namedWindow : ctx.namedWindow()) {
-            definitions.put(
-                    cleanIdentifier(namedWindow.name.getText()).toLowerCase(java.util.Locale.ROOT),
-                    namedWindow.windowSpec());
-        }
+        Map<String, SqlBaseParser.WindowSpecContext> definitions = namedWindowDefinitions(ctx);
         ParseTree queryScope = ctx;
         while (queryScope.getParent() != null && !(queryScope instanceof SqlBaseParser.QueryContext)) {
             queryScope = queryScope.getParent();
@@ -1439,6 +1544,17 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         refreshColumnLineage();
         return null;
+    }
+
+    private static Map<String, SqlBaseParser.WindowSpecContext> namedWindowDefinitions(
+            SqlBaseParser.WindowClauseContext ctx) {
+        Map<String, SqlBaseParser.WindowSpecContext> definitions = new LinkedHashMap<>();
+        for (SqlBaseParser.NamedWindowContext namedWindow : ctx.namedWindow()) {
+            definitions.put(
+                    cleanIdentifier(namedWindow.name.getText()).toLowerCase(java.util.Locale.ROOT),
+                    namedWindow.windowSpec());
+        }
+        return definitions;
     }
 
     @Override

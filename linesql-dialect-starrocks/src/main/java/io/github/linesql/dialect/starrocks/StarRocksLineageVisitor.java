@@ -1443,6 +1443,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitPreparedStmt(StarRocksParser.PreparedStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        if (ctx.preparedStatement().query() != null) {
+            return visit(ctx.preparedStatement().query());
+        }
         return null;
     }
 
@@ -1576,8 +1579,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         columns.put("unnest", sources);
         columns.put(functionName, sources);
-        for (String aliasColumn : tableAliasColumns(ctx.tableAlias())) {
-            columns.put(aliasColumn.toLowerCase(Locale.ROOT), sources);
+        List<String> aliasColumns = tableAliasColumns(ctx.tableAlias());
+        List<StarRocksParser.ExpressionContext> arguments = ctx.expressionList().expression();
+        boolean positional = "unnest".equals(functionName) && aliasColumns.size() == arguments.size();
+        for (int i = 0; i < aliasColumns.size(); i++) {
+            List<ColumnRef> columnSources = positional
+                    ? columnRefs(sourceColumns(arguments.get(i)), new LinkedHashSet<>())
+                    : sources;
+            columns.put(aliasColumns.get(i).toLowerCase(Locale.ROOT),
+                    columnSources == null ? Collections.emptyList() : columnSources);
         }
         derivedColumnLineage.put(derivedName, columns);
         addDerivedReference(derivedName, ctx.tableAlias());
@@ -1739,8 +1749,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(StarRocksParser.QueryOrganizationContext ctx) {
+        boolean setQuery = ctx.getParent() instanceof StarRocksParser.QueryContext
+                && ((StarRocksParser.QueryContext) ctx.getParent()).queryTerm()
+                        instanceof StarRocksParser.SetOperationContext;
         for (StarRocksParser.SortItemContext sortItem : ctx.sortItem()) {
-            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            if (setQuery) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            } else {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            }
         }
         return visitChildren(ctx);
     }
@@ -1754,6 +1771,14 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitFunctionCall(StarRocksParser.FunctionCallContext ctx) {
         addFunctionFilterUsage(ctx.functionFilterClause());
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitAggregateOrderBy(StarRocksParser.AggregateOrderByContext ctx) {
+        for (StarRocksParser.SortItemContext item : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(ColumnUsageType.ORDER_BY, sourceColumns(item.expression())));
+        }
         return visitChildren(ctx);
     }
 
@@ -1855,7 +1880,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(queryTerm);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 

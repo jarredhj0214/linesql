@@ -119,7 +119,7 @@ relation
 relationPrimary
     : (TABLE LPAREN qualifiedName LPAREN expressionList? RPAREN RPAREN
       | qualifiedName LPAREN jsonTableArgumentList RPAREN
-      | qualifiedName LPAREN xmlTableArgumentList RPAREN) tableAlias #tableFunctionRelation
+      | XMLTABLE LPAREN xmlTableArgumentList RPAREN) tableAlias #tableFunctionRelation
     | multipartIdentifier partitionExtensionClause? flashbackClause? sampleClause? tableAlias #tableName
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
@@ -127,19 +127,63 @@ relationPrimary
     ;
 
 jsonTableArgumentList
-    : expression COMMA string COLUMNS LPAREN jsonTableColumn (COMMA jsonTableColumn)* RPAREN
+    : expression (FORMAT JSON)? (COMMA string)?
+      jsonTableOnError? jsonTableOnEmpty? jsonTableColumns
+    ;
+
+jsonTableColumns
+    : COLUMNS LPAREN jsonTableColumn (COMMA jsonTableColumn)* RPAREN
     ;
 
 jsonTableColumn
-    : identifier dataType PATH string
+    : name=identifier FOR ORDINALITY
+    | name=identifier dataType? (EXISTS | FORMAT JSON jsonTableWrapper?)? (PATH string)?
+      jsonTableOnError? jsonTableOnEmpty?
+    | NESTED PATH? string jsonTableColumns
+    ;
+
+jsonTableWrapper
+    : WITH (CONDITIONAL | UNCONDITIONAL)? ARRAY? WRAPPER
+    | WITHOUT ARRAY? WRAPPER
+    ;
+
+jsonTableOnError
+    : jsonTableBehavior ON ERROR
+    ;
+
+jsonTableOnEmpty
+    : jsonTableBehavior ON EMPTY
+    ;
+
+jsonTableBehavior
+    : ERROR | NULL | TRUE | FALSE | EMPTY (ARRAY | OBJECT)
+    | DEFAULT (string | (PLUS | MINUS)? number)
     ;
 
 xmlTableArgumentList
-    : string PASSING expression COLUMNS LPAREN jsonTableColumn (COMMA jsonTableColumn)* RPAREN
+    : (XMLNAMESPACES LPAREN xmlNamespace (COMMA xmlNamespace)* RPAREN COMMA)?
+      string (PASSING (BY VALUE)? xmlPassingArgument (COMMA xmlPassingArgument)*)?
+      (RETURNING SEQUENCE BY REF)?
+      (COLUMNS (LPAREN xmlTableColumn (COMMA xmlTableColumn)* RPAREN
+              | xmlTableColumn (COMMA xmlTableColumn)*))?
+    ;
+
+xmlNamespace
+    : DEFAULT string
+    | string AS identifier
+    ;
+
+xmlPassingArgument
+    : expression (AS identifier)?
+    ;
+
+xmlTableColumn
+    : name=identifier FOR ORDINALITY
+    | name=identifier dataType (SEQUENCE? BY REF)? (PATH string)? (DEFAULT expression)?
     ;
 
 partitionExtensionClause
-    : (PARTITION | SUBPARTITION) LPAREN identifier RPAREN
+    : (PARTITION | SUBPARTITION) (LPAREN identifier RPAREN | FOR LPAREN expressionList RPAREN)
     ;
 
 flashbackClause
@@ -939,7 +983,7 @@ nonReservedKeyword
     | SKIP_KEYWORD | LOCK | LOCKED | MODE | SHARE | EXCLUSIVE
     | PIVOT | UNPIVOT | MATCH_RECOGNIZE | MODEL | MEASURES | DIMENSION | RULES | UPSERT | UPDATED | IGNORE | RESPECT | KEEP | NAV
     | PATTERN | DEFINE | AFTER | MATCH | ONE | PER | PAST
-    | BIGFILE | INCLUDE | EXCLUDE | XML | SAMPLE | BLOCK | SEED | SMALLFILE | TABLESPACE | ONLINE | SUBPARTITION
+    | BIGFILE | INCLUDE | EXCLUDE | XML | ARRAY | CONDITIONAL | UNCONDITIONAL | EMPTY | WRAPPER | XMLTABLE | XMLNAMESPACES | VALUE | REF | JSON | NESTED | ORDINALITY | SAMPLE | BLOCK | SEED | SMALLFILE | TABLESPACE | ONLINE | SUBPARTITION
     | RANGE | HASH | LIST | LOCAL | LESS | THAN | MAXVALUE | PARTITIONS | GROUPING | CUBE
     | LOGGING | NOLOGGING | PARALLEL | NOPARALLEL | COMPRESS | NOCOMPRESS | ORGANIZATION | GLOBAL | COMMIT | PRESERVE | DEFINITION
     ;

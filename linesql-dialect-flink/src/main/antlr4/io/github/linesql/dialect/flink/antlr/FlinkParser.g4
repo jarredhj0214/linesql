@@ -66,14 +66,8 @@ namedQuery
 
 queryTerm
     : queryPrimary                                                   #queryTermDefault
-    | left=queryTerm setOperator right=queryTerm                     #setOperation
-    ;
-
-setOperator
-    : UNION ALL
-    | UNION DISTINCT?
-    | EXCEPT (ALL | DISTINCT)?
-    | INTERSECT (ALL | DISTINCT)?
+    | left=queryTerm INTERSECT setQuantifier? right=queryTerm        #setOperation
+    | left=queryTerm (UNION | EXCEPT) setQuantifier? right=queryTerm #setOperation
     ;
 
 queryPrimary
@@ -136,10 +130,10 @@ relationPrimary
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
-    | functionName LPAREN tableFunctionArgList? RPAREN tableAlias    #bareTableFunction
+    | LATERAL? functionName LPAREN tableFunctionArgList? RPAREN tableAlias    #bareTableFunction
     | LATERAL TABLE LPAREN functionName LPAREN tableFunctionArgList? RPAREN RPAREN tableAlias #lateralTableFunction
     | TABLE LPAREN functionName LPAREN tableFunctionArgList RPAREN RPAREN tableAlias  #tableFunction
-    | UNNEST LPAREN expression RPAREN tableAlias                      #unnestTableFunction
+    | UNNEST LPAREN expression RPAREN (WITH ORDINALITY)? tableAlias                      #unnestTableFunction
     ;
 
 joinRelation
@@ -284,11 +278,12 @@ booleanExpression
     ;
 
 predicate
-    : NOT? BETWEEN lower=valueExpression AND upper=valueExpression
+    : NOT? BETWEEN (ASYMMETRIC | SYMMETRIC)? lower=valueExpression AND upper=valueExpression
     | NOT? IN LPAREN (expressionList | query) RPAREN
-    | NOT? LIKE valueExpression
+    | NOT? LIKE valueExpression (ESCAPE valueExpression)?
     | comparisonOperator (ALL | ANY | SOME) LPAREN query RPAREN
     | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
+    | IS NOT? DISTINCT FROM valueExpression
     ;
 
 valueExpression
@@ -499,10 +494,15 @@ tableFunctionArgList
 
 tableFunctionArg
     : identifier FAT_ARROW tableFunctionArg                          #namedTableFunctionArg
-    | TABLE multipartIdentifier                                      #tvfTableArg
+    | TABLE multipartIdentifier (PARTITION BY partitionKeys=tableFunctionPartitionKeys)? #tvfTableArg
     | MODEL multipartIdentifier                                      #tvfModelArg
     | DESCRIPTOR LPAREN identifier RPAREN                            #tvfDescriptorArg
     | expression                                                     #tvfExprArg
+    ;
+
+tableFunctionPartitionKeys
+    : identifierList
+    | LPAREN identifierList RPAREN
     ;
 
 mapLiteral
@@ -1046,7 +1046,7 @@ nonReservedKeyword
     | DISTRIBUTION | DO | DRAIN | EMPTY | END | ENFORCED | EPOCH | ERROR | ESCAPED | EXCLUDING | EXIST | EXISTS | EXECUTE | EXPLAIN | EXTRACT | EXTENDED
     | EXTERNAL | FALSE | FETCH | FIELDS | FILEFORMAT | FILTER | FIRST | FOLLOWING | FOR | FORMAT | FRESHNESS | FULL | FUNCTION | FUNCTIONS
     | GENERATED | GROUPING | HASH | HELP | HOP | HOUR | IF | ILIKE | INCLUDING | INTERVAL | JAVA
-    | IGNORE | INPATH | INPUT | INPUTFORMAT | ITEMS | JAR | JARS | JSON_ARRAY | JSON_ARRAYAGG | JSON_EXISTS | JSON_OBJECT | JSON_OBJECTAGG | JSON_QUERY | JSON_VALUE | KEY | KEYS | LANGUAGE | LAST | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | MATCH | MATCHED
+    | ORDINALITY | IGNORE | INPATH | INPUT | INPUTFORMAT | ITEMS | JAR | JARS | JSON_ARRAY | JSON_ARRAYAGG | JSON_EXISTS | JSON_OBJECT | JSON_OBJECTAGG | JSON_QUERY | JSON_VALUE | KEY | KEYS | LANGUAGE | LAST | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | MATCH | MATCHED
     | MAP | MATCH_RECOGNIZE | MATERIALIZED | MEASURES | MERGE | METADATA | MINUTE | MODEL | MODELS | MODIFY | MODULE | MODULES | NATURAL | NEXT | NOTHING | NULL | NULLS | OBJECT | OF | ONE | ONLY
     | OFFSET | OPTIONS | OUTPUT | OUTPUTFORMAT | OVER | OVERWRITE | OVERWRITING | PARTITION | PARTITIONED | PLAN
     | PAST | PATTERN | PER | PRECEDING | PERIOD | PRIMARY | PURGE | PYTHON | QUALIFY | RANGE | REFRESH | REFRESH_MODE | RENAME | REPLACE | RESET | RESPECT | RETURNING

@@ -26,6 +26,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
     private final Set<String> cteNames = new LinkedHashSet<>();
+    private final Map<String, HiveParser.WindowSpecContext> namedWindowDefinitions = new LinkedHashMap<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Map<String, List<SourceColumn>> generatedColumns = new LinkedHashMap<>();
@@ -1042,6 +1043,24 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQuerySpecification(HiveParser.QuerySpecificationContext ctx) {
+        Map<String, HiveParser.WindowSpecContext> previousWindows = new LinkedHashMap<>(namedWindowDefinitions);
+        namedWindowDefinitions.clear();
+        if (ctx.windowClause() != null) {
+            for (HiveParser.NamedWindowContext window : ctx.windowClause().namedWindow()) {
+                String name = cleanIdentifier(window.windowName().getText()).toLowerCase(Locale.ROOT);
+                namedWindowDefinitions.put(name, window.windowSpec());
+            }
+        }
+        try {
+            return visitChildren(ctx);
+        } finally {
+            namedWindowDefinitions.clear();
+            namedWindowDefinitions.putAll(previousWindows);
+        }
+    }
+
+    @Override
     public Void visitSelectClause(HiveParser.SelectClauseContext ctx) {
         if (ctx.transformClause() != null) {
             return visit(ctx.transformClause());
@@ -1098,6 +1117,13 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     @Override
     public Void visitHavingClause(HiveParser.HavingClauseContext ctx) {
         addColumnUsages(ColumnUsageType.HAVING, sourceColumns(ctx.expression()));
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitQualifyClause(HiveParser.QualifyClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        collectSubqueryInputs(ctx.expression());
         return visitChildren(ctx);
     }
 
@@ -1177,8 +1203,14 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(HiveParser.QueryOrganizationContext ctx) {
+        boolean setQuery = ctx.getParent() instanceof HiveParser.QueryContext
+                && ((HiveParser.QueryContext) ctx.getParent()).queryTerm() instanceof HiveParser.SetOperationContext;
         for (HiveParser.SortItemContext sortItem : ctx.sortItem()) {
-            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            if (setQuery) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            } else {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+            }
         }
         for (HiveParser.ExpressionContext expression : ctx.distributeByExpressions) {
             addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
@@ -1299,7 +1331,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         queryVisitor.generatedColumns.putAll(generatedColumns);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(queryTerm);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 
@@ -1847,7 +1879,36 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         return refs;
     }
 
+    private void collectNamedWindowSources(HiveParser.WindowNameContext windowName, Set<SourceColumn> columns) {
+        Set<String> visited = new LinkedHashSet<>();
+        List<HiveParser.WindowSpecContext> definitions = new ArrayList<>();
+        while (windowName != null) {
+            String name = cleanIdentifier(windowName.getText()).toLowerCase(Locale.ROOT);
+            HiveParser.WindowSpecContext definition = namedWindowDefinitions.get(name);
+            if (definition == null || !visited.add(name)) {
+                break;
+            }
+            definitions.add(definition);
+            windowName = definition.baseWindow;
+        }
+        for (int index = definitions.size() - 1; index >= 0; index--) {
+            HiveParser.WindowSpecContext definition = definitions.get(index);
+            for (int child = 0; child < definition.getChildCount(); child++) {
+                collectSourceColumns(definition.getChild(child), columns);
+            }
+        }
+    }
+
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
+        HiveParser.WindowNameContext windowName = null;
+        if (tree instanceof HiveParser.WindowReferenceContext) {
+            windowName = ((HiveParser.WindowReferenceContext) tree).windowName();
+        } else if (tree instanceof HiveParser.WindowSpecContext) {
+            windowName = ((HiveParser.WindowSpecContext) tree).baseWindow;
+        }
+        if (windowName != null) {
+            collectNamedWindowSources(windowName, columns);
+        }
         if (tree instanceof HiveParser.ColumnReferenceContext) {
             HiveParser.ColumnReferenceContext colRef = (HiveParser.ColumnReferenceContext) tree;
             String column = cleanIdentifier(colRef.identifier());

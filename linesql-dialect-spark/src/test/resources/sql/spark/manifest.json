@@ -1569,6 +1569,36 @@
       "description": "UNION query input table lineage"
     },
     {
+      "id": "union_output_alias_order_by",
+      "file": "cases/union_output_alias_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events",
+        "ods.events_archive"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id",
+            "ods.events_archive.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events_archive.id"
+        }
+      ],
+      "description": "Spark UNION ORDER BY resolves the output alias across both branches"
+    },
+    {
       "id": "union_column_projection",
       "file": "cases/union_column_projection.sql",
       "statementType": "SELECT",
@@ -3790,6 +3820,26 @@
       "description": "Spark null-safe equality operator in predicate"
     },
     {
+      "id": "qualify_projection_alias",
+      "file": "cases/qualify_projection_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "account_id", "sources": ["ods.events.account_id"]}, {"target": "rn", "sources": ["ods.events.account_id", "ods.events.event_time"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.account_id"}, {"type": "WHERE", "column": "ods.events.event_time"}, {"type": "WINDOW_PARTITION_BY", "column": "ods.events.account_id"}, {"type": "WINDOW_ORDER_BY", "column": "ods.events.event_time"}],
+      "description": "Spark QUALIFY tracks the physical columns of a named window"
+    },
+    {
+      "id": "qualify_named_window_predicate",
+      "file": "cases/qualify_named_window_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "account_id", "sources": ["ods.events.account_id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.account_id"}, {"type": "WHERE", "column": "ods.events.event_time"}, {"type": "WINDOW_PARTITION_BY", "column": "ods.events.account_id"}, {"type": "WINDOW_ORDER_BY", "column": "ods.events.event_time"}],
+      "description": "Spark QUALIFY tracks the physical columns of a named window"
+    },
+    {
       "id": "compatibility_cast_ilike_qualify",
       "file": "cases/compatibility_cast_ilike_qualify.sql",
       "statementType": "SELECT",
@@ -3798,6 +3848,42 @@
       ],
       "outputTables": [],
       "description": "Spark parser compatibility for PostgreSQL cast, ILIKE, and QUALIFY syntax"
+    },
+    {
+      "id": "values_query_columns",
+      "file": "cases/values_query_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [{"target": "col1", "sources": []}, {"target": "col2", "sources": []}],
+      "description": "Spark VALUES preserves output column positions and names"
+    },
+    {
+      "id": "values_inline_aliases",
+      "file": "cases/values_inline_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": []}, {"target": "label", "sources": []}],
+      "description": "Spark VALUES preserves output column positions and names"
+    },
+    {
+      "id": "values_insert_target_columns",
+      "file": "cases/values_insert_target_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["mart.statuses"],
+      "columnLineage": [{"target": "mart.statuses.code", "sources": []}, {"target": "mart.statuses.label", "sources": []}],
+      "description": "Spark VALUES preserves output column positions and names"
+    },
+    {
+      "id": "values_derived_aliases",
+      "file": "cases/values_derived_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": []}, {"target": "label", "sources": []}],
+      "description": "Spark VALUES preserves output column positions and names"
     },
     {
       "id": "backslash_escaped_string_values",

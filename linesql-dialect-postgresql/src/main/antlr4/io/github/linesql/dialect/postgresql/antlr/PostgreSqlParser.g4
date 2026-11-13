@@ -76,6 +76,16 @@ ctes
 
 namedQuery
     : name=identifier (LPAREN columnAliases=identifierList RPAREN)? AS (NOT? MATERIALIZED)? LPAREN cteBody RPAREN
+      searchClause? cycleClause?
+    ;
+
+searchClause
+    : SEARCH (BREADTH | DEPTH) FIRST BY identifierList SET sequenceColumn=identifier
+    ;
+
+cycleClause
+    : CYCLE identifierList SET markColumn=identifier (TO expression DEFAULT expression)?
+      USING pathColumn=identifier
     ;
 
 cteBody
@@ -88,20 +98,14 @@ cteBody
 
 queryTerm
     : queryPrimary                                                   #queryTermDefault
-    | left=queryTerm setOperator right=queryTerm                     #setOperation
-    ;
-
-setOperator
-    : UNION ALL
-    | UNION DISTINCT?
-    | EXCEPT (ALL | DISTINCT)?
-    | INTERSECT (ALL | DISTINCT)?
+    | left=queryTerm INTERSECT setQuantifier? right=queryTerm        #setOperation
+    | left=queryTerm (UNION | EXCEPT) setQuantifier? right=queryTerm #setOperation
     ;
 
 queryPrimary
     : querySpecification                                             #queryPrimaryDefault
     | VALUES valuesClause (COMMA valuesClause)*                      #valuesQuery
-    | TABLE ONLY? multipartIdentifier                                #tableQuery
+    | TABLE inheritanceRelation                                     #tableQuery
     | LPAREN query RPAREN                                            #subqueryPrimary
     ;
 
@@ -134,7 +138,7 @@ selectItem
     ;
 
 selectIntoClause
-    : INTO (TEMPORARY | UNLOGGED)? TABLE? multipartIdentifier
+    : INTO (TEMPORARY | TEMP | UNLOGGED)? TABLE? multipartIdentifier
     ;
 
 fromClause
@@ -149,22 +153,48 @@ relation
     : relationPrimary joinRelation*
     ;
 
+inheritanceRelation
+    : multipartIdentifier STAR?
+    | ONLY (multipartIdentifier | LPAREN multipartIdentifier RPAREN)
+    ;
+
 relationPrimary
-    : ONLY? multipartIdentifier tableSampleClause? tableAlias        #tableName
-    | LATERAL? functionName LPAREN expressionList? RPAREN (WITH ORDINALITY)? tableAlias #tableFunction
+    : inheritanceRelation (tableSampleClause tableAlias | tableAlias tableSampleClause?) #tableName
+    | LATERAL? JSON_TABLE LPAREN expression COMMA expression (AS identifier)?
+      jsonPassingClause? jsonTableColumns ((ERROR | EMPTY ARRAY?) ON ERROR)? RPAREN tableAlias #jsonTableRelation
+    | LATERAL? functionName LPAREN functionArguments? RPAREN
+      (AS recordAlias=strictIdentifier? LPAREN recordColumn (COMMA recordColumn)* RPAREN
+      | (WITH ORDINALITY)? tableAlias)                               #tableFunction
     | LATERAL? ROWS FROM LPAREN rowsFromItem (COMMA rowsFromItem)* RPAREN (WITH ORDINALITY)? tableAlias #rowsFromTableFunction
-    | LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
+    | LATERAL? LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
     ;
 
+jsonTableColumns
+    : COLUMNS LPAREN jsonTableColumn (COMMA jsonTableColumn)* RPAREN
+    ;
+
+jsonTableColumn
+    : name=identifier FOR ORDINALITY
+    | name=identifier dataType (FORMAT JSON (ENCODING UTF8)?)? (PATH expression)?
+      jsonWrapperClause? jsonQuotesClause? jsonQueryBehavior*
+    | name=identifier dataType EXISTS (PATH expression)? ((ERROR | TRUE | FALSE | UNKNOWN) ON ERROR)?
+    | NESTED PATH? expression (AS identifier)? jsonTableColumns
+    ;
+
+recordColumn
+    : identifier dataType (COLLATE multipartIdentifier)?
+    ;
+
 rowsFromItem
-    : functionName LPAREN expressionList? RPAREN (AS? LPAREN identifierList RPAREN)?
+    : functionName LPAREN functionArguments? RPAREN
+      (AS? LPAREN (recordColumn (COMMA recordColumn)* | identifierList) RPAREN)?
     ;
 
 tableSampleClause
-    : TABLESAMPLE sampleMethod=identifier LPAREN expressionList? RPAREN
+    : TABLESAMPLE sampleMethod=qualifiedName LPAREN expressionList RPAREN
       (REPEATABLE LPAREN expression RPAREN)?
     ;
 
@@ -190,7 +220,7 @@ naturalJoinType
 
 joinCriteria
     : ON expression
-    | USING LPAREN identifierList RPAREN
+    | USING LPAREN identifierList RPAREN (AS usingAlias=strictIdentifier)?
     ;
 
 tableAlias
@@ -201,20 +231,20 @@ whereClause
     : WHERE expression
     ;
 
+cursorWhereClause
+    : WHERE CURRENT OF identifier
+    ;
+
 groupByClause
-    : GROUP BY groupByItem (COMMA groupByItem)*
+    : GROUP BY (ALL | DISTINCT)? groupByItem (COMMA groupByItem)*
     ;
 
 groupByItem
-    : expression
-    | ROLLUP LPAREN expressionList RPAREN
-    | CUBE LPAREN expressionList RPAREN
-    | GROUPING SETS LPAREN groupingSet (COMMA groupingSet)* RPAREN
-    ;
-
-groupingSet
     : LPAREN expressionList? RPAREN
     | expression
+    | ROLLUP LPAREN groupByItem (COMMA groupByItem)* RPAREN
+    | CUBE LPAREN groupByItem (COMMA groupByItem)* RPAREN
+    | GROUPING SETS LPAREN groupByItem (COMMA groupByItem)* RPAREN
     ;
 
 havingClause
@@ -223,8 +253,12 @@ havingClause
 
 queryOrganization
     : (ORDER BY sortItem (COMMA sortItem)*)?
-      (limitClause offsetClause? | offsetClause? fetchClause?)
-      lockingClause*
+      (lockingClause+ paginationClause? | paginationClause lockingClause*)?
+    ;
+
+paginationClause
+    : (limitClause | fetchClause) offsetClause?
+    | offsetClause (limitClause | fetchClause)?
     ;
 
 limitClause
@@ -251,7 +285,12 @@ rowLockMode
     ;
 
 sortItem
-    : expression (ASC | DESC)? (NULLS (FIRST | LAST))?
+    : expression (ASC | DESC | USING sortOperator)? (NULLS (FIRST | LAST))?
+    ;
+
+sortOperator
+    : comparisonOperator
+    | OPERATOR LPAREN (identifier DOT)? comparisonOperator RPAREN
     ;
 
 // ============ Expressions ============
@@ -269,11 +308,11 @@ booleanExpression
     ;
 
 predicate
-    : NOT? BETWEEN lower=valueExpression AND upper=valueExpression
+    : NOT? BETWEEN (ASYMMETRIC | SYMMETRIC)? lower=valueExpression AND upper=valueExpression
     | NOT? IN LPAREN (expressionList | query) RPAREN
-    | NOT? LIKE valueExpression
-    | NOT? ILIKE valueExpression
-    | NOT? SIMILAR TO valueExpression
+    | NOT? (LIKE | ILIKE | SIMILAR TO) valueExpression (ESCAPE valueExpression)?
+    | ISNULL
+    | NOTNULL
     | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
     | IS NOT? DISTINCT FROM valueExpression
     ;
@@ -288,7 +327,7 @@ valueExpression
     | valueExpression COLON COLON dataType                            #postgresCast
     | valueExpression AT TIME ZONE valueExpression                   #atTimeZoneExpression
     | valueExpression COLLATE multipartIdentifier                    #collateExpression
-    | left=valueExpression comparisonOperator (ANY | SOME | ALL) LPAREN expressionList RPAREN #quantifiedComparison
+    | left=valueExpression comparisonOperator (ANY | SOME | ALL) LPAREN (query | expressionList) RPAREN #quantifiedComparison
     | left=valueExpression comparisonOperator right=valueExpression  #comparison
     ;
 
@@ -308,13 +347,21 @@ primaryExpression
     | SUBSTRING LPAREN expression FROM expression (FOR expression)? RPAREN #substringExpression
     | TRIM LPAREN ((BOTH | LEADING | TRAILING) expression? FROM)? expression RPAREN #trimExpression
     | OVERLAY LPAREN expression PLACING expression FROM expression (FOR expression)? RPAREN #overlayExpression
+    | JSON_VALUE LPAREN expression COMMA expression jsonPassingClause? (RETURNING dataType)?
+      jsonValueBehavior* RPAREN                                     #jsonValueExpression
+    | JSON_QUERY LPAREN expression COMMA expression jsonPassingClause?
+      (RETURNING dataType (FORMAT JSON (ENCODING UTF8)?)?)?
+      jsonWrapperClause? jsonQuotesClause? jsonQueryBehavior* RPAREN                                     #jsonQueryExpression
+    | JSON_EXISTS LPAREN expression COMMA expression jsonPassingClause?
+      ((TRUE | FALSE | UNKNOWN | ERROR) ON ERROR)? RPAREN            #jsonExistsExpression
     | functionName LPAREN STAR RPAREN aggregateSuffix?               #functionCallStar
-    | functionName LPAREN setQuantifier? expressionList functionSeparator? RPAREN aggregateSuffix?  #functionCall
+    | functionName LPAREN setQuantifier? functionArguments aggregateOrderBy? functionSeparator? RPAREN aggregateSuffix?  #functionCall
     | functionName LPAREN RPAREN aggregateSuffix?                    #functionCallEmpty
     | LPAREN query RPAREN                                            #scalarSubquery
     | LPAREN expression RPAREN                                       #parenthesizedExpression
     | primaryExpression LBRACKET expression? (COLON expression?)? RBRACKET #subscriptExpression
     | primaryExpression DOT identifier                                #dereference
+    | POSITIONAL_PARAMETER                                           #positionalParameter
     | identifier                                                     #columnReference
     | number                                                         #numberLiteral
     | string                                                         #stringLiteral
@@ -326,8 +373,38 @@ primaryExpression
     | DEFAULT                                                        #defaultLiteral
     ;
 
+jsonPassingClause
+    : PASSING jsonPassingArgument (COMMA jsonPassingArgument)*
+    ;
+
+jsonPassingArgument
+    : expression AS identifier
+    ;
+
+jsonValueBehavior
+    : (ERROR | NULL | DEFAULT expression) ON (EMPTY | ERROR)
+    ;
+
+jsonWrapperClause
+    : (WITHOUT | WITH (CONDITIONAL | UNCONDITIONAL)?) ARRAY? WRAPPER
+    ;
+
+jsonQuotesClause
+    : (KEEP | OMIT) QUOTES (ON SCALAR STRING_KEYWORD)?
+    ;
+
+jsonQueryBehavior
+    : (ERROR | NULL | EMPTY (ARRAY | OBJECT)? | DEFAULT expression) ON (EMPTY | ERROR)
+    ;
+
+aggregateOrderBy
+    : ORDER BY sortItem (COMMA sortItem)*
+    ;
+
 aggregateSuffix
-    : withinGroupClause? filterClause? (OVER windowRef)?
+    : withinGroupClause filterClause? (OVER windowRef)?
+    | filterClause (OVER windowRef)?
+    | OVER windowRef
     ;
 
 withinGroupClause
@@ -361,6 +438,7 @@ namedWindow
 
 windowFrame
     : (ROWS | RANGE | GROUPS) windowFrameExtent
+      (EXCLUDE (CURRENT ROW | GROUP | TIES | NO OTHERS))?
     ;
 
 windowFrameExtent
@@ -377,7 +455,7 @@ windowFrameBound
     ;
 
 functionName
-    : identifier
+    : qualifiedName
     | LEFT
     | RIGHT
     | REPLACE
@@ -391,6 +469,14 @@ expressionList
     : expression (COMMA expression)*
     ;
 
+functionArguments
+    : callArgument (COMMA callArgument)*
+    ;
+
+callArgument
+    : (identifier NAMED_ARGUMENT)? expression
+    ;
+
 functionSeparator
     : SEPARATOR expression
     ;
@@ -398,7 +484,7 @@ functionSeparator
 // ============ DML Statements ============
 
 insertStatement
-    : ctes? INSERT INTO? TABLE? multipartIdentifier
+    : ctes? INSERT INTO? TABLE? multipartIdentifier (AS targetAlias=strictIdentifier)?
       (LPAREN columnList=identifierList RPAREN)?
       (OVERRIDING (SYSTEM | USER) VALUE)?
       (query | VALUES valuesClause (COMMA valuesClause)* | DEFAULT VALUES | SET assignmentList)
@@ -407,12 +493,18 @@ insertStatement
     ;
 
 onConflictClause
-    : ON CONFLICT conflictTarget? conflictWhereClause? DO (NOTHING | UPDATE SET assignmentList conflictWhereClause?)
+    : ON CONFLICT conflictTarget? indexPredicate=conflictWhereClause?
+      DO (NOTHING | UPDATE SET assignmentList actionPredicate=conflictWhereClause?)
     ;
 
 conflictTarget
-    : LPAREN identifierList RPAREN
+    : LPAREN conflictIndexElement (COMMA conflictIndexElement)* RPAREN
     | ON CONSTRAINT identifier
+    ;
+
+conflictIndexElement
+    : (identifier | LPAREN expression RPAREN)
+      (COLLATE multipartIdentifier)? multipartIdentifier?
     ;
 
 conflictWhereClause
@@ -420,11 +512,13 @@ conflictWhereClause
     ;
 
 returningClause
-    : RETURNING (STAR | returningItem (COMMA returningItem)*)
+    : RETURNING returningItem (COMMA returningItem)*
     ;
 
 returningItem
     : expression (AS? alias=identifier)?
+    | qualifiedName DOT STAR
+    | STAR
     ;
 
 valuesClause
@@ -432,25 +526,25 @@ valuesClause
     ;
 
 updateStatement
-    : ctes? UPDATE ONLY? relation SET assignmentList fromClause? whereClause? returningClause?
+    : ctes? UPDATE relation SET assignmentList fromClause? (whereClause | cursorWhereClause)? returningClause?
     ;
 
 deleteStatement
-    : ctes? DELETE FROM ONLY? multipartIdentifier tableAlias (USING relationList)? whereClause? returningClause?   #deleteFrom
+    : ctes? DELETE FROM inheritanceRelation tableAlias (USING relationList)? (whereClause | cursorWhereClause)? returningClause?   #deleteFrom
     | ctes? DELETE multipartIdentifier FROM relationList whereClause?                        #deleteAlias
     ;
 
 mergeStatement
-    : ctes? MERGE INTO? multipartIdentifier tableAlias
-      USING (multipartIdentifier tableAlias | LPAREN query RPAREN tableAlias)
+    : ctes? MERGE INTO? targetRelation=inheritanceRelation tableAlias
+      USING relationPrimary
       ON expression
       mergeClause+
       returningClause?
     ;
 
 mergeClause
-    : WHEN MATCHED mergeCondition? THEN mergeMatchedAction
-    | WHEN NOT MATCHED mergeCondition? THEN mergeNotMatchedAction
+    : WHEN (MATCHED | NOT MATCHED BY SOURCE) mergeCondition? THEN mergeMatchedAction
+    | WHEN NOT MATCHED (BY TARGET)? mergeCondition? THEN mergeNotMatchedAction
     ;
 
 mergeCondition
@@ -464,7 +558,8 @@ mergeMatchedAction
     ;
 
 mergeNotMatchedAction
-    : INSERT (LPAREN identifierList RPAREN)? VALUES LPAREN expressionList RPAREN
+    : INSERT (LPAREN identifierList RPAREN)? (OVERRIDING (SYSTEM | USER) VALUE)?
+      (VALUES LPAREN expressionList RPAREN | DEFAULT VALUES)
     | DO NOTHING
     ;
 
@@ -480,10 +575,13 @@ assignment
 // ============ DDL Statements ============
 
 createIndexStatement
-    : CREATE UNIQUE? INDEX CONCURRENTLY? (IF NOT EXISTS)? multipartIdentifier
-      ON multipartIdentifier (USING identifier)?
+    : CREATE UNIQUE? INDEX CONCURRENTLY? ((IF NOT EXISTS)? multipartIdentifier)?
+      ON ONLY? target=multipartIdentifier (USING identifier)?
       LPAREN indexElementList RPAREN
       (INCLUDE LPAREN includeColumns=identifierList RPAREN)?
+      (NULLS NOT? DISTINCT)?
+      relationStorageParameters?
+      (TABLESPACE identifier)?
       (WHERE expression)?
     ;
 
@@ -508,20 +606,64 @@ statisticsKindList
     ;
 
 typeStatement
-    : CREATE TYPE multipartIdentifier AS ENUM LPAREN string (COMMA string)* RPAREN
-    | CREATE TYPE multipartIdentifier AS LPAREN typeAttribute (COMMA typeAttribute)* RPAREN
-    | ALTER TYPE multipartIdentifier ADD VALUE (IF NOT EXISTS)? string ((BEFORE | AFTER) string)?
+    : CREATE TYPE multipartIdentifier (AS typeDefinition | LPAREN typeOption (COMMA typeOption)* RPAREN)?
+    | ALTER TYPE multipartIdentifier alterTypeAction
     | DROP TYPE (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
     ;
 
+typeDefinition
+    : ENUM LPAREN (string (COMMA string)*)? RPAREN
+    | LPAREN (typeAttribute (COMMA typeAttribute)*)? RPAREN
+    | RANGE LPAREN typeOption (COMMA typeOption)* RPAREN
+    ;
+
 typeAttribute
-    : identifier dataType
+    : identifier dataType (COLLATE multipartIdentifier)?
+    ;
+
+typeOption
+    : (identifier | LIKE) (EQ (dataType | number | string))?
+    ;
+
+alterTypeAction
+    : ADD VALUE (IF NOT EXISTS)? string ((BEFORE | AFTER) string)?
+    | RENAME VALUE string TO string
+    | RENAME ATTRIBUTE identifier TO identifier (CASCADE | RESTRICT)?
+    | alterTypeAttribute (COMMA alterTypeAttribute)*
+    | RENAME TO identifier
+    | OWNER TO identifier
+    | SET SCHEMA identifier
+    | SET LPAREN typeOption (COMMA typeOption)* RPAREN
+    ;
+
+alterTypeAttribute
+    : (ADD ATTRIBUTE typeAttribute
+      | DROP ATTRIBUTE (IF EXISTS)? identifier
+      | ALTER ATTRIBUTE identifier (SET DATA)? TYPE dataType (COLLATE multipartIdentifier)?)
+      (CASCADE | RESTRICT)?
     ;
 
 domainStatement
-    : CREATE DOMAIN multipartIdentifier AS? dataType .+?
-    | ALTER DOMAIN multipartIdentifier .+?
+    : CREATE DOMAIN multipartIdentifier AS? dataType (COLLATE multipartIdentifier)?
+      (DEFAULT expression)? domainConstraint*
+    | ALTER DOMAIN multipartIdentifier alterDomainAction
     | DROP DOMAIN (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
+    ;
+
+domainConstraint
+    : (CONSTRAINT identifier)? (NOT? NULL | CHECK LPAREN expression RPAREN)
+    ;
+
+alterDomainAction
+    : SET DEFAULT expression
+    | DROP DEFAULT
+    | (SET | DROP) NOT NULL
+    | ADD domainConstraint (NOT VALID)?
+    | DROP CONSTRAINT (IF EXISTS)? identifier (CASCADE | RESTRICT)?
+    | RENAME (CONSTRAINT identifier)? TO identifier
+    | VALIDATE CONSTRAINT identifier
+    | OWNER TO identifier
+    | SET SCHEMA identifier
     ;
 
 createExtensionStatement
@@ -666,23 +808,39 @@ indexElementList
     ;
 
 indexElement
-    : expression (ASC | DESC)?
+    : expression (multipartIdentifier (LPAREN storageParameter (COMMA storageParameter)* RPAREN)?)?
+      (ASC | DESC)? (NULLS (FIRST | LAST))?
+    ;
+
+relationStorageParameters
+    : WITH LPAREN storageParameter (COMMA storageParameter)* RPAREN
+    ;
+
+storageParameter
+    : identifier (EQ copyOptionValue)?
     ;
 
 createTableStatement
-    : CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier PARTITION OF partitionParent=multipartIdentifier partitionBound?
-    | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
+    : CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier PARTITION OF partitionParent=multipartIdentifier partitionBound?
+    | CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
       LPAREN ctasColumnList=identifierList RPAREN
-      tableOption*
+      tableOption* createTableStorageClause
       AS query withDataClause?
-    | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
+    | CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
       inheritsClause?
       partitionByClause?
       commentClause?
-      tableOption*
+      tableOption* createTableStorageClause
       (AS query withDataClause?)?
-    | CREATE (TEMPORARY | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
+    | CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
+    ;
+
+createTableStorageClause
+    : (USING identifier)?
+      relationStorageParameters?
+      (ON COMMIT (PRESERVE ROWS | DELETE ROWS | DROP))?
+      (TABLESPACE identifier)?
     ;
 
 inheritsClause
@@ -695,20 +853,27 @@ partitionByClause
 
 partitionBound
     : FOR VALUES partitionBoundKind
+    | DEFAULT
     ;
 
 partitionBoundKind
     : FROM LPAREN expressionList RPAREN TO LPAREN expressionList RPAREN
     | IN LPAREN expressionList RPAREN
-    | WITH LPAREN expressionList RPAREN
+    | WITH LPAREN (hashPartitionBound (COMMA hashPartitionBound)* | expressionList) RPAREN
+    ;
+
+hashPartitionBound
+    : (MODULUS | REMAINDER) number
     ;
 
 createViewStatement
-    : CREATE (OR REPLACE)? TEMPORARY? VIEW (IF NOT EXISTS)? multipartIdentifier
+    : CREATE (OR REPLACE)? (TEMPORARY | TEMP)? VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
-      AS query
+      relationStorageParameters?
+      AS query (WITH (CASCADED | LOCAL)? CHECK OPTION)?
     | CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
       (LPAREN viewColumnList=identifierList RPAREN)?
+      (USING identifier)? relationStorageParameters? (TABLESPACE identifier)?
       AS query withDataClause?
     ;
 
@@ -753,15 +918,15 @@ alterMaterializedViewStatement
     ;
 
 truncateTableStatement
-    : TRUNCATE TABLE? multipartIdentifier
+    : TRUNCATE TABLE? inheritanceRelation (COMMA inheritanceRelation)*
+      ((RESTART | CONTINUE) IDENTITY)? (CASCADE | RESTRICT)?
     ;
 
 alterTableStatement
-    : ALTER TABLE parent=multipartIdentifier ATTACH PARTITION child=multipartIdentifier partitionBound?  #alterTableAttachPartition
-    | ALTER TABLE parent=multipartIdentifier DETACH PARTITION child=multipartIdentifier                  #alterTableDetachPartition
+    : ALTER TABLE (IF EXISTS)? parent=multipartIdentifier ATTACH PARTITION child=multipartIdentifier partitionBound?  #alterTableAttachPartition
+    | ALTER TABLE (IF EXISTS)? parent=multipartIdentifier DETACH PARTITION child=multipartIdentifier (CONCURRENTLY | FINALIZE)?                  #alterTableDetachPartition
     | ALTER TABLE target=multipartIdentifier RENAME COLUMN sourceColumn=identifier TO targetColumn=identifier #alterTableRenameColumn
     | ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
-    | ALTER TABLE multipartIdentifier ADD COLUMN? identifier dataType         #alterTableAddColumn
     | ALTER TABLE target=multipartIdentifier DROP COLUMN (IF EXISTS)? dropColumn=identifier (CASCADE | RESTRICT)? #alterTableDropColumn
     | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier SET DEFAULT expression #alterTableAlterColumnSetDefault
     | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier DROP DEFAULT #alterTableAlterColumnDropDefault
@@ -770,6 +935,8 @@ alterTableStatement
     | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier TYPE dataType (USING usingExpression=expression)? #alterTableAlterColumnType
     | ALTER TABLE target=multipartIdentifier ADD (CONSTRAINT identifier)? FOREIGN KEY LPAREN localColumns=identifierList RPAREN REFERENCES refTable=multipartIdentifier (LPAREN refColumns=identifierList RPAREN)? #alterTableAddForeignKey
     | ALTER TABLE target=multipartIdentifier ADD (CONSTRAINT identifier)? CHECK LPAREN checkExpression=expression RPAREN #alterTableAddCheck
+    | ALTER TABLE (IF EXISTS)? multipartIdentifier ADD COLUMN? (IF NOT EXISTS)?
+      columnName=identifier dataType (COLLATE qualifiedName)? columnConstraint* #alterTableAddColumn
     | ALTER TABLE multipartIdentifier alterTableAction                        #alterTableOther
     ;
 
@@ -801,10 +968,10 @@ securityLabelStatement
 
 copyStatement
     : COPY multipartIdentifier (LPAREN columnList=identifierList RPAREN)?
-      FROM copySource copyOptions?                                  #copyFromTable
+      FROM copySource copyOptions? whereClause?                                  #copyFromTable
     | COPY multipartIdentifier (LPAREN columnList=identifierList RPAREN)?
       TO copyTarget copyOptions?                                    #copyToTable
-    | COPY LPAREN query RPAREN TO copyTarget copyOptions?           #copyToQuery
+    | COPY LPAREN cteBody RPAREN TO copyTarget copyOptions?           #copyToQuery
     ;
 
 copySource
@@ -825,7 +992,7 @@ copyOptions
     ;
 
 copyOption
-    : identifier (EQ? copyOptionValue)?
+    : identifier (EQ? (copyOptionValue | LPAREN identifierList RPAREN | STAR))?
     ;
 
 copyOptionValue
@@ -837,28 +1004,30 @@ copyOptionValue
     ;
 
 vacuumStatement
-    : VACUUM vacuumOptionList? multipartIdentifier? (LPAREN identifierList RPAREN)?
-    ;
-
-vacuumOptionList
-    : LPAREN vacuumOption (COMMA vacuumOption)* RPAREN
-    | vacuumOption+
-    ;
-
-vacuumOption
-    : FULL
-    | FREEZE
-    | VERBOSE
-    | ANALYZE
-    | identifier
+    : VACUUM (maintenanceOptions | (FULL | FREEZE | VERBOSE | ANALYZE)+)?
+      (maintenanceRelation (COMMA maintenanceRelation)*)?
     ;
 
 analyzeStatement
-    : ANALYZE VERBOSE? multipartIdentifier? (LPAREN identifierList RPAREN)?
+    : ANALYZE (VERBOSE | maintenanceOptions)? (maintenanceRelation (COMMA maintenanceRelation)*)?
+    ;
+
+maintenanceOptions
+    : LPAREN maintenanceOption (COMMA maintenanceOption)* RPAREN
+    ;
+
+maintenanceOption
+    : (identifier | FULL) (copyOptionValue | ON)?
+    ;
+
+maintenanceRelation
+    : multipartIdentifier (LPAREN identifierList RPAREN)?
     ;
 
 reindexStatement
-    : REINDEX (TABLE | INDEX) CONCURRENTLY? multipartIdentifier
+    : REINDEX maintenanceOptions?
+      ((TABLE | INDEX | SCHEMA) CONCURRENTLY? multipartIdentifier
+      | (DATABASE | SYSTEM) CONCURRENTLY? multipartIdentifier?)
     ;
 
 clusterStatement
@@ -889,7 +1058,7 @@ lockModeWord
 
 routineControlStatement
     : CALL .+?
-    | PREPARE identifier (LPAREN dataTypeList? RPAREN)? AS preparedQuery=query
+    | PREPARE identifier (LPAREN dataTypeList? RPAREN)? AS preparedStatement=cteBody
     | EXECUTE identifier (LPAREN expressionList? RPAREN)?
     | DEALLOCATE PREPARE? identifier
     | DECLARE identifier cursorOption* CURSOR cursorHold? FOR cursorQuery=query
@@ -954,14 +1123,18 @@ explainedStatement
     ;
 
 transactionStatement
-    : BEGIN (WORK | TRANSACTION)?
+    : BEGIN (WORK | TRANSACTION)? transactionCharacteristicList?
     | START TRANSACTION transactionCharacteristicList?
-    | COMMIT (WORK | TRANSACTION)?
-    | ROLLBACK (WORK | TRANSACTION)?
+    | COMMIT (WORK | TRANSACTION)? transactionChain?
+    | ROLLBACK (WORK | TRANSACTION)? transactionChain?
     | ROLLBACK (WORK | TRANSACTION)? TO SAVEPOINT? identifier
     | SAVEPOINT identifier
     | RELEASE SAVEPOINT? identifier
     | SET TRANSACTION transactionCharacteristicList
+    ;
+
+transactionChain
+    : AND NO? CHAIN
     ;
 
 transactionCharacteristicList
@@ -971,6 +1144,7 @@ transactionCharacteristicList
 transactionCharacteristic
     : ISOLATION LEVEL isolationLevel
     | READ (WRITE | ONLY)
+    | NOT? DEFERRABLE
     ;
 
 isolationLevel
@@ -1073,8 +1247,16 @@ tableOption
     ;
 
 dataType
-    : identifier (LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN)?
-    | identifier LT dataType (COMMA dataType)* GT
+    : (qualifiedName typePrecision?
+      | identifier LT dataType (COMMA dataType)* GT
+      | (TIME | TIMESTAMP) typePrecision? (WITH | WITHOUT) TIME ZONE
+      | CHARACTER VARYING typePrecision?
+      | DOUBLE PRECISION)
+      (ARRAY (LBRACKET NUMBER_LITERAL? RBRACKET)? | (LBRACKET NUMBER_LITERAL? RBRACKET)+)?
+    ;
+
+typePrecision
+    : LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN
     ;
 
 dataTypeList
@@ -1114,11 +1296,11 @@ strictIdentifier
     ;
 
 nonReservedKeyword
-    : ACCESS | ADD | AFTER | ALSO | ALWAYS | ARRAY | ASC | AT | AUTO_INCREMENT | BEFORE | BOTH | BUFFERS | CALL | CAST | CASCADE | CHARSET | CHARACTER | CLUSTER | COLLATE | CONCURRENTLY | COSTS
+    : ACCESS | ADD | AFTER | ALSO | ALWAYS | ARRAY | ASC | AT | ATTRIBUTE | AUTO_INCREMENT | BEFORE | BOTH | BUFFERS | CALL | CAST | CASCADE | CHARSET | CHARACTER | CLUSTER | COLLATE | CONCURRENTLY | COSTS
     | ANALYZE | ANY | BINARY | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | CURSOR | DATABASE | DEALLOCATE | DECLARE | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
     | ATTACH | BACKWARD | CHECK | CLOSE | CUBE | DETACH | ENGINE | ENUM | EVENT | EXCLUDING | EXECUTE | EXISTS | EXPLAIN | EXTENSION | EXTERNAL | EXTRACT | FALSE | FETCH | FILTER | FIRST | FOLLOWING | FOR | FORWARD | FOREIGN | FORMAT | FUNCTION | FUNCTIONS | GENERATED | GRANT | GROUPING | GROUPS | HEADER | HOLD | IF | ILIKE | IDENTITY | IMPORT | INCLUDE | INCLUDING | INDEX | INHERITS | INSENSITIVE | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LEADING | LIMIT | MAPPING | MATCHED | MATERIALIZED | MOVE | NEXT | NULL | NULLS
-    | DATE | LABEL | LISTEN | LOCK | LOCKED | LOGGED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OPTIONS | ORDINALITY | OVERLAY | OVERRIDING | OVER | PARTITION | PERMISSIVE | PLACING | POLICY | POSITION | PRECEDING | PRIVILEGES | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROLE | ROW | ROWS | RULE | SECURITY | SEPARATOR | SERVER | SHARE | SIMILAR | SKIP_ | SUBSTRING | TIME | TIMESTAMP | TRAILING | TRIM
-    | ENABLE | DISABLE | FORCE | SOME
+    | DATE | LABEL | LISTEN | LOCK | LOCKED | LOGGED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OPTIONS | ORDINALITY | OVERLAY | OVERRIDING | OVER | PARTITION | PERMISSIVE | PLACING | POLICY | OWNER | VALID | VALIDATE | POSITION | PRECEDING | PRIVILEGES | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROLE | ROW | ROWS | RULE | SECURITY | SEPARATOR | SERVER | SHARE | SIMILAR | SKIP_ | SUBSTRING | TIME | TIMESTAMP | TRAILING | TRIM
+    | ENABLE | DISABLE | FORCE | SOME | SOURCE | TARGET | OPERATOR | TABLESPACE | PRESERVE | CASCADED | LOCAL | OPTION | EXCLUDE | OTHERS | ESCAPE | JSON_VALUE | JSON_EXISTS | JSON_QUERY | JSON_TABLE | COLUMNS | PATH | NESTED | JSON | ENCODING | UTF8 | CONDITIONAL | UNCONDITIONAL | QUOTES | OMIT | KEEP | OBJECT | SCALAR | STRING_KEYWORD | PASSING | ERROR | EMPTY | FINALIZE | MODULUS | REMAINDER | CHAIN | DEFERRABLE | SEARCH | CYCLE | BREADTH | DEPTH | RESTART | CONTINUE | VARYING | DOUBLE | PRECISION
     | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RESET | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMP | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER | ZONE | DISCARD | PLANS
     ;
 

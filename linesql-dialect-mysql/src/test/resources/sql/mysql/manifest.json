@@ -165,13 +165,43 @@
       "description": "MySQL DISTINCTROW SELECT preserves projection lineage and WHERE column usage"
     },
     {
+      "id": "values_derived_aliases",
+      "file": "cases/values_derived_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": []}, {"target": "amount", "sources": ["ods.a.amount", "ods.b.total"]}],
+      "columnUsages": [],
+      "description": "Derived VALUES column aliases keep sources from every row"
+    },
+    {
+      "id": "values_set_order_by",
+      "file": "cases/values_set_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "column_0", "sources": ["ods.orders.order_id"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.orders.order_id"}],
+      "description": "Set ordering resolves the default VALUES column name"
+    },
+    {
+      "id": "values_scalar_subqueries_order_by",
+      "file": "cases/values_scalar_subqueries_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "column_0", "sources": ["ods.a.amount", "ods.b.total"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.a.amount"}, {"type": "ORDER_BY", "column": "ods.b.total"}],
+      "description": "Standalone VALUES tracks scalar subquery sources in projections and ordering"
+    },
+    {
       "id": "values_statement",
       "file": "cases/values_statement.sql",
       "statementType": "SELECT",
       "inputTables": [],
       "outputTables": [],
-      "columnLineage": [],
-      "description": "MySQL VALUES statement is accepted as table-free SELECT-style query"
+      "columnLineage": [{"target": "column_0", "sources": []}, {"target": "column_1", "sources": []}],
+      "description": "MySQL VALUES exposes the default column names"
     },
     {
       "id": "select_from_dual",
@@ -848,6 +878,62 @@
         }
       ],
       "description": "MySQL single CTE direct column propagation"
+    },
+    {
+      "id": "union_window_order_alias",
+      "file": "cases/union_window_order_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users",
+        "app.admins"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "seq",
+          "sources": [
+            "app.users.group_id",
+            "app.users.created_at",
+            "app.admins.group_id",
+            "app.admins.created_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.users.group_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.users.created_at"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.admins.group_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.admins.created_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.group_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.created_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.admins.group_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.admins.created_at"
+        }
+      ],
+      "description": "UNION retains branch window usages and resolves an output sort alias to both source projections"
     },
     {
       "id": "union_column_projection",
@@ -3823,6 +3909,10 @@
         {
           "type": "GROUP_BY",
           "column": "app.users.tenant_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.created_at"
         }
       ],
       "description": "MySQL GROUP_CONCAT with ORDER BY and SEPARATOR contributes projection dependencies"
@@ -3854,6 +3944,10 @@
         {
           "type": "GROUP_BY",
           "column": "app.users.tenant_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.created_at"
         }
       ],
       "description": "MySQL GROUP_CONCAT DISTINCT with ORDER BY and SEPARATOR contributes projection dependencies"
@@ -10209,7 +10303,7 @@
       "statementType": "SELECT",
       "inputTables": [],
       "outputTables": [],
-      "columnLineage": [],
+      "columnLineage": [{"target": "id", "sources": []}, {"target": "name", "sources": []}],
       "description": "MySQL VALUES table constructor can be used as a derived table without physical input tables"
     },
     {
@@ -11125,6 +11219,10 @@
         {
           "type": "GROUP_BY",
           "column": "app.order_items.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.order_items.created_at"
         }
       ],
       "description": "MySQL JSON_ARRAYAGG and JSON_OBJECTAGG preserve argument and function ORDER BY source columns"
