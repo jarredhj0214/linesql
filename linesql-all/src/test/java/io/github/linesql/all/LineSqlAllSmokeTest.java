@@ -33,6 +33,41 @@ public class LineSqlAllSmokeTest {
         assertTrue(result.getDiagnostics().isEmpty());
     }
 
+    @Test
+    public void detectsXmlTableAndWindowTableFunctionsInQueries() {
+        assertAutomaticSelect(SqlDialect.ORACLE,
+                "select x.amount from ods.orders o, "
+                        + "xmltable(xmlnamespaces('urn:orders' as ns), '/ns:order[ns:id = $wanted]' "
+                        + "passing by value o.payload, o.order_id as wanted columns amount number path 'ns:amount') x");
+        assertAutomaticSelect(SqlDialect.FLINK,
+                "select s.window_start from session(data => table ods.orders partition by user_id, "
+                        + "timecol => descriptor(event_ts), gap => interval '10' minute) s");
+        assertAutomaticSelect(SqlDialect.SPARK, "select ' xmltable(' as label from ods.events");
+        assertAutomaticSelect(SqlDialect.SPARK, "select ' session(table t' as label from ods.events");
+    }
+
+    @Test
+    public void distinguishesFlinkConflictActionsFromPostgreSql() {
+        for (String action : new String[]{"DEDUPLICATE", "ERROR"}) {
+            LineageResult result = LineSql.parse("insert into dwd.orders select id from ods.orders "
+                    + "on conflict do " + action);
+            assertEquals(SqlDialect.FLINK, result.getDialect());
+            assertEquals(StatementType.INSERT, result.getStatementType());
+            assertTrue(result.getDiagnostics().toString(), result.getDiagnostics().isEmpty());
+        }
+        LineageResult result = LineSql.parse("insert into dwd.orders (id) values (1) on conflict do nothing");
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertTrue(result.getDiagnostics().toString(), result.getDiagnostics().isEmpty());
+    }
+
+    private static void assertAutomaticSelect(SqlDialect dialect, String sql) {
+        LineageResult result = LineSql.parse(sql);
+        assertEquals(dialect, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertTrue(result.getDiagnostics().toString(), result.getDiagnostics().isEmpty());
+        assertEquals(1, result.getColumnLineage().size());
+    }
+
     private static void assertParses(SqlDialect dialect, String sql) {
         LineageResult result = LineSql.parse(sql, dialect);
 

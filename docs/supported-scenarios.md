@@ -54,6 +54,8 @@ Implemented CLI scenarios:
 | STDIN with explicit dialect | `cat query.sql \| linesql --dialect ORACLE` | `MainTest.readsSqlFromStdinWhenNoSqlArgsProvided` |
 | Unsupported dialect rejection | `linesql --dialect db2 "select 1"` | `MainTest.rejectsUnknownDialect` |
 
+The default API detects Oracle `XMLTABLE` and Flink window functions with a `TABLE` argument, including bare `SESSION` calls with named arguments. String literals with these spellings are ignored for these signals. Flink `ON CONFLICT DO DEDUPLICATE` and `DO ERROR` select Flink automatically. Supply the Flink dialect explicitly for shared `ON CONFLICT DO NOTHING` syntax.
+
 ## PostgreSQL
 
 PostgreSQL is a baseline parser dialect path. The current implementation uses a dedicated lightweight ANTLR grammar for common PostgreSQL lineage SQL.

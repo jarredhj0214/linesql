@@ -37,6 +37,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bmod\\b.*")
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*");
 
+        String relationSyntax = normalized.replaceAll("'(?:''|\\\\.|[^'\\\\])*'", " ");
+
         if (mysqlExecutableComment
                 || normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
@@ -117,6 +119,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bextract\\s*\\([^;]+\\bfrom\\b.*")
                 || normalized.matches("(?s).*\\b(tumble|hop|session)_(start|end|rowtime|proctime)\\s*\\(.*")
                 || normalized.matches("(?s).*\\bfrom\\s+table\\s*\\(\\s*(tumble|hop|session|cumulate)\\s*\\(.*")
+                || relationSyntax.matches("(?s)^\\s*insert\\b.*\\bon\\s+conflict\\s+do\\s+(deduplicate|error)\\b.*")
+                || relationSyntax.matches("(?s).*[,\\s](tumble|hop|session|cumulate)\\s*\\(\\s*(?:data\\s*=>\\s*)?table\\s+.*")
                 || normalized.matches("(?s).*\\bfor\\s+system_time\\s+as\\s+of\\b.*")
                 || normalized.matches("(?s).*\\bproctime\\s*\\(\\s*\\).*")
                 || normalized.matches("(?s).*\\bsplit_index\\s*\\(.*")
@@ -151,7 +155,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.contains(" properties (\"replication_num\"")) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.93, "StarRocks key, load, materialized view, metadata, task, or admin syntax"));
         }
-        if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
+        if (relationSyntax.matches("(?s).*[,\\s]xmltable\\s*\\(.*")) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.97, "XMLTABLE relation syntax"));
+        } else if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
                 || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")
                 || normalized.matches("(?s).*\\bstart\\s+with\\b.*")
                 || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")

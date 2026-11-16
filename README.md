@@ -88,7 +88,7 @@ System.out.println(result.getColumnLineage());    // ods.users.id -> ads.user_su
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-all</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -145,7 +145,7 @@ LineSQL 1.0 is the first stable release line for the public API and lineage resu
 Current development version:
 
 ```text
-1.1.0
+1.2.0
 ```
 
 Java compatibility:
@@ -210,7 +210,7 @@ Most applications can depend on `linesql-all`. It brings in the public API and a
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-all</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -220,13 +220,13 @@ For smaller deployments, use `linesql-core` plus only the dialect modules you ne
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-core</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 
 <dependency>
     <groupId>io.github.jarredhj0214</groupId>
     <artifactId>linesql-dialect-spark</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -396,14 +396,14 @@ Build the CLI:
 Run with auto detection:
 
 ```bash
-java -jar linesql-cli/target/linesql-cli-1.1.0.jar \
+java -jar linesql-cli/target/linesql-cli-1.2.0.jar \
   "insert overwrite table ads.user_summary select id from ods.users"
 ```
 
 Run with explicit dialect:
 
 ```bash
-java -jar linesql-cli/target/linesql-cli-1.1.0.jar \
+java -jar linesql-cli/target/linesql-cli-1.2.0.jar \
   --dialect HIVE \
   "select id from ods.users"
 ```
