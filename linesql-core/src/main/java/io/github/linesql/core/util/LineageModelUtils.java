@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 public final class LineageModelUtils {
     private LineageModelUtils() {
@@ -69,6 +70,33 @@ public final class LineageModelUtils {
             refs.put(columnKey(ref), ref);
         }
         return new ArrayList<ColumnRef>(refs.values());
+    }
+
+    public static boolean expandRecursiveColumnSources(Map<String, List<ColumnRef>> columns,
+                                                       Supplier<List<ColumnLineage>> evaluateStep) {
+        // Every source reaches all dependent columns in at most the number of columns passes.
+        for (int pass = 0; pass < columns.size(); pass++) {
+            List<ColumnLineage> step = evaluateStep.get();
+            if (step.size() != columns.size() || hasWildcardOutput(step)) {
+                return false;
+            }
+            int position = 0;
+            boolean expanded = false;
+            for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
+                List<ColumnRef> prior = column.getValue();
+                List<ColumnRef> merged = mergeColumnRefs(prior, step.get(position++).getSources());
+                expanded |= merged.size() > prior.size();
+                column.setValue(merged);
+            }
+            if (!expanded) {
+                break;
+            }
+        }
+        return true;
+    }
+
+    public static boolean hasWildcardOutput(List<ColumnLineage> columns) {
+        return columns.stream().anyMatch(column -> "*".equals(column.getTarget().getName()));
     }
 
     public static void addSetOrderByUsage(LineageResult result, String outputName) {

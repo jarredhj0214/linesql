@@ -2198,7 +2198,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
 
         List<ColumnLineage> anchor = lineageForQueryTerm(union.left, true).getColumnLineage();
-        if (anchor.isEmpty() || (!aliases.isEmpty() && anchor.size() != aliases.size()) || hasWildcardOutput(anchor)) {
+        if (anchor.isEmpty() || (!aliases.isEmpty() && anchor.size() != aliases.size()) || LineageModelUtils.hasWildcardOutput(anchor)) {
             return false;
         }
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
@@ -2213,36 +2213,17 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
 
         Map<String, List<ColumnRef>> previous = derivedColumnLineage.put(name, columns);
-        // A source can cross at most one recursive column edge on each pass.
-        // Every source reaches all dependent columns in at most the number of columns passes.
-        for (int pass = 0; pass < columns.size(); pass++) {
-            List<ColumnLineage> step = lineageForQueryTerm(union.right, true).getColumnLineage();
-            if (step.size() != columns.size() || hasWildcardOutput(step)) {
-                if (previous == null) {
-                    derivedColumnLineage.remove(name);
-                } else {
-                    derivedColumnLineage.put(name, previous);
-                }
-                return false;
+        if (!LineageModelUtils.expandRecursiveColumnSources(columns,
+                () -> lineageForQueryTerm(union.right, true).getColumnLineage())) {
+            if (previous == null) {
+                derivedColumnLineage.remove(name);
+            } else {
+                derivedColumnLineage.put(name, previous);
             }
-            int position = 0;
-            boolean expanded = false;
-            for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
-                List<ColumnRef> prior = column.getValue();
-                List<ColumnRef> merged = LineageModelUtils.mergeColumnRefs(prior, step.get(position++).getSources());
-                expanded |= merged.size() > prior.size();
-                column.setValue(merged);
-            }
-            if (!expanded) {
-                break;
-            }
+            return false;
         }
         registerDerivedRelation(name, query, aliases, true);
         return true;
-    }
-
-    private static boolean hasWildcardOutput(List<ColumnLineage> columns) {
-        return columns.stream().anyMatch(column -> "*".equals(column.getTarget().getName()));
     }
 
     private void registerDerivedRelation(String relationName, SqlBaseParser.QueryContext query) {

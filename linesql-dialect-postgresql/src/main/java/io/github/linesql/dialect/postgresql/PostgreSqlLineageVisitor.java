@@ -1575,7 +1575,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             cteNames.add(cteName);
             PostgreSqlParser.CteBodyContext body = namedQuery.cteBody();
             if (body.query() != null) {
-                registerDerivedRelation(cteName, body.query(), cteColumnAliases(namedQuery));
+                List<String> aliases = cteColumnAliases(namedQuery);
+                if (ctx.RECURSIVE() != null) {
+                    seedRecursiveRelation(cteName, body.query(), aliases);
+                }
+                registerDerivedRelation(cteName, body.query(), aliases);
                 Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(cteName);
                 if (namedQuery.searchClause() != null) {
                     PostgreSqlParser.SearchClauseContext search = namedQuery.searchClause();
@@ -1592,6 +1596,38 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         return null;
+    }
+
+    private void seedRecursiveRelation(String name, PostgreSqlParser.QueryContext query, List<String> aliases) {
+        if (query.ctes() != null || !(query.queryTerm() instanceof PostgreSqlParser.SetOperationContext)) {
+            return;
+        }
+        PostgreSqlParser.SetOperationContext union = (PostgreSqlParser.SetOperationContext) query.queryTerm();
+        if (union.UNION() == null) {
+            return;
+        }
+        List<ColumnLineage> anchor = lineageForQueryTerm(union.left).getColumnLineage();
+        if (anchor.isEmpty() || aliases.size() > anchor.size() || LineageModelUtils.hasWildcardOutput(anchor)) {
+            return;
+        }
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int index = 0; index < anchor.size(); index++) {
+            ColumnLineage column = anchor.get(index);
+            String columnName = index < aliases.size() ? aliases.get(index) : column.getTarget().getName();
+            if (columns.containsKey(columnName)) {
+                return;
+            }
+            columns.put(columnName, LineageModelUtils.mergeColumnRefs(Collections.emptyList(), column.getSources()));
+        }
+        Map<String, List<ColumnRef>> previous = derivedColumnLineage.put(name, columns);
+        if (!LineageModelUtils.expandRecursiveColumnSources(columns,
+                () -> lineageForQueryTerm(union.right).getColumnLineage())) {
+            if (previous == null) {
+                derivedColumnLineage.remove(name);
+            } else {
+                derivedColumnLineage.put(name, previous);
+            }
+        }
     }
 
     private static List<ColumnRef> cteKeySources(Map<String, List<ColumnRef>> columns,

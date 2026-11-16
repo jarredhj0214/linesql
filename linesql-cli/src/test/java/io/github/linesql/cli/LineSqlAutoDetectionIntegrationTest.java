@@ -347,6 +347,14 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresRecursiveCteSearchAndCycleOptions() {
+        assertDialect(SqlDialect.POSTGRESQL, "WITH RECURSIVE walk(n) AS"
+                + " (SELECT 1 UNION ALL SELECT n + 1 FROM walk WHERE n < 4)"
+                + " SEARCH BREADTH FIRST BY n SET seq CYCLE n SET seen USING path"
+                + " SELECT n, seq, seen FROM walk");
+    }
+
+    @Test
     public void detectsSparkRecursiveCteLevelLimit() {
         assertDialect(SqlDialect.SPARK, "WITH RECURSIVE walk(n) MAX RECURSION LEVEL 8 AS"
                 + " (SELECT 1 UNION ALL SELECT n + 1 FROM walk WHERE n < 4) SELECT n FROM walk");

@@ -3811,7 +3811,9 @@
         {"target": "parent_id", "sources": ["public.users.parent_id"]}
       ],
       "columnUsages": [
-        {"type": "WHERE", "column": "public.users.parent_id"}
+        {"type": "WHERE", "column": "public.users.parent_id"},
+        {"type": "JOIN_ON", "column": "public.users.parent_id"},
+        {"type": "JOIN_ON", "column": "public.users.id"}
       ],
       "description": "PostgreSQL WITH RECURSIVE keeps physical base-table lineage without treating the recursive CTE as a table"
     },
@@ -6054,6 +6056,170 @@
         }
       ],
       "description": "Windowed SQL/JSON aggregates retain named and inline window dependencies"
+    },
+    {
+      "id": "recursive_cte_transitive_union_distinct",
+      "file": "cases/recursive_cte_transitive_union_distinct.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.nodes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "a",
+          "sources": [
+            "org.nodes.node_id",
+            "org.nodes.parent_id",
+            "org.nodes.root_id"
+          ]
+        },
+        {
+          "target": "b",
+          "sources": [
+            "org.nodes.parent_id",
+            "org.nodes.root_id",
+            "org.nodes.node_id"
+          ]
+        },
+        {
+          "target": "c",
+          "sources": [
+            "org.nodes.root_id",
+            "org.nodes.node_id",
+            "org.nodes.parent_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "org.nodes.node_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.parent_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.root_id"
+        }
+      ],
+      "description": "PostgreSQL recursive UNION resolves transitive origin columns while retaining implicit names after a partial alias list"
+    },
+    {
+      "id": "recursive_cte_generated_search_cycle_provenance",
+      "file": "cases/recursive_cte_generated_search_cycle_provenance.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.roots",
+        "org.edges"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "node_id",
+          "sources": [
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "inherited_root",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "breadth_position",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "seen",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "path",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.roots.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.child_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.roots.root_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.roots.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.edges.child_id"
+        }
+      ],
+      "description": "SEARCH and CYCLE output dependencies include physical sources that reach their key through recursion"
+    },
+    {
+      "id": "insert_recursive_cte_values_positional",
+      "file": "cases/insert_recursive_cte_values_positional.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "org.edges"
+      ],
+      "outputTables": [
+        "mart.reachability"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.reachability.origin",
+          "sources": [
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "mart.reachability.endpoint",
+          "sources": [
+            "org.edges.child_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.child_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.parent_id"
+        }
+      ],
+      "description": "A constant recursive anchor inherits both positional INSERT target sources from the step"
     }
   ]
 }

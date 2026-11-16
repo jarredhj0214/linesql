@@ -83,6 +83,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern POSTGRES_RECURSIVE_CTE_OPTIONS = Pattern.compile(
+            "\\bwith\\s+recursive\\b[^;]*?\\)\\s*(?:search\\s+(?:breadth|depth)\\s+first\\s+by\\b"
+                    + "|cycle\\s+[a-z_][\\w$]*(?:\\s*,\\s*[a-z_][\\w$]*)*\\s+set\\b)");
     private static final Pattern SPARK_RECURSION_LEVEL = Pattern.compile(
             "(?s)\\bwith\\s+recursive\\b[^;]*?\\bmax\\s+recursion\\s+level\\s+[0-9]+\\s+as\\b");
     private static final Pattern SQL_SERVER_AI_MODEL = Pattern.compile(
@@ -295,6 +298,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 && POSTGRES_DML_TARGET.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL inherited DML target"));
+        } else if (POSTGRES_RECURSIVE_CTE_OPTIONS.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL recursive CTE search or cycle options"));
         } else if (POSTGRES_JSON_SYNTAX.matcher(unquotedSyntax).find()
                 && !TSQL_OBJECT_SCOPE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL JSONB cast, function, or path operator"));
