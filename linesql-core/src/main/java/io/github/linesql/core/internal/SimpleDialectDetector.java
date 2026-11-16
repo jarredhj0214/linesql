@@ -41,6 +41,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern MYSQL_DUPLICATE_KEY_UPDATE = Pattern.compile(
             "\\bon\\s+duplicate\\s+key\\s+update\\b");
 
+    private static final Pattern ORACLE_START_WITH = Pattern.compile("\\bstart\\s+with\\b");
+    private static final Pattern ORACLE_SAMPLE = Pattern.compile("\\bsample\\s+(?:block\\s+)?\\(");
+    private static final Pattern ORACLE_PARTITION = Pattern.compile("\\b(?:sub)?partition\\s*\\(");
+
     private static final Pattern ORACLE_RETURNING_TARGET = Pattern.compile(
             "\\breturn(?:ing)?\\b[^;]*\\b(?:bulk\\s+collect\\s+into\\b|into\\s*:[\\p{L}_][\\p{L}\\p{N}_$#]*)");
 
@@ -70,6 +74,7 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:(?:holdlock|updlock|tablockx?|rowlock|paglock|xlock|readpast|readuncommitted|readcommittedlock"
                     + "|readcommitted|repeatableread|serializable|nowait|noexpand|forceseek|forcescan)\\b"
                     + "|index\\s*(?:\\(|=))");
+    private static final Pattern TSQL_QUERY_OPTION_START = Pattern.compile("\\boption\\s*\\(");
     private static final Pattern TSQL_QUERY_HINT = Pattern.compile(
             "\\b(?:from|insert|update|delete|merge)\\b[^;]*?"
                     + "(?:\\b(?!(?:from|join|on|where|having|and|or|not|by)\\b)" + TSQL_NAME + "|[^\\s\\w$#;,])"
@@ -303,10 +308,13 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.97, "XMLTABLE relation syntax"));
         } else if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
                 || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")
-                || relationSyntax.matches("(?s).*\\bselect\\b[^;]*\\bstart\\s+with\\b.*")
+                || (ORACLE_START_WITH.matcher(relationSyntax).find()
+                    && relationSyntax.matches("(?s).*\\bselect\\b[^;]*\\bstart\\s+with\\b.*"))
                 || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
-                || normalized.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*")
-                || normalized.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*")
+                || (ORACLE_SAMPLE.matcher(normalized).find()
+                    && normalized.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*"))
+                || (ORACLE_PARTITION.matcher(normalized).find()
+                    && normalized.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*"))
                 || normalized.matches("(?s)^\\s*create\\s+(global|private)\\s+temporary\\s+table\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+table\\b.*\\b(nologging|logging|parallel|noparallel|compress|nocompress)\\b.*\\bas\\s+select\\b.*")
                 || normalized.matches("(?s)^\\s*drop\\s+table\\b.*\\bcascade\\s+constraints\\b.*")
@@ -338,7 +346,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server TOP in a write statement"));
         } else if ((unquotedSyntax.contains("with") && TSQL_TABLE_HINT.matcher(
                     QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find())
-                || (unquotedSyntax.contains("option") && TSQL_QUERY_HINT.matcher(unquotedSyntax).find())) {
+                || (unquotedSyntax.contains("option") && TSQL_QUERY_OPTION_START.matcher(unquotedSyntax).find()
+                    && TSQL_QUERY_HINT.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server table or query hint"));
         } else if (TSQL_TRUNCATE_PARTITIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server partition truncation"));

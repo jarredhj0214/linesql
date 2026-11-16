@@ -35,6 +35,9 @@ The statement-level column-lineage rate includes control, metadata, source-only 
 
 When running local benchmark helpers against in-tree changes, put module `target/classes` entries before dependency classpath entries so the benchmark does not accidentally load an older published alpha from the local Maven repository.
 
+The detector also has a stress test for a synthetic query with 5,000 `UNION ALL` branches.
+It exercises automatic dialect detection independently of parsing and lineage extraction.
+
 ## What the Numbers Mean
 
 LineSQL reports practical lineage coverage in several layers:

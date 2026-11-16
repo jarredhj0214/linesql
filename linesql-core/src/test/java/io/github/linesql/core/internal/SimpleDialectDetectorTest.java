@@ -4,6 +4,7 @@ import io.github.linesql.core.model.DialectCandidate;
 import io.github.linesql.core.model.SqlDialect;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -405,6 +406,13 @@ public class SimpleDialectDetectorTest {
         assertFalse(detector.detect("CREATE PROCEDURE dbo.sync WITH NATIVE_COMPILATION AS "
                 + "BEGIN ATOMIC /* options */ WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, "
                 + "LANGUAGE = N'us_english') SELECT 1; END;").contains(SqlDialect.POSTGRESQL));
+    }
+
+    @Test(timeout = 10000)
+    public void detectsLongUnionsWithoutRecheckingEveryEarlierSelect() {
+        String sql = String.join(" UNION ALL ",
+                Collections.nCopies(5000, "SELECT id FROM ods.options"));
+        assertFirst(SqlDialect.SPARK, sql);
     }
 
     private void assertFirst(SqlDialect expected, String sql) {
