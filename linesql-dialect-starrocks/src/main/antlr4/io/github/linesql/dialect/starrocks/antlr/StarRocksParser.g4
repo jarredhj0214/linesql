@@ -196,9 +196,10 @@ joinType
     | RIGHT OUTER?
     | FULL OUTER?
     | CROSS
-    | LEFT? SEMI_JOIN
-    | LEFT? ANTI
-    | ASOF
+    | (LEFT | RIGHT)? SEMI_JOIN
+    | (LEFT | RIGHT)? ANTI
+    | NULL AWARE LEFT ANTI
+    | ASOF (INNER | LEFT OUTER?)?
     ;
 
 joinCriteria

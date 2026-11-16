@@ -10648,6 +10648,54 @@
       "description": "StarRocks ALTER TABLE DROP INDEX affected table"
     },
     {
+      "id": "insert_asof_left_join",
+      "file": "cases/insert_asof_left_join.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.holdings", "ods.prices"],
+      "outputTables": ["mart.holding_prices"],
+      "columnLineage": [
+        {"target": "mart.holding_prices.holding_id", "sources": ["ods.holdings.id"]},
+        {"target": "mart.holding_prices.matched_price", "sources": ["ods.prices.price"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.holdings.ticker"},
+        {"type": "JOIN_ON", "column": "ods.prices.ticker"},
+        {"type": "JOIN_ON", "column": "ods.holdings.observed_at"},
+        {"type": "JOIN_ON", "column": "ods.prices.quoted_at"}
+      ],
+      "description": "ASOF LEFT JOIN keeps equality and timestamp conditions and maps both aliases into the write"
+    },
+    {
+      "id": "select_right_semi_join",
+      "file": "cases/select_right_semi_join.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.subscriptions", "ods.customers"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "name", "sources": ["ods.customers.name"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.subscriptions.customer_id"},
+        {"type": "JOIN_ON", "column": "ods.customers.id"}
+      ],
+      "description": "RIGHT SEMI JOIN retains the selected right-side source and both filter columns"
+    },
+    {
+      "id": "select_null_aware_left_anti_join",
+      "file": "cases/select_null_aware_left_anti_join.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.customers", "ods.blocked_customers"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.customers.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.customers.id"},
+        {"type": "JOIN_ON", "column": "ods.blocked_customers.customer_id"}
+      ],
+      "description": "NULL AWARE LEFT ANTI JOIN keeps the left-side output and the right-side exclusion dependency"
+    },
+    {
       "id": "semi_anti_asof_join_column_usage",
       "file": "cases/semi_anti_asof_join_column_usage.sql",
       "statementType": "SELECT",

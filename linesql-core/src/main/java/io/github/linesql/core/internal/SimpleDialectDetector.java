@@ -38,6 +38,12 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
                     + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
 
+    private static final Pattern STARROCKS_JOIN = Pattern.compile(
+            "\\basof\\s+(?:inner|left(?:\\s+outer)?)\\s+join\\b"
+                    + "|\\bright\\s+(?:semi|anti)\\s+join\\b|\\bnull\\s+aware\\s+left\\s+anti\\s+join\\b");
+    private static final Pattern STARROCKS_ASOF_ON = Pattern.compile(
+            "\\basof\\s+join\\b[^;]*\\bon\\b");
+
     private static final Pattern MYSQL_DUPLICATE_KEY_UPDATE = Pattern.compile(
             "\\bon\\s+duplicate\\s+key\\s+update\\b");
 
@@ -284,7 +290,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }
-        if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
+        if (STARROCKS_JOIN.matcher(unquotedSyntax).find()
+                || (!unquotedSyntax.contains("match_condition") && STARROCKS_ASOF_ON.matcher(unquotedSyntax).find())) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.98, "StarRocks ASOF or directional semi/anti join"));
+        } else if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\baggregate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bdistributed\\s+by\\s+hash\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+routine\\s+load\\b.*")

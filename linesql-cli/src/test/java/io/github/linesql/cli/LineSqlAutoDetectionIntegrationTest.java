@@ -335,6 +335,23 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.SPARK, "SELECT 'jsonb_set(x,y,z)' AS message");
     }
 
+    @Test
+    public void distinguishesStarRocksAndSparkAsofJoins() {
+        String starRocks = "SELECT h.id, p.price FROM ods.holdings h ASOF LEFT JOIN ods.prices p"
+                + " ON h.ticker = p.ticker AND h.observed_at >= p.quoted_at";
+        LineageResult result = LineSql.parse(starRocks);
+        assertEquals(SqlDialect.STARROCKS, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals("prices", result.getColumnLineage().get(1).getSources().get(0).getTable().getName());
+        assertEquals(4, result.getColumnUsages().size());
+        assertDialect(SqlDialect.STARROCKS, "SELECT h.id FROM ods.holdings h ASOF JOIN ods.prices p"
+                + " ON h.ticker = p.ticker AND h.observed_at >= p.quoted_at");
+        assertDialect(SqlDialect.STARROCKS, "SELECT p.price FROM ods.holdings h RIGHT ANTI JOIN ods.prices p"
+                + " ON h.ticker = p.ticker");
+        assertDialect(SqlDialect.SPARK, "SELECT h.id FROM ods.holdings h LEFT ASOF JOIN ods.prices p"
+                + " MATCH_CONDITION (h.observed_at >= p.quoted_at) ON h.ticker = p.ticker");
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
