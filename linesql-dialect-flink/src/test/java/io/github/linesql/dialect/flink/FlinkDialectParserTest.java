@@ -63,16 +63,27 @@ public class FlinkDialectParserTest {
         for (JsonNode sqlCase : manifest.get("cases")) {
             String caseId = sqlCase.get("id").asText();
             String sql = resource("/sql/flink/" + sqlCase.get("file").asText());
-            LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
-
-            assertEquals(caseId, SqlDialect.FLINK, result.getDialect());
-            assertEquals(caseId, StatementType.valueOf(sqlCase.get("statementType").asText()), result.getStatementType());
-            assertTables(caseId, sqlCase.get("inputTables"), tableNames(result.getInputTables()));
-            assertTables(caseId, sqlCase.get("outputTables"), tableNames(result.getOutputTables()));
-            assertColumnLineage(caseId, sqlCase.get("columnLineage"), result);
-            if (sqlCase.has("columnUsages")) {
-                assertColumnUsages(caseId, sqlCase.get("columnUsages"), result);
+            JsonNode statements = sqlCase.get("statements");
+            if (statements == null) {
+                assertCaseLineage(caseId, sqlCase, parser.parse(sql, ParseOptions.defaults(), new ParseContext()));
+            } else {
+                List<LineageResult> results = LineSql.parseScript(sql, SqlDialect.FLINK);
+                assertEquals(caseId, statements.size(), results.size());
+                for (int index = 0; index < results.size(); index++) {
+                    assertCaseLineage(caseId + "#" + (index + 1), statements.get(index), results.get(index));
+                }
             }
+        }
+    }
+
+    private static void assertCaseLineage(String caseId, JsonNode expected, LineageResult result) {
+        assertEquals(caseId, SqlDialect.FLINK, result.getDialect());
+        assertEquals(caseId, StatementType.valueOf(expected.get("statementType").asText()), result.getStatementType());
+        assertTables(caseId, expected.get("inputTables"), tableNames(result.getInputTables()));
+        assertTables(caseId, expected.get("outputTables"), tableNames(result.getOutputTables()));
+        assertColumnLineage(caseId, expected.get("columnLineage"), result);
+        if (expected.has("columnUsages")) {
+            assertColumnUsages(caseId, expected.get("columnUsages"), result);
         }
     }
 

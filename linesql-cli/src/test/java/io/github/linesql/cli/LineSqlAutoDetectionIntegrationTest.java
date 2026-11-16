@@ -6,6 +6,7 @@ import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
+import io.github.linesql.core.model.TableRef;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -344,6 +345,23 @@ public class LineSqlAutoDetectionIntegrationTest {
                 + " RETURNING VARCHAR2(1000 CHAR) STRICT) FROM app.events e");
         assertDialect(SqlDialect.ORACLE, "SELECT JSON_OBJECTAGG(KEY e.code VALUE e.payload"
                 + " RETURNING CLOB STRICT WITH UNIQUE KEYS) FROM app.events e");
+    }
+
+    @Test
+    public void detectsCatalogSwitchesFromNativeCommands() {
+        assertDialect(SqlDialect.SPARK, "SET CATALOG `lake`");
+        assertDialect(SqlDialect.FLINK, "USE CATALOG lake");
+        assertDialect(SqlDialect.SPARK, "SET catalog=lake");
+        List<LineageResult> starRocks = LineSql.parseScript(
+                "SET CATALOG lake; USE CATALOG lake; USE ads; SELECT o.id FROM orders o;"
+                        + "SELECT id FROM orders TEMPORARY PARTITION (p1)");
+        for (LineageResult result : starRocks) {
+            assertEquals(SqlDialect.STARROCKS, result.getDialect());
+        }
+        TableRef input = starRocks.get(3).getInputTables().get(0);
+        assertEquals("lake", input.getCatalog());
+        assertEquals("ads", input.getSchema());
+        assertEquals("orders", input.getName());
     }
 
     @Test

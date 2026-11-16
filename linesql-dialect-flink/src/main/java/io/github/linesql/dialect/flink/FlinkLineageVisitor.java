@@ -723,6 +723,26 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitUseStmt(FlinkParser.UseStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
+        if (context == null) {
+            return null;
+        }
+        FlinkParser.UseStatementContext statement = ctx.useStatement();
+        if (statement.CATALOG() != null) {
+            String catalog = cleanIdentifier(statement.identifier());
+            if (!catalog.equals(context.getDefaultCatalog())) {
+                context.setDefaultCatalog(catalog);
+                // A new catalog supplies its own default database, which is unknown here.
+                context.setDefaultSchema(null);
+            }
+        } else {
+            List<String> namespace = identifierParts(statement.multipartIdentifier());
+            if (namespace.size() == 2) {
+                context.setDefaultCatalog(namespace.get(0));
+            }
+            if (namespace.size() <= 2) {
+                context.setDefaultSchema(namespace.get(namespace.size() - 1));
+            }
+        }
         return null;
     }
 
@@ -944,7 +964,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitTableName(FlinkParser.TableNameContext ctx) {
         TableRef table = tableRef(ctx.multipartIdentifier());
-        if (isCteReference(table)) {
+        if (isCteReference(ctx.multipartIdentifier(), table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
         }
@@ -1706,7 +1726,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return ctx instanceof FlinkParser.TvfTableArgContext ? (FlinkParser.TvfTableArgContext) ctx : null;
     }
 
-    private static TableRef firstTableFunctionInput(FlinkParser.TableFunctionArgListContext ctx) {
+    private TableRef firstTableFunctionInput(FlinkParser.TableFunctionArgListContext ctx) {
         FlinkParser.TvfTableArgContext table = firstTableFunctionArgument(ctx);
         return table == null ? null : tableRef(table.multipartIdentifier());
     }
@@ -1829,7 +1849,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         String inputName = input.getName().toLowerCase(Locale.ROOT);
         String relationName = temporaryRelationName(input);
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        if (isCteReference(input)) {
+        if (isCteReference(table.multipartIdentifier(), input)) {
             columns.putAll(derivedColumnLineage.getOrDefault(inputName, Collections.emptyMap()));
             addDerivedInputTables(inputName);
         } else if (relationName != null) {
@@ -2373,10 +2393,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return copy;
     }
 
-    private boolean isCteReference(TableRef table) {
-        return table.getCatalog() == null
-                && table.getSchema() == null
-                && cteNames.contains(table.getName().toLowerCase(Locale.ROOT));
+    private boolean isCteReference(FlinkParser.MultipartIdentifierContext name, TableRef table) {
+        return name.identifier().size() == 1 && cteNames.contains(table.getName().toLowerCase(Locale.ROOT));
     }
 
     private List<ColumnLineage> readAssignments(FlinkParser.AssignmentListContext ctx, TableRef defaultTarget) {
@@ -2872,9 +2890,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     // ============ Utility ============
 
-    private static TableRef tableRef(FlinkParser.MultipartIdentifierContext ctx) {
-        List<String> parts = identifierParts(ctx);
-        return LineageModelUtils.tableRefFromParts(parts);
+    private TableRef tableRef(FlinkParser.MultipartIdentifierContext ctx) {
+        TableRef table = LineageModelUtils.tableRefFromParts(identifierParts(ctx));
+        if (context == null || table.getCatalog() != null) {
+            return table;
+        }
+        String schema = table.getSchema() == null ? context.getDefaultSchema() : table.getSchema();
+        return new TableRef(context.getDefaultCatalog(), schema, table.getName());
     }
 
     private static List<String> identifierParts(FlinkParser.MultipartIdentifierContext ctx) {

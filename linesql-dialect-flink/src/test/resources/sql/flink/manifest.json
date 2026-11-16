@@ -7535,6 +7535,161 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "A Flink connector option can follow other quoted properties"
+    },
+    {
+      "id": "script_catalog_scopes_and_temporary_views",
+      "file": "cases/script_catalog_scopes_and_temporary_views.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "lake.ods.orders",
+        "warehouse.dm.stage",
+        "reporting.logs.events"
+      ],
+      "outputTables": [
+        "lake.ods.stage",
+        "lake.mart.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "lake.mart.summary.id",
+          "sources": [
+            "lake.ods.orders.id"
+          ]
+        }
+      ],
+      "description": "Flink namespace switches track physical tables and keep temporary views scoped to their namespace",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "lake.ods.orders"
+          ],
+          "outputTables": [
+            "lake.ods.stage"
+          ],
+          "columnLineage": [
+            {
+              "target": "lake.ods.stage.id",
+              "sources": [
+                "lake.ods.orders.id"
+              ]
+            },
+            {
+              "target": "lake.ods.stage.amount",
+              "sources": [
+                "lake.ods.orders.amount"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.ods.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "lake.ods.orders"
+          ],
+          "outputTables": [
+            "lake.mart.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "lake.mart.summary.id",
+              "sources": [
+                "lake.ods.orders.id"
+              ]
+            },
+            {
+              "target": "lake.mart.summary.amount",
+              "sources": [
+                "lake.ods.orders.amount"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.ods.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "warehouse.dm.stage"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "warehouse.dm.stage.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "warehouse.dm.stage.amount"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "reporting.logs.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "reporting.logs.events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

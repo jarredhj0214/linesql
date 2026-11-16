@@ -583,6 +583,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 + "\\busing\\b[^;]*\\breturning\\b.*");
     }
 
+    static boolean hasSharedCatalogUse(String sql) {
+        return stripComments(sql).matches("(?is)^\\s*use\\s+catalog\\s+" + FLINK_IDENTIFIER + "\\s*;?\\s*$");
+    }
+
     static boolean hasSharedConflictDoNothing(String sql) {
         LexicalRewrite literals = maskQuotedLiterals(sql);
         if (literals.dollarQuoted || literals.oracleQuoted) {

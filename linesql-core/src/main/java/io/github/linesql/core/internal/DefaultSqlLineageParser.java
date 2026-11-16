@@ -162,7 +162,10 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         return isContextOverridable(statementCandidate.getDialect())
                 || (scriptCandidate.getDialect() == SqlDialect.FLINK
                     && statementCandidate.getDialect() == SqlDialect.POSTGRESQL
-                    && SimpleDialectDetector.hasSharedConflictDoNothing(statement));
+                    && SimpleDialectDetector.hasSharedConflictDoNothing(statement))
+                || (scriptCandidate.getDialect() == SqlDialect.STARROCKS
+                    && statementCandidate.getDialect() == SqlDialect.FLINK
+                    && SimpleDialectDetector.hasSharedCatalogUse(statement));
     }
 
     private static boolean isContextOverridable(SqlDialect dialect) {

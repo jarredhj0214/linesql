@@ -1013,7 +1013,7 @@ Known Oracle gaps:
 
 ## StarRocks
 
-StarRocks `USE database`, `USE catalog.database`, `SET CATALOG` and `USE CATALOG` update the namespace for later statements in `script_catalog_namespace_switches`. A catalog-only switch clears the previous database before later sources are qualified.
+StarRocks `USE database`, `USE catalog.database`, `SET CATALOG` and `USE CATALOG` update the namespace for later statements in `script_catalog_namespace_switches`. A catalog-only switch clears the previous database before later sources are qualified. Automatic detection uses independent StarRocks syntax, such as temporary partitions, to resolve shared catalog-switch commands in the script.
 
 StarRocks applies a configured default catalog and schema to physical sources in nested and recursive queries. Query-local CTE names keep their scope in SELECT and MERGE. Cases include `select_context_qualified_cte_scalar`, `insert_context_qualified_recursive_set`, `select_context_qualified_cte_shadowing` and `merge_context_qualified_cte_source`.
 
@@ -1369,6 +1369,7 @@ Implemented Flink table-level lineage scenarios:
 | Statement set write lineage | `statement set begin insert into ...; end`, `execute statement set begin insert into ...; end`, mixed `insert into` and `insert overwrite` sinks; input/output tables and per-sink column mappings are merged | `statement_set`, `statement_set_mixed_overwrite`, `execute_statement_set`, `execute_statement_set_mixed_overwrite` |
 | Statement sets in scripts | The default splitter keeps internal INSERT delimiters, including legacy `BEGIN STATEMENT SET` and wrapped `EXPLAIN` or `COMPILE PLAN` forms. The block reports all sinks in one result. | `legacy_begin_statement_set`, `compile_plan_statement_set`, `LineSqlAutoDetectionIntegrationTest.keepsDefaultFlinkStatementSetAndTemporaryViewLineage` |
 | EXPLAIN statement set lineage | `explain plan for statement set begin insert into ...; end` keeps explained multi-sink table and column lineage while classifying as metadata read | `explain_statement_set` |
+| Flink script namespaces | `USE CATALOG`, `USE database` and `USE catalog.database` qualify later table, column and predicate references. A catalog change clears the previous database when the new catalog's default is unknown. Temporary views stay scoped to their catalog and database. | `script_catalog_scopes_and_temporary_views` |
 | CREATE TABLE connector DDL | `create table ods_t (...) with ('connector' = 'kafka')` | `create_table_connector` |
 | CREATE TABLE connector DDL tolerance | `with ('password' = 'secret' 'table-name' = 't')` preserves table lineage when a comma is missing between properties | `create_table_properties_missing_comma_tolerant` |
 | CREATE TABLE metadata/computed/watermark/PK/partition DDL | `create table t (... c metadata from 'k' virtual, ts as ..., watermark for ..., primary key ... not enforced) partitioned by (...) with (...)`; inline `primary key not enforced`; computed columns with column inputs produce same-table column lineage, while watermark, primary-key, partition columns are returned as `TABLE_MODEL` usages | `create_table_metadata_computed_partitioned`, `create_table_inline_primary_key` |
