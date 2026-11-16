@@ -5862,6 +5862,98 @@
         {"type": "ORDER_BY", "column": "search.items.embedding"}
       ],
       "description": "Vector accuracy parameters and the constructor alias do not introduce source fields"
+    },
+    {
+      "id": "create_vector_index_hnsw",
+      "file": "cases/create_vector_index_hnsw.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.documents"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "app.documents.embedding"
+        },
+        {
+          "type": "INDEX",
+          "column": "app.documents.cached_embedding"
+        }
+      ],
+      "description": "Oracle HNSW vector index records every column in an indexed expression"
+    },
+    {
+      "id": "create_vector_index_ivf_include",
+      "file": "cases/create_vector_index_ivf_include.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.documents"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "app.documents.embedding"
+        },
+        {
+          "type": "INDEX",
+          "column": "app.documents.category_id"
+        },
+        {
+          "type": "INDEX",
+          "column": "app.documents.created_at"
+        }
+      ],
+      "description": "Oracle IVF vector index records both the vector and included filter columns"
+    },
+    {
+      "id": "create_table_native_vector_columns",
+      "file": "cases/create_table_native_vector_columns.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.documents"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Oracle vector columns accept formats, wildcard dimensions and storage layouts"
+    },
+    {
+      "id": "select_vector_search_with_bind_parameters",
+      "file": "cases/select_vector_search_with_bind_parameters.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.documents"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.documents.id"
+          ]
+        },
+        {
+          "target": "score",
+          "sources": [
+            "app.documents.embedding"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.documents.category_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.documents.embedding"
+        }
+      ],
+      "description": "Oracle bind variables in vector searches and filters are not source columns"
     }
   ]
 }

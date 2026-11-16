@@ -443,7 +443,7 @@ valueExpression
     ;
 
 vectorMetric
-    : COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED | MANHATTAN | HAMMING | JACCARD
+    : COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED | L2_SQUARED | MANHATTAN | HAMMING | JACCARD
     ;
 
 vectorConstructorOptions
@@ -462,6 +462,7 @@ primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
+    | COLON (identifier | NUMBER_LITERAL)                           #bindExpression
     | VECTOR_DISTANCE LPAREN expression COMMA expression (COMMA vectorMetric)? RPAREN #vectorDistanceExpression
     | (TO_VECTOR | VECTOR) LPAREN expression vectorConstructorOptions? RPAREN          #vectorConstructorExpression
     | functionName LPAREN STAR RPAREN nullTreatmentClause? keepClause? withinGroupClause? (OVER windowSpec)? #functionCallStar
@@ -628,6 +629,24 @@ createIndexStatement
     : CREATE (UNIQUE | BITMAP)? INDEX multipartIdentifier
       ON multipartIdentifier LPAREN indexElementList RPAREN
       oracleIndexOption*
+    | CREATE VECTOR INDEX multipartIdentifier ON multipartIdentifier LPAREN indexElementList RPAREN
+      (INCLUDE LPAREN identifierList RPAREN)? GLOBAL?
+      ORGANIZATION (INMEMORY NEIGHBOR? GRAPH | NEIGHBOR? PARTITIONS)
+      vectorIndexOption* oracleIndexOption*
+    ;
+
+vectorIndexOption
+    : WITH? DISTANCE vectorMetric
+    | WITH TARGET ACCURACY number
+    | QUANTIZATION SCALAR COMPRESSION RATIO number
+    | PARAMETERS LPAREN TYPE (HNSW | IVF) (COMMA vectorIndexParameter)* RPAREN
+    ;
+
+vectorIndexParameter
+    : (NEIGHBORS | EFCONSTRUCTION | SAMPLES_PER_PARTITION | MIN_VECTORS_PER_PARTITION) number
+    | NEIGHBOR PARTITIONS number
+    | NEIGHBOR PARTITION GROUPING (ON | OFF)
+    | RESCORE FACTOR number
     ;
 
 oracleIndexOption
@@ -1030,7 +1049,8 @@ property
     ;
 
 dataType
-    : identifier (LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN)?
+    : VECTOR LPAREN (number | STAR) (COMMA vectorFormat (COMMA (DENSE | SPARSE | STAR))?)? RPAREN
+    | identifier (LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN)?
     | identifier LT dataType (COMMA dataType)* GT
     ;
 
@@ -1068,6 +1088,8 @@ nonReservedKeyword
     : ADD | ANALYZE | APPLY | ASC | AUDIT | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | CONTEXT | DEFAULT
     | BEFORE | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFERRABLE | DEFINER | DEMAND | DESCRIBE | DESC | DISABLE | DUAL | ENABLE | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
     | BULK | CHECK | COLLECT | COMPLETE | CONSTRAINT | EXCHANGE | EXCLUDING | FAST | FETCH | FIRST | FLASHBACK | FOR | FORCE | FOREIGN | FUNCTION | GRANT | IF | IMMEDIATE | INCLUDING | INDEX | INDEXES | INITIALLY | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NORELY | NOVALIDATE | NULL
+    | DISTANCE | INMEMORY | GRAPH | HNSW | IVF | NEIGHBORS | EFCONSTRUCTION | SAMPLES_PER_PARTITION
+    | MIN_VECTORS_PER_PARTITION | L2_SQUARED | QUANTIZATION | COMPRESSION | RATIO | SCALAR | RESCORE | FACTOR | OFF
     | VECTOR_DISTANCE | TO_VECTOR | VECTOR | COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED
     | MANHATTAN | HAMMING | JACCARD | INT8 | FLOAT32 | FLOAT64 | BINARY | DENSE | SPARSE
     | APPROX | APPROXIMATE | EXACT | TARGET | ACCURACY | PARAMETERS | EFSEARCH | NEIGHBOR | PROBES

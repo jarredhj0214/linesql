@@ -330,6 +330,15 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOracleVectorSchemasWithoutClaimingOtherVectorFunctions() {
+        assertDialect(SqlDialect.ORACLE, "CREATE VECTOR INDEX doc_ivf_idx ON docs (embedding)"
+                + " INCLUDE (category_id) ORGANIZATION NEIGHBOR PARTITIONS"
+                + " WITH TARGET ACCURACY 90 DISTANCE COSINE");
+        assertDialect(SqlDialect.ORACLE, "CREATE TABLE docs (embedding VECTOR(*, FLOAT32, SPARSE))");
+        assertDialect(SqlDialect.SPARK, "SELECT vector(384, float32) FROM docs");
+    }
+
+    @Test
     public void detectsPostgresVectorOperatorsWithoutStealingNullSafeEquality() {
         LineageResult nearest = LineSql.parse("SELECT id FROM search.items "
                 + "ORDER BY embedding <-> '[1,2,3]' LIMIT 5");

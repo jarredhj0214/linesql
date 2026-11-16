@@ -83,6 +83,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern ORACLE_VECTOR_SCHEMA = Pattern.compile(
+            "^\\s*create\\s+vector\\s+index\\b"
+                    + "|(?s)^\\s*(?:create|alter)\\s+table\\b.*?\\bvector\\s*\\(\\s*(?:\\*|[0-9]+)\\s*,"
+                    + "\\s*(?:float32|float64|int8|binary|\\*\\s*,\\s*(?:dense|sparse))\\b");
     private static final Pattern ORACLE_VECTOR_QUERY = Pattern.compile(
             "\\bfetch\\s+(?:approx(?:imate)?|exact)\\s+(?:first|next)\\b"
                     + "|\\bwith\\s+target\\s+accuracy\\b");
@@ -390,6 +394,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 && ORACLE_PARTITIONED_JOIN.matcher(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle partitioned join"));
+        } else if (ORACLE_VECTOR_SCHEMA.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle vector schema"));
         } else if (ORACLE_VECTOR_QUERY.matcher(unquotedSyntax).find()
                 || (SHARED_VECTOR_OPERATOR.matcher(unquotedSyntax).find()
                     && ORACLE_VECTOR_CONSTRUCTOR.matcher(unquotedSyntax).find())) {

@@ -365,6 +365,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             currentDmlTarget = table;
             tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
             addColumnUsages(ColumnUsageType.INDEX, sourceColumns(ctx.indexElementList()));
+            addIndexColumnUsages(table, ctx.identifierList());
             for (OracleParser.OracleIndexOptionContext option : ctx.oracleIndexOption()) {
                 if (option.oraclePartitionClause() != null) {
                     addIndexColumnUsages(table, option.oraclePartitionClause().identifierList());
