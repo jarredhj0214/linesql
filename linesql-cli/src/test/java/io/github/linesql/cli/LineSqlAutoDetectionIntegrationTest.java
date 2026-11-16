@@ -74,6 +74,29 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals(StatementType.SELECT, noInlineData.get(1).getStatementType());
     }
 
+    @Test
+    public void ignoresDialectSignalsInLargeCopyPayloads() {
+        StringBuilder script = new StringBuilder("COPY staging.events (note) FROM STDIN;\n");
+        for (int i = 0; i < 10000; i++) {
+            script.append("SELECT * FROM fake; GO ' \" $\n");
+        }
+        script.append("DELIMITER //\n\\.\n");
+        script.append("\\copy staging.notes (note) FROM STDIN\n");
+        script.append("SELECT TOP 1 * FROM fake;\nGO\n\\.\n");
+        script.append("SELECT id FROM staging.events;");
+        List<LineageResult> results = LineSql.parseScript(script.toString());
+        assertEquals(3, results.size());
+        assertEquals(StatementType.LOAD_DATA, results.get(0).getStatementType());
+        assertEquals(StatementType.LOAD_DATA, results.get(1).getStatementType());
+        assertEquals(StatementType.SELECT, results.get(2).getStatementType());
+        assertEquals("notes", results.get(1).getOutputTables().get(0).getName());
+        assertEquals("events", results.get(2).getInputTables().get(0).getName());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

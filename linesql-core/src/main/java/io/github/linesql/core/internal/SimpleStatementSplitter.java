@@ -97,7 +97,21 @@ public class SimpleStatementSplitter implements StatementSplitter {
         return split(script);
     }
 
+    static String withoutPostgresCopyData(String script) {
+        if (script == null || !script.contains("\\.") || !POSTGRES_COPY_END.matcher(script).find()) {
+            return script;
+        }
+        StringBuilder sql = new StringBuilder();
+        splitWithDelimiters(script, SqlDialect.UNKNOWN, sql);
+        return sql.length() == 0 ? script : sql.toString();
+    }
+
     private static ScriptStatements splitWithDelimiters(String script, SqlDialect dialect) {
+        return splitWithDelimiters(script, dialect, null);
+    }
+
+    private static ScriptStatements splitWithDelimiters(String script, SqlDialect dialect, StringBuilder sqlWithoutCopyData) {
+        int previousCopyEnd = 0;
         boolean sqlServer = dialect == SqlDialect.SQLSERVER;
         boolean oracle = dialect == SqlDialect.ORACLE;
         boolean oracleQuotedLiterals = oracle || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE;
@@ -183,7 +197,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
                             String copy = "COPY " + arguments;
                             statements.add(copy);
                             if (postgresCopyData && POSTGRES_COPY_STDIN.matcher(copy).lookingAt()) {
-                                lineEnd = Math.max(lineEnd, endOfPostgresCopyData(script, lineEnd - 1));
+                                int copyEnd = endOfPostgresCopyData(script, lineEnd - 1,
+                                        sqlWithoutCopyData, previousCopyEnd);
+                                if (copyEnd >= 0) {
+                                    lineEnd = copyEnd;
+                                    previousCopyEnd = copyEnd;
+                                }
                             }
                         }
                         sawPostgresCommand = true;
@@ -325,9 +344,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     addIfNotBlank(statements, current, dialect, nestedComments);
                     if (postgresCopyData && !mysql && POSTGRES_COPY_STDIN
                             .matcher(stripComments(current.toString(), nestedComments)).lookingAt()) {
-                        int copyEnd = endOfPostgresCopyData(script, i);
+                        int copyEnd = endOfPostgresCopyData(script, i, sqlWithoutCopyData, previousCopyEnd);
                         if (copyEnd >= 0) {
                             i = copyEnd - 1;
+                            previousCopyEnd = copyEnd;
                         }
                     }
                     current.setLength(0);
@@ -338,6 +358,9 @@ public class SimpleStatementSplitter implements StatementSplitter {
         }
 
         addIfNotBlank(statements, current, dialect, nestedComments);
+        if (sqlWithoutCopyData != null && previousCopyEnd > 0) {
+            sqlWithoutCopyData.append(script, previousCopyEnd, script.length());
+        }
         return new ScriptStatements(statements, sawGo, sawMySqlDelimiter, sawPostgresCommand);
     }
 
@@ -422,14 +445,21 @@ public class SimpleStatementSplitter implements StatementSplitter {
         return POSTGRES_COPY_STDIN.matcher(sql).find();
     }
 
-    private static int endOfPostgresCopyData(String script, int commandEnd) {
+    private static int endOfPostgresCopyData(String script, int commandEnd,
+                                             StringBuilder sqlWithoutCopyData, int previousCopyEnd) {
         int lineEnd = script.indexOf('\n', commandEnd + 1);
         if (lineEnd < 0 || !stripComments(script.substring(commandEnd + 1, lineEnd), true).trim().isEmpty()) {
             return -1;
         }
         Matcher endMarker = POSTGRES_COPY_END.matcher(script).useTransparentBounds(true)
                 .region(lineEnd + 1, script.length());
-        return endMarker.find() ? endMarker.end() : -1;
+        if (!endMarker.find()) {
+            return -1;
+        }
+        if (sqlWithoutCopyData != null) {
+            sqlWithoutCopyData.append(script, previousCopyEnd, lineEnd + 1);
+        }
+        return endMarker.end();
     }
 
     static boolean containsPostgresAtomicRoutine(String sql) {

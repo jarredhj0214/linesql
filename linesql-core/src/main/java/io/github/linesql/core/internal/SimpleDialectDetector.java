@@ -64,6 +64,7 @@ public class SimpleDialectDetector implements DialectDetector {
 
     @Override
     public List<DialectCandidate> detectCandidates(String sql) {
+        sql = SimpleStatementSplitter.withoutPostgresCopyData(sql);
         LexicalRewrite literals = maskQuotedLiterals(sql);
         String unwrapped = MySqlExecutableComments.unwrap(literals.text);
         boolean mysqlExecutableComment = !unwrapped.equals(literals.text);
