@@ -2,6 +2,18 @@
   "dialect": "MYSQL",
   "cases": [
     {
+      "id": "select_adjacent_minus_and_comments",
+      "file": "cases/select_adjacent_minus_and_comments.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.sales"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "net", "sources": ["ods.sales.amount", "ods.sales.discount"]}
+      ],
+      "columnUsages": [{"type": "WHERE", "column": "ods.sales.active"}],
+      "description": "MySQL distinguishes subtraction of a negative value from whitespace-prefixed dash comments"
+    },
+    {
       "id": "executable_comment_inline_preserve_literal",
       "file": "cases/executable_comment_inline_preserve_literal.sql",
       "statementType": "SELECT",

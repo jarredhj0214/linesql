@@ -14,7 +14,7 @@ public final class MySqlExecutableComments {
             char current = sql.charAt(i);
             if (current == '\'' || current == '"' || current == '`') {
                 i = quotedEnd(sql, i) - 1;
-            } else if (current == '#' || isDashComment(sql, i)) {
+            } else if (startsLineComment(sql, i)) {
                 while (i + 1 < sql.length() && sql.charAt(i + 1) != '\n' && sql.charAt(i + 1) != '\r') {
                     i++;
                 }
@@ -37,7 +37,10 @@ public final class MySqlExecutableComments {
         return copyFrom == 0 ? sql : normalized.append(sql, copyFrom, sql.length()).toString();
     }
 
-    private static boolean isDashComment(String sql, int start) {
+    public static boolean startsLineComment(String sql, int start) {
+        if (sql.charAt(start) == '#') {
+            return true;
+        }
         if (!sql.startsWith("--", start)) {
             return false;
         }

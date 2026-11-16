@@ -261,6 +261,27 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("note", results.get(1).getColumnUsages().get(0).getColumn().getName());
     }
 
+    @Test
+    public void splitsMySqlAndOceanBaseMySqlScriptsWithHashComments() {
+        String script = "# ignored; SELECT id FROM ghost.t\n"
+                + "SELECT amount--discount AS net FROM ods.sales; "
+                + "# ignored too;\nSELECT id FROM ods.refunds;";
+        assertMySqlCommentScript(LineSql.parseScript(script, SqlDialect.MYSQL));
+
+        ParseOptions oceanBase = ParseOptions.builder()
+                .dialectHints(Collections.singletonList(SqlDialect.OCEANBASE))
+                .dialectOption("oceanbase.compatibilityMode", "mysql")
+                .build();
+        assertMySqlCommentScript(LineSql.parseScript(script, oceanBase));
+    }
+
+    private static void assertMySqlCommentScript(List<LineageResult> results) {
+        assertEquals(2, results.size());
+        assertEquals("sales", results.get(0).getInputTables().get(0).getName());
+        assertEquals(2, results.get(0).getColumnLineage().get(0).getSources().size());
+        assertEquals("refunds", results.get(1).getInputTables().get(0).getName());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

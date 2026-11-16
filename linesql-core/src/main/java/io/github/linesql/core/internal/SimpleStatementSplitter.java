@@ -41,8 +41,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean oracle = dialect == SqlDialect.ORACLE;
         boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
-        boolean executableComments = dialect == SqlDialect.MYSQL || dialect == SqlDialect.OCEANBASE
-                || dialect == SqlDialect.UNKNOWN;
+        boolean mysql = dialect == SqlDialect.MYSQL;
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         char quote = 0;
@@ -87,7 +86,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     delimiter = routineBatch || preceding.trim().isEmpty() || ORACLE_BLOCK.matcher(preceding).find();
                 }
                 if (delimiter) {
-                    addIfNotBlank(statements, current, nestedComments, executableComments);
+                    addIfNotBlank(statements, current, dialect, nestedComments);
                     current.setLength(0);
                     routineBatch = false;
                     i = lineEnd - 1;
@@ -117,9 +116,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     continue;
                 }
             }
-            if (quote == 0 && c == '-' && next == '-') {
-                current.append(c).append(next);
-                i++;
+            if (quote == 0 && startsLineComment(script, i, mysql)) {
+                current.append(c);
+                if (c == '-') {
+                    current.append(next);
+                    i++;
+                }
                 lineComment = true;
                 continue;
             }
@@ -174,7 +176,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     routineBatch = routine.matcher(stripComments(current.toString(), nestedComments)).find();
                 }
                 if (!routineBatch) {
-                    addIfNotBlank(statements, current, nestedComments, executableComments);
+                    addIfNotBlank(statements, current, dialect, nestedComments);
                     current.setLength(0);
                     continue;
                 }
@@ -182,7 +184,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
             current.append(c);
         }
 
-        addIfNotBlank(statements, current, nestedComments, executableComments);
+        addIfNotBlank(statements, current, dialect, nestedComments);
         return statements;
     }
 
@@ -232,18 +234,29 @@ public class SimpleStatementSplitter implements StatementSplitter {
     }
 
     private static void addIfNotBlank(List<String> statements, StringBuilder sql,
-                                      boolean nestedComments, boolean executableComments) {
+                                      SqlDialect dialect, boolean nestedComments) {
         String value = sql.toString().trim();
         if (value.isEmpty()) {
             return;
         }
-        if (!stripComments(value, nestedComments).trim().isEmpty()
-                || (executableComments && !stripComments(MySqlExecutableComments.unwrap(value), false).trim().isEmpty())) {
+        boolean mysql = dialect == SqlDialect.MYSQL;
+        boolean executableComments = mysql || dialect == SqlDialect.OCEANBASE || dialect == SqlDialect.UNKNOWN;
+        if (!stripComments(value, nestedComments, mysql).trim().isEmpty()
+                || (executableComments && value.contains("/*!")
+                        && !stripComments(MySqlExecutableComments.unwrap(value), false, mysql).trim().isEmpty())) {
             statements.add(value);
         }
     }
 
+    private static boolean startsLineComment(String sql, int start, boolean mysql) {
+        return mysql ? MySqlExecutableComments.startsLineComment(sql, start) : sql.startsWith("--", start);
+    }
+
     private static String stripComments(String sql, boolean nestedComments) {
+        return stripComments(sql, nestedComments, false);
+    }
+
+    private static String stripComments(String sql, boolean nestedComments, boolean mysql) {
         StringBuilder stripped = new StringBuilder(sql.length());
         char quote = 0;
         boolean lineComment = false;
@@ -270,8 +283,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if (quote == 0 && c == '-' && next == '-') {
-                i++;
+            if (quote == 0 && startsLineComment(sql, i, mysql)) {
+                if (c == '-') {
+                    i++;
+                }
                 lineComment = true;
                 continue;
             }

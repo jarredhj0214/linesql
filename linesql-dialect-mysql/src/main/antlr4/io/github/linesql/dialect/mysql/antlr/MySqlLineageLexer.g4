@@ -492,7 +492,7 @@ QUESTION: '?';
 ASSIGN: ':=';
 COLON: ':';
 
-LINE_COMMENT: ('--' ~[\r\n]* | '#' ~[\r\n]*) -> skip;
+LINE_COMMENT: ('--' {_input.LA(1) <= ' ' || _input.LA(1) == 127}? | '#') ~[\r\n]* -> skip;
 BLOCK_COMMENT: '/*' .*? '*/' -> skip;
 WS: [ \t\r\n]+ -> skip;
 OTHER: .;

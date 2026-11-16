@@ -88,6 +88,8 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 String mode = options.getDialectOptions().get("oceanbase.compatibilityMode");
                 if (mode != null && "oracle".equalsIgnoreCase(mode.trim())) {
                     dialect = SqlDialect.ORACLE;
+                } else if (mode != null && "mysql".equalsIgnoreCase(mode.trim())) {
+                    dialect = SqlDialect.MYSQL;
                 }
             }
             return ((SimpleStatementSplitter) statementSplitter).split(script, dialect);
