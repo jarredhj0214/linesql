@@ -311,6 +311,14 @@ public class SimpleDialectDetector implements DialectDetector {
         return candidates;
     }
 
+    static boolean hasDeleteUsingReturning(String sql) {
+        String normalized = stripComments(maskQuotedLiterals(sql).text).toLowerCase(Locale.ROOT);
+        String syntax = normalized.replaceAll("'(?:''|\\\\.|[^'\\\\])*'", " ");
+        syntax = QUOTED_IDENTIFIER.matcher(syntax).replaceAll(" ");
+        return syntax.matches("(?s)^\\s*(?:with\\b[^;]*?)?delete\\s+from\\b[^;]*"
+                + "\\busing\\b[^;]*\\breturning\\b.*");
+    }
+
     static boolean hasSharedConflictDoNothing(String sql) {
         LexicalRewrite literals = maskQuotedLiterals(sql);
         if (literals.dollarQuoted || literals.oracleQuoted) {

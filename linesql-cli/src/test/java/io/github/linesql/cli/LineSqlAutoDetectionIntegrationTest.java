@@ -14,6 +14,7 @@ import java.util.Scanner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class LineSqlAutoDetectionIntegrationTest {
     @Test
@@ -122,6 +123,30 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
         assertEquals("quantities", result.getColumnLineage().get(0).getSources().get(0).getName());
         assertEquals(0, result.getColumnLineage().get(1).getSources().size());
+    }
+
+    @Test
+    public void retriesDeleteUsingReturningWhenMySqlRejectsIt() {
+        String sql = "DELETE FROM mart.orders USING staging.expired WHERE orders.id = expired.order_id"
+                + " RETURNING orders.id, expired.reason AS deleted_reason";
+        LineageResult result = LineSql.parseScript(sql).get(0);
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.DELETE, result.getStatementType());
+        assertEquals("orders", result.getOutputTables().get(0).getName());
+        assertEquals("expired", result.getColumnLineage().get(1).getSources().get(0).getTable().getName());
+        assertEquals(2, result.getColumnUsages().size());
+
+        LineageResult cte = LineSql.parseScript("WITH q AS (SELECT order_id FROM staging.expired)"
+                + " DELETE FROM mart.orders AS o USING q WHERE o.id = q.order_id RETURNING o.id").get(0);
+        assertEquals(SqlDialect.POSTGRESQL, cte.getDialect());
+        assertEquals(StatementType.DELETE, cte.getStatementType());
+        assertEquals(2, cte.getInputTables().size());
+        assertDialect(SqlDialect.MYSQL, "DELETE FROM o USING mart.orders o JOIN staging.expired e"
+                + " ON o.id = e.order_id WHERE e.returning = 1");
+
+        LineageResult hinted = LineSql.parseScript(sql, SqlDialect.MYSQL).get(0);
+        assertEquals(SqlDialect.MYSQL, hinted.getDialect());
+        assertTrue(hinted.getDiagnostics().stream().anyMatch(d -> "MYSQL_PARSE_ERROR".equals(d.getCode())));
     }
 
     private void assertPostgresCopyScript(List<LineageResult> results) {

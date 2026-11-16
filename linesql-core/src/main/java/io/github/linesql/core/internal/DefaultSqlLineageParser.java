@@ -55,20 +55,38 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                         scriptCandidate.getReason() + "; inherited from script context");
             }
             LineageResult result = parseStatement(statement, candidate.getDialect(), options, context);
-            if (candidate != statementCandidate
-                    && statementCandidate.getDialect() == SqlDialect.POSTGRESQL
-                    && parsers.containsKey(SqlDialect.POSTGRESQL)
-                    && result.getDiagnostics().stream().anyMatch(d -> "FLINK_PARSE_ERROR".equals(d.getCode()))) {
+            DialectCandidate fallbackCandidate = postgresFallback(statement, options, candidate, statementCandidate, result);
+            if (fallbackCandidate != null) {
                 LineageResult fallback = parseStatement(statement, SqlDialect.POSTGRESQL, options, context);
                 if (fallback.getDiagnostics().stream().noneMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR)) {
                     result = fallback;
-                    candidate = statementCandidate;
+                    candidate = fallbackCandidate;
                 }
             }
             applyDetection(result, candidate);
             results.add(result);
         }
         return results;
+    }
+
+    private DialectCandidate postgresFallback(String statement, ParseOptions options, DialectCandidate candidate,
+                                               DialectCandidate statementCandidate, LineageResult result) {
+        if (!parsers.containsKey(SqlDialect.POSTGRESQL) || !options.getDialectHints().isEmpty()) {
+            return null;
+        }
+        if (candidate != statementCandidate && statementCandidate.getDialect() == SqlDialect.POSTGRESQL
+                && result.getDiagnostics().stream().anyMatch(d -> "FLINK_PARSE_ERROR".equals(d.getCode()))) {
+            return statementCandidate;
+        }
+        if (candidate.getDialect() == SqlDialect.MYSQL
+                && result.getDiagnostics().stream().anyMatch(d -> "MYSQL_PARSE_ERROR".equals(d.getCode()))
+                && SimpleDialectDetector.hasDeleteUsingReturning(statement)) {
+            return dialectDetector.detectCandidates(statement).stream()
+                    .filter(alternative -> alternative.getDialect() == SqlDialect.POSTGRESQL)
+                    .findFirst()
+                    .orElse(null);
+        }
+        return null;
     }
 
     @Override

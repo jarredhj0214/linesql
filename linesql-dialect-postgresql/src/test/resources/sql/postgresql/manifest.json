@@ -3139,6 +3139,22 @@
       "description": "PostgreSQL UPDATE ONLY ... FROM keeps target/source tables, assignment lineage, and predicate usage"
     },
     {
+      "id": "delete_using_returning_source_columns",
+      "file": "cases/delete_using_returning_source_columns.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.orders", "staging.expired"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.orders.id"]},
+        {"target": "deleted_reason", "sources": ["staging.expired.reason"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.expired.order_id"}
+      ],
+      "description": "DELETE USING RETURNING can project columns from the modified table and from the joined source"
+    },
+    {
       "id": "delete_aliased_target_using",
       "file": "cases/delete_aliased_target_using.sql",
       "statementType": "DELETE",

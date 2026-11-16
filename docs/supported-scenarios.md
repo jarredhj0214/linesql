@@ -36,7 +36,7 @@ Known conflict guards:
 | MySQL `ON DUPLICATE KEY` is not classified as StarRocks | StarRocks key anchors are scoped to `CREATE TABLE` statements. |
 | MySQL executable version comments are not dropped as ordinary comments | `/*!80000 ... */` carries MySQL SQL and is treated as a MySQL dialect anchor. |
 
-Ambiguous DML such as bare `UPDATE ... FROM`, `DELETE ... USING`, or `DELETE ... JOIN` can be valid in more than one engine. Automatic detection recognizes PostgreSQL when the DML target uses `ONLY` or an inheritance `*`. Callers can pass an explicit dialect hint when the execution engine is known.
+Ambiguous DML such as bare `UPDATE ... FROM`, `DELETE ... USING`, or `DELETE ... JOIN` can be valid in more than one engine. Automatic detection recognizes PostgreSQL when the DML target uses `ONLY` or an inheritance `*`. For `DELETE … USING … RETURNING`, the parser tries the PostgreSQL candidate after a MySQL syntax error and accepts it when PostgreSQL parsing succeeds. Callers can pass an explicit dialect hint when the execution engine is known.
 
 Implemented script-level public API scenarios:
 
@@ -185,7 +185,7 @@ Implemented PostgreSQL scenarios:
 | CTE, materialization hints, and nested derived column propagation | `with q as (...) select q.c1 from q`, `with q as not materialized (...) select ...`, `select q.c from (select p.c from (select a as c from public.s) p) q` | `cte_column_projection`, `cte_not_materialized`, `nested_derived_query_column_projection` |
 | Cursor-positioned DML | `UPDATE` and `DELETE … WHERE CURRENT OF cursor` preserve target, assignment, and RETURNING dependencies. | `update_where_current_of`, `delete_where_current_of` |
 | UPDATE FROM with RETURNING and row assignment | `update mart.t set ... from staging.s where ... returning ...`, `set (c1, c2) = (s.a, s.b)` | `update_from_returning`, `update_row_assignment_from` |
-| DELETE with subquery and RETURNING | `delete from mart.t where id in (...) returning ...` | `delete_using_returning` |
+| DELETE with subquery or USING and RETURNING | `DELETE FROM mart.t WHERE id IN (…) RETURNING …` and `DELETE FROM mart.t USING staging.s … RETURNING …` preserve result columns, including columns from the USING source. | `delete_using_returning`, `delete_using_returning_source_columns` |
 | WITH before UPDATE FROM | `with q as (...) update mart.t set c = q.c from q where ...` | `with_update_from` |
 | UPDATE ONLY FROM | `update only mart.t set c = s.c from staging.s where ...` | `update_only_from` |
 | WITH before DELETE USING | `with q as (...) delete from mart.t using q where ...` | `with_delete_using` |
