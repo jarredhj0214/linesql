@@ -1519,22 +1519,37 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(MySqlParser.QueryOrganizationContext ctx) {
-        boolean orderByOutput = false;
+        boolean setQuery = false;
+        boolean valuesQuery = false;
         if (ctx.getParent() instanceof MySqlParser.QueryContext) {
             MySqlParser.QueryTermContext term = ((MySqlParser.QueryContext) ctx.getParent()).queryTerm();
-            orderByOutput = term instanceof MySqlParser.SetOperationContext
-                    || term instanceof MySqlParser.QueryTermDefaultContext
+            setQuery = term instanceof MySqlParser.SetOperationContext;
+            valuesQuery = term instanceof MySqlParser.QueryTermDefaultContext
                     && ((MySqlParser.QueryTermDefaultContext) term).queryPrimary()
                             instanceof MySqlParser.ValuesPrimaryContext;
         }
         for (MySqlParser.SortItemContext sortItem : ctx.sortItem()) {
-            if (orderByOutput) {
-                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            if (setQuery || valuesQuery) {
+                String sortKey = sortItem.expression().getText();
+                String name = valuesQuery && sortKey.matches("[0-9]+")
+                        ? valuesSortColumnName(sortKey) : cleanIdentifier(sortKey);
+                if (name != null) {
+                    LineageModelUtils.addSetOrderByUsage(result, name);
+                }
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
             }
         }
         return null;
+    }
+
+    private static String valuesSortColumnName(String sortKey) {
+        try {
+            int position = Integer.parseInt(sortKey);
+            return position > 0 ? "column_" + (position - 1) : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     // ============ Internal helpers ============

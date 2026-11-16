@@ -1606,12 +1606,54 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         boolean setQuery = query.queryTerm() instanceof SqlServerParser.SetOperationContext;
         for (SqlServerParser.SortItemContext sortItem : ctx.sortItem()) {
             if (setQuery) {
-                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+                addSetSortUsage(query.queryTerm(), sortItem.expression().getText());
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
             }
         }
         return visitChildren(ctx);
+    }
+
+    private void addSetSortUsage(SqlServerParser.QueryTermContext term, String sortKey) {
+        List<ColumnLineage> columns = result.getColumnLineage();
+        if (!sortKey.matches("[0-9]+")) {
+            LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
+            return;
+        }
+        if (columns.isEmpty() || columns.size() != explicitOutputWidth(term)) {
+            return;
+        }
+        int position;
+        try {
+            position = Integer.parseInt(sortKey);
+        } catch (NumberFormatException ignored) {
+            return;
+        }
+        if (position > 0 && position <= columns.size()) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY,
+                    columns.get(position - 1).getSources());
+        }
+    }
+
+    private static int explicitOutputWidth(SqlServerParser.QueryTermContext term) {
+        if (term instanceof SqlServerParser.SetOperationContext) {
+            SqlServerParser.SetOperationContext set = (SqlServerParser.SetOperationContext) term;
+            int left = explicitOutputWidth(set.left);
+            return left == explicitOutputWidth(set.right) ? left : 0;
+        }
+        SqlServerParser.QueryPrimaryContext primary =
+                ((SqlServerParser.QueryTermDefaultContext) term).queryPrimary();
+        if (primary instanceof SqlServerParser.SubqueryPrimaryContext) {
+            return explicitOutputWidth(((SqlServerParser.SubqueryPrimaryContext) primary).query().queryTerm());
+        }
+        if (primary instanceof SqlServerParser.QueryPrimaryDefaultContext) {
+            List<SqlServerParser.SelectItemContext> items = ((SqlServerParser.QueryPrimaryDefaultContext) primary)
+                    .querySpecification().selectClause().selectItemList().selectItem();
+            if (items.stream().allMatch(item -> item instanceof SqlServerParser.SelectExpressionContext)) {
+                return items.size();
+            }
+        }
+        return 0;
     }
 
     // ============ Internal helpers ============

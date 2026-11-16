@@ -2,6 +2,16 @@
   "dialect": "MYSQL",
   "cases": [
     {
+      "id": "values_order_by_output_position",
+      "file": "cases/values_order_by_output_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.b", "ods.c"],
+      "outputTables": [],
+      "columnLineage": [{"target": "column_0", "sources": ["ods.a.amount"]}, {"target": "column_1", "sources": ["ods.b.amount", "ods.c.amount"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.b.amount"}, {"type": "ORDER_BY", "column": "ods.c.amount"}],
+      "description": "MySQL VALUES ORDER BY ordinal collects dependencies from the matching position in all rows"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",

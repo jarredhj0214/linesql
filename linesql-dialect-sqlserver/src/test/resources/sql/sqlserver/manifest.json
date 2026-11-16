@@ -2,6 +2,16 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "union_order_by_output_position",
+      "file": "cases/union_order_by_output_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.current_orders", "sales.archived_orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "order_id", "sources": ["sales.current_orders.order_id", "sales.archived_orders.order_id"]}, {"target": "amount", "sources": ["sales.current_orders.amount", "sales.archived_orders.total"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "sales.current_orders.amount"}, {"type": "ORDER_BY", "column": "sales.archived_orders.total"}],
+      "description": "SQL Server UNION ORDER BY ordinal resolves both source columns"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
