@@ -2,6 +2,36 @@
   "dialect": "MYSQL",
   "cases": [
     {
+      "id": "union_unnamed_constant_order",
+      "file": "cases/union_unnamed_constant_order.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "0", "sources": []}, {"target": "amount", "sources": ["ods.a.amount", "ods.b.total"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.a.amount"}, {"type": "ORDER_BY", "column": "ods.b.total"}],
+      "description": "MySQL set queries preserve explicit positions across unnamed expressions and VALUES rows"
+    },
+    {
+      "id": "insert_union_unnamed_derivations",
+      "file": "cases/insert_union_unnamed_derivations.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": ["mart.rollup"],
+      "columnLineage": [{"target": "mart.rollup.amount", "sources": ["ods.a.amount", "ods.b.amount", "ods.b.adjustment"]}, {"target": "mart.rollup.status", "sources": ["ods.a.status"]}],
+      "columnUsages": [],
+      "description": "MySQL set queries preserve explicit positions across unnamed expressions and VALUES rows"
+    },
+    {
+      "id": "union_values_scalar_subquery_position",
+      "file": "cases/union_values_scalar_subquery_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.payments", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "amount", "sources": ["ods.payments.amount"]}, {"target": "id", "sources": ["ods.a.id", "ods.b.id"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.a.id"}, {"type": "ORDER_BY", "column": "ods.b.id"}],
+      "description": "MySQL set queries preserve explicit positions across unnamed expressions and VALUES rows"
+    },
+    {
       "id": "values_order_by_output_position",
       "file": "cases/values_order_by_output_position.sql",
       "statementType": "SELECT",

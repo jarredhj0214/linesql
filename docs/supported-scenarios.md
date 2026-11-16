@@ -1559,6 +1559,7 @@ Implemented MySQL table-level lineage scenarios:
 | Basic SELECT source table | `select ... from app.users` | `select_basic` |
 | TABLE statement source table | `table app.users order by id limit 10` | `table_statement` |
 | HANDLER table access syntax | `handler app.users open`, `handler app.users read idx = (...) where ...`, `handler app.users close` | `handler_open`, `handler_read_index_range`, `handler_close` |
+| Set output positions | UNION preserves constants, expressions and VALUES branches by position for ORDER BY and INSERT. | `union_unnamed_constant_order`, `insert_union_unnamed_derivations`, `union_values_scalar_subquery_position` |
 | VALUES output ordering by position | ORDER BY ordinal follows the corresponding column across all VALUES rows. | `values_order_by_output_position` |
 | VALUES table constructor | Default and explicit output aliases, scalar subqueries across rows, and ordering by output in standalone and set queries. | `values_statement`, `values_derived_aliases`, `values_set_order_by`, `values_scalar_subqueries_order_by` |
 | VALUES derived table without input tables | `select v.c from (values row(...)) as v(c)` | `derived_values_table` |
