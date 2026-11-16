@@ -1573,7 +1573,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     public Void visitCtes(PostgreSqlParser.CtesContext ctx) {
         for (PostgreSqlParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
             String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
-            cteNames.add(cteName);
+            if (ctx.RECURSIVE() != null) {
+                cteNames.add(cteName);
+            }
             PostgreSqlParser.CteBodyContext body = namedQuery.cteBody();
             if (body.query() != null) {
                 List<String> aliases = cteColumnAliases(namedQuery);
@@ -1595,6 +1597,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             } else {
                 registerDataModifyingCte(cteName, body, cteColumnAliases(namedQuery));
             }
+            cteNames.add(cteName);
         }
         return null;
     }

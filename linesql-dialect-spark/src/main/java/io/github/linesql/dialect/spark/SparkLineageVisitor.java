@@ -1132,13 +1132,16 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitNamedQuery(SqlBaseParser.NamedQueryContext ctx) {
         String cteName = cleanIdentifier(ctx.name.getText()).toLowerCase(java.util.Locale.ROOT);
-        cteNames.add(cteName);
-
         List<String> aliases = identifierNames(ctx.columnAliases);
         SqlBaseParser.CtesContext ctes = (SqlBaseParser.CtesContext) ctx.getParent();
-        if (ctes.RECURSIVE() == null || !registerRecursiveRelation(cteName, ctx.query(), aliases)) {
+        boolean recursive = ctes.RECURSIVE() != null;
+        if (recursive) {
+            cteNames.add(cteName);
+        }
+        if (!recursive || !registerRecursiveRelation(cteName, ctx.query(), aliases)) {
             registerDerivedRelation(cteName, ctx.query(), aliases);
         }
+        cteNames.add(cteName);
         return null;
     }
 

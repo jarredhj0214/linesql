@@ -59,6 +59,8 @@ The default API detects Oracle `XMLTABLE` and Flink window functions with a `TAB
 
 SQL Server XML detection recognizes WITH XMLNAMESPACES, APPLY with an XML nodes() receiver, and a variable receiver in FROM.
 
+Across PostgreSQL, MySQL, Spark, Flink and Hive, `select_nonrecursive_cte_shadows_physical_table` covers a definition that reads a same-named physical table and later CTEs that read the completed definition. OceanBase MySQL mode covers the same resolution in `mysql_mode_select_nonrecursive_cte_shadows_physical_table`.
+
 ## PostgreSQL
 
 PostgreSQL preserves the deepest source column and every input table across named and unnamed scalar projections in `select_deep_scalar_projection_dependencies`.

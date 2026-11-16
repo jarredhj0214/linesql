@@ -968,8 +968,8 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     public Void visitCtes(HiveParser.CtesContext ctx) {
         for (HiveParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
             String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
-            cteNames.add(cteName);
             registerDerivedRelation(cteName, namedQuery.query(), cteColumnAliases(namedQuery));
+            cteNames.add(cteName);
         }
         return null;
     }

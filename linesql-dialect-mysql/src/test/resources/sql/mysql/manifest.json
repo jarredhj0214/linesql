@@ -12393,6 +12393,40 @@
         }
       ],
       "description": "MySQL recursive UNION DISTINCT resolves both directions before binding positional inserts"
+    },
+    {
+      "id": "select_nonrecursive_cte_shadows_physical_table",
+      "file": "cases/select_nonrecursive_cte_shadows_physical_table.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "events.event_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "events.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "events.active"
+        },
+        {
+          "type": "WHERE",
+          "column": "events.amount"
+        }
+      ],
+      "description": "A nonrecursive definition reads the same-named physical table, and later CTEs read the completed definition"
     }
   ]
 }

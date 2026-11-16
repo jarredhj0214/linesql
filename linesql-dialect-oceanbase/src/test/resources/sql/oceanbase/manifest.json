@@ -6265,6 +6265,41 @@
       ],
       "compatibilityMode": "oracle",
       "description": "OceanBase Oracle mode traces a full join key through a second join and filter"
+    },
+    {
+      "id": "mysql_mode_select_nonrecursive_cte_shadows_physical_table",
+      "file": "cases/mysql_mode_select_nonrecursive_cte_shadows_physical_table.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "events.event_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "events.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "events.active"
+        },
+        {
+          "type": "WHERE",
+          "column": "events.amount"
+        }
+      ],
+      "description": "A nonrecursive definition reads the same-named physical table, and later CTEs read the completed definition"
     }
   ]
 }

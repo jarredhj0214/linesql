@@ -1283,12 +1283,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     public Void visitCtes(MySqlParser.CtesContext ctx) {
         for (MySqlParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
             String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
-            cteNames.add(cteName);
             List<String> aliases = cteColumnAliases(namedQuery);
             if (ctx.RECURSIVE() != null) {
+                cteNames.add(cteName);
                 seedRecursiveRelation(cteName, namedQuery.query(), aliases);
             }
             registerDerivedRelation(cteName, namedQuery.query(), aliases);
+            cteNames.add(cteName);
         }
         return null;
     }
