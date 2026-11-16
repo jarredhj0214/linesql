@@ -398,6 +398,15 @@ public class SimpleDialectDetectorTest {
         assertTrue(candidate.getReason().contains("fallback"));
     }
 
+    @Test
+    public void distinguishesPostgresAtomicRoutinesFromSqlServerNativeBodies() {
+        assertFirst(SqlDialect.POSTGRESQL,
+                "CREATE PROCEDURE mart.sync() LANGUAGE SQL BEGIN ATOMIC SELECT 1; END;");
+        assertFalse(detector.detect("CREATE PROCEDURE dbo.sync WITH NATIVE_COMPILATION AS "
+                + "BEGIN ATOMIC /* options */ WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, "
+                + "LANGUAGE = N'us_english') SELECT 1; END;").contains(SqlDialect.POSTGRESQL));
+    }
+
     private void assertFirst(SqlDialect expected, String sql) {
         List<SqlDialect> candidates = detector.detect(sql);
 

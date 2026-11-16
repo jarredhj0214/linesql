@@ -7,6 +7,7 @@ import io.github.linesql.core.util.OracleQuotedLiterals;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SimpleStatementSplitter implements StatementSplitter {
@@ -16,6 +17,13 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final Pattern SQL_SERVER_ROUTINE = Pattern.compile(
             "^\\s*(?:CREATE\\s+(?:OR\\s+ALTER\\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER)"
                     + "|ALTER\\s+(?:PROC(?:EDURE)?|FUNCTION))\\b", Pattern.CASE_INSENSITIVE);
+
+    private static final String SQL_TRIVIA = "(?:\\s++|--[^\\r\\n]*|/\\*[\\s\\S]*?\\*/)";
+    private static final Pattern POSTGRES_ROUTINE = Pattern.compile(
+            "^\\s*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:FUNCTION|PROCEDURE)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern POSTGRES_ATOMIC = Pattern.compile(
+            "\\bBEGIN" + SQL_TRIVIA + "++ATOMIC\\b(?!" + SQL_TRIVIA + "++WITH" + SQL_TRIVIA + "*+\\()",
+            Pattern.CASE_INSENSITIVE);
 
     private static final Pattern ORACLE_BLOCK = Pattern.compile(
             "^\\s*(?:BEGIN|DECLARE|CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:PROCEDURE|FUNCTION|PACKAGE|TRIGGER))\\b",
@@ -46,6 +54,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean oracle = dialect == SqlDialect.ORACLE;
         boolean oracleQuotedLiterals = oracle || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE;
         boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
+        boolean postgresAtomic = dialect == SqlDialect.POSTGRESQL || dialect == SqlDialect.UNKNOWN;
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         boolean mysql = dialect == SqlDialect.MYSQL;
         List<String> statements = new ArrayList<>();
@@ -54,6 +63,8 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean lineComment = false;
         boolean routineBatch = false;
         int statementSetPartStart = -1;
+        int atomicPartStart = -1;
+        Matcher atomicOpening = POSTGRES_ATOMIC.matcher(script).useTransparentBounds(true);
         int blockCommentDepth = 0;
 
         for (int i = 0; i < script.length(); i++) {
@@ -164,7 +175,21 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 current.append(c);
                 continue;
             }
+            if (postgresAtomic && atomicPartStart < 0 && quote == 0 && (c == 'b' || c == 'B')
+                    && atomicOpening.region(i, script.length()).lookingAt()
+                    && POSTGRES_ROUTINE.matcher(stripComments(current.toString(), nestedComments)).find()) {
+                atomicPartStart = current.length() + atomicOpening.end() - i;
+            }
             if (quote == 0 && c == ';' && !routineBatch) {
+                if (atomicPartStart >= 0) {
+                    String part = stripComments(current.substring(atomicPartStart), nestedComments).trim();
+                    if (!part.equalsIgnoreCase("END")) {
+                        current.append(c);
+                        atomicPartStart = current.length();
+                        continue;
+                    }
+                    atomicPartStart = -1;
+                }
                 if (flinkStatementSets && FLINK_STATEMENT_SET_CONTINUATION.matcher(script)
                         .region(i + 1, script.length()).lookingAt()) {
                     String part = stripComments(current.substring(Math.max(0, statementSetPartStart)), false);
@@ -193,6 +218,16 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
         addIfNotBlank(statements, current, dialect, nestedComments);
         return statements;
+    }
+
+    static boolean containsPostgresAtomicRoutine(String sql) {
+        Matcher routine = POSTGRES_ROUTINE.matcher(sql);
+        if (!routine.find()) {
+            return false;
+        }
+        int semicolon = sql.indexOf(';', routine.end());
+        int end = semicolon < 0 ? sql.length() : semicolon;
+        return POSTGRES_ATOMIC.matcher(sql).region(routine.end(), end).find();
     }
 
     static boolean isOracleBlockScript(String script) {

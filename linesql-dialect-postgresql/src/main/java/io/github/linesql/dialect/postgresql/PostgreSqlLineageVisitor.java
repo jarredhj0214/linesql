@@ -653,6 +653,31 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitCreateFunctionStmt(PostgreSqlParser.CreateFunctionStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_ROUTINE);
+        PostgreSqlParser.RoutineSqlBodyContext body = ctx.createFunctionStatement().routineSqlBody();
+        if (body == null) {
+            return null;
+        }
+        if (body.expression() != null) {
+            collectSubqueryDependencies(body.expression(), true);
+        }
+        for (PostgreSqlParser.RoutineSqlStatementContext statement : body.routineSqlStatement()) {
+            if (statement.expression() != null) {
+                collectSubqueryDependencies(statement.expression(), true);
+                continue;
+            }
+            LineageResult step = new LineageResult();
+            PostgreSqlLineageVisitor visitor = new PostgreSqlLineageVisitor(step);
+            visitor.visit(statement.cteBody());
+            visitor.finalizeResult();
+            inputTables.addAll(step.getInputTables());
+            outputTables.addAll(step.getOutputTables());
+            for (ColumnLineage lineage : step.getColumnLineage()) {
+                if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
+                    result.getColumnLineage().add(lineage);
+                }
+            }
+            LineageModelUtils.mergeColumnUsages(result, step);
+        }
         return null;
     }
 

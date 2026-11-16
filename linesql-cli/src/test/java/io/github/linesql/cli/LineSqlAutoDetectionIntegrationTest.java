@@ -185,6 +185,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void keepsPostgreSqlAtomicRoutinesTogetherInAutomaticMode() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE PROCEDURE mart.refresh() LANGUAGE SQL BEGIN /* body */ ATOMIC "
+                        + "SELECT CASE WHEN 1 = 1 THEN 'END;' ELSE '' END; "
+                        + "INSERT INTO mart.audit (id) SELECT id FROM ods.events; END; "
+                        + "SELECT id FROM staging.events;");
+
+        assertEquals(2, results.size());
+        LineageResult routine = results.get(0);
+        assertEquals(SqlDialect.POSTGRESQL, routine.getDialect());
+        assertEquals(StatementType.CREATE_ROUTINE, routine.getStatementType());
+        assertEquals("events", routine.getInputTables().get(0).getName());
+        assertEquals("audit", routine.getOutputTables().get(0).getName());
+        assertEquals("id", routine.getColumnLineage().get(0).getTarget().getName());
+        assertFalse(routine.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+    }
+
+    @Test
     public void parseScriptAutoDetectsPostgresDollarQuotesAmongOtherDialects() {
         List<LineageResult> results = LineSql.parseScript(
                 "DO $Body$ BEGIN PERFORM 'from dual;'; END; $Body$;"
