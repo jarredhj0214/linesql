@@ -10679,6 +10679,58 @@
       "description": "A projected IN predicate depends on the tested and inner columns without exposing the inner projection"
     },
     {
+      "id": "select_full_join_using_coalesced_key",
+      "file": "cases/select_full_join_using_coalesced_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.left_events", "ods.right_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.left_events.id", "ods.right_events.id"]},
+        {"target": "kind", "sources": ["ods.left_events.kind"]},
+        {"target": "amount", "sources": ["ods.right_events.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.left_events.id"},
+        {"type": "JOIN_ON", "column": "ods.right_events.id"},
+        {"type": "WHERE", "column": "ods.left_events.id"},
+        {"type": "WHERE", "column": "ods.right_events.id"}
+      ],
+      "description": "A FULL OUTER USING key combines both possible source columns for projection and filtering"
+    },
+    {
+      "id": "select_right_join_using_kept_key",
+      "file": "cases/select_right_join_using_kept_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.left_events", "ods.right_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.right_events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.left_events.id"},
+        {"type": "JOIN_ON", "column": "ods.right_events.id"},
+        {"type": "ORDER_BY", "column": "ods.right_events.id"}
+      ],
+      "description": "The RIGHT OUTER USING output and sort key trace to the kept right side"
+    },
+    {
+      "id": "insert_chained_using_keys",
+      "file": "cases/insert_chained_using_keys.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.left_events", "ods.right_events", "ods.event_state"],
+      "outputTables": ["mart.merged_events"],
+      "columnLineage": [
+        {"target": "mart.merged_events.event_id", "sources": ["ods.left_events.id", "ods.right_events.id"]},
+        {"target": "mart.merged_events.status", "sources": ["ods.event_state.state"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.left_events.id"},
+        {"type": "JOIN_ON", "column": "ods.right_events.id"},
+        {"type": "JOIN_ON", "column": "ods.event_state.id"}
+      ],
+      "description": "Chained USING joins retain the coalesced key of the earlier parenthesized join in a positional write"
+    },
+    {
       "id": "insert_asof_left_join",
       "file": "cases/insert_asof_left_join.sql",
       "statementType": "INSERT",

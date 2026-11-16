@@ -964,6 +964,11 @@ Known Oracle gaps:
 Scalar and `IN` subqueries inside a projection keep their own output scope. The outer
 projection retains its value dependencies, and correlated filters identify the enclosing
 relation (`select_correlated_scalar_projection_scope`, `select_in_subquery_projection_scope`).
+Unqualified `JOIN USING` keys carry both input columns for a full outer join and
+use the retained side for directional joins. Chained joins preserve the key's
+input dependencies through projection and positional insert
+(`select_full_join_using_coalesced_key`, `select_right_join_using_kept_key`,
+`insert_chained_using_keys`).
 
 StarRocks is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common StarRocks query and write shapes.
 

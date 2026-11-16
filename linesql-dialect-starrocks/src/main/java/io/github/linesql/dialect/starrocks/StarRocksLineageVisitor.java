@@ -16,6 +16,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,6 +32,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private final Set<String> cteNames = new LinkedHashSet<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
+    private final Map<StarRocksParser.RelationContext, Map<String, List<ColumnRef>>> usingKeysByRelation =
+            new IdentityHashMap<>();
+    private Map<String, List<ColumnRef>> usingJoinColumns = Collections.emptyMap();
     private final Map<String, List<ColumnRef>> pivotColumnLineage = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
     private final Deque<Set<String>> lambdaParameterScopes = new ArrayDeque<>();
@@ -1658,19 +1662,79 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitFromClause(StarRocksParser.FromClauseContext ctx) {
+        visitChildren(ctx);
+        List<StarRocksParser.RelationContext> relations = ctx.relationList().relation();
+        usingJoinColumns = relations.size() == 1
+                ? usingKeysByRelation.getOrDefault(relations.get(0), Collections.emptyMap())
+                : Collections.emptyMap();
+        return null;
+    }
+
+    @Override
     public Void visitRelation(StarRocksParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        Map<String, List<ColumnRef>> joinedKeys = relationUsingKeys(ctx.relationPrimary());
         for (StarRocksParser.PivotClauseContext pivot : ctx.pivotClause()) {
             visit(pivot);
+            joinedKeys = Collections.emptyMap();
         }
         for (StarRocksParser.JoinRelationContext join : ctx.joinRelation()) {
+            int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
             if (join.joinCriteria() != null) {
                 collectJoinColumnUsages(join.joinCriteria(), relationStart);
             }
+            joinedKeys = joinUsingOutput(join, joinedKeys, relationStart, rightStart);
+        }
+        if (!joinedKeys.isEmpty()) {
+            usingKeysByRelation.put(ctx, joinedKeys);
         }
         return null;
+    }
+
+    private Map<String, List<ColumnRef>> relationUsingKeys(StarRocksParser.RelationPrimaryContext relation) {
+        if (!(relation instanceof StarRocksParser.AliasedRelationContext)) {
+            return Collections.emptyMap();
+        }
+        StarRocksParser.RelationContext inner = ((StarRocksParser.AliasedRelationContext) relation).relation();
+        return usingKeysByRelation.getOrDefault(inner, Collections.emptyMap());
+    }
+
+    private Map<String, List<ColumnRef>> joinUsingOutput(StarRocksParser.JoinRelationContext join,
+                                                        Map<String, List<ColumnRef>> leftKeys,
+                                                        int leftStart, int rightStart) {
+        if (join.joinCriteria() == null || join.joinCriteria().identifierList() == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, List<ColumnRef>> rightKeys = relationUsingKeys(join.relationPrimary());
+        Map<String, List<ColumnRef>> joinedKeys = new LinkedHashMap<>();
+        boolean rightJoin = join.joinType() != null && join.joinType().RIGHT() != null;
+        boolean fullJoin = join.joinType() != null && join.joinType().FULL() != null;
+        for (String name : identifierNames(join.joinCriteria().identifierList())) {
+            String key = name.toLowerCase(Locale.ROOT);
+            List<ColumnRef> refs = rightJoin
+                    ? usingKeySources(rightKeys, rightStart, visibleRelations.size(), name, key)
+                    : usingKeySources(leftKeys, leftStart, rightStart, name, key);
+            if (fullJoin && refs != null) {
+                List<ColumnRef> rightRefs = usingKeySources(rightKeys, rightStart, visibleRelations.size(), name, key);
+                refs = rightRefs == null ? null : LineageModelUtils.mergeColumnRefs(refs, rightRefs);
+            }
+            if (refs != null) {
+                joinedKeys.put(key, refs);
+            }
+        }
+        return joinedKeys;
+    }
+
+    private List<ColumnRef> usingKeySources(Map<String, List<ColumnRef>> knownKeys, int start, int end,
+                                            String name, String key) {
+        List<ColumnRef> refs = knownKeys.get(key);
+        if (refs != null) {
+            return refs;
+        }
+        return end - start == 1 ? usingColumnRefs(visibleRelations.get(start), name) : null;
     }
 
     @Override
@@ -2280,7 +2344,10 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         List<ColumnRef> refs = new ArrayList<>();
         for (String columnName : identifierNames(ctx)) {
             for (VisibleRelation relation : relations) {
-                refs.addAll(usingColumnRefs(relation, columnName));
+                List<ColumnRef> usingRefs = usingColumnRefs(relation, columnName);
+                if (usingRefs != null) {
+                    refs.addAll(usingRefs);
+                }
             }
         }
         LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, refs);
@@ -2302,9 +2369,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         }
         Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation.derivedName);
         if (columns == null) {
-            return new ArrayList<>();
+            return null;
         }
-        List<ColumnRef> refs = columns.get(columnName);
+        List<ColumnRef> refs = caseInsensitiveColumnRefs(columns, columnName);
         if (refs != null) {
             return refs;
         }
@@ -2314,7 +2381,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             fallback.add(new ColumnRef(wildcard.get(0).getTable(), columnName));
             return fallback;
         }
-        return new ArrayList<>();
+        return null;
     }
 
     private void refreshColumnLineage() {
@@ -2473,6 +2540,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
                 }
                 refs.addAll(wildcardRefs);
                 continue;
+            }
+            if (sourceColumn.qualifier == null) {
+                List<ColumnRef> joinedRefs = usingJoinColumns.get(sourceColumn.name.toLowerCase(Locale.ROOT));
+                if (joinedRefs != null) {
+                    refs.addAll(joinedRefs);
+                    continue;
+                }
             }
             List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
