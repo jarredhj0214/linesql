@@ -1403,6 +1403,7 @@ Implemented Flink column-level lineage scenarios:
 | IN subquery predicate column usage | `where id in (select user_id from sessions)` | `in_subquery_column_usage` |
 | HAVING subquery scope isolation | `group by vin having vin in (select vin from dim.vehicles)` | `having_subquery_scope_isolation` |
 | Subqueries in projections | Scalar and IN subqueries keep their output columns local. Correlated predicates resolve enclosing aliases and contribute clause usage. | `select_correlated_scalar_projection_scope`, `select_in_subquery_projection_scope` |
+| Nested scalar projections | A nested SELECT retains its leaf dependency and intermediate tables. An inner physical table name cannot replace an enclosing alias in the outer projection. | `scalar_subquery_keeps_outer_alias`, `select_nested_scalar_projection` |
 | ORDER BY projection alias column usage | `select c as alias from t order by alias` | `projection_alias_order_usage` |
 | ORDER BY expression column usage | `select id from t order by coalesce(updated_at, created_at)` | `order_by_expression_column_usage` |
 | GROUP BY aggregate expression dependencies | `select user_id, count(order_id), sum(amount) from t group by user_id` | `aggregate_expression_projection` |

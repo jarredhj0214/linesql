@@ -14,6 +14,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +42,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private boolean suppressColumnLineage;
     private FlinkParser.SelectClauseContext setBranchSelect;
     private FlinkParser.SelectClauseContext positionalInsertSelect;
+    private Map<FlinkParser.QueryContext, LineageResult> projectionSubqueries;
+    private boolean correlatedQuery;
     private ParseContext context;
 
     FlinkLineageVisitor(LineageResult result) {
@@ -1211,8 +1214,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitSelectClause(FlinkParser.SelectClauseContext ctx) {
-        collectSelectClauseProjections(ctx);
-        return visitChildren(ctx);
+        if (!containsSubquery(ctx)) {
+            collectSelectClauseProjections(ctx);
+            return visitChildren(ctx);
+        }
+        // Projection sources and clause usages read the same subquery in this scope.
+        Map<FlinkParser.QueryContext, LineageResult> enclosingSubqueries = projectionSubqueries;
+        projectionSubqueries = new IdentityHashMap<>();
+        try {
+            collectSelectClauseProjections(ctx);
+            return visitChildren(ctx);
+        } finally {
+            projectionSubqueries = enclosingSubqueries;
+        }
     }
 
     @Override
@@ -1486,10 +1500,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             visibleRelations.add(VisibleRelation.table(table));
         }
         inputTables.add(table);
-        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+        String name = table.getName().toLowerCase(Locale.ROOT);
         String alias = tableAlias(aliasCtx);
         if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+            if (correlatedQuery) {
+                tableAliases.putIfAbsent(name, table);
+            } else {
+                tableAliases.put(name, table);
+            }
+        }
+        String binding = alias == null ? name : alias.toLowerCase(Locale.ROOT);
+        tableAliases.put(binding, table);
+        if (correlatedQuery && visibleRelation) {
+            derivedAliases.remove(binding);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
@@ -1979,9 +2002,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {
-        TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
-                ? inputTables.iterator().next()
-                : null;
+        TableRef defaultTable = visibleRelations.size() == 1 ? visibleRelations.get(0).table : null;
+        if (defaultTable == null && visibleRelationCount <= 1 && inputTables.size() == 1) {
+            defaultTable = inputTables.iterator().next();
+        }
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn rawSourceColumn : sourceColumns) {
             if (rawSourceColumn.resolvedRef != null) {
@@ -2394,8 +2418,16 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private LineageResult lineageForQuery(FlinkParser.QueryContext query) {
+        if (projectionSubqueries == null) {
+            return analyzeSubquery(query);
+        }
+        return projectionSubqueries.computeIfAbsent(query, this::analyzeSubquery);
+    }
+
+    private LineageResult analyzeSubquery(FlinkParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         FlinkLineageVisitor queryVisitor = new FlinkLineageVisitor(queryResult);
+        queryVisitor.correlatedQuery = true;
         queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
@@ -2570,18 +2602,18 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private void addScalarSubquerySourceColumns(FlinkParser.QueryContext query, Set<SourceColumn> columns) {
         LineageResult subResult = lineageForQuery(query);
-        for (TableRef table : subResult.getInputTables()) {
-            addInputTable(table, false);
-        }
-        int before = columns.size();
+        inputTables.addAll(subResult.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
+        boolean hasSources = false;
         for (ColumnLineage lineage : subResult.getColumnLineage()) {
             for (ColumnRef source : lineage.getSources()) {
                 if (source.getTable() != null) {
                     columns.add(SourceColumn.resolved(source));
+                    hasSources = true;
                 }
             }
         }
-        if (columns.size() > before) {
+        if (hasSources) {
             return;
         }
         for (ColumnRef source : scalarSubqueryProjectionRefs(query)) {
@@ -2593,6 +2625,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(FlinkParser.QueryContext query) {
         FlinkLineageVisitor queryVisitor = new FlinkLineageVisitor(new LineageResult());
+        queryVisitor.correlatedQuery = true;
         queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);

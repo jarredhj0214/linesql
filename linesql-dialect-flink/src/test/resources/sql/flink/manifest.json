@@ -7278,6 +7278,36 @@
         {"type": "WHERE", "column": "ods.flags.active"}
       ],
       "description": "A projected IN predicate uses inner dependencies without exposing the inner result column"
+    },
+    {
+      "id": "scalar_subquery_keeps_outer_alias",
+      "file": "cases/scalar_subquery_keeps_outer_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["archive.events", "live.accounts"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["live.accounts.id"]},
+        {"target": "name", "sources": ["live.accounts.name"]},
+        {"target": "flag", "sources": ["archive.events.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "archive.events.user_id"},
+        {"type": "WHERE", "column": "live.accounts.id"}
+      ],
+      "description": "An inner physical table name cannot replace an enclosing alias"
+    },
+    {
+      "id": "select_nested_scalar_projection",
+      "file": "cases/select_nested_scalar_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.level_10", "ods.level_9", "ods.level_8", "ods.level_7", "ods.level_6", "ods.level_5", "ods.level_4", "ods.level_3", "ods.level_2", "ods.level_1", "ods.level_0"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "payload", "sources": ["ods.level_10.payload"]}
+      ],
+      "columnUsages": [
+      ],
+      "description": "Nested scalar projections keep the deepest column and all input tables"
     }
   ]
 }
