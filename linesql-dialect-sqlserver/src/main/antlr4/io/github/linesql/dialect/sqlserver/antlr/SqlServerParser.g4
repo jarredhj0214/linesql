@@ -47,6 +47,7 @@ statement
     | truncateTableStatement                                         #truncateTableStmt
     | alterTableStatement                                            #alterTableStmt
     | alterFunctionStatement                                         #alterFunctionStmt
+    | alterProcedureStatement                                        #alterProcedureStmt
     | useStatement                                                   #useStmt
     | setStatement                                                   #setStmt
     | executeStatement                                               #executeStmt
@@ -701,7 +702,7 @@ createSynonymStatement
     ;
 
 createProcedureStatement
-    : CREATE (OR ALTER)? PROCEDURE multipartIdentifier .+?
+    : CREATE (OR ALTER)? (PROC | PROCEDURE) multipartIdentifier .+?
     ;
 
 createFunctionStatement
@@ -710,6 +711,10 @@ createFunctionStatement
 
 alterFunctionStatement
     : ALTER FUNCTION multipartIdentifier .+?
+    ;
+
+alterProcedureStatement
+    : ALTER (PROC | PROCEDURE) multipartIdentifier .+?
     ;
 
 createTriggerStatement
@@ -751,7 +756,7 @@ dropSynonymStatement
     ;
 
 dropProcedureStatement
-    : DROP PROCEDURE (IF EXISTS)? multipartIdentifier
+    : DROP (PROC | PROCEDURE) (IF EXISTS)? multipartIdentifier
     ;
 
 dropFunctionStatement
@@ -993,7 +998,7 @@ nonReservedKeyword
     | BACKUP | BEGIN | BULK | CHECK | CHECKDB | CHECKTABLE | CLUSTERED | COLUMNSTORE | COMMIT | CONSTRAINT | DATABASE | DBCC | DECLARE | DESCRIBE | DESC | DISABLE | DISK | END | EXEC | EXECUTE | EXISTS | EXTERNAL | FALSE | FILE | FILTER | FORMAT
     | DEALLOCATE | DYNAMIC | ENCRYPTION | FOREIGN | GLOBAL | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | JSON_ARRAYAGG | JSON_OBJECTAGG | RETURNING | ABSENT | KEY | KEYSET | LIKE | LIMIT | LOCAL | LOG | LOGIN | LOOP | HASH | REMOTE | MASTER | MAXDOP | MEMBER | NOLOCK | NONCLUSTERED | NULL | OFF | OPEN | OPTION | OPTIMIZE
     | ABSOLUTE | CLOSE | CURSOR | DENY | FAST_FORWARD | FETCH | FIRST | FOR | FORWARD_ONLY | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PASSWORD | PERCENT_KEYWORD | POLICY | PREDICATE | PRIOR | READ_ONLY | RELATIVE | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
-    | AFTER | CATCH | CONTAINSTABLE | CUBE | DELAY | FREETEXTTABLE | FUNCTION | KILL | PERSISTED | PRIMARY | PRINT | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLE | ROLLBACK | SAVE | SCHEMA | SCOPED | SECRET | SECURITY | SEQUENCE | SET | SETS | SHOW | SOURCE | STATE | STATISTICS | STATUSONLY | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TIME | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | USER | VALUE | VALUES | VIEW | WAITFOR
+    | AFTER | CATCH | CONTAINSTABLE | CUBE | DELAY | FREETEXTTABLE | FUNCTION | KILL | PERSISTED | PRIMARY | PRINT | PROC | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLE | ROLLBACK | SAVE | SCHEMA | SCOPED | SECRET | SECURITY | SEQUENCE | SET | SETS | SHOW | SOURCE | STATE | STATISTICS | STATUSONLY | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TIME | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | USER | VALUE | VALUES | VIEW | WAITFOR
     | CONVERT | SCROLL | STATIC | SYMMETRIC
     | UNIQUE | WITHIN | XML | XMLNAMESPACES
     ;

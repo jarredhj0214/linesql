@@ -11,6 +11,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final Pattern GO_LINE = Pattern.compile(
             "[ \t]*GO(?:[ \t]+0*[1-9][0-9]*)?[ \t]*(?:--[^\r\n]*)?", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern SQL_SERVER_ROUTINE = Pattern.compile(
+            "^\\s*(?:CREATE\\s+(?:OR\\s+ALTER\\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER)"
+                    + "|ALTER\\s+(?:PROC(?:EDURE)?|FUNCTION))\\b", Pattern.CASE_INSENSITIVE);
+
     @Override
     public List<String> split(String script) {
         return split(script, SqlDialect.UNKNOWN);
@@ -23,6 +27,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         StringBuilder current = new StringBuilder();
         char quote = 0;
         boolean lineComment = false;
+        boolean routineBatch = false;
         int blockCommentDepth = 0;
 
         for (int i = 0; i < script.length(); i++) {
@@ -58,6 +63,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 if (lineEnd > i && GO_LINE.matcher(script).region(i, lineEnd).matches()) {
                     addIfNotBlank(statements, current, nestedComments);
                     current.setLength(0);
+                    routineBatch = false;
                     i = lineEnd - 1;
                     continue;
                 }
@@ -115,10 +121,13 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 current.append(c);
                 continue;
             }
-            if (quote == 0 && c == ';') {
-                addIfNotBlank(statements, current, nestedComments);
-                current.setLength(0);
-                continue;
+            if (quote == 0 && c == ';' && !routineBatch) {
+                routineBatch = sqlServer && SQL_SERVER_ROUTINE.matcher(stripComments(current.toString(), true)).find();
+                if (!routineBatch) {
+                    addIfNotBlank(statements, current, nestedComments);
+                    current.setLength(0);
+                    continue;
+                }
             }
             current.append(c);
         }
@@ -208,6 +217,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 continue;
             }
             if (quote == 0 && c == '/' && next == '*') {
+                stripped.append(' ');
                 i++;
                 blockCommentDepth = 1;
                 continue;

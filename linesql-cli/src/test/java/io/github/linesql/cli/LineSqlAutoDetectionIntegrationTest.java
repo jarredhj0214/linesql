@@ -132,6 +132,26 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("archive", transfer.getOutputTables().get(0).getSchema());
     }
 
+    @Test
+    public void keepsSqlServerRoutineBodyTogetherUntilGo() {
+        List<LineageResult> results = LineSql.parseScript(
+                "ALTER /* module */ PROC dbo.rollup AS BEGIN\n"
+                        + "SET NOCOUNT ON;\n"
+                        + "INSERT INTO mart.rollup SELECT id FROM ods.orders;\n"
+                        + "SELECT id FROM ods.customers;\n"
+                        + "END;\n"
+                        + "GO\n"
+                        + "SELECT id FROM mart.rollup;",
+                SqlDialect.SQLSERVER);
+
+        assertEquals(2, results.size());
+        assertEquals(StatementType.ALTER_ROUTINE, results.get(0).getStatementType());
+        assertEquals("orders", results.get(0).getInputTables().get(0).getName());
+        assertEquals("customers", results.get(0).getInputTables().get(1).getName());
+        assertEquals("rollup", results.get(0).getOutputTables().get(0).getName());
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

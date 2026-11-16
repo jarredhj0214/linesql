@@ -10,9 +10,12 @@ import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
+import io.github.linesql.dialect.sqlserver.antlr.SqlServerLineageLexer;
 import io.github.linesql.dialect.sqlserver.antlr.SqlServerParser;
 import io.github.linesql.dialect.sqlserver.antlr.SqlServerParserBaseVisitor;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -682,29 +685,33 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateProcedureStmt(SqlServerParser.CreateProcedureStmtContext ctx) {
-        result.setStatementType(StatementType.CREATE_ROUTINE);
-        collectStaticRoutineBodyLineage(originalText(ctx));
-        result.setInputTables(new ArrayList<>(inputTables));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordRoutineDefinition(ctx, StatementType.CREATE_ROUTINE);
         return null;
     }
 
     @Override
     public Void visitCreateFunctionStmt(SqlServerParser.CreateFunctionStmtContext ctx) {
-        result.setStatementType(StatementType.CREATE_ROUTINE);
-        collectStaticRoutineBodyLineage(originalText(ctx));
-        result.setInputTables(new ArrayList<>(inputTables));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordRoutineDefinition(ctx, StatementType.CREATE_ROUTINE);
         return null;
     }
 
     @Override
     public Void visitAlterFunctionStmt(SqlServerParser.AlterFunctionStmtContext ctx) {
-        result.setStatementType(StatementType.ALTER_ROUTINE);
+        recordRoutineDefinition(ctx, StatementType.ALTER_ROUTINE);
+        return null;
+    }
+
+    @Override
+    public Void visitAlterProcedureStmt(SqlServerParser.AlterProcedureStmtContext ctx) {
+        recordRoutineDefinition(ctx, StatementType.ALTER_ROUTINE);
+        return null;
+    }
+
+    private void recordRoutineDefinition(ParserRuleContext ctx, StatementType type) {
+        result.setStatementType(type);
         collectStaticRoutineBodyLineage(originalText(ctx));
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
-        return null;
     }
 
     @Override
@@ -2619,7 +2626,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (text == null || text.trim().isEmpty()) {
             return;
         }
-        String sql = stripStringLiterals(text);
+        String sql = routineSqlWithoutCommentsAndLiterals(text);
         collectRoutineTables(sql, ROUTINE_INPUT_TABLE_PATTERN, inputTables);
         collectRoutineTables(sql, ROUTINE_INSERT_TARGET_PATTERN, outputTables);
         collectRoutineTables(sql, ROUTINE_UPDATE_TARGET_PATTERN, outputTables);
@@ -2739,24 +2746,22 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return tableRefFromExpressionText(matcher.group(1));
     }
 
-    private static String stripStringLiterals(String text) {
-        StringBuilder builder = new StringBuilder(text.length());
-        boolean inString = false;
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (ch == '\'') {
-                builder.append(' ');
-                if (inString && i + 1 < text.length() && text.charAt(i + 1) == '\'') {
-                    builder.append(' ');
-                    i++;
-                } else {
-                    inString = !inString;
-                }
-            } else {
-                builder.append(inString ? ' ' : ch);
+    private static String routineSqlWithoutCommentsAndLiterals(String text) {
+        SqlServerLineageLexer lexer = new SqlServerLineageLexer(CharStreams.fromString(text));
+        lexer.removeErrorListeners();
+        StringBuilder sql = new StringBuilder(text.length());
+        int previousEnd = 0;
+        for (Token token = lexer.nextToken(); token.getType() != Token.EOF; token = lexer.nextToken()) {
+            boolean literal = token.getType() == SqlServerLineageLexer.STRING_LITERAL;
+            if (token.getStartIndex() > previousEnd || literal) {
+                sql.append(' ');
             }
+            if (!literal) {
+                sql.append(token.getText());
+            }
+            previousEnd = token.getStopIndex() + 1;
         }
-        return builder.toString();
+        return sql.toString();
     }
 
     private static TableRef tableInSchema(SqlServerParser.MultipartIdentifierContext ctx, String schema) {

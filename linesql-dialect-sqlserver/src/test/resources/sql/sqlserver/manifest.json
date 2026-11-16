@@ -2,6 +2,24 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "alter_proc_static_body",
+      "file": "cases/alter_proc_static_body.sql",
+      "statementType": "ALTER_ROUTINE",
+      "inputTables": ["ods.orders", "ods.customers"],
+      "outputTables": ["mart.rollup"],
+      "columnLineage": [],
+      "description": "ALTER PROC scans static body references without counting mentions in comments or literals"
+    },
+    {
+      "id": "drop_proc_if_exists",
+      "file": "cases/drop_proc_if_exists.sql",
+      "statementType": "DROP_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "DROP PROC accepts the short procedure keyword"
+    },
+    {
       "id": "deny_object_columns",
       "file": "cases/deny_object_columns.sql",
       "statementType": "ALTER_TABLE",

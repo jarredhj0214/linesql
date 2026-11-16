@@ -461,7 +461,9 @@ standalone `GO` batch separators. A separator can include a positive repeat coun
 trailing line comment. Analysis returns lineage once for each statement regardless of the
 repeat count. `GO` inside quoted values, bracketed identifiers, and comments stays in the
 statement. Nested block comments ignore embedded SQL through the matching outer delimiter
-(`select_nested_block_comment`). Custom statement splitters control their own batch handling.
+(`select_nested_block_comment`). Supported procedure, function, and trigger definitions retain
+semicolons inside their batches. Procedure and function lineage follows static body references
+outside comments and string literals. Custom statement splitters control their own batch handling.
 
 Current SQL Server SQL case assets:
 
@@ -526,6 +528,7 @@ Implemented SQL Server table-level lineage scenarios:
 | SQL Server encryption and certificate controls | `create/drop master key`, `create certificate ...`, `create symmetric key ... encryption by certificate ...`, `drop asymmetric key ...` | `create_master_key_control`, `drop_master_key_control`, `create_certificate_control`, `create_symmetric_key_control`, `drop_asymmetric_key_control` |
 | Backup, restore, and DBCC utility statements | `backup database ... to disk = ...`, `backup log ...`, `restore database ... from disk ...`, `dbcc checkdb (...)`, `dbcc checktable (schema.table)`, `dbcc show_statistics (schema.table, stats)`, `dbcc show_statistics ('schema.table', 'stats')`, `dbcc checkident ('schema.table', noreseed)` | `backup_database_control`, `backup_log_control`, `restore_database_control`, `dbcc_checkdb_control`, `dbcc_checktable_metadata`, `dbcc_show_statistics_metadata`, `dbcc_show_statistics_string_metadata`, `dbcc_checkident_string_metadata` |
 | SQL Server metadata stored procedures | `exec sp_help 'dbo.t'`, `exec sys.sp_helptext 'dbo.v'`, `exec sp_columns @table_name = ..., @table_owner = ...`, `exec sp_tables`, `exec sys.sp_describe_first_result_set ...`, `exec sp_spaceused 'dbo.t'`, `exec sp_helpindex 'dbo.t'`, `exec sp_helpconstraint 'dbo.t'`, `exec sp_helpdb ...`, `exec sp_helpserver`, `exec sp_who`; object-scoped calls return the inspected object as metadata input | `execute_sp_help_table`, `execute_sp_helptext_view`, `execute_sp_columns_named_args`, `execute_sp_tables_metadata`, `execute_sp_describe_first_result_set`, `execute_sp_spaceused_table`, `execute_sp_helpindex_table`, `execute_sp_helpconstraint_table`, `execute_sp_helpdb_metadata`, `execute_sp_helpserver_metadata`, `execute_sp_who_metadata` |
+| Procedure keyword and ALTER body | `ALTER PROC` and `DROP PROC` use the same object classification as their long forms. Static bodies retain reads and writes across statements. | `alter_proc_static_body`, `drop_proc_if_exists` |
 | Object and schema privileges | `GRANT`, `REVOKE`, and `DENY` identify affected objects and explicit permission columns. `ON SCHEMA::` returns a control statement. | `grant_select_on_object`, `revoke_update_on_table`, `deny_object_columns`, `revoke_object_columns`, `grant_schema_permissions` |
 | DROP TABLE affected table | `drop table if exists dbo.t`, `drop table if exists dbo.t1, dbo.t2`, `drop table if exists #tmp`, `drop table if exists ##tmp` | `drop_table`, `drop_multiple_tables`, `drop_temp_table`, `drop_global_temp_table` |
 | DROP VIEW affected view | `drop view if exists dbo.v`, `drop view if exists dbo.v1, dbo.v2` | `drop_view`, `drop_multiple_views` |
