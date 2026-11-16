@@ -129,6 +129,8 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 
 Spark inline `VALUES` maps explicit INSERT targets by position. The parser records `QUALIFY` window dependencies through direct expressions and projection aliases.
 
+Spark analyzes recursive UNION ALL outputs by position and resolves correlated scalar projections. Literal SQL stored in a STRING session variable can be expanded by EXECUTE IMMEDIATE.
+
 ### MySQL
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -159,6 +161,8 @@ MySQL routine cursor controls are accepted; `DECLARE CURSOR FOR SELECT` preserve
 
 MySQL `VALUES ROW(...)` resolves default and explicit output names, scalar subqueries across rows, and sorting by output alias.
 
+MySQL resolves recursive CTE column dependencies and preserves directional `JOIN USING` keys in queries and DML. Literal prepared queries and writes retain physical table and column dependencies in MySQL and OceanBase MySQL mode.
+
 ### StarRocks
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -186,6 +190,8 @@ MySQL `VALUES ROW(...)` resolves default and explicit output names, scalar subqu
 | StarRocks extensions | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 
 StarRocks tracks local `ORDER BY` in `ARRAY_AGG` and `GROUP_CONCAT`, and supports positional `UNNEST` outputs from multiple arrays.
+
+StarRocks preserves configured catalog and schema through session switches, nested and recursive queries, and scalar projections. Prepared SELECT statements preserve the dependencies of their literal or direct query. Native temporary partition syntax identifies StarRocks for reads, writes and maintenance.
 
 ### Hive
 
@@ -217,6 +223,8 @@ Hive script coverage includes database lifecycle statements including `ALTER DAT
 
 Hive tracks inherited named-window references in projections and filter dependencies in `QUALIFY`.
 
+Hive covers Iceberg time-travel queries and snapshot commands and preserves positional sources from TABLE(VALUES) and its lateral form.
+
 ### Flink
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -244,6 +252,8 @@ Hive tracks inherited named-window references in projections and filter dependen
 | Flink extensions | PARTIAL | COVERED | COVERED | COVERED | P1 |
 
 Flink window table functions trace generated time fields to descriptors and partition keys, including CTE and script-defined inputs. `UNNEST WITH ORDINALITY` distinguishes generated ordinality from input-derived values.
+
+Flink parses additional materialized-table operations and traces merged JOIN USING keys through writes. A Flink script can identify shared `ON CONFLICT DO NOTHING` syntax using its connector and statement-set context. Catalog and database switches qualify following physical relations and scope temporary views.
 
 ### Oracle
 
@@ -275,6 +285,8 @@ Oracle extensions currently include hierarchical queries, `DATE`/`TIMESTAMP` typ
 
 Oracle `JSON_TABLE` and `XMLTABLE` trace generated columns to the input expressions. Qualified wildcards expand known document columns and preserve explicit write positions.
 
+Oracle recursive SEARCH and CYCLE columns retain their key dependencies. Vector types, exact and approximate searches, serializers, HNSW and IVF indexes, and SQL/JSON aggregates are covered by corpus cases.
+
 ### SQL Server
 
 | Domain | Grammar status | Table lineage | Column lineage | Column usage | Priority |
@@ -304,6 +316,8 @@ Oracle `JSON_TABLE` and `XMLTABLE` trace generated columns to the input expressi
 SQL Server relation coverage includes regular table references, derived tables, `VALUES` derived tables, `CROSS/OUTER APPLY`, `CROSS APPLY (VALUES ...)`, table-valued functions, XML `nodes()` APPLY, external query functions such as `OPENQUERY`/`OPENROWSET` with parseable embedded remote SQL lineage, local/global temporary tables, table variables, parameterized table hints, query `OPTION` hints, `TOP PERCENT WITH TIES`, and PIVOT/UNPIVOT source table preservation. T-SQL expression/control/DML/DDL coverage includes `ROLLUP`/`CUBE`/`GROUPING SETS`, `GROUPING_ID`, legacy `GROUP BY ... WITH ROLLUP`, `TRY_CAST`, `CONVERT`, `TRY_CONVERT`, `NEXT VALUE FOR` sequence expressions, datepart functions such as `DATEADD`/`DATEDIFF`/`DATEPART`, `COLLATE`, `IIF`, `CHOOSE`, ordered aggregates with `WITHIN GROUP`, scalar variable `DECLARE`, cursor lifecycle control with `DECLARE CURSOR FOR SELECT` query lineage, `SET` variable reads from scalar subqueries, session `SET` options, `SET TRANSACTION ISOLATION LEVEL`, `BULK INSERT`, sequence lifecycle control, principal lifecycle DDL, `CREATE VIEW WITH SCHEMABINDING`, `ALTER VIEW`, `UPDATE TOP`, alias-target `UPDATE ... FROM`, `DELETE TOP`, alias-target `DELETE ... OUTPUT ... FROM`, MERGE `WHEN MATCHED AND` predicates, matched `DELETE`, `MERGE WHEN NOT MATCHED BY SOURCE`, bare `OUTPUT` result lineage, `OUTPUT INTO` audit-column lineage including inserted/deleted expressions, `OUTPUT $action`, conservative static table-reference extraction from procedure/function bodies, transaction controls, procedure execution, `THROW`, `WAITFOR`, `KILL`, backup/restore utilities, DBCC metadata/control handling, SQL Server `sp_*` metadata procedures, trigger lifecycle DDL, synonym object references, table object grants/revokes, `DROP INDEX IF EXISTS`, partition-scoped `TRUNCATE TABLE`, identity columns, and computed columns.
 
 SQL Server `OPENJSON` and `STRING_SPLIT` trace generated columns to input expressions. `TABLESAMPLE` preserves source aliases and join dependencies.
+
+SQL Server preserves scalar-subquery scope and recursive CTE member dependencies. Native vector searches, generated embeddings and chunk columns, and DiskANN index inputs retain their physical sources.
 
 ### PostgreSQL
 
@@ -349,7 +363,7 @@ Initial PostgreSQL extension focus:
 - PostgreSQL cast operator `::`, `ILIKE`, and double-quoted identifiers are covered for baseline SELECT lineage.
 - PostgreSQL typed `DATE`, `TIME`, `TIMESTAMP`, and `INTERVAL` literals are accepted without losing surrounding expression lineage.
 - PostgreSQL result limiting covers `LIMIT ALL`, `OFFSET ... ROW/ROWS`, `FETCH FIRST/NEXT ... ROW/ROWS ONLY`, and `WITH TIES`, including pagination inside derived queries.
-- PostgreSQL relation coverage includes `NATURAL`, `NATURAL INNER`, and `NATURAL LEFT/RIGHT/FULL [OUTER]` joins. Implicit join-key usages remain metadata-dependent and are not guessed.
+- PostgreSQL relation coverage includes `NATURAL`, `NATURAL INNER`, and `NATURAL LEFT/RIGHT/FULL [OUTER]` joins. When both inputs expose known column names, the parser records matching keys and follows the join direction for merged columns.
 - PostgreSQL `EXPLAIN` and `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` wrappers preserve the wrapped SELECT/DML/MERGE lineage.
 - PostgreSQL `DISTINCT ON`, `ORDER BY ... NULLS FIRST/LAST`, aggregate `FILTER`, ordered-set aggregates with `WITHIN GROUP`, analytic window frames, JSON operators, and array subscripts are covered for baseline SELECT lineage.
 - PostgreSQL NULL-safe comparison with `IS [NOT] DISTINCT FROM` preserves both operands in projection lineage and predicate/join usages.
@@ -362,6 +376,8 @@ Initial PostgreSQL extension focus:
 - PostgreSQL principal configuration controls accept `ALTER ROLE ... SET/RESET` and `ALTER USER ... SET` as non-lineage control statements.
 
 PostgreSQL `VALUES` traces scalar subqueries across rows and resolves CTE aliases and set ordering. Type and domain DDL includes range types, enum renames, named domain constraints, and deferred validation.
+
+PostgreSQL recursive CTE dependency ordering, positional grouping, SQL/XML, SQL/JSON aggregates, pgvector, and `OLD`/`NEW` in `RETURNING` are backed by table, column and clause assertions.
 
 ### OceanBase
 
