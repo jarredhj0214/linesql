@@ -949,6 +949,44 @@
       "description": "A base table wildcard of unknown width leaves later destination positions unresolved"
     },
     {
+      "id": "select_parenthesized_join_output_alias",
+      "file": "cases/select_parenthesized_join_output_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events", "public.legacy_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["public.events.id", "public.legacy_events.id"]},
+        {"target": "merged_id", "sources": ["public.events.id", "public.legacy_events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "WHERE", "column": "public.events.id"},
+        {"type": "WHERE", "column": "public.legacy_events.id"}
+      ],
+      "description": "A named parenthesized JOIN exposes its coalesced keys through its relation alias"
+    },
+    {
+      "id": "select_parenthesized_join_key_aliases",
+      "file": "cases/select_parenthesized_join_key_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events", "public.legacy_events", "public.event_flags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["public.events.id"]},
+        {"target": "flag", "sources": ["public.event_flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "JOIN_ON", "column": "public.events.event_day"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.event_day"},
+        {"type": "JOIN_ON", "column": "public.event_flags.event_id"},
+        {"type": "WHERE", "column": "public.events.event_day"}
+      ],
+      "description": "Join-key names can be replaced by relation column aliases and used by a subsequent join"
+    },
+    {
       "id": "select_full_join_using_key",
       "file": "cases/select_full_join_using_key.sql",
       "statementType": "SELECT",

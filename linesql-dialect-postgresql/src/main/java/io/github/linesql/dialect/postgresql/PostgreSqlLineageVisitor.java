@@ -1668,6 +1668,71 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAliasedRelation(PostgreSqlParser.AliasedRelationContext ctx) {
+        if (tableAlias(ctx.tableAlias()) == null) {
+            return visit(ctx.relation());
+        }
+        int relationStart = visibleRelations.size();
+        int priorCount = visibleRelationCount;
+        Map<String, TableRef> enclosingTables = new LinkedHashMap<>(tableAliases);
+        Map<String, String> enclosingDerived = new LinkedHashMap<>(derivedAliases);
+        Set<String> enclosingReferences = new LinkedHashSet<>(derivedReferences);
+        Map<String, Map<String, List<ColumnRef>>> enclosingColumns = new LinkedHashMap<>(derivedColumnLineage);
+        Set<String> enclosingKnownRelations = new LinkedHashSet<>(knownColumnRelations);
+        visit(ctx.relation());
+
+        // A joined relation alias exposes the join result as one relation.
+        visibleRelations.subList(relationStart, visibleRelations.size()).clear();
+        visibleRelationCount = priorCount;
+        tableAliases.clear();
+        tableAliases.putAll(enclosingTables);
+        derivedAliases.clear();
+        derivedAliases.putAll(enclosingDerived);
+        derivedReferences.clear();
+        derivedReferences.addAll(enclosingReferences);
+        derivedColumnLineage.clear();
+        derivedColumnLineage.putAll(enclosingColumns);
+        knownColumnRelations.clear();
+        knownColumnRelations.addAll(enclosingKnownRelations);
+
+        Map<String, List<ColumnRef>> joinKeys = relationJoinKeys.getOrDefault(
+                ctx.relation(), Collections.emptyMap());
+        List<String> aliases = tableAliasColumnNames(ctx.tableAlias());
+        if (!aliases.isEmpty()) {
+            joinKeys = renameLeadingJoinKeys(ctx.relation(), joinKeys, aliases);
+            relationJoinKeys.put(ctx.relation(), joinKeys);
+        }
+        String relation = "$joined_relation_" + derivedColumnLineage.size();
+        derivedColumnLineage.put(relation, joinKeys);
+        addDerivedReference(relation, ctx.tableAlias());
+        return null;
+    }
+
+    private Map<String, List<ColumnRef>> renameLeadingJoinKeys(PostgreSqlParser.RelationContext ctx,
+                                                                Map<String, List<ColumnRef>> joinKeys,
+                                                                List<String> aliases) {
+        List<PostgreSqlParser.JoinRelationContext> joins = ctx.joinRelation();
+        for (int i = joins.size() - 1; i >= 0; i--) {
+            PostgreSqlParser.JoinRelationContext join = joins.get(i);
+            if (join.NATURAL() != null) {
+                break;
+            }
+            PostgreSqlParser.JoinCriteriaContext criteria = join.joinCriteria();
+            if (criteria != null && criteria.identifierList() != null) {
+                Map<String, List<ColumnRef>> renamed = new LinkedHashMap<>();
+                List<String> keys = identifierNames(criteria.identifierList());
+                for (int index = 0; index < keys.size(); index++) {
+                    String key = keys.get(index);
+                    String name = index < aliases.size() ? aliases.get(index) : key;
+                    renamed.put(name, joinKeys.getOrDefault(key, Collections.emptyList()));
+                }
+                return renamed;
+            }
+        }
+        return Collections.emptyMap();
+    }
+
+    @Override
     public Void visitLateralQuery(PostgreSqlParser.LateralQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$lateral" + derivedColumnLineage.size() : alias;
