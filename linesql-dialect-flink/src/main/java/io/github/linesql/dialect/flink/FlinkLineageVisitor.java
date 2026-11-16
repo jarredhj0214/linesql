@@ -37,6 +37,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
+    private final Map<FlinkParser.RelationContext, Map<String, List<ColumnRef>>> relationJoinKeys =
+            new IdentityHashMap<>();
+    private Map<String, List<ColumnRef>> usingJoinKeys = Collections.emptyMap();
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
@@ -1058,19 +1061,89 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitRelation(FlinkParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>(nestedJoinKeys(ctx.relationPrimary()));
         for (FlinkParser.LateralViewClauseContext lateralView : ctx.lateralViewClause()) {
             visit(lateralView);
         }
         for (FlinkParser.JoinRelationContext join : ctx.joinRelation()) {
+            int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
             if (join.temporalClause() != null) {
                 visit(join.temporalClause());
             }
-            if (join.joinCriteria() != null) {
-                collectJoinColumnUsages(join.joinCriteria(), relationStart);
+            Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(join.relationPrimary());
+            FlinkParser.JoinCriteriaContext criteria = join.joinCriteria();
+            if (criteria != null && criteria.identifierList() != null) {
+                List<VisibleRelation> left = visibleRelations.subList(relationStart, rightStart);
+                List<VisibleRelation> right = visibleRelations.subList(rightStart, visibleRelations.size());
+                Map<String, List<ColumnRef>> merged = mergedJoinKeys(join, left, right, keys, rightKeys);
+                keys.putAll(rightKeys);
+                keys.putAll(merged);
+            } else {
+                keys.putAll(rightKeys);
+                if (criteria != null) {
+                    addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(criteria.expression()));
+                }
             }
         }
+        if (!keys.isEmpty()) {
+            relationJoinKeys.put(ctx, keys);
+        }
         return null;
+    }
+
+    @Override
+    public Void visitRelationList(FlinkParser.RelationListContext ctx) {
+        visitChildren(ctx);
+        usingJoinKeys = ctx.relation().size() == 1
+                ? relationJoinKeys.getOrDefault(ctx.relation(0), Collections.emptyMap())
+                : Collections.emptyMap();
+        return null;
+    }
+
+    private Map<String, List<ColumnRef>> nestedJoinKeys(FlinkParser.RelationPrimaryContext primary) {
+        if (primary instanceof FlinkParser.AliasedRelationContext) {
+            return relationJoinKeys.getOrDefault(
+                    ((FlinkParser.AliasedRelationContext) primary).relation(), Collections.emptyMap());
+        }
+        return Collections.emptyMap();
+    }
+
+    private Map<String, List<ColumnRef>> mergedJoinKeys(FlinkParser.JoinRelationContext join,
+                                                         List<VisibleRelation> left,
+                                                         List<VisibleRelation> right,
+                                                         Map<String, List<ColumnRef>> leftKeys,
+                                                         Map<String, List<ColumnRef>> rightKeys) {
+        Map<String, List<ColumnRef>> merged = new LinkedHashMap<>();
+        FlinkParser.JoinTypeContext type = join.joinType();
+        for (String column : identifierNames(join.joinCriteria().identifierList())) {
+            String name = column.toLowerCase(Locale.ROOT);
+            List<ColumnRef> leftRefs = joinKeySources(left, leftKeys, column, name);
+            List<ColumnRef> rightRefs = joinKeySources(right, rightKeys, column, name);
+            List<ColumnRef> both = LineageModelUtils.mergeColumnRefs(leftRefs, rightRefs);
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, both);
+            List<ColumnRef> sources = both;
+            if (type != null && type.RIGHT() != null) {
+                sources = rightRefs;
+            } else if (type != null && (type.LEFT() != null || type.SEMI_JOIN() != null || type.ANTI() != null)) {
+                sources = leftRefs;
+            }
+            merged.put(name, sources);
+        }
+        return merged;
+    }
+
+    private List<ColumnRef> joinKeySources(List<VisibleRelation> relations,
+                                         Map<String, List<ColumnRef>> keys, String column, String name) {
+        List<ColumnRef> refs = keys.get(name);
+        if (refs != null) {
+            return refs;
+        }
+        refs = new ArrayList<>();
+        for (VisibleRelation relation : relations) {
+            refs.addAll(usingColumnRefs(relation, column));
+        }
+        return refs;
     }
 
     @Override
@@ -1835,14 +1908,6 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         addUsingColumnUsages(ctx, 0);
     }
 
-    private void collectJoinColumnUsages(FlinkParser.JoinCriteriaContext ctx, int relationStart) {
-        if (ctx.expression() != null) {
-            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
-        } else {
-            addUsingColumnUsages(ctx.identifierList(), relationStart);
-        }
-    }
-
     private void addUsingColumnUsages(FlinkParser.IdentifierListContext ctx, int relationStart) {
         List<VisibleRelation> relations = visibleRelationsSince(relationStart);
         if (ctx == null || relations.size() < 2) {
@@ -2024,6 +2089,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            List<ColumnRef> joinRefs = sourceColumn.qualifier == null
+                    ? usingJoinKeys.get(sourceColumn.name.toLowerCase(Locale.ROOT)) : null;
+            if (joinRefs != null) {
+                refs.addAll(joinRefs);
+                continue;
+            }
             if ("*".equals(sourceColumn.name)) {
                 List<ColumnRef> wildcardRefs = wildcardColumnRefs(sourceColumn.qualifier);
                 if (wildcardRefs == null) {

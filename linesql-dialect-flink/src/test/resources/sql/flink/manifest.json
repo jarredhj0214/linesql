@@ -7400,6 +7400,59 @@
       "columnUsages": [
       ],
       "description": "Drops the distribution from the named materialized table"
+    },
+    {
+      "id": "select_full_join_using_merged_key",
+      "file": "cases/select_full_join_using_merged_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.shipments"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.orders.order_id", "ods.shipments.order_id"]},
+        {"target": "status", "sources": ["ods.orders.status"]},
+        {"target": "shipping_cost", "sources": ["ods.shipments.shipping_cost"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"},
+        {"type": "WHERE", "column": "ods.orders.order_id"},
+        {"type": "WHERE", "column": "ods.shipments.order_id"}
+      ],
+      "description": "The full join exposes one key with dependencies on both join inputs"
+    },
+    {
+      "id": "select_right_join_using_retained_key",
+      "file": "cases/select_right_join_using_retained_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.shipments"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.shipments.order_id"]},
+        {"target": "shipping_cost", "sources": ["ods.shipments.shipping_cost"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"},
+        {"type": "ORDER_BY", "column": "ods.shipments.order_id"}
+      ],
+      "description": "The retained right key determines projection and ordering lineage"
+    },
+    {
+      "id": "insert_chained_using_merged_key",
+      "file": "cases/insert_chained_using_merged_key.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.shipments", "ods.flags"],
+      "outputTables": ["mart.reconciled"],
+      "columnLineage": [
+        {"target": "mart.reconciled.merged_id", "sources": ["ods.orders.order_id", "ods.shipments.order_id"]},
+        {"target": "mart.reconciled.active_flag", "sources": ["ods.flags.active"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"},
+        {"type": "JOIN_ON", "column": "ods.flags.order_id"}
+      ],
+      "description": "A chained join preserves its previously merged key when writing by position"
     }
   ]
 }

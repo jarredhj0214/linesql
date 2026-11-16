@@ -1384,6 +1384,7 @@ Implemented Flink column-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
+| Merged JOIN USING keys | Full outer join keys depend on both inputs. Directional joins follow the retained key in projections, clause usages, and chained positional inserts. | `select_full_join_using_merged_key`, `select_right_join_using_retained_key`, `insert_chained_using_merged_key` |
 | Direct single-table projection | `select id as user_id, name from ods_users` | `select_basic` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
 | Schema-free wildcard projection | `insert into ads.t select * from ods.s`; `select o.* from ods.orders o` | `insert_select_star_wildcard`, `select_qualified_star_wildcard` |
