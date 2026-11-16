@@ -2,6 +2,39 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "deny_object_columns",
+      "file": "cases/deny_object_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.customers"],
+      "columnLineage": [],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "dbo.customers.private_email"}],
+      "description": "A DENY statement preserves the affected object and permission list columns"
+    },
+    {
+      "id": "grant_schema_permissions",
+      "file": "cases/grant_schema_permissions.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Schema-level grants do not manufacture a table"
+    },
+    {
+      "id": "revoke_object_columns",
+      "file": "cases/revoke_object_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.customers"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "dbo.customers.private_email"},
+        {"type": "TABLE_MODEL", "column": "dbo.customers.phone"}
+      ],
+      "description": "A REVOKE GRANT OPTION FOR statement recognizes columns after the target"
+    },
+    {
       "id": "select_nested_block_comment",
       "file": "cases/select_nested_block_comment.sql",
       "statementType": "SELECT",

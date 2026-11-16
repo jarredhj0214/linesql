@@ -115,6 +115,23 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("active", write.getColumnUsages().get(0).getColumn().getName());
     }
 
+    @Test
+    public void autoDetectsSqlServerScopedPermissionsAndObjectTransfer() {
+        LineageResult grant = LineSql.parse("GRANT SELECT ON OBJECT::dbo.orders TO reporting_role");
+        assertEquals(SqlDialect.SQLSERVER, grant.getDialect());
+        assertEquals("orders", grant.getOutputTables().get(0).getName());
+
+        LineageResult schemaGrant = LineSql.parse("GRANT SELECT ON SCHEMA::sales TO reporting_role");
+        assertEquals(SqlDialect.SQLSERVER, schemaGrant.getDialect());
+        assertEquals(StatementType.CONTROL, schemaGrant.getStatementType());
+        assertEquals(0, schemaGrant.getOutputTables().size());
+
+        LineageResult transfer = LineSql.parse("ALTER SCHEMA archive TRANSFER OBJECT::dbo.orders");
+        assertEquals(SqlDialect.SQLSERVER, transfer.getDialect());
+        assertEquals("dbo", transfer.getInputTables().get(0).getSchema());
+        assertEquals("archive", transfer.getOutputTables().get(0).getSchema());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

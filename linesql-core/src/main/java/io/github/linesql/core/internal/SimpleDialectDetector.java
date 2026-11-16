@@ -25,6 +25,11 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern TSQL_TOP_DML = Pattern.compile(
             "\\b(?:insert|update|delete|merge)\\s+top\\s*" + TOP_COUNT + "\\s*[\\p{L}_@#\\[\"]");
 
+    private static final Pattern TSQL_OBJECT_SCOPE = Pattern.compile(
+            "(?:^|;)\\s*(?:(?:grant|revoke)\\b[^;]*\\bon\\s+(?:object|schema)\\s*::"
+                    + "|deny\\b[^;]*\\bon\\b"
+                    + "|alter\\s+schema\\b[^;]*\\btransfer\\s+object\\s*::)");
+
     @Override
     public List<SqlDialect> detect(String sql) {
         List<SqlDialect> dialects = new ArrayList<SqlDialect>();
@@ -192,6 +197,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || relationSyntax.matches("(?s).*\\b(?:cross|outer)\\s+apply\\s+[^\\s();]+\\s*\\.\\s*nodes\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\bfrom\\s+@[\\w$#]+\\s*\\.\\s*nodes\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server XML namespaces or nodes() method"));
+        } else if (TSQL_OBJECT_SCOPE.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server scoped permission or object transfer"));
         } else if (TSQL_TOP_DML.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server TOP in a write statement"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()

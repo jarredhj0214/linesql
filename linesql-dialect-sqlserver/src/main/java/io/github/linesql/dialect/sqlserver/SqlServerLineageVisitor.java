@@ -1061,29 +1061,48 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitGrantStmt(SqlServerParser.GrantStmtContext ctx) {
-        result.setStatementType(StatementType.ALTER_TABLE);
-        return visitChildren(ctx);
-    }
-
-    @Override
     public Void visitGrantStatement(SqlServerParser.GrantStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordPermissionChange(ctx.permissionTarget(), ctx.permissionList());
         return null;
-    }
-
-    @Override
-    public Void visitRevokeStmt(SqlServerParser.RevokeStmtContext ctx) {
-        result.setStatementType(StatementType.ALTER_TABLE);
-        return visitChildren(ctx);
     }
 
     @Override
     public Void visitRevokeStatement(SqlServerParser.RevokeStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordPermissionChange(ctx.permissionTarget(), ctx.permissionList());
         return null;
+    }
+
+    @Override
+    public Void visitDenyStatement(SqlServerParser.DenyStatementContext ctx) {
+        recordPermissionChange(ctx.permissionTarget(), ctx.permissionList());
+        return null;
+    }
+
+    private void recordPermissionChange(SqlServerParser.PermissionTargetContext target,
+                                        SqlServerParser.PermissionListContext permissions) {
+        if (target.SCHEMA() != null) {
+            result.setStatementType(StatementType.CONTROL);
+            return;
+        }
+        result.setStatementType(StatementType.ALTER_TABLE);
+        TableRef object = tableRef(target.multipartIdentifier());
+        outputTables.add(object);
+        result.setOutputTables(new ArrayList<>(outputTables));
+        List<ColumnRef> columns = new ArrayList<>();
+        for (SqlServerParser.PermissionItemContext permission : permissions.permissionItem()) {
+            addPermissionColumns(columns, object, permission.permissionColumns());
+        }
+        addPermissionColumns(columns, object, target.permissionColumns());
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, columns);
+    }
+
+    private static void addPermissionColumns(List<ColumnRef> refs, TableRef table,
+                                             SqlServerParser.PermissionColumnsContext columns) {
+        if (columns != null) {
+            for (String column : identifierNames(columns.identifierList())) {
+                refs.add(new ColumnRef(table, column));
+            }
+        }
     }
 
     @Override
