@@ -335,7 +335,7 @@ Initial PostgreSQL extension focus:
 
 - `INSERT ... ON CONFLICT ... DO UPDATE` covers target aliases, proposed-row dependencies in expressions and action predicates, and expression-index conflict targets.
 - `INSERT ... OVERRIDING SYSTEM/USER VALUE`, `INSERT ... DEFAULT VALUES`, and `ON CONFLICT ON CONSTRAINT ... WHERE ...` are covered for PostgreSQL INSERT compatibility.
-- `RETURNING` on `INSERT`, `UPDATE`, `DELETE`, and `MERGE` preserves direct and aliased result-column lineage, including relation-qualified wildcards.
+- `RETURNING` on `INSERT`, `UPDATE`, `DELETE`, and `MERGE` preserves direct and aliased result-column lineage, including relation-qualified wildcards. PostgreSQL 18 row references and `RETURNING WITH` aliases preserve pre-write values separately from assignments followed through a data-modifying CTE.
 - `WITH` before top-level `INSERT`, `UPDATE`, `DELETE`, and `MERGE`; data-modifying CTE `RETURNING` propagation; baseline `WITH RECURSIVE` SELECT lineage; and `MATERIALIZED` / `NOT MATERIALIZED` CTE hints
 - `UPDATE ... FROM` baseline assignment lineage is covered.
 - `UPDATE ONLY`, `DELETE ... USING`, and `DELETE FROM ONLY ... USING`

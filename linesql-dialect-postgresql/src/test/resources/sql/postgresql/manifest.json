@@ -2,6 +2,102 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "insert_conflict_returning_old_new",
+      "file": "cases/insert_conflict_returning_old_new.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.id", "sources": ["staging.delta.id"]},
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.balance"]},
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.balance"]},
+        {"target": "before_balance", "sources": ["mart.accounts.balance"]},
+        {"target": "after_balance", "sources": ["mart.accounts.balance"]}
+      ],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.accounts.id"}],
+      "description": "An ON CONFLICT DO UPDATE path can return a prior target row"
+    },
+    {
+      "id": "update_cte_returning_old_new",
+      "file": "cases/update_cte_returning_old_new.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.accounts", "staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "old_balance", "sources": ["mart.accounts.balance"]},
+        {"target": "new_balance", "sources": ["staging.delta.balance"]},
+        {"target": "difference", "sources": ["staging.delta.balance", "mart.accounts.balance"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.accounts.id"},
+        {"type": "WHERE", "column": "staging.delta.id"}
+      ],
+      "description": "PostgreSQL update CTE resolves old columns before applying write lineage to new columns"
+    },
+    {
+      "id": "insert_returning_old_new",
+      "file": "cases/insert_returning_old_new.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.balance", "sources": []},
+        {"target": "old_balance", "sources": []},
+        {"target": "new_balance", "sources": ["mart.accounts.balance"]}
+      ],
+      "columnUsages": [],
+      "description": "PostgreSQL plain INSERT has no old row"
+    },
+    {
+      "id": "delete_returning_old_wildcard",
+      "file": "cases/delete_returning_old_wildcard.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.accounts"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "*", "sources": ["mart.accounts.*"]},
+        {"target": "new_id", "sources": []}
+      ],
+      "columnUsages": [{"type": "WHERE", "column": "mart.accounts.inactive"}],
+      "description": "PostgreSQL DELETE retains old wildcard lineage and has no new row"
+    },
+    {
+      "id": "merge_insert_only_returning_old_new",
+      "file": "cases/merge_insert_only_returning_old_new.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.accounts", "staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.id", "sources": ["staging.delta.id"]},
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.balance"]},
+        {"target": "old_balance", "sources": []},
+        {"target": "new_balance", "sources": ["mart.accounts.balance"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.accounts.id"},
+        {"type": "MERGE_ON", "column": "staging.delta.id"}
+      ],
+      "description": "An insert-only MERGE returns a null OLD row"
+    },
+    {
+      "id": "merge_returning_old_new",
+      "file": "cases/merge_returning_old_new.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.accounts", "staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.balance"]},
+        {"target": "old_balance", "sources": ["mart.accounts.balance"]},
+        {"target": "new_balance", "sources": ["mart.accounts.balance"]},
+        {"target": "delta_id", "sources": ["staging.delta.id"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.accounts.id"},
+        {"type": "MERGE_ON", "column": "staging.delta.id"}
+      ],
+      "description": "PostgreSQL MERGE retains OLD, NEW, and ordinary source references in RETURNING"
+    },
+    {
       "id": "select_nested_block_comment",
       "file": "cases/select_nested_block_comment.sql",
       "statementType": "SELECT",
