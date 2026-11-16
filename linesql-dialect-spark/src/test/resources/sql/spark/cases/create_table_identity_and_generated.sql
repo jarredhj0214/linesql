@@ -1,0 +1,5 @@
+CREATE TABLE mart.id_orders (
+    id BIGINT GENERATED ALWAYS AS IDENTITY,
+    subtotal DECIMAL(12,2),
+    tax DECIMAL(12,2) GENERATED ALWAYS AS (subtotal * 0.1)
+) USING DELTA;

@@ -3973,6 +3973,30 @@
       "description": "Spark Hive-style bucket, sort, and skew columns are exposed as table-model usages"
     },
     {
+      "id": "create_table_identity_and_generated",
+      "file": "cases/create_table_identity_and_generated.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.id_orders"],
+      "columnLineage": [{"target": "mart.id_orders.tax", "sources": ["mart.id_orders.subtotal"]}],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.id_orders.id"},
+        {"type": "TABLE_MODEL", "column": "mart.id_orders.tax"},
+        {"type": "TABLE_MODEL", "column": "mart.id_orders.subtotal"}
+      ],
+      "description": "Generated identity columns coexist with generated expressions without producing a source dependency"
+    },
+    {
+      "id": "replace_table_identity",
+      "file": "cases/replace_table_identity.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.sequence_orders"],
+      "columnLineage": [],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.sequence_orders.id"}],
+      "description": "Replacing a table records the identity column as part of its model"
+    },
+    {
       "id": "create_table_constraints_model",
       "file": "cases/create_table_constraints_model.sql",
       "statementType": "CREATE_TABLE",

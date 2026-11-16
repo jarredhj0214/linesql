@@ -164,7 +164,7 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.97, "XMLTABLE relation syntax"));
         } else if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
                 || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")
-                || normalized.matches("(?s).*\\bstart\\s+with\\b.*")
+                || relationSyntax.matches("(?s).*\\bselect\\b[^;]*\\bstart\\s+with\\b.*")
                 || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
                 || normalized.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*")
                 || normalized.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*")

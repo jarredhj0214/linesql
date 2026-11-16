@@ -178,9 +178,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
                 SqlBaseParser.ColDefinitionContext column = element.colDefinition();
                 String columnName = cleanIdentifier(column.colName.getText());
                 for (SqlBaseParser.ColDefinitionOptionContext option : column.colDefinitionOption()) {
-                    if (option.generationExpression() != null) {
+                    SqlBaseParser.GenerationExpressionContext generation = option.generationExpression();
+                    if (generation instanceof SqlBaseParser.GeneratedColumnContext) {
                         SqlBaseParser.GeneratedColumnContext generated =
-                                (SqlBaseParser.GeneratedColumnContext) option.generationExpression();
+                                (SqlBaseParser.GeneratedColumnContext) generation;
                         localColumns.add(columnName);
                         List<ColumnRef> sources = new ArrayList<>();
                         for (SourceColumn source : sourceColumns(generated.expression())) {
@@ -193,6 +194,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
                                 columnName,
                                 sources,
                                 generated.expression().getText()));
+                    } else if (generation instanceof SqlBaseParser.IdentityColumnContext) {
+                        localColumns.add(columnName);
                     }
                     if (option.columnConstraintDefinition() != null) {
                         SqlBaseParser.ColumnConstraintContext constraint =
