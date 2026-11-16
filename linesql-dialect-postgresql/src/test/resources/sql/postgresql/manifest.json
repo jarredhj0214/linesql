@@ -949,6 +949,42 @@
       "description": "A base table wildcard of unknown width leaves later destination positions unresolved"
     },
     {
+      "id": "update_from_join_using_coalesced_key",
+      "file": "cases/update_from_join_using_coalesced_key.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.inventory", "staging.stock", "staging.legacy_stock"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "mart.inventory.source_id", "sources": ["staging.stock.source_key", "staging.legacy_stock.stock_id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "staging.stock.source_key"},
+        {"type": "JOIN_ON", "column": "staging.legacy_stock.stock_id"},
+        {"type": "WHERE", "column": "mart.inventory.item_id"},
+        {"type": "WHERE", "column": "staging.stock.source_key"},
+        {"type": "WHERE", "column": "staging.legacy_stock.stock_id"}
+      ],
+      "description": "UPDATE FROM keeps derived column aliases and assigns a full join key from both sources"
+    },
+    {
+      "id": "delete_using_join_alias_returning",
+      "file": "cases/delete_using_join_alias_returning.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.inventory", "staging.stock", "staging.legacy_stock"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "item_id", "sources": ["mart.inventory.item_id"]},
+        {"target": "source_id", "sources": ["staging.legacy_stock.stock_id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "staging.stock.stock_id"},
+        {"type": "JOIN_ON", "column": "staging.legacy_stock.stock_id"},
+        {"type": "WHERE", "column": "mart.inventory.item_id"},
+        {"type": "WHERE", "column": "staging.legacy_stock.stock_id"}
+      ],
+      "description": "DELETE USING retains the right key in WHERE and RETURNING while tracing both join operands"
+    },
+    {
       "id": "update_explicit_row_assignment",
       "file": "cases/update_explicit_row_assignment.sql",
       "statementType": "UPDATE",

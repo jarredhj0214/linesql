@@ -190,7 +190,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         visitRelationForUpdate(ctx.relation());
         if (ctx.fromClause() != null) {
-            visitRelationListForInputs(ctx.fromClause().relationList());
+            visit(ctx.fromClause());
         }
         currentDmlTarget = firstOutputTable();
         if (ctx.whereClause() != null) {
@@ -237,7 +237,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
         }
         if (ctx.relationList() != null) {
-            visitRelationListForInputs(ctx.relationList());
+            visit(ctx.relationList());
         }
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
@@ -2077,9 +2077,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitFromClause(PostgreSqlParser.FromClauseContext ctx) {
-        visit(ctx.relationList());
-        List<PostgreSqlParser.RelationContext> relations = ctx.relationList().relation();
+    public Void visitRelationList(PostgreSqlParser.RelationListContext ctx) {
+        visitChildren(ctx);
+        List<PostgreSqlParser.RelationContext> relations = ctx.relation();
         unqualifiedJoinKeys = relations.size() == 1
                 ? relationJoinKeys.getOrDefault(relations.get(0), Collections.emptyMap())
                 : Collections.emptyMap();
@@ -3292,6 +3292,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn col = scopedSourceColumn(sc);
+            List<ColumnRef> joinRefs = col.qualifier == null ? unqualifiedJoinKeys.get(col.name) : null;
+            if (joinRefs != null) {
+                refs.addAll(joinRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(col);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
