@@ -115,6 +115,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void mapsSparkUnnamedWriteExpressionsWithoutPartialLineage() {
+        LineageResult result = LineSql.parse(
+                "INSERT INTO mart.audit (bucket, net_amount, order_id) "
+                        + "SELECT 1, amount - discount, id FROM ods.orders", SqlDialect.SPARK);
+        assertEquals(StatementType.INSERT, result.getStatementType());
+        assertEquals(3, result.getColumnLineage().size());
+        assertEquals("net_amount", result.getColumnLineage().get(1).getTarget().getName());
+        assertEquals(2, result.getColumnLineage().get(1).getSources().size());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> "COLUMN_LINEAGE_PARTIAL".equals(d.getCode())));
+    }
+
+    @Test
     public void autoDetectedSqlServerDmlUsesRegisteredParser() {
         LineageResult result = LineSql.parse(
                 "update [ads].[user_summary] set [user_name] = u.[name] "

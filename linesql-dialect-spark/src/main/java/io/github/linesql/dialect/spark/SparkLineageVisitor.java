@@ -42,6 +42,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private int selectExpressionCount;
     private int skippedProjectionCount;
     private int queryDepth;
+    private SqlBaseParser.SelectClauseContext positionalInsertSelect;
     private int pipeOutputProjectionStart = -1;
     private boolean suppressColumnLineage;
     private boolean suppressMissingColumnLineageDiagnostic;
@@ -73,7 +74,17 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitSingleInsertQuery(SqlBaseParser.SingleInsertQueryContext ctx) {
         result.setStatementType(StatementType.INSERT);
-        return visitChildren(ctx);
+        SqlBaseParser.RegularQuerySpecificationContext query = topLevelQuerySpecification(ctx.query());
+        if (query != null && query.selectClause().namedExpressionSeq().namedExpression().stream()
+                .noneMatch(item -> item.identifierList() != null
+                        || isTopLevelStarExpression(item.expression().getText().toUpperCase(java.util.Locale.ROOT)))) {
+            positionalInsertSelect = query.selectClause();
+        }
+        try {
+            return visitChildren(ctx);
+        } finally {
+            positionalInsertSelect = null;
+        }
     }
 
     @Override
@@ -1387,9 +1398,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         for (int i = 0; i < expressions.size(); i++) {
             SqlBaseParser.NamedExpressionContext namedExpression = expressions.get(i);
             selectExpressionCount++;
-            Projection projection = projection(namedExpression, i);
+            boolean positional = ctx == positionalInsertSelect && i < insertTargetColumns.size();
+            Projection projection = projection(namedExpression, i, positional);
             if (projection != null) {
-                projection = withScalarSubquerySources(projection, namedExpression);
+                projection = withScalarSubquerySources(projection, namedExpression, positional);
                 projections.add(projection);
                 Set<String> windowReferences = new LinkedHashSet<>();
                 collectWindowReferences(namedExpression.expression(), windowReferences);
@@ -1412,8 +1424,9 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return null;
     }
 
-    private Projection withScalarSubquerySources(Projection projection, SqlBaseParser.NamedExpressionContext ctx) {
-        if (ctx.name == null || !containsSubquery(ctx.expression())) {
+    private Projection withScalarSubquerySources(Projection projection, SqlBaseParser.NamedExpressionContext ctx,
+                                                  boolean positionalInsert) {
+        if ((ctx.name == null && !positionalInsert) || !containsSubquery(ctx.expression())) {
             return projection;
         }
         Set<SourceColumn> sources = new LinkedHashSet<>();
@@ -2942,6 +2955,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private static Projection projection(SqlBaseParser.NamedExpressionContext ctx, int ordinal) {
+        return projection(ctx, ordinal, false);
+    }
+
+    private static Projection projection(SqlBaseParser.NamedExpressionContext ctx, int ordinal, boolean positionalInsert) {
         String expression = ctx.expression().getText();
         Projection star = starProjection(ctx.expression(), expression, ordinal);
         if (star != null) {
@@ -2956,12 +2973,15 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (sourceColumns.isEmpty() && ctx.name == null) {
             return new Projection(sourceColumns, expression, expression, ordinal);
         }
-        if (sourceColumns.size() > 1 && ctx.name == null) {
+        if (!positionalInsert && sourceColumns.size() > 1 && ctx.name == null) {
             return null;
         }
         String targetColumn = ctx.name == null ? inferredColumn : cleanIdentifier(ctx.name.getText());
         if (targetColumn == null) {
-            return null;
+            if (!positionalInsert) {
+                return null;
+            }
+            targetColumn = expression;
         }
         return new Projection(sourceColumns, targetColumn, expression, ordinal);
     }

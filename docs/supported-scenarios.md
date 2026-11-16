@@ -2216,6 +2216,7 @@ Implemented Spark column-level lineage scenarios:
 | LATERAL VIEW explode generated column lineage | `select item from t lateral view explode(items) e as item` | `lateral_view_explode` |
 | Case-insensitive generated column lookup | `select item from t lateral view explode(items) e as Item` | `lateral_view_case_insensitive_generated_column` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s` | `insert_column_list` |
+| Positional Spark INSERT expressions | An explicit destination list binds unnamed calculations and scalar subqueries by position. Constant output columns have no source edge. | `insert_select_unnamed_position`, `insert_select_unnamed_scalar_value` |
 | INSERT target-column alignment with skipped/generated expressions | `insert into ads.t(load_dt, c1) select '2026-09-10', a from ods.s` | `insert_column_list_skipped_constant` |
 | INSERT over UNION ALL target column lineage | `insert into t(c1) select a from s1 union all select b from s2` | `insert_union_column_lineage` |
 | INSERT over INTERSECT target column lineage | `insert into t(c1) select a from s1 intersect select b from s2` | `insert_intersect_column_lineage` |

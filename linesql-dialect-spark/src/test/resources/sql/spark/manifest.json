@@ -2,6 +2,38 @@
   "dialect": "SPARK",
   "cases": [
     {
+      "id": "insert_select_unnamed_position",
+      "file": "cases/insert_select_unnamed_position.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.bucket", "sources": []},
+        {"target": "mart.audit.net_amount", "sources": ["ods.orders.amount", "ods.orders.discount"]},
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "Spark binds unnamed calculations to explicit target positions without a partial-projection warning"
+    },
+    {
+      "id": "insert_select_unnamed_scalar_value",
+      "file": "cases/insert_select_unnamed_scalar_value.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]},
+        {"target": "mart.audit.max_flag", "sources": ["ods.flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.active"},
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "A scalar subquery without a SELECT alias supplies the corresponding positional write mapping"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
