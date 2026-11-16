@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.jarredhj0214</groupId>
         <artifactId>linesql</artifactId>
-        <version>1.3.0-SNAPSHOT</version>
+        <version>1.2.0</version>
     </parent>
 
     <artifactId>linesql-dialect-oceanbase</artifactId>
