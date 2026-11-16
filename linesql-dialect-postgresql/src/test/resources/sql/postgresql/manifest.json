@@ -792,6 +792,59 @@
       "description": "Set operation ordering uses all branch sources and retains aggregate filters"
     },
     {
+      "id": "select_full_join_using_key",
+      "file": "cases/select_full_join_using_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events", "public.legacy_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.events.id", "public.legacy_events.id"]},
+        {"target": "payload", "sources": ["public.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "WHERE", "column": "public.events.id"},
+        {"type": "WHERE", "column": "public.legacy_events.id"}
+      ],
+      "description": "A full join merges both source keys for an unqualified column"
+    },
+    {
+      "id": "select_right_join_using_outer_alias",
+      "file": "cases/select_right_join_using_outer_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events", "public.legacy_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.events.id"]},
+        {"target": "alias_id", "sources": ["public.legacy_events.id"]},
+        {"target": "result_id", "sources": ["public.legacy_events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "WHERE", "column": "public.legacy_events.id"},
+        {"type": "ORDER_BY", "column": "public.events.id"}
+      ],
+      "description": "A right join retains the right key and distinguishes WHERE input from ORDER BY output aliases"
+    },
+    {
+      "id": "select_chained_outer_join_using_key",
+      "file": "cases/select_chained_outer_join_using_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events", "public.legacy_events", "public.event_flags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.events.id", "public.legacy_events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "JOIN_ON", "column": "public.event_flags.id"}
+      ],
+      "description": "A left join retains the coalesced key of a parenthesized full join"
+    },
+    {
       "id": "select_join_using_alias",
       "file": "cases/select_join_using_alias.sql",
       "statementType": "SELECT",

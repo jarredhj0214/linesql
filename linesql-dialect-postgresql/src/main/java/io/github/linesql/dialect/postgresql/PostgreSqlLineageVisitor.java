@@ -14,6 +14,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -38,6 +39,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
+    private final Map<PostgreSqlParser.RelationContext, Map<String, List<ColumnRef>>> relationJoinKeys =
+            new IdentityHashMap<>();
+    private Map<String, List<ColumnRef>> unqualifiedJoinKeys = Collections.emptyMap();
     private TableRef currentDmlTarget;
     private boolean returningSourcesForCte;
     private int visibleRelationCount;
@@ -1949,13 +1953,85 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     public Void visitRelation(PostgreSqlParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>(nestedJoinKeys(ctx.relationPrimary()));
         for (PostgreSqlParser.JoinRelationContext join : ctx.joinRelation()) {
+            int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
-            if (join.joinCriteria() != null) {
-                collectJoinColumnUsages(join.joinCriteria(), relationStart);
+            PostgreSqlParser.JoinCriteriaContext criteria = join.joinCriteria();
+            if (criteria != null && criteria.identifierList() != null) {
+                Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(join.relationPrimary());
+                List<VisibleRelation> left = visibleRelations.subList(relationStart, rightStart);
+                List<VisibleRelation> right = visibleRelations.subList(rightStart, visibleRelations.size());
+                Map<String, List<ColumnRef>> merged = collectMergedJoinKeys(join, left, right, keys, rightKeys);
+                keys.putAll(rightKeys);
+                keys.putAll(merged);
+            } else {
+                keys.putAll(nestedJoinKeys(join.relationPrimary()));
+                if (criteria != null) {
+                    addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(criteria.expression()));
+                }
             }
         }
+        if (!keys.isEmpty()) {
+            relationJoinKeys.put(ctx, keys);
+        }
         return null;
+    }
+
+    @Override
+    public Void visitFromClause(PostgreSqlParser.FromClauseContext ctx) {
+        visit(ctx.relationList());
+        List<PostgreSqlParser.RelationContext> relations = ctx.relationList().relation();
+        unqualifiedJoinKeys = relations.size() == 1
+                ? relationJoinKeys.getOrDefault(relations.get(0), Collections.emptyMap())
+                : Collections.emptyMap();
+        return null;
+    }
+
+    private Map<String, List<ColumnRef>> nestedJoinKeys(PostgreSqlParser.RelationPrimaryContext ctx) {
+        if (ctx instanceof PostgreSqlParser.AliasedRelationContext) {
+            return relationJoinKeys.getOrDefault(
+                    ((PostgreSqlParser.AliasedRelationContext) ctx).relation(), Collections.emptyMap());
+        }
+        return Collections.emptyMap();
+    }
+
+    private Map<String, List<ColumnRef>> collectMergedJoinKeys(PostgreSqlParser.JoinRelationContext join,
+                                                               List<VisibleRelation> left,
+                                                               List<VisibleRelation> right,
+                                                               Map<String, List<ColumnRef>> leftKeys,
+                                                               Map<String, List<ColumnRef>> rightKeys) {
+        PostgreSqlParser.JoinCriteriaContext criteria = join.joinCriteria();
+        PostgreSqlParser.JoinTypeContext type = join.joinType();
+        Map<String, List<ColumnRef>> merged = new LinkedHashMap<>();
+        for (String column : identifierNames(criteria.identifierList())) {
+            List<ColumnRef> leftRefs = joinKeySources(left, leftKeys, column);
+            List<ColumnRef> rightRefs = joinKeySources(right, rightKeys, column);
+            List<ColumnRef> predicateRefs = LineageModelUtils.mergeColumnRefs(leftRefs, rightRefs);
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, predicateRefs);
+            List<ColumnRef> sources = predicateRefs;
+            if (type != null && type.LEFT() != null) {
+                sources = leftRefs;
+            } else if (type != null && type.RIGHT() != null) {
+                sources = rightRefs;
+            }
+            merged.put(column, sources);
+        }
+        registerUsingAlias(criteria, merged);
+        return merged;
+    }
+
+    private List<ColumnRef> joinKeySources(List<VisibleRelation> relations,
+                                          Map<String, List<ColumnRef>> joinedKeys, String column) {
+        List<ColumnRef> refs = joinedKeys.get(column);
+        if (refs != null) {
+            return refs;
+        }
+        refs = new ArrayList<>();
+        for (VisibleRelation relation : relations) {
+            refs.addAll(usingColumnRefs(relation, column));
+        }
+        return refs;
     }
 
     @Override
@@ -2430,15 +2506,26 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
-        List<ColumnRef> refs = columnUsageRefs(sourceColumns);
+        List<ColumnRef> refs = columnUsageRefs(sourceColumns, type == ColumnUsageType.ORDER_BY);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
         }
     }
 
     private List<ColumnRef> columnUsageRefs(List<SourceColumn> sourceColumns) {
+        return columnUsageRefs(sourceColumns, false);
+    }
+
+    private List<ColumnRef> columnUsageRefs(List<SourceColumn> sourceColumns, boolean preferOutputAlias) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sourceColumn : sourceColumns) {
+            if (!preferOutputAlias && sourceColumn.resolvedRef == null && sourceColumn.qualifier == null) {
+                List<ColumnRef> joinRefs = unqualifiedJoinKeys.get(sourceColumn.name);
+                if (joinRefs != null) {
+                    refs.addAll(joinRefs);
+                    continue;
+                }
+            }
             List<ColumnRef> projectionRefs = projectionAliasColumnRefs(sourceColumn);
             if (projectionRefs != null) {
                 refs.addAll(projectionRefs);
@@ -2493,6 +2580,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             joinColumns.put(columnName, refs);
             LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, refs);
         }
+        registerUsingAlias(ctx, joinColumns);
+    }
+
+    private void registerUsingAlias(PostgreSqlParser.JoinCriteriaContext ctx,
+                                    Map<String, List<ColumnRef>> joinColumns) {
         if (ctx.usingAlias != null) {
             String alias = cleanIdentifier(ctx.usingAlias.getText()).toLowerCase(Locale.ROOT);
             String name = "$join_using_" + derivedColumnLineage.size();
@@ -2617,6 +2709,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            List<ColumnRef> joinRefs = sourceColumn.qualifier == null
+                    ? unqualifiedJoinKeys.get(sourceColumn.name) : null;
+            if (joinRefs != null) {
+                refs.addAll(joinRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
