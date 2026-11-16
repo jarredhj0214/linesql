@@ -579,6 +579,7 @@ Implemented SQL Server column-level lineage scenarios:
 | INSERT SELECT target mapping | `insert into ads.t select a as c1 from ods.s` | `insert_into` |
 | INSERT OVERWRITE target column mapping | `insert overwrite table ads.t(c1, c2) select a, b from ods.s` | `insert_overwrite` |
 | INSERT target column list mapping | `insert into ads.t(c1, c2) select a, b from ods.s`, `insert top (...) into ads.t(c1, c2) select ...` | `insert_column_list`, `insert_top_select` |
+| INSERT with unnamed computed projections | Explicit target positions bind unnamed SELECT expressions. `OUTPUT inserted` follows the corresponding write source. | `insert_select_unnamed_position_with_output` |
 | INSERT target-column alignment with skipped generated expressions | `insert into ads.t(load_time, c1) select getdate(), a from ods.s` | `insert_column_list_skipped_constant` |
 | BULK INSERT target table | `bulk insert ods.t from 's3://bucket/file.csv' with (...)` | `bulk_insert_with_options` |
 | Temporary table and table-variable column mapping | `select c from #t`, `insert into ##t(c) select c from s`, `select c from @t`, `insert into @t(c) select c from s` | `select_local_temp_table`, `insert_global_temp_table`, `select_table_variable`, `insert_table_variable` |
@@ -755,6 +756,7 @@ Implemented Oracle table-level lineage scenarios:
 | SQL typed string literals | `date '2024-01-01'`, `timestamp '2024-01-01 00:00:00'` in predicates | `typed_string_literals_where` |
 | Dictionary/complex result access | `dictionary_get(...)[1]`, `dictionary_get(...).field` | `dictionary_get_subscript_lineage`, `dictionary_get_field_lineage` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| Positional INSERT projections | An explicit target list binds unnamed calculations and correlated scalar subqueries by position. A constant consumes a slot without a source edge. | `insert_select_unnamed_position`, `insert_select_unnamed_scalar_subquery` |
 | INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)`, `insert into mart.t(c1, c2) values (..., default)` | `insert_values`, `insert_values_default` |
 | INSERT ALL multi-table target lineage | `insert all into t1 (...) values (...) into t2 (...) values (...) select ...`, `when condition then into ... values (...)` | `insert_all`, `insert_all_when` |
 | INSERT FIRST multi-table target lineage | `insert first into t1 (...) values (...) into t2 (...) values (...) select ...`, `when condition then into ... values (...)` | `insert_first`, `insert_first_when` |

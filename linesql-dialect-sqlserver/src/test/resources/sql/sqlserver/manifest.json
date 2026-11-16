@@ -2,6 +2,22 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "insert_select_unnamed_position_with_output",
+      "file": "cases/insert_select_unnamed_position_with_output.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.net_amount", "sources": ["ods.orders.amount", "ods.orders.discount"]},
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]},
+        {"target": "written_amount", "sources": ["ods.orders.amount", "ods.orders.discount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "The unnamed write expression supplies its destination column and inserted row image"
+    },
+    {
       "id": "create_system_versioned_temporal_table",
       "file": "cases/create_system_versioned_temporal_table.sql",
       "statementType": "CREATE_TABLE",

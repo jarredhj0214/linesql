@@ -92,6 +92,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
     private SqlServerParser.SelectClauseContext setBranchSelect;
+    private SqlServerParser.SelectClauseContext positionalInsertSelect;
 
     SqlServerLineageVisitor(LineageResult result) {
         this.result = result;
@@ -123,7 +124,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
         }
         if (ctx.query() != null) {
-            visit(ctx.query());
+            positionalInsertSelect = insertTargetColumns.isEmpty()
+                    ? null : explicitBranchSelect(ctx.query().queryTerm());
+            try {
+                visit(ctx.query());
+            } finally {
+                positionalInsertSelect = null;
+            }
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
@@ -1622,7 +1629,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(SqlServerParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null) {
+        if (setBranchSelect == null && positionalInsertSelect == null) {
             return visitChildren(ctx);
         }
         LineageResult inner = lineageForQuery(ctx.query());
@@ -1634,13 +1641,28 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQuerySpecification(SqlServerParser.QuerySpecificationContext ctx) {
+        if (ctx.selectClause() != positionalInsertSelect || ctx.fromClause() == null) {
+            return visitChildren(ctx);
+        }
+        visit(ctx.fromClause());
+        for (int i = 0; i < ctx.getChildCount(); i++) {
+            if (ctx.getChild(i) != ctx.fromClause()) {
+                visit(ctx.getChild(i));
+            }
+        }
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(SqlServerParser.SelectClauseContext ctx) {
         List<SqlServerParser.SelectItemContext> items = ctx.selectItemList().selectItem();
         for (int i = 0; i < items.size(); i++) {
             SqlServerParser.SelectItemContext item = items.get(i);
             if (item instanceof SqlServerParser.SelectExpressionContext) {
                 SqlServerParser.SelectExpressionContext selected = (SqlServerParser.SelectExpressionContext) item;
-                Projection projection = projection(selected, i);
+                boolean positional = ctx == positionalInsertSelect && i < insertTargetColumns.size();
+                Projection projection = projection(selected, i, positional);
                 if (projection == null && ctx == setBranchSelect) {
                     SqlServerParser.ExpressionContext expression = selected.expression();
                     projection = new Projection(sourceColumns(expression), "(No column name)", expression.getText(), i);
@@ -2405,7 +2427,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         for (int i = 0; i < items.size(); i++) {
             SqlServerParser.SelectItemContext item = items.get(i);
             if (item instanceof SqlServerParser.SelectExpressionContext) {
-                Projection projection = projection((SqlServerParser.SelectExpressionContext) item, i);
+                Projection projection = projection((SqlServerParser.SelectExpressionContext) item, i, false);
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -2425,7 +2447,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return ((SqlServerParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(SqlServerParser.SelectExpressionContext ctx, int ordinal) {
+    private Projection projection(SqlServerParser.SelectExpressionContext ctx, int ordinal, boolean positionalInsert) {
         String expression = ctx.expression().getText();
         if (isVariableAssignmentExpression(expression)) {
             return null;
@@ -2437,10 +2459,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (sourceColumns.isEmpty() && ctx.alias == null) {
             return null;
         }
-        if (sourceColumns.size() > 1 && ctx.alias == null) {
-            return null;
+        String targetColumn = directColumn;
+        if (ctx.alias != null) {
+            targetColumn = cleanIdentifier(ctx.alias);
+        } else if (positionalInsert && !sourceColumns.isEmpty() && targetColumn == null) {
+            targetColumn = expression;
         }
-        String targetColumn = ctx.alias == null ? directColumn : cleanIdentifier(ctx.alias);
         if (targetColumn == null) {
             return null;
         }

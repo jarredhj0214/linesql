@@ -56,6 +56,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
     private OracleParser.SelectClauseContext setBranchSelect;
+    private OracleParser.SelectClauseContext positionalInsertSelect;
 
     OracleLineageVisitor(LineageResult result) {
         this.result = result;
@@ -101,7 +102,13 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             }
         }
         if (ctx.query() != null) {
-            visit(ctx.query());
+            positionalInsertSelect = insertTargetColumns.isEmpty()
+                    ? null : explicitBranchSelect(ctx.query().queryTerm());
+            try {
+                visit(ctx.query());
+            } finally {
+                positionalInsertSelect = null;
+            }
             refreshColumnLineage();
             retargetColumnLineage(target);
             List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
@@ -1182,7 +1189,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(OracleParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null) {
+        if (setBranchSelect == null && positionalInsertSelect == null) {
             return visitChildren(ctx);
         }
         LineageResult inner = lineageForQuery(ctx.query());
@@ -1194,13 +1201,28 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQuerySpecification(OracleParser.QuerySpecificationContext ctx) {
+        if (ctx.selectClause() != positionalInsertSelect || ctx.fromClause() == null) {
+            return visitChildren(ctx);
+        }
+        visit(ctx.fromClause());
+        for (int i = 0; i < ctx.getChildCount(); i++) {
+            if (ctx.getChild(i) != ctx.fromClause()) {
+                visit(ctx.getChild(i));
+            }
+        }
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(OracleParser.SelectClauseContext ctx) {
         List<OracleParser.SelectItemContext> items = ctx.selectItemList().selectItem();
         for (int i = 0; i < items.size(); i++) {
             OracleParser.SelectItemContext item = items.get(i);
             if (item instanceof OracleParser.SelectExpressionContext) {
                 OracleParser.SelectExpressionContext selected = (OracleParser.SelectExpressionContext) item;
-                Projection projection = projection(selected, i);
+                boolean positional = ctx == positionalInsertSelect && i < insertTargetColumns.size();
+                Projection projection = projection(selected, i, positional);
                 if (projection == null && ctx == setBranchSelect) {
                     OracleParser.ExpressionContext expression = selected.expression();
                     projection = new Projection(sourceColumns(expression), expression.getText(), expression.getText(), i);
@@ -2153,7 +2175,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         for (int i = 0; i < items.size(); i++) {
             OracleParser.SelectItemContext item = items.get(i);
             if (item instanceof OracleParser.SelectExpressionContext) {
-                Projection projection = projection((OracleParser.SelectExpressionContext) item, i);
+                Projection projection = projection((OracleParser.SelectExpressionContext) item, i, false);
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -2173,7 +2195,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         return ((OracleParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(OracleParser.SelectExpressionContext ctx, int ordinal) {
+    private Projection projection(OracleParser.SelectExpressionContext ctx, int ordinal, boolean positionalInsert) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
@@ -2182,10 +2204,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (sourceColumns.isEmpty() && ctx.alias == null && ordinal >= insertTargetColumns.size()) {
             return null;
         }
-        if (sourceColumns.size() > 1 && ctx.alias == null) {
-            return null;
+        String targetColumn = directColumn;
+        if (ctx.alias != null) {
+            targetColumn = cleanIdentifier(ctx.alias);
+        } else if (positionalInsert && !sourceColumns.isEmpty() && targetColumn == null) {
+            targetColumn = expression;
         }
-        String targetColumn = ctx.alias == null ? directColumn : cleanIdentifier(ctx.alias);
         if (targetColumn == null) {
             return null;
         }
