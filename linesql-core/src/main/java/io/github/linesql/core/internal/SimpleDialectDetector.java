@@ -78,6 +78,11 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern TSQL_TRUNCATE_PARTITIONS = Pattern.compile(
             "\\btruncate\\s+table\\b[^;]*?\\bwith\\s*\\(\\s*partitions\\s*\\(");
 
+    private static final Pattern TSQL_SP_EXECUTESQL = Pattern.compile(
+            "(?m)(?:^|;)\\s*exec(?:ute)?\\s+(?:" + TSQL_LOCAL_VARIABLE + "\\s*=\\s*)?"
+                    + "(?:(?:sys|\\[sys\\]|\"sys\")\\s*\\.\\s*)?"
+                    + "(?:sp_executesql|\\[sp_executesql\\]|\"sp_executesql\")(?=\\s|;|$)");
+
     private static final Pattern TSQL_BATCH_ROUTINE = Pattern.compile(
             "(?m)^\\s*(?:create\\s+or\\s+alter\\s+(?:proc(?:edure)?|function|trigger)"
                     + "|(?:create|alter)\\s+proc)\\b");
@@ -324,6 +329,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server table or query hint"));
         } else if (TSQL_TRUNCATE_PARTITIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server partition truncation"));
+        } else if (TSQL_SP_EXECUTESQL.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server sp_executesql"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()
                 || containsSqlServerBracketIdentifier(normalized)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")

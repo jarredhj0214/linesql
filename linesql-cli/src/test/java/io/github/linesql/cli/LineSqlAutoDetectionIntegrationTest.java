@@ -248,6 +248,29 @@ public class LineSqlAutoDetectionIntegrationTest {
         }
     }
 
+    @Test
+    public void expandsStaticSqlServerExecuteStatements() {
+        LineageResult result = LineSql.parse("EXEC @status = [sys].[sp_executesql]"
+                + " @stmt=N'SELECT id FROM dbo.events WHERE id = @id', @params=N'@id int', @id=42");
+        assertEquals(SqlDialect.SQLSERVER, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals("events", result.getInputTables().get(0).getName());
+        assertEquals("id", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals(1, result.getColumnUsages().size());
+
+        LineageResult opaque = LineSql.parse("EXEC sys.sp_executesql @stmt=@sql");
+        assertEquals(SqlDialect.SQLSERVER, opaque.getDialect());
+        assertEquals(StatementType.CONTROL, opaque.getStatementType());
+        assertTrue(opaque.getDiagnostics().stream().anyMatch(d -> "DYNAMIC_SQL_NOT_EXPANDED".equals(d.getCode())));
+        LineageResult nonUnicode = LineSql.parse("EXEC sys.sp_executesql 'SELECT id FROM dbo.events'");
+        assertEquals(StatementType.CONTROL, nonUnicode.getStatementType());
+        assertTrue(nonUnicode.getInputTables().isEmpty());
+        LineageResult ordinary = LineSql.parse("EXEC dbo.sp_executesql N'SELECT id FROM dbo.events'", SqlDialect.SQLSERVER);
+        assertEquals(StatementType.CONTROL, ordinary.getStatementType());
+        assertTrue(ordinary.getInputTables().isEmpty());
+        assertTrue(ordinary.getDiagnostics().isEmpty());
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

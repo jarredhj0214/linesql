@@ -2132,6 +2132,55 @@
       "description": "SQL Server OFFSET FETCH pagination preserves projected and ordering columns"
     },
     {
+      "id": "execute_sp_executesql_literal_select",
+      "file": "cases/execute_sp_executesql_literal_select.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["dbo.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.events.status"},
+        {"type": "WHERE", "column": "dbo.events.id"}
+      ],
+      "description": "A named Unicode statement argument preserves the SELECT projection and filters"
+    },
+    {
+      "id": "execute_sp_executesql_literal_insert",
+      "file": "cases/execute_sp_executesql_literal_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": ["dbo.events"],
+      "outputTables": ["dbo.audit"],
+      "columnLineage": [
+        {"target": "dbo.audit.event_id", "sources": ["dbo.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.events.active"}
+      ],
+      "description": "A direct statement literal contributes its underlying DML table and column mappings"
+    },
+    {
+      "id": "execute_sp_executesql_variable",
+      "file": "cases/execute_sp_executesql_variable.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "expectedDiagnostics": ["DYNAMIC_SQL_NOT_EXPANDED"],
+      "description": "A runtime statement variable keeps the control result and reports opaque SQL"
+    },
+    {
+      "id": "execute_sp_executesql_multiple_statements",
+      "file": "cases/execute_sp_executesql_multiple_statements.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "expectedDiagnostics": ["DYNAMIC_SQL_NOT_EXPANDED"],
+      "description": "A multi-statement literal keeps the control result and reports the expansion boundary"
+    },
+    {
       "id": "select_option_recompile_maxdop",
       "file": "cases/select_option_recompile_maxdop.sql",
       "statementType": "SELECT",
