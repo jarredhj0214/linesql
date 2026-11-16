@@ -45,7 +45,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     public List<LineageResult> parseScript(String script, ParseOptions options, ParseContext context) {
         List<LineageResult> results = new ArrayList<>();
         DialectCandidate scriptCandidate = selectScriptDialect(script, options);
-        for (String statement : splitScript(script, options)) {
+        for (String statement : splitScript(script, options, scriptCandidate)) {
             DialectCandidate statementCandidate = selectStatementDialect(statement, options);
             DialectCandidate candidate = statementCandidate;
             if (shouldUseScriptDialect(scriptCandidate, statementCandidate, statement)) {
@@ -80,7 +80,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         return parser.parse(sql, options, context);
     }
 
-    private List<String> splitScript(String script, ParseOptions options) {
+    private List<String> splitScript(String script, ParseOptions options, DialectCandidate scriptCandidate) {
         if (!options.getDialectHints().isEmpty()
                 && statementSplitter.getClass() == SimpleStatementSplitter.class) {
             SqlDialect dialect = options.getDialectHints().get(0);
@@ -93,6 +93,11 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 }
             }
             return ((SimpleStatementSplitter) statementSplitter).split(script, dialect);
+        }
+        if (scriptCandidate != null && scriptCandidate.getDialect() == SqlDialect.ORACLE
+                && statementSplitter.getClass() == SimpleStatementSplitter.class
+                && SimpleStatementSplitter.isOracleBlockScript(script)) {
+            return ((SimpleStatementSplitter) statementSplitter).split(script, SqlDialect.ORACLE);
         }
         return statementSplitter.split(script);
     }

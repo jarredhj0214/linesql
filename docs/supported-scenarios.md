@@ -691,7 +691,9 @@ semicolons remain inside anonymous blocks and supported routine, package, and tr
 definitions. A single block can end at the end of the script. Division inside a regular
 SQL expression preserves its slash.
 Alternative `Q` and `NQ` literals preserve their delimiters and embedded SQL text
-through parsing and script splitting (`select_alternative_quoted_text`,
+through parsing and script splitting. A complete literal also identifies Oracle queries and
+standalone PL/SQL blocks in automatic mode, and its contents cannot supply another dialect marker
+(`select_alternative_quoted_text`, `select_alternative_quote_sql_markers`,
 `anonymous_alternative_quoted_dynamic_sql`).
 
 Oracle is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Oracle query and write shapes.

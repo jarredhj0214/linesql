@@ -89,6 +89,43 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void autoDetectsOracleQuotesWithoutSplittingLiteralContent() {
+        List<LineageResult> results = LineSql.parseScript(
+                "SELECT o.id FROM ods.orders o WHERE o.note = "
+                        + "q'[It's paid; /*!80000 DELETE FROM ghost.orders */ $tag$]'; "
+                        + "SELECT id::int FROM staging.events;");
+
+        assertEquals(2, results.size());
+        LineageResult oracle = results.get(0);
+        assertEquals(SqlDialect.ORACLE, oracle.getDialect());
+        assertEquals(StatementType.SELECT, oracle.getStatementType());
+        assertEquals(1, oracle.getInputTables().size());
+        assertEquals("orders", oracle.getInputTables().get(0).getName());
+        assertEquals("note", oracle.getColumnUsages().get(0).getColumn().getName());
+        assertFalse(oracle.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertEquals(SqlDialect.POSTGRESQL, results.get(1).getDialect());
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertDialect(SqlDialect.SPARK, "SELECT id FROM staging.events WHERE note = 'q''!not Oracle!'''");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT [q'!not Oracle!'] FROM dbo.orders");
+    }
+
+    @Test
+    public void autoDetectsAnOracleBlockWithAlternativeQuotedText() {
+        List<LineageResult> results = LineSql.parseScript(
+                "BEGIN EXECUTE IMMEDIATE q'[SELECT 'literal' FROM ghost.rows;]'; "
+                        + "INSERT INTO mart.audit (id) SELECT id FROM ods.orders; END;");
+
+        assertEquals(1, results.size());
+        LineageResult oracle = results.get(0);
+        assertEquals(SqlDialect.ORACLE, oracle.getDialect());
+        assertEquals(StatementType.CONTROL, oracle.getStatementType());
+        assertEquals(1, oracle.getInputTables().size());
+        assertEquals("orders", oracle.getInputTables().get(0).getName());
+        assertEquals("audit", oracle.getOutputTables().get(0).getName());
+        assertFalse(oracle.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+    }
+
+    @Test
     public void parseScriptAutoDetectsPostgresDollarQuotesAmongOtherDialects() {
         List<LineageResult> results = LineSql.parseScript(
                 "DO $Body$ BEGIN PERFORM 'from dual;'; END; $Body$;"

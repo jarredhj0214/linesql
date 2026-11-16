@@ -12,6 +12,16 @@
       "description": "Oracle Q and NQ literals allow paired and Unicode delimiters without creating source columns"
     },
     {
+      "id": "select_alternative_quote_sql_markers",
+      "file": "cases/select_alternative_quote_sql_markers.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.orders.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.orders.note"}],
+      "description": "Other dialect markers in an Oracle Q literal do not affect the query lineage"
+    },
+    {
       "id": "anonymous_alternative_quoted_dynamic_sql",
       "file": "cases/anonymous_alternative_quoted_dynamic_sql.sql",
       "statementType": "CONTROL",

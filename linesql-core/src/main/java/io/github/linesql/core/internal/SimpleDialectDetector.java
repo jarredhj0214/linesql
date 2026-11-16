@@ -4,11 +4,13 @@ import io.github.linesql.core.model.DialectCandidate;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.DialectDetector;
 import io.github.linesql.core.util.MySqlExecutableComments;
+import io.github.linesql.core.util.OracleQuotedLiterals;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SimpleDialectDetector implements DialectDetector {
@@ -41,10 +43,9 @@ public class SimpleDialectDetector implements DialectDetector {
 
     @Override
     public List<DialectCandidate> detectCandidates(String sql) {
-        String maskedDollarQuotes = maskDollarQuotes(sql);
-        String outsideDollarQuotes = maskedDollarQuotes == null ? sql : maskedDollarQuotes;
-        String unwrapped = MySqlExecutableComments.unwrap(outsideDollarQuotes);
-        boolean mysqlExecutableComment = !unwrapped.equals(outsideDollarQuotes);
+        LexicalRewrite literals = maskQuotedLiterals(sql);
+        String unwrapped = MySqlExecutableComments.unwrap(literals.text);
+        boolean mysqlExecutableComment = !unwrapped.equals(literals.text);
         String rawNormalized = unwrapped.toLowerCase(Locale.ROOT);
         String normalized = stripComments(unwrapped).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
@@ -109,7 +110,7 @@ public class SimpleDialectDetector implements DialectDetector {
         if (normalized.contains("_ob_")) {
             candidates.add(candidate(SqlDialect.OCEANBASE, 0.45, "Weak OceanBase-style identifier anchor"));
         }
-        if (maskedDollarQuotes != null && normalized.matches("(?s)^\\s*do\\s+''.*")) {
+        if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
         } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")
                 || normalized.matches("(?s).*\\breturning\\b.*")
@@ -177,7 +178,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.contains(" properties (\"replication_num\"")) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.93, "StarRocks key, load, materialized view, metadata, task, or admin syntax"));
         }
-        if (relationSyntax.matches("(?s).*[,\\s]xmltable\\s*\\(.*")) {
+        if (literals.oracleQuoted) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle alternative-quoted string literal"));
+        } else if (relationSyntax.matches("(?s).*[,\\s]xmltable\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.97, "XMLTABLE relation syntax"));
         } else if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
                 || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")
@@ -223,7 +226,8 @@ public class SimpleDialectDetector implements DialectDetector {
     }
 
     static boolean hasSharedConflictDoNothing(String sql) {
-        if (maskDollarQuotes(sql) != null) {
+        LexicalRewrite literals = maskQuotedLiterals(sql);
+        if (literals.dollarQuoted || literals.oracleQuoted) {
             return false;
         }
         String normalized = stripComments(sql).toLowerCase(Locale.ROOT);
@@ -324,18 +328,20 @@ public class SimpleDialectDetector implements DialectDetector {
     }
 
     private static String stripComments(String sql) {
-        return rewriteLexicalText(sql, false);
+        return rewriteLexicalText(sql, false).text;
     }
 
-    // Null indicates that the input contains no dollar-quoted token outside other literals and comments.
-    private static String maskDollarQuotes(String sql) {
-        return sql.indexOf('$') < 0 ? null : rewriteLexicalText(sql, true);
+    private static LexicalRewrite maskQuotedLiterals(String sql) {
+        return sql.indexOf('$') < 0 && sql.indexOf('\'') < 0
+                ? new LexicalRewrite(sql, false, false) : rewriteLexicalText(sql, true);
     }
 
-    private static String rewriteLexicalText(String sql, boolean maskDollarQuotes) {
+    private static LexicalRewrite rewriteLexicalText(String sql, boolean maskLiterals) {
         StringBuilder rewritten = new StringBuilder(sql.length());
         char quote = 0;
-        boolean masked = false;
+        boolean dollarQuoted = false;
+        boolean oracleQuoted = false;
+        Matcher quotedIdentifier = QUOTED_IDENTIFIER.matcher(sql);
         for (int i = 0; i < sql.length(); i++) {
             char current = sql.charAt(i);
             char next = i + 1 < sql.length() ? sql.charAt(i + 1) : '\0';
@@ -351,7 +357,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 while (end < sql.length() && sql.charAt(end) != '\n' && sql.charAt(end) != '\r') {
                     end++;
                 }
-                if (maskDollarQuotes) {
+                if (maskLiterals) {
                     rewritten.append(sql, i, end);
                 } else {
                     rewritten.append(' ');
@@ -361,25 +367,52 @@ public class SimpleDialectDetector implements DialectDetector {
             } else if (current == '/' && next == '*') {
                 int closing = sql.indexOf("*/", i + 2);
                 int end = closing < 0 ? sql.length() : closing + 2;
-                if (maskDollarQuotes) {
+                if (maskLiterals) {
                     rewritten.append(sql, i, end);
                 } else {
                     rewritten.append("  ");
                 }
                 i = end - 1;
                 continue;
-            } else if (maskDollarQuotes && current == '$') {
+            } else if (maskLiterals && current == '[' && isIdentifierStart(next)
+                    && quotedIdentifier.region(i, sql.length()).lookingAt()) {
+                int end = quotedIdentifier.end();
+                rewritten.append(sql, i, end);
+                i = end - 1;
+                continue;
+            } else if (maskLiterals && current == '$') {
                 int end = SimpleStatementSplitter.dollarQuotedEnd(sql, i, false);
                 if (end > i) {
                     rewritten.append("''");
                     i = end - 1;
-                    masked = true;
+                    dollarQuoted = true;
+                    continue;
+                }
+            } else if (maskLiterals && (current == 'q' || current == 'Q' || current == 'n' || current == 'N')) {
+                int end = OracleQuotedLiterals.endOfClosedLiteral(sql, i);
+                if (end > i) {
+                    rewritten.append("''");
+                    i = end - 1;
+                    oracleQuoted = true;
                     continue;
                 }
             }
             rewritten.append(current);
         }
-        return maskDollarQuotes && !masked ? null : rewritten.toString();
+        String text = !maskLiterals || dollarQuoted || oracleQuoted ? rewritten.toString() : sql;
+        return new LexicalRewrite(text, dollarQuoted, oracleQuoted);
+    }
+
+    private static final class LexicalRewrite {
+        private final String text;
+        private final boolean dollarQuoted;
+        private final boolean oracleQuoted;
+
+        private LexicalRewrite(String text, boolean dollarQuoted, boolean oracleQuoted) {
+            this.text = text;
+            this.dollarQuoted = dollarQuoted;
+            this.oracleQuoted = oracleQuoted;
+        }
     }
 
     private static boolean isEscaped(String sql, int index) {

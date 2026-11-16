@@ -20,6 +20,8 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final Pattern ORACLE_BLOCK = Pattern.compile(
             "^\\s*(?:BEGIN|DECLARE|CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:PROCEDURE|FUNCTION|PACKAGE|TRIGGER))\\b",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern ORACLE_BLOCK_END = Pattern.compile(
+            "\\bEND(?:\\s+[\\p{L}_][\\p{L}\\p{N}_$#]*)?\\s*;\\s*(?:/\\s*)?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ORACLE_SLASH = Pattern.compile("[ \\t]*/[ \\t]*");
 
     private static final Pattern FLINK_STATEMENT_SET = Pattern.compile(
@@ -39,6 +41,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
     List<String> split(String script, SqlDialect dialect) {
         boolean sqlServer = dialect == SqlDialect.SQLSERVER;
         boolean oracle = dialect == SqlDialect.ORACLE;
+        boolean oracleQuotedLiterals = oracle || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE;
         boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         boolean mysql = dialect == SqlDialect.MYSQL;
@@ -108,8 +111,9 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if (oracle && quote == 0 && (c == 'q' || c == 'Q' || c == 'n' || c == 'N')) {
-                int end = OracleQuotedLiterals.endOfLiteral(script, i);
+            if (oracleQuotedLiterals && quote == 0 && (c == 'q' || c == 'Q' || c == 'n' || c == 'N')) {
+                int end = oracle ? OracleQuotedLiterals.endOfLiteral(script, i)
+                        : OracleQuotedLiterals.endOfClosedLiteral(script, i);
                 if (end > i) {
                     current.append(script, i, end);
                     i = end - 1;
@@ -186,6 +190,11 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
         addIfNotBlank(statements, current, dialect, nestedComments);
         return statements;
+    }
+
+    static boolean isOracleBlockScript(String script) {
+        return ORACLE_BLOCK_END.matcher(script).find()
+                && ORACLE_BLOCK.matcher(stripComments(script, false)).find();
     }
 
     static boolean containsFlinkStatementSet(String sql) {

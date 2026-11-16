@@ -11,6 +11,15 @@ public final class OracleQuotedLiterals {
 
     /** Returns the end of an alternative-quoted literal, or -1 if no literal starts here. */
     public static int endOfLiteral(String text, int start) {
+        return endOfLiteral(text, start, true);
+    }
+
+    /** Requires a complete literal before using it as an automatic dialect signal. */
+    public static int endOfClosedLiteral(String text, int start) {
+        return endOfLiteral(text, start, false);
+    }
+
+    private static int endOfLiteral(String text, int start, boolean consumeUnterminated) {
         char first = text.charAt(start);
         int q = first == 'n' || first == 'N' ? start + 1 : start;
         if (q + 2 >= text.length() || (text.charAt(q) != 'q' && text.charAt(q) != 'Q')
@@ -29,7 +38,7 @@ public final class OracleQuotedLiterals {
         }
         String closing = new String(Character.toChars(closingDelimiter(opening))) + "'";
         int end = text.indexOf(closing, q + 2 + Character.charCount(opening));
-        return end < 0 ? text.length() : end + closing.length();
+        return end < 0 ? (consumeUnterminated ? text.length() : -1) : end + closing.length();
     }
 
     /** Consumes the body after the lexer has matched Q or NQ and the opening delimiter. */
