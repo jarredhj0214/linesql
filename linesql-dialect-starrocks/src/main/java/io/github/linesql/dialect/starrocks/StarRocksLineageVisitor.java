@@ -1671,6 +1671,27 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         return null;
     }
 
+    private void addJoinPredicateUsages(ParseTree predicate, Map<String, List<ColumnRef>> joinKeys) {
+        List<SourceColumn> sources = sourceColumns(predicate);
+        if (joinKeys.isEmpty()) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sources);
+            return;
+        }
+        List<SourceColumn> resolved = new ArrayList<>();
+        for (SourceColumn source : sources) {
+            List<ColumnRef> key = source.resolvedRef == null && source.qualifier == null
+                    ? joinKeys.get(source.name.toLowerCase(Locale.ROOT)) : null;
+            if (key == null) {
+                resolved.add(source);
+            } else {
+                for (ColumnRef ref : key) {
+                    resolved.add(SourceColumn.resolved(ref));
+                }
+            }
+        }
+        addColumnUsages(ColumnUsageType.JOIN_ON, resolved);
+    }
+
     @Override
     public Void visitRelation(StarRocksParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
@@ -1683,15 +1704,47 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         for (StarRocksParser.JoinRelationContext join : ctx.joinRelation()) {
             int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
-            if (join.joinCriteria() != null) {
-                collectJoinColumnUsages(join.joinCriteria(), relationStart);
+            StarRocksParser.JoinCriteriaContext criteria = join.joinCriteria();
+            if (criteria != null && criteria.identifierList() != null) {
+                collectJoinColumnUsages(criteria, relationStart);
+                joinedKeys = joinUsingOutput(join, joinedKeys, relationStart, rightStart);
+            } else {
+                Map<String, List<ColumnRef>> rightKeys = relationUsingKeys(join.relationPrimary());
+                Map<String, List<ColumnRef>> predicateKeys = combineJoinKeys(joinedKeys, rightKeys);
+                if (criteria != null) {
+                    addJoinPredicateUsages(criteria.expression(), predicateKeys);
+                }
+                StarRocksParser.JoinTypeContext type = join.joinType();
+                if (type != null && (type.SEMI_JOIN() != null || type.ANTI() != null)) {
+                    joinedKeys = type.RIGHT() != null ? rightKeys : joinedKeys;
+                } else {
+                    joinedKeys = predicateKeys;
+                }
             }
-            joinedKeys = joinUsingOutput(join, joinedKeys, relationStart, rightStart);
         }
         if (!joinedKeys.isEmpty()) {
             usingKeysByRelation.put(ctx, joinedKeys);
         }
         return null;
+    }
+
+    private static Map<String, List<ColumnRef>> combineJoinKeys(Map<String, List<ColumnRef>> leftKeys,
+                                                                Map<String, List<ColumnRef>> rightKeys) {
+        if (leftKeys.isEmpty()) {
+            return rightKeys;
+        }
+        if (rightKeys.isEmpty()) {
+            return leftKeys;
+        }
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>(leftKeys);
+        for (Map.Entry<String, List<ColumnRef>> right : rightKeys.entrySet()) {
+            if (keys.containsKey(right.getKey())) {
+                keys.remove(right.getKey());
+            } else {
+                keys.put(right.getKey(), right.getValue());
+            }
+        }
+        return keys;
     }
 
     private Map<String, List<ColumnRef>> relationUsingKeys(StarRocksParser.RelationPrimaryContext relation) {
@@ -1705,9 +1758,6 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private Map<String, List<ColumnRef>> joinUsingOutput(StarRocksParser.JoinRelationContext join,
                                                         Map<String, List<ColumnRef>> leftKeys,
                                                         int leftStart, int rightStart) {
-        if (join.joinCriteria() == null || join.joinCriteria().identifierList() == null) {
-            return Collections.emptyMap();
-        }
         Map<String, List<ColumnRef>> rightKeys = relationUsingKeys(join.relationPrimary());
         Map<String, List<ColumnRef>> joinedKeys = new LinkedHashMap<>();
         boolean rightJoin = join.joinType() != null && join.joinType().RIGHT() != null;

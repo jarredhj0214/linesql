@@ -2047,6 +2047,27 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return columns;
     }
 
+    private void addJoinPredicateUsages(ParseTree predicate, Map<String, List<ColumnRef>> joinKeys) {
+        List<SourceColumn> sources = sourceColumns(predicate);
+        if (joinKeys.isEmpty()) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sources);
+            return;
+        }
+        List<SourceColumn> resolved = new ArrayList<>();
+        for (SourceColumn source : sources) {
+            List<ColumnRef> key = source.resolvedRef == null && source.qualifier == null
+                    ? joinKeys.get(source.name) : null;
+            if (key == null) {
+                resolved.add(source);
+            } else {
+                for (ColumnRef ref : key) {
+                    resolved.add(SourceColumn.resolved(ref));
+                }
+            }
+        }
+        addColumnUsages(ColumnUsageType.JOIN_ON, resolved);
+    }
+
     @Override
     public Void visitRelation(PostgreSqlParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
@@ -2066,7 +2087,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             } else {
                 keys.putAll(nestedJoinKeys(join.relationPrimary()));
                 if (criteria != null) {
-                    addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(criteria.expression()));
+                    addJoinPredicateUsages(criteria.expression(), keys);
                 }
             }
         }

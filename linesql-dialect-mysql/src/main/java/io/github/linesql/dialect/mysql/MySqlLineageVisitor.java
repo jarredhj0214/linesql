@@ -1376,6 +1376,27 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         return null;
     }
 
+    private void addJoinPredicateUsages(ParseTree predicate, Map<String, List<ColumnRef>> joinKeys) {
+        List<SourceColumn> sources = sourceColumns(predicate);
+        if (joinKeys.isEmpty()) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sources);
+            return;
+        }
+        List<SourceColumn> resolved = new ArrayList<>();
+        for (SourceColumn source : sources) {
+            List<ColumnRef> key = source.resolvedRef == null && source.qualifier == null
+                    ? joinKeys.get(source.name.toLowerCase(Locale.ROOT)) : null;
+            if (key == null) {
+                resolved.add(source);
+            } else {
+                for (ColumnRef ref : key) {
+                    resolved.add(SourceColumn.resolved(ref));
+                }
+            }
+        }
+        addColumnUsages(ColumnUsageType.JOIN_ON, resolved);
+    }
+
     @Override
     public Void visitRelation(MySqlParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
@@ -1389,7 +1410,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             if (criteria == null || criteria.identifierList() == null) {
                 keys.putAll(rightKeys);
                 if (criteria != null) {
-                    addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(criteria.expression()));
+                    addJoinPredicateUsages(criteria.expression(), keys);
                 }
                 continue;
             }

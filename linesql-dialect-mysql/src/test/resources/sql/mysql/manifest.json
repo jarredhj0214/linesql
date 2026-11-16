@@ -12292,6 +12292,23 @@
         {"type": "WHERE", "column": "archive.orders.valid"}
       ],
       "description": "An IN predicate uses the inner source columns and does not expose the inner projection"
+    },
+    {
+      "id": "select_chained_join_on_merged_key",
+      "file": "cases/select_chained_join_on_merged_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders", "mart.shipments", "mart.lookup"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["mart.shipments.order_id"]},
+        {"target": "detail", "sources": ["mart.lookup.detail"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "mart.shipments.order_id"},
+        {"type": "JOIN_ON", "column": "mart.lookup.lookup_key"}
+      ],
+      "description": "A later ON condition uses the exposed key of the preceding USING join"
     }
   ]
 }

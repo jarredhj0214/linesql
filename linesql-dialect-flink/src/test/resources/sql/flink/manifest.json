@@ -7453,6 +7453,23 @@
         {"type": "JOIN_ON", "column": "ods.flags.order_id"}
       ],
       "description": "A chained join preserves its previously merged key when writing by position"
+    },
+    {
+      "id": "select_chained_join_on_merged_key",
+      "file": "cases/select_chained_join_on_merged_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders", "mart.shipments", "mart.lookup"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["mart.orders.order_id", "mart.shipments.order_id"]},
+        {"target": "detail", "sources": ["mart.lookup.detail"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "mart.shipments.order_id"},
+        {"type": "JOIN_ON", "column": "mart.lookup.lookup_key"}
+      ],
+      "description": "A later ON condition uses the exposed key of the preceding USING join"
     }
   ]
 }
