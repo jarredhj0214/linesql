@@ -10,6 +10,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Scanner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -107,6 +108,33 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("orders", results.get(1).getInputTables().get(0).getName());
         assertEquals("archive", results.get(1).getOutputTables().get(0).getName());
         assertFalse(results.get(1).getColumnLineage().isEmpty());
+    }
+
+    @Test
+    public void detectsSqlServerGoInScriptsWithTransactSqlSyntax() {
+        List<LineageResult> results;
+        try (Scanner scanner = new Scanner(getClass().getResourceAsStream("/sql/sqlserver/go_routine_and_query.sql"), "UTF-8")) {
+            results = LineSql.parseScript(scanner.useDelimiter("\\A").next());
+        }
+
+        assertEquals(2, results.size());
+        LineageResult routine = results.get(0);
+        assertEquals(SqlDialect.SQLSERVER, routine.getDialect());
+        assertEquals(StatementType.CREATE_ROUTINE, routine.getStatementType());
+        assertEquals("events", routine.getInputTables().get(0).getName());
+        assertEquals("audit", routine.getOutputTables().get(0).getName());
+        assertFalse(routine.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+
+        assertEquals(SqlDialect.SQLSERVER, results.get(1).getDialect());
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertEquals("audit", results.get(1).getInputTables().get(0).getName());
+
+        List<LineageResult> top = LineSql.parseScript("SELECT TOP (3) id FROM dbo.events\nGO\nSELECT id FROM dbo.audit");
+        assertEquals(2, top.size());
+        assertEquals(SqlDialect.SQLSERVER, top.get(0).getDialect());
+        assertEquals(SqlDialect.SQLSERVER, top.get(1).getDialect());
+
+        assertDialect(SqlDialect.SPARK, "SELECT\ngo\nFROM ods.events");
     }
 
     @Test

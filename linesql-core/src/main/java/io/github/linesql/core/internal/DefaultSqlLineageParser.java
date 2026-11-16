@@ -100,6 +100,9 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             }
             return splitter.split(script, dialect);
         }
+        if (scriptCandidate != null && scriptCandidate.getDialect() == SqlDialect.SQLSERVER) {
+            return splitter.splitDetectedSqlServerBatches(script);
+        }
         if (scriptCandidate != null && scriptCandidate.getDialect() == SqlDialect.ORACLE
                 && SimpleStatementSplitter.isOracleBlockScript(script)) {
             return splitter.split(script, SqlDialect.ORACLE);

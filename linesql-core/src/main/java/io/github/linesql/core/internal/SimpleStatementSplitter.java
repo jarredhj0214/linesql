@@ -14,6 +14,9 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final Pattern GO_LINE = Pattern.compile(
             "[ \t]*GO(?:[ \t]+0*[1-9][0-9]*)?[ \t]*(?:--[^\r\n]*)?", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern GO_SCRIPT_LINE = Pattern.compile(
+            "^" + GO_LINE.pattern() + "$", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+
     private static final Pattern SQL_SERVER_ROUTINE = Pattern.compile(
             "^\\s*(?:CREATE\\s+(?:OR\\s+ALTER\\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER)"
                     + "|ALTER\\s+(?:PROC(?:EDURE)?|FUNCTION))\\b", Pattern.CASE_INSENSITIVE);
@@ -50,6 +53,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
     }
 
     List<String> split(String script, SqlDialect dialect) {
+        return split(script, dialect, false);
+    }
+
+    List<String> splitDetectedSqlServerBatches(String script) {
+        return containsSqlServerGo(script) ? split(script, SqlDialect.SQLSERVER, true) : split(script);
+    }
+
+    private List<String> split(String script, SqlDialect dialect, boolean requireGo) {
         boolean sqlServer = dialect == SqlDialect.SQLSERVER;
         boolean oracle = dialect == SqlDialect.ORACLE;
         boolean oracleQuotedLiterals = oracle || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE;
@@ -62,6 +73,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         char quote = 0;
         boolean lineComment = false;
         boolean routineBatch = false;
+        boolean sawGo = false;
         int statementSetPartStart = -1;
         int atomicPartStart = -1;
         Matcher atomicOpening = POSTGRES_ATOMIC.matcher(script).useTransparentBounds(true);
@@ -103,6 +115,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     delimiter = routineBatch || preceding.trim().isEmpty() || ORACLE_BLOCK.matcher(preceding).find();
                 }
                 if (delimiter) {
+                    sawGo |= sqlServer;
                     addIfNotBlank(statements, current, dialect, nestedComments);
                     current.setLength(0);
                     routineBatch = false;
@@ -217,7 +230,11 @@ public class SimpleStatementSplitter implements StatementSplitter {
         }
 
         addIfNotBlank(statements, current, dialect, nestedComments);
-        return statements;
+        return requireGo && !sawGo ? split(script) : statements;
+    }
+
+    static boolean containsSqlServerGo(String sql) {
+        return GO_SCRIPT_LINE.matcher(sql).find();
     }
 
     static boolean containsPostgresAtomicRoutine(String sql) {

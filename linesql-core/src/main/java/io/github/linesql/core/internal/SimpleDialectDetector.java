@@ -29,6 +29,10 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|deny\\b[^;]*\\bon\\b"
                     + "|alter\\s+schema\\b[^;]*\\btransfer\\s+object\\s*::)");
 
+    private static final Pattern TSQL_BATCH_ROUTINE = Pattern.compile(
+            "(?m)^\\s*(?:create\\s+or\\s+alter\\s+(?:proc(?:edure)?|function|trigger)"
+                    + "|(?:create|alter)\\s+proc)\\b");
+
     private static final Pattern QUOTED_IDENTIFIER = Pattern.compile(
             "`(?:``|[^`])*`|\"(?:\"\"|[^\"])*\"|\\[(?:\\]\\]|[^\\]])*\\]");
 
@@ -211,7 +215,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*(create|drop)\\s+(public\\s+)?database\\s+link\\b.*")) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.95, "Oracle DUAL, hierarchical, flashback, sequence, synonym, or DBLink syntax"));
         }
-        if (relationSyntax.matches("(?s)^\\s*with\\s+xmlnamespaces\\s*\\(.*")
+        boolean sqlServerGo = SimpleStatementSplitter.containsSqlServerGo(unquotedSyntax);
+        if (sqlServerGo && TSQL_BATCH_ROUTINE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server routine and GO batch delimiter"));
+        } else if (relationSyntax.matches("(?s)^\\s*with\\s+xmlnamespaces\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\b(?:cross|outer)\\s+apply\\s+[^\\s();]+\\s*\\.\\s*nodes\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\bfrom\\s+@[\\w$#]+\\s*\\.\\s*nodes\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server XML namespaces or nodes() method"));
@@ -223,7 +230,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || containsSqlServerBracketIdentifier(normalized)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")
                 || normalized.matches("(?s).*\\b(openjson|openxml|openquery|openrowset)\\s*\\(.*")) {
-            candidates.add(candidate(SqlDialect.SQLSERVER, 0.91, "SQL Server TOP, bracketed identifier, table hint, OPENJSON/OPENXML, or external rowset syntax"));
+            candidates.add(sqlServerGo
+                    ? candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server syntax and GO batch delimiter")
+                    : candidate(SqlDialect.SQLSERVER, 0.91,
+                            "SQL Server TOP, bracketed identifier, table hint, OPENJSON/OPENXML, or external rowset syntax"));
         }
         if (sparkSignal) {
             candidates.add(candidate(
