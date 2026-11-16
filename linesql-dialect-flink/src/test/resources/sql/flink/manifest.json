@@ -2,6 +2,36 @@
   "dialect": "FLINK",
   "cases": [
     {
+      "id": "union_constant_order_by_alias",
+      "file": "cases/union_constant_order_by_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "EXPR$0", "sources": []}, {"target": "amount", "sources": ["ods.a.amount", "ods.b.total"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.a.amount"}, {"type": "ORDER_BY", "column": "ods.b.total"}],
+      "description": "Flink set operations retain explicitly selected positions for downstream column mappings"
+    },
+    {
+      "id": "insert_union_unnamed_derivations",
+      "file": "cases/insert_union_unnamed_derivations.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": ["mart.rollup"],
+      "columnLineage": [{"target": "mart.rollup.amount", "sources": ["ods.a.amount", "ods.b.amount", "ods.b.adjustment"]}, {"target": "mart.rollup.status", "sources": ["ods.a.status"]}],
+      "columnUsages": [],
+      "description": "Flink set operations retain explicitly selected positions for downstream column mappings"
+    },
+    {
+      "id": "cte_union_output_positions",
+      "file": "cases/cte_union_output_positions.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "batch_id", "sources": []}, {"target": "amount", "sources": ["ods.a.amount", "ods.b.total"]}],
+      "columnUsages": [],
+      "description": "Flink set operations retain explicitly selected positions for downstream column mappings"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",

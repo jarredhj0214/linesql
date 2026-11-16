@@ -39,6 +39,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
+    private FlinkParser.SelectClauseContext setBranchSelect;
     private ParseContext context;
 
     FlinkLineageVisitor(LineageResult result) {
@@ -1158,6 +1159,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitScalarSubquery(FlinkParser.ScalarSubqueryContext ctx) {
+        if (setBranchSelect == null) {
+            return visitChildren(ctx);
+        }
+        LineageResult inner = lineageForQuery(ctx.query());
+        for (TableRef table : inner.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, inner);
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(FlinkParser.SelectClauseContext ctx) {
         collectSelectClauseProjections(ctx);
         return visitChildren(ctx);
@@ -1587,9 +1601,29 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
+        queryVisitor.setBranchSelect = explicitBranchSelect(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryResult;
+    }
+
+    private static FlinkParser.SelectClauseContext explicitBranchSelect(FlinkParser.QueryTermContext term) {
+        if (!(term instanceof FlinkParser.QueryTermDefaultContext)) {
+            return null;
+        }
+        FlinkParser.QueryPrimaryContext primary = ((FlinkParser.QueryTermDefaultContext) term).queryPrimary();
+        if (primary instanceof FlinkParser.SubqueryPrimaryContext) {
+            return explicitBranchSelect(((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm());
+        }
+        if (primary instanceof FlinkParser.QueryPrimaryDefaultContext) {
+            FlinkParser.SelectClauseContext select =
+                    ((FlinkParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
+            if (select.selectItemList() != null && select.selectItemList().selectItem().stream()
+                    .allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)) {
+                return select;
+            }
+        }
+        return null;
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
@@ -1798,7 +1832,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
-                continue;
+                if (setBranchSelect == null) {
+                    continue;
+                }
+                sources = Collections.emptyList();
             }
             String targetColumn = targetColumn(projection, projection.ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
@@ -2356,7 +2393,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         for (int i = 0; i < items.size(); i++) {
             FlinkParser.SelectItemContext item = items.get(i);
             if (item instanceof FlinkParser.SelectExpressionContext) {
-                Projection projection = projection((FlinkParser.SelectExpressionContext) item, i);
+                FlinkParser.SelectExpressionContext selected = (FlinkParser.SelectExpressionContext) item;
+                Projection projection = projection(selected, i);
+                if (projection == null && ctx == setBranchSelect) {
+                    FlinkParser.ExpressionContext expression = selected.expression();
+                    projection = new Projection(sourceColumns(expression), "EXPR$" + i, expression.getText(), i);
+                }
                 if (projection != null) {
                     projections.add(projection);
                 }

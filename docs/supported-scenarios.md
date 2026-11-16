@@ -1256,6 +1256,7 @@ Implemented Flink table-level lineage scenarios:
 | CALL and JOB utility statements | `call system.generate_n(4); show jobs; describe job '...'; stop job '...' with savepoint`; `stop job '...' with drain`; `stop job '...' with savepoint with drain` | `call_catalog_procedure`, `show_jobs`, `describe_job`, `stop_job_with_savepoint`, `stop_job_with_drain`, `stop_job_with_savepoint_drain` |
 | EXPLAIN wrapped lineage | `explain plan for select ...`; `explain estimated_cost, changelog_mode insert into ... select ...` | `explain_plan_for_select`, `explain_details_insert` |
 | Compiled plan utility statements | `compile plan '...' for insert into/overwrite ... select ...`; `execute plan '...'` | `compile_plan_insert`, `compile_plan_insert_overwrite`, `execute_plan_file` |
+| Set output positions | UNION retains positions across constants and expressions for output aliases, CTE columns, temporary views and INSERT targets. | `union_constant_order_by_alias`, `insert_union_unnamed_derivations`, `cte_union_output_positions` |
 
 Implemented Flink column-level lineage scenarios:
 

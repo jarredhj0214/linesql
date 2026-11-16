@@ -220,6 +220,27 @@ public class FlinkDialectParserTest {
                 .collect(Collectors.toList()));
     }
 
+    @Test
+    public void keepsSetOutputPositionsThroughTemporaryViewAliases() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TEMPORARY VIEW history (batch_id, amount) AS "
+                        + "SELECT 0, a.amount FROM ods.a a UNION ALL SELECT 1, b.total FROM ods.b b;"
+                        + "INSERT INTO mart.rollup (batch_id, amount) SELECT h.batch_id, h.amount FROM history h;",
+                SqlDialect.FLINK);
+
+        assertEquals(2, results.size());
+        assertTrue(results.get(0).getDiagnostics().isEmpty());
+        LineageResult insert = results.get(1);
+        assertTrue(insert.getDiagnostics().isEmpty());
+        assertEquals(2, insert.getColumnLineage().size());
+        assertEquals("mart.rollup.batch_id", columnName(insert.getColumnLineage().get(0).getTarget()));
+        assertTrue(insert.getColumnLineage().get(0).getSources().isEmpty());
+        assertEquals("mart.rollup.amount", columnName(insert.getColumnLineage().get(1).getTarget()));
+        assertEquals(list("ods.a.amount", "ods.b.total"), insert.getColumnLineage().get(1).getSources().stream()
+                .map(FlinkDialectParserTest::columnName)
+                .collect(Collectors.toList()));
+    }
+
     private static String sqlCase(String caseId) throws IOException {
         return resource("/sql/flink/cases/" + caseId + ".sql");
     }
