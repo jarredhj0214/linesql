@@ -1,0 +1,2 @@
+CREATE EXTERNAL TABLE mart.events (user_id BIGINT, region STRING)
+PARTITIONED BY (region) STORED BY ICEBERG;

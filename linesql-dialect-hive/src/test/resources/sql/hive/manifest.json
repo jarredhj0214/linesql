@@ -46,6 +46,45 @@
       "description": "A Hive CTE resolves an implicit _cN column without shifting named columns"
     },
     {
+      "id": "create_iceberg_partition_transforms",
+      "file": "cases/create_iceberg_partition_transforms.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.events.event_time"},
+        {"type": "TABLE_MODEL", "column": "mart.events.user_id"},
+        {"type": "TABLE_MODEL", "column": "mart.events.region"}
+      ],
+      "description": "Hive Iceberg partition transforms record source columns on the table model"
+    },
+    {
+      "id": "alter_iceberg_partition_transforms",
+      "file": "cases/alter_iceberg_partition_transforms.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.events.event_time"},
+        {"type": "TABLE_MODEL", "column": "mart.events.region"}
+      ],
+      "description": "Changing an Iceberg partition specification records distinct table model columns"
+    },
+    {
+      "id": "create_iceberg_partition_column_names",
+      "file": "cases/create_iceberg_partition_column_names.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.events.region"}
+      ],
+      "description": "Columns declared in the schema can be reused as identity partition columns"
+    },
+    {
       "id": "create_iceberg_write_order",
       "file": "cases/create_iceberg_write_order.sql",
       "statementType": "CREATE_TABLE",

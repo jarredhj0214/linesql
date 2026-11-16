@@ -185,7 +185,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
         }
-        if (normalized.matches("(?s).*\\brow\\s+format\\b.*")
+        if (unquotedSyntax.matches("(?s).*\\bpartitioned\\s+by\\s+spec\\s*\\(.*")
+                || unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\bset\\s+partition\\s+spec\\s*\\(.*")) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive Iceberg partition transform specification"));
+        } else if (normalized.matches("(?s).*\\brow\\s+format\\b.*")
                 || normalized.matches("(?s).*\\bstored\\s+as\\b.*")
                 || relationSyntax.matches("(?s)^\\s*create\\s+(?:(?:temporary|external)\\s+)*table\\b.*\\bstored\\s+by\\b.*")
                 || normalized.matches("(?s).*\\bserdeproperties\\b.*")

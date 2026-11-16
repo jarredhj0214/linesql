@@ -149,6 +149,23 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertTrue(hinted.getDiagnostics().stream().anyMatch(d -> "MYSQL_PARSE_ERROR".equals(d.getCode())));
     }
 
+    @Test
+    public void detectsHiveIcebergPartitionSpecifications() {
+        String script = "CREATE EXTERNAL TABLE mart.events (event_time TIMESTAMP, user_id BIGINT)"
+                + " PARTITIONED BY SPEC (DAY(event_time), BUCKET(16, user_id)) STORED BY ICEBERG;"
+                + " ALTER TABLE mart.events SET PARTITION SPEC (MONTH(event_time), user_id);";
+        List<LineageResult> results = LineSql.parseScript(script);
+        assertEquals(2, results.size());
+        assertEquals(StatementType.CREATE_TABLE, results.get(0).getStatementType());
+        assertEquals(StatementType.ALTER_TABLE, results.get(1).getStatementType());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.HIVE, result.getDialect());
+            assertEquals("events", result.getOutputTables().get(0).getName());
+            assertEquals(2, result.getColumnUsages().size());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

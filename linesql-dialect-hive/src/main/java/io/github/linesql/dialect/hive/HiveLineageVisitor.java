@@ -385,6 +385,12 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
                 columns.add(cleanIdentifier(element.identifier()));
             }
         }
+        if (ctx.partitionColumnNames != null) {
+            columns.addAll(identifierNames(ctx.partitionColumnNames));
+        }
+        if (ctx.partitionTransformSpec() != null) {
+            collectPartitionTransformColumns(ctx.partitionTransformSpec(), columns);
+        }
         if (ctx.clusteringClause() != null) {
             for (HiveParser.IdentifierContext identifier
                     : ctx.clusteringClause().bucketColumns.identifier()) {
@@ -625,6 +631,11 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
                 && ctx.alterTableAction().identifier() != null) {
             addTableModelColumn(target, cleanIdentifier(ctx.alterTableAction().identifier()));
         }
+        if (ctx.alterTableAction().partitionTransformSpec() != null) {
+            Set<String> columns = new LinkedHashSet<>();
+            collectPartitionTransformColumns(ctx.alterTableAction().partitionTransformSpec(), columns);
+            addTableModelColumns(target, columns);
+        }
         if (ctx.alterTableAction().clusteringClause() != null) {
             Set<String> columns = new LinkedHashSet<>();
             HiveParser.ClusteringClauseContext clustering =
@@ -662,6 +673,13 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             refs.add(new ColumnRef(target, column));
         }
         LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+    }
+
+    private static void collectPartitionTransformColumns(HiveParser.PartitionTransformSpecContext spec,
+                                                         Set<String> columns) {
+        for (HiveParser.PartitionTransformContext transform : spec.partitionTransform()) {
+            columns.add(cleanIdentifier(transform.identifier()));
+        }
     }
 
     private static void collectPartitionColumns(ParseTree tree, Set<String> columns) {
