@@ -3614,8 +3614,8 @@
       "outputTables": [],
       "columnLineage": [
         {"target": "id", "sources": ["ods.orders.id"]},
-        {"target": "sku", "sources": ["ods.orders.payload", "ods.orders.quantities"]},
-        {"target": "qty", "sources": ["ods.orders.payload", "ods.orders.quantities"]},
+        {"target": "sku", "sources": ["ods.orders.payload"]},
+        {"target": "qty", "sources": ["ods.orders.quantities"]},
         {"target": "ord", "sources": []}
       ],
       "columnUsages": [
@@ -3624,6 +3624,58 @@
         {"type": "WHERE", "column": "ods.orders.status"}
       ],
       "description": "PostgreSQL ROWS FROM with multiple set-returning functions maps generated aliases to function argument sources"
+    },
+    {
+      "id": "rows_from_mixed_typed_and_builtin_partial_alias",
+      "file": "cases/rows_from_mixed_typed_and_builtin_partial_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "field", "sources": ["ods.orders.attributes"]},
+        {"target": "value", "sources": ["ods.orders.attributes"]},
+        {"target": "qty", "sources": ["ods.orders.payload"]},
+        {"target": "ordinality", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.attributes"},
+        {"type": "JOIN_ON", "column": "ods.orders.payload"},
+        {"type": "WHERE", "column": "ods.orders.payload"}
+      ],
+      "description": "Partial aliases rename output slots without shifting the typed function columns or ordinality"
+    },
+    {
+      "id": "rows_from_builtin_without_alias",
+      "file": "cases/rows_from_builtin_without_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "value", "sources": ["ods.orders.payload"]},
+        {"target": "unnest", "sources": ["ods.orders.quantities"]},
+        {"target": "ordinality", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.payload"},
+        {"type": "JOIN_ON", "column": "ods.orders.quantities"}
+      ],
+      "description": "The first function names a ROWS FROM relation without an explicit alias"
+    },
+    {
+      "id": "rows_from_same_function_default_columns",
+      "file": "cases/rows_from_same_function_default_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "first_item", "sources": ["ods.orders.payload"]},
+        {"target": "second_item", "sources": ["ods.orders.attributes"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.payload"},
+        {"type": "JOIN_ON", "column": "ods.orders.attributes"}
+      ],
+      "description": "Independent function outputs with the same default name can receive distinct positional aliases"
     },
     {
       "id": "select_into_table",

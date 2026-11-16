@@ -1790,30 +1790,83 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitRowsFromTableFunction(PostgreSqlParser.RowsFromTableFunctionContext ctx) {
         List<SourceColumn> sources = new ArrayList<>();
+        List<String> aliasColumns = tableAliasColumnNames(ctx.tableAlias());
+        String alias = tableAlias(ctx.tableAlias());
+        String scalarAlias = ctx.rowsFromItem().size() == 1 ? alias : null;
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        boolean allTyped = true;
+        boolean knownShape = true;
+        int index = 0;
         for (PostgreSqlParser.RowsFromItemContext item : ctx.rowsFromItem()) {
             List<SourceColumn> itemSources = sourceColumns(item.functionArguments());
             sources.addAll(itemSources);
-            if (item.recordColumn().isEmpty()) {
-                allTyped = false;
+            List<String> names = rowsFromColumnNames(item, scalarAlias);
+            if (names.isEmpty()) {
+                knownShape = false;
                 continue;
             }
             List<ColumnRef> refs = columnUsageRefs(itemSources);
-            for (PostgreSqlParser.RecordColumnContext column : item.recordColumn()) {
-                columns.put(cleanIdentifier(column.identifier()), refs == null ? Collections.emptyList() : refs);
+            for (String name : names) {
+                String column = index < aliasColumns.size() ? aliasColumns.get(index) : name;
+                columns.merge(column, refs == null ? Collections.emptyList() : refs,
+                        LineageModelUtils::mergeColumnRefs);
+                index++;
             }
         }
         addColumnUsages(ColumnUsageType.JOIN_ON, sources);
-        if (allTyped) {
-            if (ctx.ORDINALITY() != null) {
-                columns.put("ordinality", Collections.emptyList());
-            }
-            registerNamedFunctionColumns(ctx.tableAlias(), "rows_from", columns);
-        } else {
+        if (!knownShape || aliasColumns.size() > index + (ctx.ORDINALITY() == null ? 0 : 1)) {
             registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
+            return null;
         }
+        if (ctx.ORDINALITY() != null) {
+            columns.putIfAbsent(index < aliasColumns.size() ? aliasColumns.get(index) : "ordinality",
+                    Collections.emptyList());
+        }
+        String firstFunction = unqualifiedName(cleanIdentifier(ctx.rowsFromItem(0).functionName().getText()));
+        registerFunctionRelation(alias == null ? firstFunction : alias, columns);
         return null;
+    }
+
+    private List<String> rowsFromColumnNames(PostgreSqlParser.RowsFromItemContext item, String scalarAlias) {
+        List<String> names = new ArrayList<>();
+        for (PostgreSqlParser.RecordColumnContext column : item.recordColumn()) {
+            names.add(cleanIdentifier(column.identifier()));
+        }
+        if (!names.isEmpty()) {
+            return names;
+        }
+
+        String function = item.functionName().getText().toLowerCase(Locale.ROOT);
+        if (function.startsWith("pg_catalog.")) {
+            function = function.substring("pg_catalog.".length());
+        }
+        switch (function) {
+            case "json_array_elements":
+            case "json_array_elements_text":
+            case "jsonb_array_elements":
+            case "jsonb_array_elements_text":
+                names.add("value");
+                break;
+            case "json_each":
+            case "json_each_text":
+            case "jsonb_each":
+            case "jsonb_each_text":
+                names.add("key");
+                names.add("value");
+                break;
+            case "unnest":
+                if (item.functionArguments() != null && item.functionArguments().callArgument().size() == 1) {
+                    names.add(scalarAlias == null ? function : scalarAlias);
+                }
+                break;
+            default:
+                break;
+        }
+        if (item.identifierList() != null) {
+            for (int i = 0; i < Math.min(names.size(), item.identifierList().identifier().size()); i++) {
+                names.set(i, cleanIdentifier(item.identifierList().identifier(i)));
+            }
+        }
+        return names;
     }
 
     @Override
