@@ -42,10 +42,16 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
     private MySqlParser.SelectClauseContext setBranchSelect;
+    private final Set<String> routineParameters;
     private ParseContext context;
 
     MySqlLineageVisitor(LineageResult result) {
+        this(result, Collections.emptySet());
+    }
+
+    private MySqlLineageVisitor(LineageResult result, Set<String> routineParameters) {
         this.result = result;
+        this.routineParameters = routineParameters;
     }
 
     void setContext(ParseContext context) {
@@ -1165,6 +1171,28 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     @Override
     public Void visitCreateRoutineStmt(MySqlParser.CreateRoutineStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_ROUTINE);
+        MySqlParser.StaticProcedureDefinitionContext procedure = ctx.createRoutineStatement().staticProcedureDefinition();
+        if (procedure == null) {
+            return null;
+        }
+        Set<String> parameters = new LinkedHashSet<>();
+        for (MySqlParser.ProcedureParameterContext parameter : procedure.procedureParameter()) {
+            parameters.add(cleanIdentifier(parameter.identifier()).toLowerCase(Locale.ROOT));
+        }
+        for (MySqlParser.StaticProcedureStatementContext statement : procedure.staticProcedureStatement()) {
+            LineageResult step = new LineageResult();
+            MySqlLineageVisitor visitor = new MySqlLineageVisitor(step, parameters);
+            visitor.visit(statement);
+            visitor.finalizeResult();
+            inputTables.addAll(step.getInputTables());
+            outputTables.addAll(step.getOutputTables());
+            for (ColumnLineage lineage : step.getColumnLineage()) {
+                if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
+                    result.getColumnLineage().add(lineage);
+                }
+            }
+            LineageModelUtils.mergeColumnUsages(result, step);
+        }
         return null;
     }
 
@@ -1694,7 +1722,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             List<String> columnAliases,
             boolean includeOuterScope) {
         LineageResult relationResult = new LineageResult();
-        MySqlLineageVisitor relationVisitor = new MySqlLineageVisitor(relationResult);
+        MySqlLineageVisitor relationVisitor = new MySqlLineageVisitor(relationResult, routineParameters);
         relationVisitor.setContext(context);
         relationVisitor.cteNames.addAll(cteNames);
         if (includeOuterScope) {
@@ -1815,7 +1843,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     private LineageResult lineageForQueryTerm(MySqlParser.QueryTermContext queryTerm) {
         LineageResult queryResult = new LineageResult();
-        MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(queryResult);
+        MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(queryResult, routineParameters);
         queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
@@ -2460,7 +2488,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     private LineageResult lineageForQuery(MySqlParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
-        MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(queryResult);
+        MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(queryResult, routineParameters);
         queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
@@ -2628,7 +2656,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(MySqlParser.QueryContext query) {
-        MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(new LineageResult());
+        MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(new LineageResult(), routineParameters);
         queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
@@ -2672,7 +2700,10 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             if (isUnquotedNonColumnLiteral(colRef.identifier())) {
                 return;
             }
-            columns.add(new SourceColumn(null, cleanIdentifier(colRef.identifier())));
+            String column = cleanIdentifier(colRef.identifier());
+            if (!routineParameters.contains(column.toLowerCase(Locale.ROOT))) {
+                columns.add(new SourceColumn(null, column));
+            }
             return;
         }
         if (tree instanceof MySqlParser.DereferenceContext) {

@@ -7413,9 +7413,26 @@
       "id": "create_procedure",
       "file": "cases/create_procedure.sql",
       "statementType": "CREATE_ROUTINE",
-      "inputTables": [],
+      "inputTables": ["app.users"],
       "outputTables": [],
-      "description": "MySQL CREATE PROCEDURE is accepted without inferring routine body lineage"
+      "description": "MySQL CREATE PROCEDURE preserves the input table of its static SELECT"
+    },
+    {
+      "id": "create_procedure_static_dml_body",
+      "file": "cases/create_procedure_static_dml_body.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": ["ods.orders", "mart.audit"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]},
+        {"target": "mart.audit.net_amount", "sources": ["ods.orders.amount", "ods.orders.discount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.active"},
+        {"type": "WHERE", "column": "ods.orders.id"},
+        {"type": "WHERE", "column": "mart.audit.net_amount"}
+      ],
+      "description": "Simple compound procedures preserve the static DML dependencies and predicates of each body statement"
     },
     {
       "id": "create_trigger",

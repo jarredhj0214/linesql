@@ -823,10 +823,10 @@
       "id": "mysql_mode_create_procedure",
       "file": "cases/mysql_mode_create_procedure.sql",
       "statementType": "CREATE_ROUTINE",
-      "inputTables": [],
-      "outputTables": [],
-      "columnLineage": [],
-      "description": "OceanBase MySQL mode CREATE PROCEDURE is classified as routine lifecycle DDL"
+      "inputTables": ["app.orders"],
+      "outputTables": ["mart.daily_orders"],
+      "columnLineage": [{"target": "mart.daily_orders.order_id", "sources": ["app.orders.id"]}],
+      "description": "OceanBase MySQL mode CREATE PROCEDURE preserves lineage for a static INSERT body"
     },
     {
       "id": "mysql_mode_drop_procedure",

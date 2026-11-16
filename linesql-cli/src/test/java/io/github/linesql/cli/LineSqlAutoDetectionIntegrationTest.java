@@ -428,6 +428,9 @@ public class LineSqlAutoDetectionIntegrationTest {
             assertEquals(dialect, result.getDialect());
             assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
         }
+        assertEquals("orders", results.get(1).getInputTables().get(0).getName());
+        assertEquals("audit", results.get(1).getOutputTables().get(0).getName());
+        assertEquals("id", results.get(1).getColumnLineage().get(0).getTarget().getName());
         assertEquals("sales", results.get(2).getInputTables().get(0).getName());
         assertEquals("net", results.get(2).getColumnLineage().get(0).getTarget().getName());
         assertEquals(2, results.get(2).getColumnLineage().get(0).getSources().size());
