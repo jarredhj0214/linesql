@@ -1012,6 +1012,8 @@ Known Oracle gaps:
 
 ## StarRocks
 
+StarRocks `USE database`, `USE catalog.database`, `SET CATALOG` and `USE CATALOG` update the namespace for later statements in `script_catalog_namespace_switches`. A catalog-only switch clears the previous database before later sources are qualified.
+
 StarRocks applies a configured default catalog and schema to physical sources in nested and recursive queries. Query-local CTE names keep their scope in SELECT and MERGE. Cases include `select_context_qualified_cte_scalar`, `insert_context_qualified_recursive_set`, `select_context_qualified_cte_shadowing` and `merge_context_qualified_cte_source`.
 
 StarRocks preserves the deepest source column and every input table across named and unnamed scalar projections in `select_deep_scalar_projection_dependencies`.

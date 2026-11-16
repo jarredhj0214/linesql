@@ -1162,7 +1162,8 @@ accountControlStatement
     ;
 
 useStatement
-    : USE identifier
+    : USE CATALOG catalog=identifier
+    | USE first=identifier (DOT second=identifier)?
     ;
 
 setCatalogStatement

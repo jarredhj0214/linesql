@@ -1467,13 +1467,32 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitUseStmt(StarRocksParser.UseStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
+        StarRocksParser.UseStatementContext use = ctx.useStatement();
+        if (use.catalog != null) {
+            switchCatalog(cleanIdentifier(use.catalog));
+        } else if (context != null) {
+            if (use.second == null) {
+                context.setDefaultSchema(cleanIdentifier(use.first));
+            } else {
+                context.setDefaultCatalog(cleanIdentifier(use.first));
+                context.setDefaultSchema(cleanIdentifier(use.second));
+            }
+        }
         return null;
     }
 
     @Override
     public Void visitSetCatalogStmt(StarRocksParser.SetCatalogStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
+        switchCatalog(cleanIdentifier(ctx.setCatalogStatement().identifier()));
         return null;
+    }
+
+    private void switchCatalog(String catalog) {
+        if (context != null) {
+            context.setDefaultCatalog(catalog);
+            context.setDefaultSchema(null);
+        }
     }
 
     @Override

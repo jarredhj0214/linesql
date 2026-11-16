@@ -12182,6 +12182,162 @@
         }
       ],
       "description": "A configured default catalog does not make a MERGE CTE source into a physical table"
+    },
+    {
+      "id": "script_catalog_namespace_switches",
+      "file": "cases/script_catalog_namespace_switches.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "iceberg.raw.events",
+        "lake.stage.events",
+        "lake.analytics.events",
+        "default_catalog.mart.results"
+      ],
+      "outputTables": [
+        "lake.analytics.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "iceberg.raw.events.id"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "lake.stage.events.id"
+          ]
+        },
+        {
+          "target": "lake.analytics.summary.id",
+          "sources": [
+            "lake.analytics.events.id"
+          ]
+        },
+        {
+          "target": "lake.analytics.summary.amount",
+          "sources": [
+            "lake.analytics.events.amount"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "default_catalog.mart.results.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "iceberg.raw.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "iceberg.raw.events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake.stage.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake.stage.events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "lake.analytics.events"
+          ],
+          "outputTables": [
+            "lake.analytics.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "lake.analytics.summary.id",
+              "sources": [
+                "lake.analytics.events.id"
+              ]
+            },
+            {
+              "target": "lake.analytics.summary.amount",
+              "sources": [
+                "lake.analytics.events.amount"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "default_catalog.mart.results"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "default_catalog.mart.results.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ],
+      "description": "StarRocks session USE and catalog switches qualify following reads and writes with the active namespace"
     }
   ]
 }
