@@ -51,6 +51,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
+    private Map<String, List<SourceColumn>> namedWindowSources = new LinkedHashMap<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
@@ -1202,16 +1203,28 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitQuerySpecification(OracleParser.QuerySpecificationContext ctx) {
-        if (ctx.selectClause() != positionalInsertSelect || ctx.fromClause() == null) {
-            return visitChildren(ctx);
-        }
-        visit(ctx.fromClause());
-        for (int i = 0; i < ctx.getChildCount(); i++) {
-            if (ctx.getChild(i) != ctx.fromClause()) {
-                visit(ctx.getChild(i));
+        Map<String, List<SourceColumn>> enclosingWindows = namedWindowSources;
+        namedWindowSources = new LinkedHashMap<>();
+        try {
+            if (ctx.windowClause() != null) {
+                for (OracleParser.NamedWindowContext window : ctx.windowClause().namedWindow()) {
+                    namedWindowSources.put(cleanIdentifier(window.name).toLowerCase(Locale.ROOT),
+                            sourceColumns(window.windowSpec()));
+                }
             }
+            if (ctx.selectClause() != positionalInsertSelect || ctx.fromClause() == null) {
+                return visitChildren(ctx);
+            }
+            visit(ctx.fromClause());
+            for (int i = 0; i < ctx.getChildCount(); i++) {
+                if (ctx.getChild(i) != ctx.fromClause()) {
+                    visit(ctx.getChild(i));
+                }
+            }
+            return null;
+        } finally {
+            namedWindowSources = enclosingWindows;
         }
-        return null;
     }
 
     @Override
@@ -1401,6 +1414,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         for (OracleParser.ModelMeasureContext measure : ctx.modelMeasure()) {
             addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(measure.expression()));
         }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitQualifyClause(OracleParser.QualifyClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
         return visitChildren(ctx);
     }
 
@@ -2282,6 +2301,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
+        if (tree instanceof OracleParser.WindowSpecContext) {
+            OracleParser.IdentifierContext base = ((OracleParser.WindowSpecContext) tree).base;
+            if (base != null) {
+                List<SourceColumn> sources = namedWindowSources.get(cleanIdentifier(base).toLowerCase(Locale.ROOT));
+                if (sources != null) {
+                    columns.addAll(sources);
+                }
+            }
+        }
         if (tree instanceof OracleParser.ColumnReferenceContext) {
             OracleParser.ColumnReferenceContext colRef = (OracleParser.ColumnReferenceContext) tree;
             String column = cleanIdentifier(colRef.identifier());

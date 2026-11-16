@@ -78,7 +78,8 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause selectIntoClause? fromClause? whereClause? startWithClause? connectByClause? groupByClause? havingClause? modelClause?
+    : selectClause selectIntoClause? fromClause? whereClause? startWithClause? connectByClause? groupByClause? havingClause?
+      (modelClause | windowClause qualifyClause? | qualifyClause)?
     ;
 
 selectClause
@@ -362,6 +363,18 @@ havingClause
     : HAVING expression
     ;
 
+windowClause
+    : WINDOW namedWindow (COMMA namedWindow)*
+    ;
+
+namedWindow
+    : name=identifier AS windowSpec
+    ;
+
+qualifyClause
+    : QUALIFY expression
+    ;
+
 queryOrganization
     : (ORDER SIBLINGS? BY sortItem (COMMA sortItem)*)?
       (LIMIT expression)?
@@ -452,7 +465,8 @@ outerJoinMarker
     ;
 
 windowSpec
-    : LPAREN (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
+    : base=identifier
+    | LPAREN base=identifier? (PARTITION BY expressionList)? (ORDER BY sortItem (COMMA sortItem)*)? windowFrame? RPAREN
     ;
 
 keepClause
@@ -975,6 +989,7 @@ nonReservedKeyword
     : ADD | ANALYZE | APPLY | ASC | AUDIT | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | CONTEXT | DEFAULT
     | BEFORE | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFERRABLE | DEFINER | DEMAND | DESCRIBE | DESC | DISABLE | DUAL | ENABLE | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
     | BULK | CHECK | COLLECT | COMPLETE | CONSTRAINT | EXCHANGE | EXCLUDING | FAST | FETCH | FIRST | FLASHBACK | FOR | FORCE | FOREIGN | FUNCTION | GRANT | IF | IMMEDIATE | INCLUDING | INDEX | INDEXES | INITIALLY | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NORELY | NOVALIDATE | NULL
+    | WINDOW | QUALIFY
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
     | KEY | NOAUDIT | NOCYCLE | NULLS | OBJECT | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | POLICY | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PROFILE | PUBLIC | PURGE | READ | REFERENCES | ROLE | USER | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS
     | CURRENT | UNBOUNDED | PRECEDING | FOLLOWING

@@ -271,6 +271,18 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertTrue(ordinary.getDiagnostics().isEmpty());
     }
 
+    @Test
+    public void usesOracleSignalsAlongsideSharedQualifySyntax() {
+        String sql = "SELECT o.id, ROW_NUMBER() OVER (PARTITION BY o.customer_id ORDER BY o.created_at) AS rn"
+                + " FROM ods.orders o WHERE o.status = q'[active]' QUALIFY rn = 1";
+        LineageResult result = LineSql.parse(sql);
+        assertEquals(SqlDialect.ORACLE, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals("orders", result.getInputTables().get(0).getName());
+        assertEquals(2, result.getColumnLineage().get(1).getSources().size());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

@@ -733,6 +733,11 @@ linesql-dialect-oracle/src/test/resources/sql/oracle/manifest.json
 linesql-dialect-oracle/src/test/resources/sql/oracle/cases/*.sql
 ```
 
+Oracle's `WINDOW` and `QUALIFY` clauses preserve analytic inputs and their use in
+filters. Window references can inherit a prior definition. `QUALIFY` resolves analytic
+output aliases and reports their dependencies as `WHERE` usages
+(`select_qualify_named_window`, `select_qualify_inline_window_fetch`).
+
 Implemented Oracle table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |

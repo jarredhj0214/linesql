@@ -2,6 +2,43 @@
   "dialect": "ORACLE",
   "cases": [
     {
+      "id": "select_qualify_inline_window_fetch",
+      "file": "cases/select_qualify_inline_window_fetch.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.state"},
+        {"type": "WHERE", "column": "ods.orders.customer_id"},
+        {"type": "WHERE", "column": "ods.orders.created_at"},
+        {"type": "ORDER_BY", "column": "ods.orders.id"},
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.orders.customer_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.orders.created_at"}
+      ],
+      "description": "Inline analytic filtering preserves window, qualify, ordering, and ordinary filter columns"
+    },
+    {
+      "id": "select_qualify_named_window",
+      "file": "cases/select_qualify_named_window.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "rn", "sources": ["ods.orders.customer_id", "ods.orders.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.customer_id"},
+        {"type": "WHERE", "column": "ods.orders.created_at"},
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.orders.customer_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.orders.created_at"}
+      ],
+      "description": "Oracle QUALIFY resolves an analytic output alias through its derived named window"
+    },
+    {
       "id": "select_standard_backslash_strings",
       "file": "cases/select_standard_backslash_strings.sql",
       "statementType": "SELECT",
