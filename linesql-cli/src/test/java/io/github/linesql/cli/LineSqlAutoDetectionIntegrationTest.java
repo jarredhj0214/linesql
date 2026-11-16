@@ -58,6 +58,21 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsSqlServerTemporalSyntaxWithoutChangingFlinkAsOf() {
+        LineageResult changes = LineSql.parse(
+                "ALTER TABLE dbo.events SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = history.events))");
+        assertEquals(SqlDialect.SQLSERVER, changes.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, changes.getStatementType());
+        assertEquals(2, changes.getOutputTables().size());
+        assertEquals("history", changes.getOutputTables().get(1).getSchema());
+
+        assertDialect(SqlDialect.SQLSERVER, "SELECT id FROM dbo.events FOR SYSTEM_TIME ALL");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT id FROM dbo.events FOR SYSTEM_TIME AS OF @version_time");
+        assertDialect(SqlDialect.FLINK, "SELECT id FROM lake.events FOR SYSTEM_TIME AS OF TIMESTAMP '2026-11-16 00:00:00'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'FOR SYSTEM_TIME ALL' FROM ods.events");
+    }
+
+    @Test
     public void autoDetectedSqlServerDmlUsesRegisteredParser() {
         LineageResult result = LineSql.parse(
                 "update [ads].[user_summary] set [user_name] = u.[name] "

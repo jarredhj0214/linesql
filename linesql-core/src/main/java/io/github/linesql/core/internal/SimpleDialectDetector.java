@@ -64,6 +64,9 @@ public class SimpleDialectDetector implements DialectDetector {
 
         String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
 
+        boolean sqlServerTemporalQuery = unquotedSyntax.matches("(?s).*\\bfor\\s+system_time\\s+"
+                + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+@[\\p{L}_][\\p{L}\\p{N}_$#]*).*");
+
         if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
         } else if (mysqlExecutableComment
@@ -163,7 +166,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bfrom\\s+table\\s*\\(\\s*(tumble|hop|session|cumulate)\\s*\\(.*")
                 || relationSyntax.matches("(?s)^\\s*insert\\b.*\\bon\\s+conflict\\s+do\\s+(deduplicate|error)\\b.*")
                 || relationSyntax.matches("(?s).*[,\\s](tumble|hop|session|cumulate)\\s*\\(\\s*(?:data\\s*=>\\s*)?table\\s+.*")
-                || normalized.matches("(?s).*\\bfor\\s+system_time\\s+as\\s+of\\b.*")
+                || (!sqlServerTemporalQuery && normalized.matches("(?s).*\\bfor\\s+system_time\\s+as\\s+of\\b.*"))
                 || normalized.matches("(?s).*\\bproctime\\s*\\(\\s*\\).*")
                 || normalized.matches("(?s).*\\bsplit_index\\s*\\(.*")
                 || normalized.matches("(?s).*\\bcreate\\s+(temporary\\s+)?view\\s+if\\s+not\\s+exist\\b.*")
@@ -218,7 +221,11 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.95, "Oracle DUAL, hierarchical, flashback, sequence, synonym, or DBLink syntax"));
         }
         boolean sqlServerGo = SimpleStatementSplitter.containsSqlServerGo(unquotedSyntax);
-        if (sqlServerGo && TSQL_BATCH_ROUTINE.matcher(unquotedSyntax).find()) {
+        if (unquotedSyntax.matches("(?s)^\\s*(?:create|alter)\\s+table\\b[^;]*"
+                + "(?:\\bperiod\\s+for\\s+system_time\\b|\\bsystem_versioning\\s*=).*")
+                || sqlServerTemporalQuery) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server system-versioned temporal syntax"));
+        } else if (sqlServerGo && TSQL_BATCH_ROUTINE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server routine and GO batch delimiter"));
         } else if (relationSyntax.matches("(?s)^\\s*with\\s+xmlnamespaces\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\b(?:cross|outer)\\s+apply\\s+[^\\s();]+\\s*\\.\\s*nodes\\s*\\(.*")

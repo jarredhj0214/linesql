@@ -751,6 +751,16 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         }
         TableRef target = tableRef(ctx.multipartIdentifier(0));
         outputTables.add(target);
+        if (ctx.tableElementList() != null) {
+            for (SqlServerParser.TableElementContext element : ctx.tableElementList().tableElement()) {
+                if (element.temporalPeriodDefinition() != null) {
+                    addTemporalPeriodUsages(target, element.temporalPeriodDefinition());
+                }
+            }
+        }
+        if (ctx.temporalTableOptions() != null) {
+            addTemporalHistoryTable(ctx.temporalTableOptions().temporalSystemVersioning());
+        }
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
             visit(ctx.query());
@@ -971,6 +981,43 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         outputTables.add(tableRef(ctx.multipartIdentifier()));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    @Override
+    public Void visitAlterTableAddTemporalPeriod(SqlServerParser.AlterTableAddTemporalPeriodContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        outputTables.add(table);
+        addTemporalPeriodUsages(table, ctx.temporalPeriodDefinition());
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableDropTemporalPeriod(SqlServerParser.AlterTableDropTemporalPeriodContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableSystemVersioning(SqlServerParser.AlterTableSystemVersioningContext ctx) {
+        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        addTemporalHistoryTable(ctx.temporalSystemVersioning());
+        return null;
+    }
+
+    private void addTemporalPeriodUsages(TableRef table, SqlServerParser.TemporalPeriodDefinitionContext period) {
+        List<ColumnRef> columns = new ArrayList<>();
+        for (SqlServerParser.IdentifierContext column : period.identifier()) {
+            columns.add(new ColumnRef(table, cleanIdentifier(column)));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, columns);
+    }
+
+    private void addTemporalHistoryTable(SqlServerParser.TemporalSystemVersioningContext versioning) {
+        for (SqlServerParser.TemporalVersioningOptionContext option : versioning.temporalVersioningOption()) {
+            if (option.multipartIdentifier() != null) {
+                outputTables.add(tableRef(option.multipartIdentifier()));
+            }
+        }
     }
 
     @Override

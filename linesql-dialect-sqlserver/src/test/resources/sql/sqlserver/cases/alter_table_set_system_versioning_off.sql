@@ -1,0 +1,1 @@
+ALTER TABLE dbo.employees SET (SYSTEM_VERSIONING = OFF);

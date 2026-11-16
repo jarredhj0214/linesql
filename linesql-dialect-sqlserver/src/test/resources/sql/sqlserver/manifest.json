@@ -2,6 +2,71 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "create_system_versioned_temporal_table",
+      "file": "cases/create_system_versioned_temporal_table.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.employees", "audit.employees_history"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "dbo.employees.valid_from"},
+        {"type": "TABLE_MODEL", "column": "dbo.employees.valid_to"}
+      ],
+      "description": "Temporal CREATE TABLE records the period columns and its configured history table"
+    },
+    {
+      "id": "alter_table_add_system_time_period",
+      "file": "cases/alter_table_add_system_time_period.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.employees"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "dbo.employees.valid_from"},
+        {"type": "TABLE_MODEL", "column": "dbo.employees.valid_to"}
+      ],
+      "description": "Existing tables can add the period and its columns in one statement"
+    },
+    {
+      "id": "alter_table_set_system_versioning_on",
+      "file": "cases/alter_table_set_system_versioning_on.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.employees", "audit.employees_history"],
+      "columnLineage": [],
+      "description": "Enabling versioning preserves the configured history table"
+    },
+    {
+      "id": "alter_table_set_system_versioning_off",
+      "file": "cases/alter_table_set_system_versioning_off.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.employees"],
+      "columnLineage": [],
+      "description": "Disabling versioning affects the current table"
+    },
+    {
+      "id": "alter_table_drop_system_time_period",
+      "file": "cases/alter_table_drop_system_time_period.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.employees"],
+      "columnLineage": [],
+      "description": "Removing the period affects the current table"
+    },
+    {
+      "id": "select_for_system_time_as_of_variable",
+      "file": "cases/select_for_system_time_as_of_variable.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.employees"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["dbo.employees.id"]}],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.employees.active"}
+      ],
+      "description": "A local datetime variable supplies the temporal boundary without becoming a source column"
+    },
+    {
       "id": "insert_quoted_identifiers",
       "file": "cases/insert_quoted_identifiers.sql",
       "statementType": "INSERT",

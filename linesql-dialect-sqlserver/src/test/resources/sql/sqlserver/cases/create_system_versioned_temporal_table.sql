@@ -1,0 +1,10 @@
+CREATE TABLE dbo.employees (
+    id int NOT NULL PRIMARY KEY,
+    valid_from datetime2(7) GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
+    valid_to datetime2(7) GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    PERIOD FOR SYSTEM_TIME (valid_from, valid_to)
+) WITH (SYSTEM_VERSIONING = ON (
+    HISTORY_TABLE = audit.employees_history,
+    DATA_CONSISTENCY_CHECK = ON,
+    HISTORY_RETENTION_PERIOD = 6 MONTHS
+));

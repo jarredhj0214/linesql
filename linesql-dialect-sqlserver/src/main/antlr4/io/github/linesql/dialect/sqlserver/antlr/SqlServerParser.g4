@@ -581,9 +581,23 @@ createTableStatement
     : CREATE EXTERNAL? TEMPORARY? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
       commentClause?
-      externalTableOptionClause?
+      (temporalTableOptions | externalTableOptionClause)?
       (AS query)?
     | CREATE TEMPORARY? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
+    ;
+
+temporalTableOptions
+    : WITH LPAREN temporalSystemVersioning RPAREN
+    ;
+
+temporalSystemVersioning
+    : SYSTEM_VERSIONING EQ (OFF | ON (LPAREN temporalVersioningOption (COMMA temporalVersioningOption)* RPAREN)?)
+    ;
+
+temporalVersioningOption
+    : HISTORY_TABLE EQ multipartIdentifier
+    | DATA_CONSISTENCY_CHECK EQ (ON | OFF)
+    | HISTORY_RETENTION_PERIOD EQ (INFINITE | number identifier)
     ;
 
 externalObjectStatement
@@ -777,6 +791,9 @@ truncateTableOption
 
 alterTableStatement
     : ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
+    | ALTER TABLE multipartIdentifier ADD (tableColumnDefinition COMMA)* temporalPeriodDefinition #alterTableAddTemporalPeriod
+    | ALTER TABLE multipartIdentifier DROP PERIOD FOR SYSTEM_TIME            #alterTableDropTemporalPeriod
+    | ALTER TABLE multipartIdentifier SET LPAREN temporalSystemVersioning RPAREN #alterTableSystemVersioning
     | ALTER TABLE multipartIdentifier ADD COLUMN? identifier dataType         #alterTableAddColumn
     | ALTER TABLE multipartIdentifier ADD CONSTRAINT identifier PRIMARY KEY LPAREN identifierList RPAREN #alterTableAddPrimaryKeyConstraint
     | ALTER TABLE multipartIdentifier ADD CONSTRAINT identifier FOREIGN KEY LPAREN localColumns=identifierList RPAREN REFERENCES refTable=multipartIdentifier (LPAREN refColumns=identifierList RPAREN)? #alterTableAddForeignKeyConstraint
@@ -929,15 +946,25 @@ tableElementList
     ;
 
 tableElement
+    : tableColumnDefinition
+    | temporalPeriodDefinition
+    ;
+
+tableColumnDefinition
     : identifier dataType columnConstraint*
     | identifier AS expression PERSISTED?
+    ;
+
+temporalPeriodDefinition
+    : PERIOD FOR SYSTEM_TIME LPAREN identifier COMMA identifier RPAREN
     ;
 
 columnConstraint
     : NOT NULL
     | NULL
     | COMMENT string
-    | DEFAULT expression
+    | (CONSTRAINT identifier)? DEFAULT expression
+    | GENERATED ALWAYS AS ROW (START | END) HIDDEN_COLUMN?
     | IDENTITY LPAREN NUMBER_LITERAL COMMA NUMBER_LITERAL RPAREN
     | PRIMARY KEY
     | UNIQUE
@@ -1003,6 +1030,7 @@ nonReservedKeyword
     | AFTER | CATCH | CONTAINSTABLE | CUBE | DELAY | FREETEXTTABLE | FUNCTION | KILL | PERSISTED | PRIMARY | PRINT | PROC | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLE | ROLLBACK | SAVE | SCHEMA | SCOPED | SECRET | SECURITY | SEQUENCE | SET | SETS | SHOW | SOURCE | STATE | STATISTICS | STATUSONLY | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TIME | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | USER | VALUE | VALUES | VIEW | WAITFOR
     | CONVERT | SCROLL | STATIC | SYMMETRIC
     | UNIQUE | WITHIN | XML | XMLNAMESPACES
+    | ALWAYS | DATA_CONSISTENCY_CHECK | GENERATED | HIDDEN_COLUMN | HISTORY_RETENTION_PERIOD | HISTORY_TABLE | INFINITE | PERIOD | START | SYSTEM_VERSIONING
     ;
 
 number
