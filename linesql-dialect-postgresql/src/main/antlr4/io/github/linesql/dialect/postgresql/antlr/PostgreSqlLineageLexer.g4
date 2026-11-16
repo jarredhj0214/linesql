@@ -1,25 +1,6 @@
 lexer grammar PostgreSqlLineageLexer;
 
 @members {
-    private void consumeBlockComment() {
-        int depth = 1;
-        while (_input.LA(1) != IntStream.EOF) {
-            int first = _input.LA(1);
-            int second = _input.LA(2);
-            getInterpreter().consume(_input);
-            if (first == '/' && second == '*') {
-                depth++;
-                getInterpreter().consume(_input);
-            } else if (first == '*' && second == '/') {
-                getInterpreter().consume(_input);
-                if (--depth == 0) {
-                    return;
-                }
-            }
-        }
-        notifyListeners(new LexerNoViableAltException(this, _input, _tokenStartCharIndex, null));
-    }
-
     private void consumeDollarQuotedString() {
         int[] delimiter = getText().codePoints().toArray();
         while (_input.LA(1) != IntStream.EOF) {
@@ -425,7 +406,7 @@ LBRACKET: '[';
 RBRACKET: ']';
 
 LINE_COMMENT: ('--' ~[\r\n]* | '#' ~[\r\n]*) -> skip;
-BLOCK_COMMENT: '/*' {consumeBlockComment();} -> skip;
+BLOCK_COMMENT: '/*' {io.github.linesql.core.util.AntlrLexerUtils.consumeNestedBlockComment(this);} -> skip;
 WS: [ \t\r\n]+ -> skip;
 OTHER: .;
 

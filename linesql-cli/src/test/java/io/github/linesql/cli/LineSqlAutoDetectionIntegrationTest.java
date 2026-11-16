@@ -74,7 +74,7 @@ public class LineSqlAutoDetectionIntegrationTest {
     @Test
     public void parseScriptHandlesSqlServerGoBatchesThroughPublicApi() {
         List<LineageResult> results = LineSql.parseScript(
-                "select [id] from [dbo].[customers]\n"
+                "select [id] from [dbo].[customers] /* outer /* inner */\nGO\n*/\n"
                         + "GO 3 -- repeat\n"
                         + "insert into [dbo].[archive] ([id]) select [id] from [dbo].[orders]\n"
                         + "GO", SqlDialect.SQLSERVER);

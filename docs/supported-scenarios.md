@@ -454,7 +454,8 @@ For SQL Server scripts, pass `SqlDialect.SQLSERVER` to `LineSql.parseScript` to 
 standalone `GO` batch separators. A separator can include a positive repeat count and a
 trailing line comment. Analysis returns lineage once for each statement regardless of the
 repeat count. `GO` inside quoted values, bracketed identifiers, and comments stays in the
-statement. Custom statement splitters control their own batch handling.
+statement. Nested block comments ignore embedded SQL through the matching outer delimiter
+(`select_nested_block_comment`). Custom statement splitters control their own batch handling.
 
 Current SQL Server SQL case assets:
 

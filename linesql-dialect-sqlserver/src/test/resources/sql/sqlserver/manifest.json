@@ -2,6 +2,16 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "select_nested_block_comment",
+      "file": "cases/select_nested_block_comment.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.customers"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["dbo.customers.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "dbo.customers.active"}],
+      "description": "A nested block comment hides embedded statements and keeps the real WHERE dependency"
+    },
+    {
       "id": "union_unnamed_constant_order",
       "file": "cases/union_unnamed_constant_order.sql",
       "statementType": "SELECT",

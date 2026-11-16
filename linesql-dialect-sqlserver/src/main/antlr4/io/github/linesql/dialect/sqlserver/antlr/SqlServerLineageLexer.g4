@@ -258,7 +258,7 @@ DOUBLE_COLON: '::';
 COLON: ':';
 
 LINE_COMMENT: '--' ~[\r\n]* -> skip;
-BLOCK_COMMENT: '/*' .*? '*/' -> skip;
+BLOCK_COMMENT: '/*' {io.github.linesql.core.util.AntlrLexerUtils.consumeNestedBlockComment(this);} -> skip;
 WS: [ \t\r\n]+ -> skip;
 OTHER: .;
 
