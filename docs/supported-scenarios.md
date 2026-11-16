@@ -941,6 +941,7 @@ Implemented StarRocks table-level lineage scenarios:
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |
+| Positional INSERT projections and predicate literals | Explicit destination positions map unnamed computations and scalar subqueries in INSERT and INSERT OVERWRITE. Boolean and NULL literals in predicates contribute no column reference. | `insert_overwrite_unnamed_position`, `insert_select_unnamed_scalar_subquery`, `select_boolean_literals_and_quoted_column` |
 | INSERT INTO VALUES target lineage | `insert into ads.t(c1) values (...)` | `insert_values` |
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE TABLE AS SELECT over CTE | `create table ads.t as with q as (...) select ... from q` | `create_table_as_with_select` |
@@ -1214,6 +1215,7 @@ Implemented Flink table-level lineage scenarios:
 | JOIN source tables | `select ... from ods_users u join dwd_orders o ...` | `join_projection` |
 | NATURAL JOIN source tables | `select ... from a natural left join b` | `natural_left_join` |
 | INSERT INTO target and source | `insert into ads_t select ... from ods_s` | `insert_into` |
+| Positional INSERT projections | Explicit destination columns resolve unnamed computations within a single insert or a statement set. Each statement-set branch keeps its own target positions. | `insert_select_unnamed_position`, `statement_set_unnamed_write_projections` |
 | EXECUTE INSERT target and source | `execute insert into ads.t select ... from dwd.s` | `execute_insert_select` |
 | INSERT OVERWRITE static partition | `insert overwrite ads.t partition (...) (c1, c2) select ...` | `insert_partition_select` |
 | Hive-compatible INSERT TABLE syntax | `insert into table t select ...`; `insert overwrite table t partition (...) if not exists select ...` | `hive_insert_into_table`, `hive_insert_overwrite_table_partition` |

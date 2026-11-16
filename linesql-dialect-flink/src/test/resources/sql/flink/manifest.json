@@ -2,6 +2,37 @@
   "dialect": "FLINK",
   "cases": [
     {
+      "id": "insert_select_unnamed_position",
+      "file": "cases/insert_select_unnamed_position.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.net_amount", "sources": ["ods.orders.amount", "ods.orders.discount"]},
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "Flink calculates write mappings from positional expressions and retains the constant slot"
+    },
+    {
+      "id": "statement_set_unnamed_write_projections",
+      "file": "cases/statement_set_unnamed_write_projections.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.refunds"],
+      "outputTables": ["mart.audit", "mart.refunds"],
+      "columnLineage": [
+        {"target": "mart.audit.net_amount", "sources": ["ods.orders.amount", "ods.orders.discount"]},
+        {"target": "mart.refunds.id", "sources": ["ods.refunds.id"]},
+        {"target": "mart.refunds.adjusted_amount", "sources": ["ods.refunds.credit", "ods.refunds.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "Each statement-set insert preserves its own target positions and expressions"
+    },
+    {
       "id": "legacy_begin_statement_set",
       "file": "cases/legacy_begin_statement_set.sql",
       "statementType": "INSERT",

@@ -40,6 +40,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
     private FlinkParser.SelectClauseContext setBranchSelect;
+    private FlinkParser.SelectClauseContext positionalInsertSelect;
     private ParseContext context;
 
     FlinkLineageVisitor(LineageResult result) {
@@ -134,7 +135,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
         }
         if (ctx.query() != null) {
-            visit(ctx.query());
+            positionalInsertSelect = insertTargetColumns.isEmpty()
+                    ? null : explicitBranchSelect(ctx.query().queryTerm());
+            try {
+                visit(ctx.query());
+            } finally {
+                positionalInsertSelect = null;
+            }
             refreshColumnLineage();
             retargetColumnLineage(target);
         } else {
@@ -1160,7 +1167,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(FlinkParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null) {
+        if (setBranchSelect == null && positionalInsertSelect == null) {
             return visitChildren(ctx);
         }
         LineageResult inner = lineageForQuery(ctx.query());
@@ -2394,7 +2401,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             FlinkParser.SelectItemContext item = items.get(i);
             if (item instanceof FlinkParser.SelectExpressionContext) {
                 FlinkParser.SelectExpressionContext selected = (FlinkParser.SelectExpressionContext) item;
-                Projection projection = projection(selected, i);
+                boolean positional = ctx == positionalInsertSelect && i < insertTargetColumns.size();
+                Projection projection = projection(selected, i, positional);
                 if (projection == null && ctx == setBranchSelect) {
                     FlinkParser.ExpressionContext expression = selected.expression();
                     projection = new Projection(sourceColumns(expression), "EXPR$" + i, expression.getText(), i);
@@ -2445,7 +2453,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return ((FlinkParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(FlinkParser.SelectExpressionContext ctx, int ordinal) {
+    private Projection projection(FlinkParser.SelectExpressionContext ctx, int ordinal, boolean positionalInsert) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
@@ -2454,12 +2462,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (sourceColumns.isEmpty() && ctx.alias == null) {
             return null;
         }
-        if (sourceColumns.size() > 1 && ctx.alias == null) {
-            return null;
-        }
         String targetColumn = ctx.alias == null
                 ? inferredSingleSourceTarget(directColumn, sourceColumns, ctx.expression())
                 : cleanIdentifier(ctx.alias);
+        if (positionalInsert && !sourceColumns.isEmpty() && targetColumn == null) {
+            targetColumn = expression;
+        }
         if (targetColumn == null) {
             return null;
         }
