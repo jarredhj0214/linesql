@@ -1181,8 +1181,18 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitAliasedQuery(SqlBaseParser.AliasedQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
-        registerDerivedRelation(relationName.toLowerCase(java.util.Locale.ROOT), ctx.query(),
-                tableAliasColumnNames(ctx.tableAlias()));
+        String name = relationName.toLowerCase(Locale.ROOT);
+        List<String> aliases = tableAliasColumnNames(ctx.tableAlias());
+        ParseTree parent = ctx.getParent();
+        boolean lateral = (parent instanceof SqlBaseParser.RelationContext
+                        && ((SqlBaseParser.RelationContext) parent).LATERAL() != null)
+                || (parent instanceof SqlBaseParser.JoinRelationContext
+                        && ((SqlBaseParser.JoinRelationContext) parent).LATERAL() != null);
+        if (lateral) {
+            registerDerivedResult(name, aliases, lineageForQuery(ctx.query(), true));
+        } else {
+            registerDerivedRelation(name, ctx.query(), aliases);
+        }
         addDerivedReference(relationName, ctx.tableAlias());
         return null;
     }
@@ -2231,7 +2241,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         relationVisitor.setContext(context);
         relationVisitor.visit(query);
         relationVisitor.finalizeResult();
+        registerDerivedResult(relationName, columnAliases, relationResult);
+    }
 
+    private void registerDerivedResult(String relationName, List<String> columnAliases, LineageResult relationResult) {
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         List<ColumnLineage> lineages = relationResult.getColumnLineage();
         for (int i = 0; i < lineages.size(); i++) {
@@ -2296,6 +2309,16 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         queryVisitor.preserveProjectionPositions = correlated;
         if (correlated) {
             queryVisitor.tableAliases.putAll(tableAliases);
+            SqlBaseParser.RegularQuerySpecificationContext specification = topLevelQuerySpecification(query);
+            if (specification != null && specification.fromClause() == null && visibleRelations.size() == 1) {
+                VisibleRelation outer = visibleRelations.get(0);
+                queryVisitor.visibleRelations.add(outer);
+                queryVisitor.visibleRelationCount = 1;
+                queryVisitor.firstVisibleInputTable = outer.table;
+                if (outer.derivedName != null) {
+                    queryVisitor.derivedReferences.add(outer.derivedName);
+                }
+            }
         } else {
             queryVisitor.derivedReferences.addAll(derivedReferences);
         }

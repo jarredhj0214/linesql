@@ -4709,6 +4709,111 @@
         }
       ],
       "description": "A nonrecursive definition reads the same-named physical table, and later CTEs read the completed definition"
+    },
+    {
+      "id": "select_lateral_alias_no_from",
+      "file": "cases/select_lateral_alias_no_from.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "sales.orders.id"
+          ]
+        },
+        {
+          "target": "gross",
+          "sources": [
+            "sales.orders.amount",
+            "sales.orders.tax"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Spark CROSS JOIN LATERAL sees qualified preceding columns without a local FROM"
+    },
+    {
+      "id": "insert_lateral_correlated_derived",
+      "file": "cases/insert_lateral_correlated_derived.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "sales.orders",
+        "sales.scores"
+      ],
+      "outputTables": [
+        "mart.order_scores"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.order_scores.order_id",
+          "sources": [
+            "sales.orders.id"
+          ]
+        },
+        {
+          "target": "mart.order_scores.adjusted",
+          "sources": [
+            "sales.scores.value",
+            "sales.orders.adjustment"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "sales.scores.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "sales.orders.id"
+        }
+      ],
+      "description": "Spark lateral projections keep local and preceding columns separate through INSERT"
+    },
+    {
+      "id": "select_unqualified_single_input_lateral",
+      "file": "cases/select_unqualified_single_input_lateral.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "gross",
+          "sources": [
+            "sales.orders.amount",
+            "sales.orders.tax"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A FROM-less lateral query resolves unqualified columns from its sole preceding relation"
+    },
+    {
+      "id": "select_lateral_projection_chain",
+      "file": "cases/select_lateral_projection_chain.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "gross_total",
+          "sources": [
+            "sales.orders.amount",
+            "sales.orders.tax",
+            "sales.orders.shipping"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Later Spark lateral relations can trace both an earlier lateral projection and the base table"
     }
   ]
 }
