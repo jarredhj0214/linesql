@@ -77,6 +77,32 @@ public class OceanBaseDialectParserTest {
     }
 
     @Test
+    public void retriesOnlyInferredModesAfterSyntaxErrors() throws IOException {
+        String lateral = resource("/sql/oceanbase/cases/mysql_mode_lateral_derived_column_aliases.sql");
+        String offset = resource("/sql/oceanbase/cases/oracle_mode_offset_only_fallback.sql");
+        assertInferredMode(lateral, "MySQL");
+        assertInferredMode(offset, "Oracle");
+
+        ParseOptions oracle = ParseOptions.builder().dialectOption(OceanBaseDialectParser.COMPATIBILITY_MODE_OPTION, "oracle").build();
+        ParseOptions mysql = ParseOptions.builder().dialectOption(OceanBaseDialectParser.COMPATIBILITY_MODE_OPTION, "mysql").build();
+        assertTrue(parser.parse(lateral, oracle, new ParseContext()).getDiagnostics().stream()
+                .anyMatch(diagnostic -> "ORACLE_PARSE_ERROR".equals(diagnostic.getCode())));
+        assertTrue(parser.parse(offset, mysql, new ParseContext()).getDiagnostics().stream()
+                .anyMatch(diagnostic -> "MYSQL_PARSE_ERROR".equals(diagnostic.getCode())));
+    }
+
+    private void assertInferredMode(String sql, String mode) {
+        LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
+        assertEquals(SqlDialect.OCEANBASE, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertTrue(result.getDiagnostics().stream()
+                .noneMatch(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.ERROR));
+        assertTrue(result.getDiagnostics().stream()
+                .anyMatch(diagnostic -> "OCEANBASE_COMPATIBILITY_MODE_INFERRED".equals(diagnostic.getCode())
+                        && diagnostic.getMessage().contains(mode)));
+    }
+
+    @Test
     public void reportsInferredCompatibilityModeWithoutChangingPublicDialect() {
         LineageResult mysqlMode = parser.parse(
                 "select /*+ read_consistency(weak) */ id from app.users",

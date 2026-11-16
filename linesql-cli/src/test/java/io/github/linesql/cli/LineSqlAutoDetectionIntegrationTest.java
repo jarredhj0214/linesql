@@ -126,6 +126,28 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void oceanBaseInfersOracleForStandaloneBlocksAndKeepsTransactionsSeparate() {
+        List<LineageResult> block = LineSql.parseScript(
+                "BEGIN INSERT INTO mart.audit (id) SELECT id FROM ods.orders; END",
+                SqlDialect.OCEANBASE);
+        assertEquals(1, block.size());
+        assertEquals(SqlDialect.OCEANBASE, block.get(0).getDialect());
+        assertEquals(StatementType.CONTROL, block.get(0).getStatementType());
+        assertEquals("orders", block.get(0).getInputTables().get(0).getName());
+        assertEquals("audit", block.get(0).getOutputTables().get(0).getName());
+        assertFalse(block.get(0).getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+
+        List<LineageResult> transaction = LineSql.parseScript(
+                "BEGIN; SELECT id FROM ods.orders; COMMIT;", SqlDialect.OCEANBASE);
+        assertEquals(3, transaction.size());
+        assertEquals(StatementType.CONTROL, transaction.get(0).getStatementType());
+        assertEquals(StatementType.SELECT, transaction.get(1).getStatementType());
+        assertEquals(StatementType.CONTROL, transaction.get(2).getStatementType());
+
+        assertEquals(3, LineSql.parseScript("BEGIN; SELECT id FROM dual; END;").size());
+    }
+
+    @Test
     public void parseScriptAutoDetectsPostgresDollarQuotesAmongOtherDialects() {
         List<LineageResult> results = LineSql.parseScript(
                 "DO $Body$ BEGIN PERFORM 'from dual;'; END; $Body$;"

@@ -2,6 +2,16 @@
   "dialect": "OCEANBASE",
   "cases": [
     {
+      "id": "oracle_mode_offset_only_fallback",
+      "file": "cases/oracle_mode_offset_only_fallback.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.orders.id"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.orders.id"}],
+      "description": "Inferred compatibility can recover to Oracle mode for OFFSET without LIMIT"
+    },
+    {
       "id": "mysql_mode_select",
       "file": "cases/mysql_mode_select.sql",
       "statementType": "SELECT",
@@ -1561,7 +1571,6 @@
     {
       "id": "mysql_mode_lateral_derived_column_aliases",
       "file": "cases/mysql_mode_lateral_derived_column_aliases.sql",
-      "compatibilityMode": "mysql",
       "statementType": "SELECT",
       "inputTables": ["app.users", "app.orders"],
       "outputTables": [],

@@ -1,6 +1,7 @@
 package io.github.linesql.dialect.oceanbase;
 
 import io.github.linesql.core.model.Diagnostic;
+import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
@@ -31,6 +32,14 @@ public class OceanBaseDialectParser implements DialectParser {
                 ? oracleModeParser
                 : "mysql".equals(explicitMode) ? mysqlModeParser : looksLikeOracleMode(sql) ? oracleModeParser : mysqlModeParser;
         LineageResult result = delegate.parse(sql, options, context);
+        if (explicitMode == null && hasErrors(result)) {
+            DialectParser alternative = delegate == oracleModeParser ? mysqlModeParser : oracleModeParser;
+            LineageResult alternativeResult = alternative.parse(sql, options, context);
+            if (alternativeResult.getStatementType() != StatementType.UNKNOWN && !hasErrors(alternativeResult)) {
+                delegate = alternative;
+                result = alternativeResult;
+            }
+        }
         classifyOceanBaseNativeStatement(sql, result);
         result.setDialect(SqlDialect.OCEANBASE);
         result.setDialectConfidence(1.0d);
@@ -40,6 +49,10 @@ public class OceanBaseDialectParser implements DialectParser {
                         + (delegate.dialect() == SqlDialect.ORACLE ? "Oracle" : "MySQL")
                         + " compatibility mode."));
         return result;
+    }
+
+    private static boolean hasErrors(LineageResult result) {
+        return result.getDiagnostics().stream().anyMatch(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.ERROR);
     }
 
     private static void classifyOceanBaseNativeStatement(String sql, LineageResult result) {

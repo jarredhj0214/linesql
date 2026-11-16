@@ -21,7 +21,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
             "^\\s*(?:BEGIN|DECLARE|CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:PROCEDURE|FUNCTION|PACKAGE|TRIGGER))\\b",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ORACLE_BLOCK_END = Pattern.compile(
-            "\\bEND(?:\\s+[\\p{L}_][\\p{L}\\p{N}_$#]*)?\\s*;\\s*(?:/\\s*)?$", Pattern.CASE_INSENSITIVE);
+            "\\bEND(?:\\s+[\\p{L}_][\\p{L}\\p{N}_$#]*)?\\s*;?\\s*(?:/\\s*)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern TRANSACTION_BEGIN = Pattern.compile(
+            "^\\s*BEGIN\\s*(?:;|(?:WORK|(?:DISTRIBUTED\\s+)?TRAN(?:SACTION)?|ISOLATION\\s+LEVEL"
+                    + "|READ\\s+(?:ONLY|WRITE)|(?:NOT\\s+)?DEFERRABLE)\\b)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ORACLE_SLASH = Pattern.compile("[ \\t]*/[ \\t]*");
 
     private static final Pattern FLINK_STATEMENT_SET = Pattern.compile(
@@ -193,8 +196,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
     }
 
     static boolean isOracleBlockScript(String script) {
-        return ORACLE_BLOCK_END.matcher(script).find()
-                && ORACLE_BLOCK.matcher(stripComments(script, false)).find();
+        String withoutComments = stripComments(script, false);
+        return ORACLE_BLOCK.matcher(withoutComments).find()
+                && !TRANSACTION_BEGIN.matcher(withoutComments).find()
+                && (ORACLE_BLOCK_END.matcher(script).find() || ORACLE_BLOCK_END.matcher(withoutComments).find());
     }
 
     static boolean containsFlinkStatementSet(String sql) {

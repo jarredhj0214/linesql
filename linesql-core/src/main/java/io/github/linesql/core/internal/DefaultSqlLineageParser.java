@@ -81,25 +81,30 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     }
 
     private List<String> splitScript(String script, ParseOptions options, DialectCandidate scriptCandidate) {
-        if (!options.getDialectHints().isEmpty()
-                && statementSplitter.getClass() == SimpleStatementSplitter.class) {
+        if (statementSplitter.getClass() != SimpleStatementSplitter.class) {
+            return statementSplitter.split(script);
+        }
+        SimpleStatementSplitter splitter = (SimpleStatementSplitter) statementSplitter;
+        if (!options.getDialectHints().isEmpty()) {
             SqlDialect dialect = options.getDialectHints().get(0);
-            if (dialect == SqlDialect.OCEANBASE && options.getDialectOptions() != null) {
-                String mode = options.getDialectOptions().get("oceanbase.compatibilityMode");
-                if (mode != null && "oracle".equalsIgnoreCase(mode.trim())) {
-                    dialect = SqlDialect.ORACLE;
-                } else if (mode != null && "mysql".equalsIgnoreCase(mode.trim())) {
+            if (dialect == SqlDialect.OCEANBASE) {
+                String mode = options.getDialectOptions() == null
+                        ? null : options.getDialectOptions().get("oceanbase.compatibilityMode");
+                String normalizedMode = mode == null ? "" : mode.trim();
+                if ("mysql".equalsIgnoreCase(normalizedMode)) {
                     dialect = SqlDialect.MYSQL;
+                } else if ("oracle".equalsIgnoreCase(normalizedMode)
+                        || SimpleStatementSplitter.isOracleBlockScript(script)) {
+                    dialect = SqlDialect.ORACLE;
                 }
             }
-            return ((SimpleStatementSplitter) statementSplitter).split(script, dialect);
+            return splitter.split(script, dialect);
         }
         if (scriptCandidate != null && scriptCandidate.getDialect() == SqlDialect.ORACLE
-                && statementSplitter.getClass() == SimpleStatementSplitter.class
                 && SimpleStatementSplitter.isOracleBlockScript(script)) {
-            return ((SimpleStatementSplitter) statementSplitter).split(script, SqlDialect.ORACLE);
+            return splitter.split(script, SqlDialect.ORACLE);
         }
-        return statementSplitter.split(script);
+        return splitter.split(script);
     }
 
     private DialectCandidate selectStatementDialect(String statement, ParseOptions options) {
