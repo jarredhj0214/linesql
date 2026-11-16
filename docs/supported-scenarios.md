@@ -202,6 +202,7 @@ Implemented PostgreSQL scenarios:
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | INSERT VALUES without a target column list | A scalar subquery in VALUES preserves the input table while target names depend on the table schema. | `insert_values_subquery_without_target_columns` |
 | Tagged dollar-quoted strings | Case-sensitive delimiters preserve literal text and embedded semicolons in queries and DO blocks. | `select_tagged_dollar_quote`, `do_tagged_dollar_quote` |
+| Nested block comments | Matching the outer closing delimiter hides embedded SQL and semicolons. Specify PostgreSQL when analyzing a script with nested comments. | `select_nested_block_comment` |
 
 Known PostgreSQL gaps:
 

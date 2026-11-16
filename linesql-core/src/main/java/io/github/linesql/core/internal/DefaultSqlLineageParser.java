@@ -82,9 +82,8 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
 
     private List<String> splitScript(String script, ParseOptions options) {
         if (!options.getDialectHints().isEmpty()
-                && options.getDialectHints().get(0) == SqlDialect.SQLSERVER
                 && statementSplitter.getClass() == SimpleStatementSplitter.class) {
-            return ((SimpleStatementSplitter) statementSplitter).splitSqlServerBatches(script);
+            return ((SimpleStatementSplitter) statementSplitter).split(script, options.getDialectHints().get(0));
         }
         return statementSplitter.split(script);
     }

@@ -1,5 +1,6 @@
 package io.github.linesql.core.internal;
 
+import io.github.linesql.core.model.SqlDialect;
 import org.junit.Test;
 
 import java.util.List;
@@ -65,7 +66,7 @@ public class SimpleStatementSplitterTest {
         String nestedComment = "/* outer /* inner */\r\nGO\r\n*/";
         String script = "GO\r\n" + select + "\r\n  go 002 -- repeat\r\n" + nestedComment
                 + "\r\nGO\r\nselect go from dbo.u";
-        List<String> statements = splitter.splitSqlServerBatches(script);
+        List<String> statements = splitter.split(script, SqlDialect.SQLSERVER);
         assertEquals(2, statements.size());
         assertEquals(select, statements.get(0));
         assertEquals("select go from dbo.u", statements.get(1));

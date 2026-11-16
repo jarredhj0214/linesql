@@ -8,6 +8,7 @@ import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.ColumnUsage;
+import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.dialect.postgresql.antlr.PostgreSqlLineageLexer;
 import io.github.linesql.dialect.postgresql.antlr.PostgreSqlParser;
 import org.antlr.v4.runtime.CharStreams;
@@ -43,6 +44,18 @@ public class PostgreSqlDialectParserTest {
         assertTrue(union.UNION() != null);
         assertTrue(intersect.INTERSECT() != null);
         assertEquals("ALL", intersect.setQuantifier().getText());
+    }
+
+    @Test
+    public void skipsNestedCommentsAcrossScriptStatements() {
+        String script = "/* outer /* inner */ select id from ignored; */; "
+                + "SELECT id FROM ods.a /* outer /* inner */ ; */ WHERE active = true; "
+                + "SELECT id FROM ods.b";
+        List<LineageResult> results = io.github.linesql.core.LineSql.parseScript(script, SqlDialect.POSTGRESQL);
+        assertEquals(2, results.size());
+        assertEquals("a", results.get(0).getInputTables().get(0).getName());
+        assertEquals("b", results.get(1).getInputTables().get(0).getName());
+        assertEquals(ColumnUsageType.WHERE, results.get(0).getColumnUsages().get(0).getType());
     }
 
     @Test

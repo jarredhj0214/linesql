@@ -2,6 +2,16 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "select_nested_block_comment",
+      "file": "cases/select_nested_block_comment.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.a.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.a.active"}],
+      "description": "Nested block comments hide SQL and semicolons before the actual WHERE clause"
+    },
+    {
       "id": "select_tagged_dollar_quote",
       "file": "cases/select_tagged_dollar_quote.sql",
       "statementType": "SELECT",

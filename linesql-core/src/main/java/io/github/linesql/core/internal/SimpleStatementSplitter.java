@@ -1,5 +1,6 @@
 package io.github.linesql.core.internal;
 
+import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.StatementSplitter;
 
 import java.util.ArrayList;
@@ -12,14 +13,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
     @Override
     public List<String> split(String script) {
-        return split(script, false);
+        return split(script, SqlDialect.UNKNOWN);
     }
 
-    List<String> splitSqlServerBatches(String script) {
-        return split(script, true);
-    }
-
-    private List<String> split(String script, boolean sqlServer) {
+    List<String> split(String script, SqlDialect dialect) {
+        boolean sqlServer = dialect == SqlDialect.SQLSERVER;
+        boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         char quote = 0;
@@ -43,7 +42,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     current.append(next);
                     i++;
                     blockCommentDepth--;
-                } else if (sqlServer && c == '/' && next == '*') {
+                } else if (nestedComments && c == '/' && next == '*') {
                     current.append(next);
                     i++;
                     blockCommentDepth++;
@@ -57,7 +56,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     lineEnd++;
                 }
                 if (lineEnd > i && GO_LINE.matcher(script).region(i, lineEnd).matches()) {
-                    addIfNotBlank(statements, current, sqlServer);
+                    addIfNotBlank(statements, current, nestedComments);
                     current.setLength(0);
                     i = lineEnd - 1;
                     continue;
@@ -117,14 +116,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 continue;
             }
             if (quote == 0 && c == ';') {
-                addIfNotBlank(statements, current, sqlServer);
+                addIfNotBlank(statements, current, nestedComments);
                 current.setLength(0);
                 continue;
             }
             current.append(c);
         }
 
-        addIfNotBlank(statements, current, sqlServer);
+        addIfNotBlank(statements, current, nestedComments);
         return statements;
     }
 
@@ -169,14 +168,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
         return backslashes % 2 == 1;
     }
 
-    private static void addIfNotBlank(List<String> statements, StringBuilder sql, boolean sqlServer) {
+    private static void addIfNotBlank(List<String> statements, StringBuilder sql, boolean nestedComments) {
         String value = sql.toString().trim();
-        if (!value.isEmpty() && !stripComments(value, sqlServer).trim().isEmpty()) {
+        if (!value.isEmpty() && !stripComments(value, nestedComments).trim().isEmpty()) {
             statements.add(value);
         }
     }
 
-    private static String stripComments(String sql, boolean sqlServer) {
+    private static String stripComments(String sql, boolean nestedComments) {
         StringBuilder stripped = new StringBuilder(sql.length());
         char quote = 0;
         boolean lineComment = false;
@@ -197,7 +196,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 if (c == '*' && next == '/') {
                     i++;
                     blockCommentDepth--;
-                } else if (sqlServer && c == '/' && next == '*') {
+                } else if (nestedComments && c == '/' && next == '*') {
                     i++;
                     blockCommentDepth++;
                 }
@@ -213,7 +212,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 blockCommentDepth = 1;
                 continue;
             }
-            if (!sqlServer && quote == 0 && c == '$') {
+            if (quote == 0 && c == '$') {
                 int end = dollarQuotedEnd(sql, i);
                 if (end > i) {
                     stripped.append(sql, i, end);
