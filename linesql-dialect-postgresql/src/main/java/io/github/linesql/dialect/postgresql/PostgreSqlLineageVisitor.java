@@ -2087,20 +2087,20 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.setBranchSelect = explicitSetBranchSelect(queryTerm);
+        queryVisitor.setBranchSelect = fullyExplicitSelect(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryResult;
     }
 
-    private static PostgreSqlParser.SelectClauseContext explicitSetBranchSelect(PostgreSqlParser.QueryTermContext term) {
+    private static PostgreSqlParser.SelectClauseContext fullyExplicitSelect(PostgreSqlParser.QueryTermContext term) {
         if (!(term instanceof PostgreSqlParser.QueryTermDefaultContext)) {
             return null;
         }
         PostgreSqlParser.QueryPrimaryContext primary =
                 ((PostgreSqlParser.QueryTermDefaultContext) term).queryPrimary();
         if (primary instanceof PostgreSqlParser.SubqueryPrimaryContext) {
-            return explicitSetBranchSelect(((PostgreSqlParser.SubqueryPrimaryContext) primary).query().queryTerm());
+            return fullyExplicitSelect(((PostgreSqlParser.SubqueryPrimaryContext) primary).query().queryTerm());
         }
         if (!(primary instanceof PostgreSqlParser.QueryPrimaryDefaultContext) || setOutputWidth(term) < 0) {
             return null;
@@ -2870,6 +2870,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         inputTables.addAll(queryResult.getInputTables());
         LineageModelUtils.mergeColumnUsages(result, queryResult);
 
+        PostgreSqlParser.SelectClauseContext select = insertTargetColumns.isEmpty()
+                ? null : fullyExplicitSelect(query.queryTerm());
+        if (select != null) {
+            result.setColumnLineage(queryVisitor.positionalInsertLineage(select, target, insertTargetColumns));
+            return;
+        }
         if (queryVisitor.projections.isEmpty()) {
             result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
                     queryResult.getColumnLineage(),
@@ -2887,6 +2893,22 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             lineages.add(LineageModelUtils.columnLineage(target, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(lineages);
+    }
+
+    private List<ColumnLineage> positionalInsertLineage(PostgreSqlParser.SelectClauseContext select,
+                                                         TableRef target,
+                                                         List<String> targetColumns) {
+        List<PostgreSqlParser.SelectItemContext> items = select.selectItemList().selectItem();
+        List<ColumnLineage> lineages = new ArrayList<>();
+        for (int i = 0; i < Math.min(items.size(), targetColumns.size()); i++) {
+            PostgreSqlParser.ExpressionContext expression =
+                    ((PostgreSqlParser.SelectExpressionContext) items.get(i)).expression();
+            List<ColumnRef> sources = columnRefs(sourceColumns(expression));
+            if (sources != null && !sources.isEmpty()) {
+                lineages.add(LineageModelUtils.columnLineage(target, targetColumns.get(i), sources, expression.getText()));
+            }
+        }
+        return lineages;
     }
 
     private void collectTopLevelQueryProjections(PostgreSqlParser.QueryContext query) {

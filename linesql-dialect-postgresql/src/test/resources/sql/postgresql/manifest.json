@@ -2,6 +2,31 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "insert_select_unnamed_expressions",
+      "file": "cases/insert_select_unnamed_expressions.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.accounts"],
+      "outputTables": ["mart.account_rollup"],
+      "columnLineage": [
+        {"target": "mart.account_rollup.total", "sources": ["ods.accounts.amount", "ods.accounts.tax"]},
+        {"target": "mart.account_rollup.account_id", "sources": ["ods.accounts.id"]}
+      ],
+      "columnUsages": [{"type": "WHERE", "column": "ods.accounts.enabled"}],
+      "description": "Explicit INSERT targets bind to SELECT literals and unnamed expressions by position"
+    },
+    {
+      "id": "insert_select_parenthesized_scalar",
+      "file": "cases/insert_select_parenthesized_scalar.sql",
+      "statementType": "INSERT",
+      "inputTables": ["sales.payments", "ods.accounts"],
+      "outputTables": ["mart.account_rollup"],
+      "columnLineage": [
+        {"target": "mart.account_rollup.account_id", "sources": ["ods.accounts.id"]},
+        {"target": "mart.account_rollup.latest_payment", "sources": ["sales.payments.amount"]}
+      ],
+      "description": "A scalar subquery occupies one slot in a parenthesized INSERT SELECT"
+    },
+    {
       "id": "union_json_constructor_order",
       "file": "cases/union_json_constructor_order.sql",
       "statementType": "SELECT",
