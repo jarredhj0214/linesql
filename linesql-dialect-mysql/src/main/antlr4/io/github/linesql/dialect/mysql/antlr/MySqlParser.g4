@@ -725,13 +725,13 @@ oceanBaseControlStatement
     : ALTER PROXYCONFIG SET .+?
     | CREATE RESOURCE UNIT identifier .+?
     | ALTER RESOURCE UNIT identifier .+?
-    | DROP RESOURCE UNIT identifier .+?
+    | DROP RESOURCE UNIT (IF EXISTS)? identifier
     | CREATE RESOURCE POOL identifier .+?
     | ALTER RESOURCE POOL identifier .+?
-    | DROP RESOURCE POOL identifier .+?
+    | DROP RESOURCE POOL (IF EXISTS)? identifier
     | CREATE STANDBY? TENANT identifier .+?
     | ALTER TENANT identifier .+?
-    | DROP TENANT identifier .+?
+    | DROP TENANT (IF EXISTS)? identifier (FORCE | PURGE)?
     | CHANGE TENANT identifier
     | CREATE TABLEGROUP identifier (SHARDING EQ string)?
     | ALTER TABLEGROUP identifier .+?

@@ -7,6 +7,7 @@ import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.spi.DialectParser;
+import io.github.linesql.core.util.OracleQuotedLiterals;
 import io.github.linesql.dialect.mysql.MySqlDialectParser;
 import io.github.linesql.dialect.oracle.OracleDialectParser;
 
@@ -70,8 +71,52 @@ public class OceanBaseDialectParser implements DialectParser {
         return null;
     }
 
+    // An alternative-quoted literal is itself an Oracle mode marker.
+    private static String maskStringLiterals(String sql) {
+        StringBuilder masked = new StringBuilder(sql.length());
+        for (int i = 0; i < sql.length(); ) {
+            char current = sql.charAt(i);
+            if (current == 'q' || current == 'Q' || current == 'n' || current == 'N') {
+                int end = OracleQuotedLiterals.endOfLiteral(sql, i);
+                if (end > i) {
+                    return null;
+                }
+            }
+            masked.append(current);
+            i++;
+            if (current == '"' || current == '`') {
+                while (i < sql.length()) {
+                    char quoted = sql.charAt(i++);
+                    masked.append(quoted);
+                    if (quoted == current) {
+                        break;
+                    }
+                }
+            } else if (current == '\'') {
+                while (i < sql.length()) {
+                    char quoted = sql.charAt(i++);
+                    if (quoted == '\\' && i < sql.length()) {
+                        i++;
+                    } else if (quoted == '\'') {
+                        if (i < sql.length() && sql.charAt(i) == '\'') {
+                            i++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                masked.append('\'');
+            }
+        }
+        return masked.toString();
+    }
+
     private static boolean looksLikeOracleMode(String sql) {
-        String normalized = sql == null ? "" : sql.toLowerCase(Locale.ROOT);
+        String outsideLiterals = sql == null ? "" : maskStringLiterals(sql);
+        if (outsideLiterals == null) {
+            return true;
+        }
+        String normalized = outsideLiterals.toLowerCase(Locale.ROOT);
         return normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
                 || normalized.matches("(?s).*\\b(rownum|rowid|ora_rowscn|connect_by_isleaf|connect_by_iscycle)\\b.*")
                 || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")

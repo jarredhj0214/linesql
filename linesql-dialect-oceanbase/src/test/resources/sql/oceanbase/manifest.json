@@ -14,6 +14,30 @@
       "description": "OceanBase MySQL compatibility mode SELECT lineage"
     },
     {
+      "id": "mysql_mode_select_ignores_oracle_markers_in_strings",
+      "file": "cases/mysql_mode_select_ignores_oracle_markers_in_strings.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.note"
+        }
+      ],
+      "description": "String contents do not influence OceanBase mode inference"
+    },
+    {
       "id": "mysql_mode_derived_table_query_primary_star",
       "file": "cases/mysql_mode_derived_table_query_primary_star.sql",
       "statementType": "SELECT",
@@ -4132,6 +4156,15 @@
       "description": "OceanBase CREATE RESOURCE POOL is accepted as a table-free control statement"
     },
     {
+      "id": "control_drop_resource_unit_if_exists",
+      "file": "cases/control_drop_resource_unit_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase recognizes the optional IF EXISTS without requiring a trailing clause"
+    },
+    {
       "id": "control_alter_resource_pool",
       "file": "cases/control_alter_resource_pool.sql",
       "statementType": "CONTROL",
@@ -4157,6 +4190,15 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "OceanBase CREATE UNDO TABLESPACE is accepted as a table-free control statement"
+    },
+    {
+      "id": "control_drop_resource_pool_if_exists",
+      "file": "cases/control_drop_resource_pool_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase recognizes the optional IF EXISTS without requiring a trailing clause"
     },
     {
       "id": "control_alter_undo_tablespace",
@@ -4220,6 +4262,15 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "OceanBase ALTER SYSTEM ADD SERVER is accepted as a table-free control statement"
+    },
+    {
+      "id": "control_drop_tenant_if_exists",
+      "file": "cases/control_drop_tenant_if_exists.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "OceanBase recognizes the optional IF EXISTS without requiring a trailing clause"
     },
     {
       "id": "control_alter_system_delete_server",
@@ -5944,7 +5995,7 @@
       "inputTables": [],
       "outputTables": [],
       "columnLineage": [],
-      "description": "OceanBase ALTER SYSTEM RESTORE TENANT is accepted as tenant restore control"
+      "description": "OceanBase ALTER SYSTEM RESTORE is accepted as tenant restore control"
     },
     {
       "id": "control_alter_system_restore_preview",

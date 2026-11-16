@@ -417,14 +417,14 @@ Implemented OceanBase scenarios:
 | ODP read-consistency proxy config | `alter proxyconfig set obproxy_read_consistency = 1` | `control_alter_proxyconfig_read_consistency` |
 | Read-only/read-write database DDL | `create database if not exists test_ro_db read only`, `alter database app_db read only`, `alter database app_db read write` | `create_database_read_only`, `alter_database_read_only`, `alter_database_read_write` |
 | Resource unit control | `create resource unit unit1 ...` | `control_create_resource_unit` |
-| Resource unit alter/drop control | `alter resource unit unit1 ...`, `drop resource unit unit1` | `control_alter_resource_unit`, `control_drop_resource_unit` |
+| Resource unit alter/drop control | `alter resource unit unit1 ...`, `drop resource unit [if exists] unit1` | `control_alter_resource_unit`, `control_drop_resource_unit`, `control_drop_resource_unit_if_exists` |
 | Resource pool control | `create resource pool pool1 ...` | `control_create_resource_pool` |
-| Resource pool alter/drop control | `alter resource pool pool1 ...`, `drop resource pool pool1` | `control_alter_resource_pool`, `control_drop_resource_pool` |
+| Resource pool alter/drop control | `alter resource pool pool1 ...`, `drop resource pool [if exists] pool1` | `control_alter_resource_pool`, `control_drop_resource_pool`, `control_drop_resource_pool_if_exists` |
 | Tablespace control | `create undo tablespace ...`, `alter undo tablespace ...`, `drop undo tablespace ...` | `control_create_undo_tablespace`, `control_alter_undo_tablespace`, `control_drop_undo_tablespace` |
 | Tenant creation control | `create tenant tenant_a resource_pool_list = (...) set ...` | `control_create_tenant` |
 | Tenant alteration control | `alter tenant tenant_a set variables ...` | `control_alter_tenant` |
 | Tenant switch control | `change tenant tenant_a` | `control_change_tenant` |
-| Tenant drop control | `drop tenant tenant_a force` | `control_drop_tenant` |
+| Tenant drop control | `drop tenant tenant_a force`, `drop tenant if exists tenant_a` | `control_drop_tenant`, `control_drop_tenant_if_exists` |
 | Tenant lifecycle recovery/rename | `flashback tenant ... to before drop`, `flashback tenant ... rename to ...`, `rename tenant ... to ...` | `control_flashback_tenant_before_drop`, `control_flashback_tenant_rename`, `control_rename_tenant` |
 | Tenant metadata read | `show tenant`, `show tenant like ...`, `show create tenant ...`, `show tenant status` | `control_show_tenant`, `control_show_tenant_like`, `control_show_create_tenant`, `control_show_tenant_status` |
 | Cluster server add control | `alter system add server '127.0.0.1:2882' zone 'zone1'` | `control_alter_system_add_server` |
@@ -433,7 +433,8 @@ Implemented OceanBase scenarios:
 | Cluster zone lifecycle control | `alter system add zone zone1 region = ...`, `alter system start zone zone1`, `alter system stop zone zone1`, `alter system delete zone zone1`, `alter system isolate zone zone1`, `alter system force stop zone zone1` | `control_alter_system_add_zone`, `control_alter_system_start_zone`, `control_alter_system_stop_zone`, `control_alter_system_delete_zone`, `control_alter_system_isolate_zone`, `control_alter_system_force_stop_zone` |
 | Cluster server cancel-delete control | `alter system cancel delete server '10.10.10.1:2882' zone = 'zone1'` | `control_alter_system_cancel_delete_server` |
 | Cluster zone/server metadata read | `show servers`, `show zone` | `control_show_servers`, `control_show_zone` |
-| Backup archive and restore control | `alter system archivelog`, `alter system noarchivelog`, `alter system restore tenant ...`, `alter system restore ... preview` | `control_alter_system_archivelog`, `control_alter_system_noarchivelog`, `control_alter_system_restore_tenant`, `control_alter_system_restore_preview` |
+| Backup archive and restore control | `alter system archivelog`, `alter system noarchivelog`, `alter system restore tenant_name ...`, `alter system restore ... preview` | `control_alter_system_archivelog`, `control_alter_system_noarchivelog`, `control_alter_system_restore_tenant`, `control_alter_system_restore_preview` |
+| Compatibility mode inference with string literals | Single-quoted values such as `locality=F@zone1` or `from dual` can appear in MySQL-mode SQL without switching to Oracle mode. | `control_alter_system_restore_tenant`, `mysql_mode_select_ignores_oracle_markers_in_strings` |
 | Restore preview metadata read | `show restore preview` | `control_show_restore_preview` |
 | Compaction freeze control | `alter system major freeze`, `alter system major freeze tenant = all_user`, `alter system minor freeze` | `control_alter_system_major_freeze`, `control_alter_system_major_freeze_tenant`, `control_alter_system_minor_freeze` |
 | System parameter control | `alter system set ...`, `alter system set ... tenant = ...`, `alter system reset ...` | `control_alter_system_set_parameter`, `control_alter_system_set_tenant_parameter`, `control_alter_system_reset_parameter` |

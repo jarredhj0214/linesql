@@ -1,0 +1,1 @@
+DROP TENANT IF EXISTS tenant_a;

@@ -3,6 +3,7 @@ package io.github.linesql.dialect.oceanbase;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.linesql.core.model.ColumnUsage;
+import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
@@ -54,6 +55,24 @@ public class OceanBaseDialectParserTest {
             if (sqlCase.has("columnUsages")) {
                 assertColumnUsages(caseId, sqlCase.get("columnUsages"), result);
             }
+        }
+    }
+
+    @Test
+    public void parsesNativeControlsAndIgnoresOracleMarkersInStringLiterals() throws IOException {
+        for (String fixture : new String[] {
+                "control_drop_resource_unit", "control_drop_resource_unit_if_exists",
+                "control_drop_resource_pool", "control_drop_resource_pool_if_exists",
+                "control_drop_tenant", "control_drop_tenant_if_exists",
+                "control_alter_system_restore_tenant", "mysql_mode_select_ignores_oracle_markers_in_strings"
+        }) {
+            String sql = resource("/sql/oceanbase/cases/" + fixture + ".sql");
+            LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
+            assertTrue(fixture + ": " + result.getDiagnostics(), result.getDiagnostics().stream()
+                    .noneMatch(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.ERROR));
+            assertTrue(fixture, result.getDiagnostics().stream()
+                    .anyMatch(diagnostic -> "OCEANBASE_COMPATIBILITY_MODE_INFERRED".equals(diagnostic.getCode())
+                            && diagnostic.getMessage().contains("MySQL")));
         }
     }
 
