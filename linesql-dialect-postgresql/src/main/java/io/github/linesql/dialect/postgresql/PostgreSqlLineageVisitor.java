@@ -33,6 +33,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Set<String> knownFunctionRelations = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
@@ -1699,11 +1700,18 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             index++;
         }
         String alias = tableAlias(aliasContext);
-        registerFunctionRelation(alias == null ? defaultName : alias, namedColumns);
+        registerFunctionRelation(alias == null ? defaultName : alias, namedColumns,
+                namedColumns.size() == columns.size());
     }
 
-    private void registerFunctionRelation(String name, Map<String, List<ColumnRef>> columns) {
-        derivedColumnLineage.put(name.toLowerCase(Locale.ROOT), columns);
+    private void registerFunctionRelation(String name, Map<String, List<ColumnRef>> columns, boolean completeShape) {
+        String key = name.toLowerCase(Locale.ROOT);
+        if (completeShape) {
+            knownFunctionRelations.add(key);
+        } else {
+            knownFunctionRelations.remove(key);
+        }
+        derivedColumnLineage.put(key, columns);
         addDerivedReference(name, null);
     }
 
@@ -1751,7 +1759,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             for (PostgreSqlParser.RecordColumnContext column : ctx.recordColumn()) {
                 columnNames.add(cleanIdentifier(column.identifier()));
             }
-            registerGeneratedRelation(alias, columnNames, sources, false);
+            registerGeneratedRelation(alias, columnNames, sources, false, true);
         }
         return null;
     }
@@ -1802,7 +1810,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             String ordinal = aliasColumns.size() > valueCount ? aliasColumns.get(valueCount) : "ordinality";
             columns.putIfAbsent(ordinal, Collections.emptyList());
         }
-        registerFunctionRelation(relation, columns);
+        registerFunctionRelation(relation, columns,
+                columns.size() == valueCount + (withOrdinality ? 1 : 0));
         return true;
     }
 
@@ -1841,7 +1850,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                     Collections.emptyList());
         }
         String firstFunction = unqualifiedName(cleanIdentifier(ctx.rowsFromItem(0).functionName().getText()));
-        registerFunctionRelation(alias == null ? firstFunction : alias, columns);
+        registerFunctionRelation(alias == null ? firstFunction : alias, columns,
+                columns.size() == index + (ctx.ORDINALITY() == null ? 0 : 1));
         return null;
     }
 
@@ -1974,23 +1984,46 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitSelectClause(PostgreSqlParser.SelectClauseContext ctx) {
-        List<PostgreSqlParser.SelectItemContext> items = ctx.selectItemList().selectItem();
-        for (int i = 0; i < items.size(); i++) {
-            PostgreSqlParser.SelectItemContext item = items.get(i);
+        int ordinal = 0;
+        for (PostgreSqlParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
             if (item instanceof PostgreSqlParser.SelectExpressionContext) {
-                Projection projection = projection((PostgreSqlParser.SelectExpressionContext) item, i);
+                Projection projection = projection((PostgreSqlParser.SelectExpressionContext) item, ordinal);
                 if (projection == null && ctx == setBranchSelect) {
                     PostgreSqlParser.ExpressionContext expression =
                             ((PostgreSqlParser.SelectExpressionContext) item).expression();
                     projection = new Projection(sourceColumns(expression), defaultSetColumnName(expression),
-                            expression.getText(), i);
+                            expression.getText(), ordinal);
                 }
                 if (projection != null) {
                     projections.add(projection);
                 }
+                ordinal++;
+            } else {
+                ordinal += Math.max(1, addFunctionStarProjections(item, ordinal));
             }
         }
         return visitChildren(ctx);
+    }
+
+    private int addFunctionStarProjections(PostgreSqlParser.SelectItemContext item, int ordinal) {
+        String relation = null;
+        if (item instanceof PostgreSqlParser.SelectQualifiedStarContext) {
+            PostgreSqlParser.SelectQualifiedStarContext star = (PostgreSqlParser.SelectQualifiedStarContext) item;
+            List<PostgreSqlParser.IdentifierContext> parts = star.qualifiedName().identifier();
+            String qualifier = cleanIdentifier(parts.get(parts.size() - 1)).toLowerCase(Locale.ROOT);
+            relation = derivedAliases.get(qualifier);
+        } else if (visibleRelations.size() == 1) {
+            relation = visibleRelations.get(0).derivedName;
+        }
+        if (!knownFunctionRelations.contains(relation)) {
+            return 0;
+        }
+        Set<String> columns = derivedColumnLineage.get(relation).keySet();
+        for (String column : columns) {
+            projections.add(new Projection(Collections.singletonList(new SourceColumn(relation, column)),
+                    column, item.getText(), ordinal++));
+        }
+        return columns.size();
     }
 
     @Override
@@ -2039,10 +2072,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         try {
-            if (ctx.fromClause() == null || !containsArrayConstructorQuery(ctx.selectClause())) {
+            if (ctx.fromClause() == null
+                    || !(hasSelectStar(ctx.selectClause()) || containsArrayConstructorQuery(ctx.selectClause()))) {
                 return visitChildren(ctx);
             }
-            // The array query can reference relations declared in the enclosing FROM clause.
+            // Wildcards and correlated array queries need the enclosing FROM relations first.
             visit(ctx.fromClause());
             for (ParseTree child : ctx.children) {
                 if (child != ctx.fromClause()) {
@@ -2054,6 +2088,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             namedWindowSources.clear();
             namedWindowSources.putAll(previousWindows);
         }
+    }
+
+    private static boolean hasSelectStar(PostgreSqlParser.SelectClauseContext select) {
+        return select.selectItemList().selectItem().stream()
+                .anyMatch(item -> !(item instanceof PostgreSqlParser.SelectExpressionContext));
     }
 
     private static boolean containsArrayConstructorQuery(ParseTree tree) {
@@ -2233,11 +2272,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private void registerGeneratedRelation(PostgreSqlParser.TableAliasContext aliasCtx,
                                            List<SourceColumn> sources,
                                            boolean withOrdinality) {
-        registerGeneratedRelation(tableAlias(aliasCtx), tableAliasColumnNames(aliasCtx), sources, withOrdinality);
+        registerGeneratedRelation(tableAlias(aliasCtx), tableAliasColumnNames(aliasCtx), sources, withOrdinality, false);
     }
 
     private void registerGeneratedRelation(String alias, List<String> aliasColumns,
-                                           List<SourceColumn> sources, boolean withOrdinality) {
+                                           List<SourceColumn> sources, boolean withOrdinality, boolean completeShape) {
         if (alias == null) {
             return;
         }
@@ -2247,7 +2286,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             boolean ordinalityColumn = withOrdinality && i == aliasColumns.size() - 1;
             columns.put(aliasColumns.get(i), ordinalityColumn || refs == null ? new ArrayList<>() : new ArrayList<>(refs));
         }
-        registerFunctionRelation(alias, columns);
+        registerFunctionRelation(alias, columns, completeShape && columns.size() == aliasColumns.size());
     }
 
     private static List<String> tableAliasColumnNames(PostgreSqlParser.TableAliasContext ctx) {

@@ -1,0 +1,1 @@
+SELECT * FROM unnest(ARRAY[1, 2]) WITH ORDINALITY AS u(item);

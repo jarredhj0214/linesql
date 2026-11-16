@@ -3696,6 +3696,54 @@
       "description": "The default table name and value output are visible for an unaliased JSON array function"
     },
     {
+      "id": "lateral_json_each_wildcard",
+      "file": "cases/lateral_json_each_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "key", "sources": ["ods.orders.attributes"]},
+        {"target": "value", "sources": ["ods.orders.attributes"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.attributes"},
+        {"type": "WHERE", "column": "ods.orders.attributes"}
+      ],
+      "description": "A qualified wildcard expands the known JSON key and value outputs"
+    },
+    {
+      "id": "unnest_generated_columns_wildcard",
+      "file": "cases/unnest_generated_columns_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "item", "sources": []},
+        {"target": "ordinality", "sources": []}
+      ],
+      "columnUsages": [
+
+      ],
+      "description": "A wildcard over the only table function returns source-free value and ordinality outputs"
+    },
+    {
+      "id": "insert_rows_from_wildcard_positional",
+      "file": "cases/insert_rows_from_wildcard_positional.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.items"],
+      "columnLineage": [
+        {"target": "mart.items.item_code", "sources": ["ods.orders.payload"]},
+        {"target": "mart.items.item_quantity", "sources": ["ods.orders.quantities"]},
+        {"target": "mart.items.order_id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.payload"},
+        {"type": "JOIN_ON", "column": "ods.orders.quantities"}
+      ],
+      "description": "Positional INSERT mapping accounts for every known output covered by a qualified wildcard"
+    },
+    {
       "id": "rows_from_functions_with_ordinality",
       "file": "cases/rows_from_functions_with_ordinality.sql",
       "statementType": "SELECT",
