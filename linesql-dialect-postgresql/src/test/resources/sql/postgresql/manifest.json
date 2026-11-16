@@ -2,6 +2,56 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "merge_cte_multiple_writes",
+      "file": "cases/merge_cte_multiple_writes.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.accounts", "staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "before_balance", "sources": ["mart.accounts.balance"]},
+        {"target": "after_balance", "sources": ["staging.delta.adjusted", "staging.delta.original"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.accounts.id"},
+        {"type": "MERGE_ON", "column": "staging.delta.id"}
+      ],
+      "description": "A MERGE CTE's new row follows writes from both update and insert actions"
+    },
+    {
+      "id": "insert_conflict_cte_multiple_writes",
+      "file": "cases/insert_conflict_cte_multiple_writes.sql",
+      "statementType": "SELECT",
+      "inputTables": ["staging.delta", "sales.payments", "mart.accounts"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "before_balance", "sources": ["mart.accounts.balance"]},
+        {"target": "after_balance", "sources": ["staging.delta.original", "sales.payments.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.accounts.id"},
+        {"type": "WHERE", "column": "sales.payments.account_id"},
+        {"type": "WHERE", "column": "staging.delta.id"}
+      ],
+      "description": "An upsert CTE preserves both insert and conflict update sources for the new row"
+    },
+    {
+      "id": "merge_action_predicate_subquery",
+      "file": "cases/merge_action_predicate_subquery.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.accounts", "staging.delta", "ops.approvals"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [{"target": "mart.accounts.balance", "sources": ["staging.delta.amount"]}],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.accounts.id"},
+        {"type": "MERGE_ON", "column": "staging.delta.id"},
+        {"type": "MERGE_WHEN", "column": "ops.approvals.account_id"},
+        {"type": "MERGE_WHEN", "column": "staging.delta.id"},
+        {"type": "WHERE", "column": "ops.approvals.account_id"},
+        {"type": "WHERE", "column": "staging.delta.id"}
+      ],
+      "description": "A MERGE action retains tables and nested predicates used to qualify affected rows"
+    },
+    {
       "id": "insert_conflict_row_subquery",
       "file": "cases/insert_conflict_row_subquery.sql",
       "statementType": "INSERT",

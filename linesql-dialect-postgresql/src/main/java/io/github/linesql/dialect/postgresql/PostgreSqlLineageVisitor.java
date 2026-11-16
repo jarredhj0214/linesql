@@ -256,7 +256,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (returningSourcesForCte) {
             for (ColumnLineage lineage : lineages) {
                 if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
-                    writtenSources.put(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources());
+                    writtenSources.merge(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources(),
+                            LineageModelUtils::mergeColumnRefs);
                 }
             }
         }
@@ -416,6 +417,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         visit(ctx.relationPrimary());
 
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
+        collectSubqueryDependencies(ctx.expression(), true);
 
         List<ColumnLineage> lineages = new ArrayList<>();
         boolean hasOldRow = false;
@@ -424,6 +426,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (clause.mergeCondition() != null) {
                 addColumnUsages(ColumnUsageType.MERGE_WHEN,
                         sourceColumns(clause.mergeCondition().expression()));
+                collectSubqueryDependencies(clause.mergeCondition().expression(), true);
             }
             PostgreSqlParser.MergeMatchedActionContext matched = clause.mergeMatchedAction();
             if (matched != null) {
