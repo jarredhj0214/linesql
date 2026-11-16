@@ -341,20 +341,17 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     private List<ColumnLineage> readInsertedValueColumns(List<MySqlParser.ValuesClauseContext> rows, TableRef target) {
         List<ColumnLineage> lineages = new ArrayList<>();
-        if (insertTargetColumns.isEmpty()) {
-            return lineages;
-        }
         List<List<ColumnRef>> sourcesByPosition = new ArrayList<>();
         for (int i = 0; i < insertTargetColumns.size(); i++) {
             sourcesByPosition.add(new ArrayList<ColumnRef>());
         }
         for (MySqlParser.ValuesClauseContext row : rows) {
+            collectSubqueryInputs(row);
             if (row.expressionList() == null) {
                 continue;
             }
             List<MySqlParser.ExpressionContext> expressions = row.expressionList().expression();
             for (int i = 0; i < expressions.size() && i < sourcesByPosition.size(); i++) {
-                collectSubqueryInputs(expressions.get(i));
                 List<ColumnRef> sources = resolveSources(sourceColumns(expressions.get(i)));
                 if (sources != null) {
                     sourcesByPosition.get(i).addAll(sources);

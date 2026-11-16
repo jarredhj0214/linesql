@@ -2,6 +2,15 @@
   "dialect": "ORACLE",
   "cases": [
     {
+      "id": "insert_values_subquery_without_target_columns",
+      "file": "cases/insert_values_subquery_without_target_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.sales"],
+      "outputTables": ["mart.rollup"],
+      "columnLineage": [],
+      "description": "INSERT VALUES retains scalar subquery input tables when the target column list is omitted"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",

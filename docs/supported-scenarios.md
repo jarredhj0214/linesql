@@ -56,6 +56,8 @@ Implemented CLI scenarios:
 
 The default API detects Oracle `XMLTABLE` and Flink window functions with a `TABLE` argument, including bare `SESSION` calls with named arguments. String literals with these spellings are ignored for these signals. Flink `ON CONFLICT DO DEDUPLICATE` and `DO ERROR` select Flink automatically. Shared `ON CONFLICT DO NOTHING` inherits Flink when the script contains a strong Flink signal, such as a watermark declaration. PostgreSQL-only syntax such as OVERRIDING SYSTEM VALUE can still resolve to PostgreSQL inside a Flink script. A standalone statement with no Flink signal defaults to PostgreSQL. Supply the Flink dialect explicitly for standalone Flink statements.
 
+SQL Server XML detection recognizes WITH XMLNAMESPACES, APPLY with an XML nodes() receiver, and a variable receiver in FROM.
+
 ## PostgreSQL
 
 PostgreSQL is a baseline parser dialect path. The current implementation uses a dedicated lightweight ANTLR grammar for common PostgreSQL lineage SQL.
@@ -198,6 +200,7 @@ Implemented PostgreSQL scenarios:
 | Quantified subquery comparisons | `value = ANY (SELECT … WHERE …)` records the compared columns and the subquery filter. | `select_quantified_subquery` |
 | Quantified array comparisons | `actor_id = any(allowed_actor_ids)`, `denied_actor_id <> some(blocked_actor_ids)` | `any_array_predicate_usage`, `some_array_predicate_usage` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
+| INSERT VALUES without a target column list | A scalar subquery in VALUES preserves the input table while target names depend on the table schema. | `insert_values_subquery_without_target_columns` |
 
 Known PostgreSQL gaps:
 
@@ -757,6 +760,7 @@ Implemented Oracle table-level lineage scenarios:
 | ALTER TABLE partition maintenance | `alter table t add partition ...`, `alter table t drop partition ...`, `alter table t truncate partition ... update indexes`, `alter table t exchange partition p with table staging.t`, `alter table t move partition p ... update indexes` | `alter_table_add_partition`, `alter_table_drop_partition`, `alter_table_truncate_partition`, `alter_table_exchange_partition`, `alter_table_move_partition` |
 | COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |
 | COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
+| INSERT VALUES without a target column list | A scalar subquery in VALUES preserves the input table while target names depend on the table schema. | `insert_values_subquery_without_target_columns` |
 
 Implemented Oracle column-level lineage scenarios:
 
@@ -1735,6 +1739,7 @@ Implemented MySQL table-level lineage scenarios:
 | MySQL tablespace and logfile-group control DDL | `create tablespace ts add datafile ... engine=...`, `create undo tablespace ...`, `alter/drop tablespace ...`, `create/alter/drop logfile group ... engine=...` | `create_tablespace`, `create_undo_tablespace`, `alter_tablespace_rename`, `alter_undo_tablespace_active`, `drop_tablespace`, `create_logfile_group`, `alter_logfile_group`, `drop_logfile_group` |
 | MySQL plugin/component and federated server control | `install plugin ... soname ...`, `uninstall plugin ...`, `install component ...`, `uninstall component ...`, `create/alter/drop server ... options (...)` | `install_plugin`, `uninstall_plugin`, `install_component`, `uninstall_component`, `create_server`, `alter_server`, `drop_server` |
 | MySQL resource group control | `create/alter/drop resource group ...`, `set resource group ... for ...` | `create_resource_group`, `alter_resource_group`, `drop_resource_group`, `set_resource_group` |
+| INSERT VALUES without a target column list | A scalar subquery in VALUES preserves the input table while target names depend on the table schema. | `insert_values_subquery_without_target_columns` |
 
 Implemented MySQL column-level lineage scenarios:
 

@@ -1897,18 +1897,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             List<OracleParser.ValuesClauseContext> rows,
             TableRef target) {
         List<ColumnLineage> lineages = new ArrayList<>();
-        if (insertTargetColumns.isEmpty()) {
-            return lineages;
-        }
         List<Map<String, ColumnRef>> sourcesByPosition = new ArrayList<>();
         for (int i = 0; i < insertTargetColumns.size(); i++) {
             sourcesByPosition.add(new LinkedHashMap<String, ColumnRef>());
         }
         for (OracleParser.ValuesClauseContext row : rows) {
+            collectSubqueryInputs(row);
             List<OracleParser.ExpressionContext> expressions = row.expressionList().expression();
             for (int i = 0; i < expressions.size() && i < sourcesByPosition.size(); i++) {
                 OracleParser.ExpressionContext expression = expressions.get(i);
-                collectSubqueryInputs(expression);
                 List<ColumnRef> sources = resolveSources(sourceColumns(expression));
                 if (sources == null) {
                     continue;

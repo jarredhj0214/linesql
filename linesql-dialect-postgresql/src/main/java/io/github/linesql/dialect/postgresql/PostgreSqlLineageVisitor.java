@@ -2532,9 +2532,6 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private List<ColumnLineage> readInsertValues(List<PostgreSqlParser.ValuesClauseContext> valueRows,
                                                  TableRef target) {
         List<ColumnLineage> lineages = new ArrayList<>();
-        if (insertTargetColumns.isEmpty() || valueRows.isEmpty()) {
-            return lineages;
-        }
         int columnCount = insertTargetColumns.size();
         List<Set<ColumnRef>> sourcesByColumn = new ArrayList<>();
         List<String> expressionsByColumn = new ArrayList<>();
@@ -2543,11 +2540,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             expressionsByColumn.add(null);
         }
         for (PostgreSqlParser.ValuesClauseContext row : valueRows) {
+            collectSubqueryInputs(row);
             List<PostgreSqlParser.ExpressionContext> expressions = row.expressionList().expression();
             int count = Math.min(columnCount, expressions.size());
             for (int i = 0; i < count; i++) {
                 PostgreSqlParser.ExpressionContext expression = expressions.get(i);
-                collectSubqueryInputs(expression);
                 List<ColumnRef> sources = resolveSources(sourceColumns(expression));
                 if (sources != null) {
                     sourcesByColumn.get(i).addAll(sources);

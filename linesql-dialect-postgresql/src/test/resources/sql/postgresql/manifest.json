@@ -2738,6 +2738,15 @@
       "description": "PostgreSQL INSERT DEFAULT VALUES records the target table without inventing column lineage"
     },
     {
+      "id": "insert_values_subquery_without_target_columns",
+      "file": "cases/insert_values_subquery_without_target_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.sales"],
+      "outputTables": ["mart.rollup"],
+      "columnLineage": [],
+      "description": "INSERT VALUES retains scalar subquery input tables when the target column list is omitted"
+    },
+    {
       "id": "values_union_ordinal",
       "file": "cases/values_union_ordinal.sql",
       "statementType": "SELECT",

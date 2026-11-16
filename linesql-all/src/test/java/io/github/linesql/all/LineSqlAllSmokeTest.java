@@ -90,6 +90,17 @@ public class LineSqlAllSmokeTest {
         assertTrue(insert.getDiagnostics().toString(), insert.getDiagnostics().isEmpty());
     }
 
+    @Test
+    public void detectsXmlNodesOnColumnsAndVariables() {
+        assertAutomaticSelect(SqlDialect.SQLSERVER,
+                "select x.n.query('.') as item from ods.orders o "
+                        + "cross apply o.payload.nodes('/order/item') x(n)");
+        assertAutomaticSelect(SqlDialect.SQLSERVER,
+                "select x.n.query('.') as item from @document.nodes('/order/item') x(n)");
+        assertAutomaticSelect(SqlDialect.SPARK,
+                "select 'cross apply o.payload.nodes(' as label from ods.events");
+    }
+
     private static void assertAutomaticSelect(SqlDialect dialect, String sql) {
         LineageResult result = LineSql.parse(sql);
         assertEquals(dialect, result.getDialect());
