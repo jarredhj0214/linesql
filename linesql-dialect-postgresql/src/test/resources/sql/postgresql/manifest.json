@@ -6457,6 +6457,134 @@
         }
       ],
       "description": "PostgreSQL forward dependencies also propagate through INSERT RETURNING CTEs"
+    },
+    {
+      "id": "select_natural_full_join_known_schemas",
+      "file": "cases/select_natural_full_join_known_schemas.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders",
+        "audit.refunds"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "sales.orders.order_id",
+            "audit.refunds.order_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "sales.orders.amount"
+          ]
+        },
+        {
+          "target": "reason",
+          "sources": [
+            "audit.refunds.reason"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "sales.orders.order_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "audit.refunds.order_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "sales.orders.order_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "audit.refunds.order_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "sales.orders.order_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "audit.refunds.order_id"
+        }
+      ],
+      "description": "Complete schemas identify the common natural join key and its full outer sources"
+    },
+    {
+      "id": "insert_natural_right_join_known_schemas",
+      "file": "cases/insert_natural_right_join_known_schemas.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "sales.orders",
+        "audit.refunds"
+      ],
+      "outputTables": [
+        "mart.matches"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.matches.match_id",
+          "sources": [
+            "audit.refunds.order_id"
+          ]
+        },
+        {
+          "target": "mart.matches.amount",
+          "sources": [
+            "sales.orders.amount"
+          ]
+        },
+        {
+          "target": "mart.matches.reason",
+          "sources": [
+            "audit.refunds.reason"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "sales.orders.order_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "audit.refunds.order_id"
+        }
+      ],
+      "description": "A natural right join projects the preserved right-side key through positional INSERT"
+    },
+    {
+      "id": "insert_cte_known_wildcard_positional",
+      "file": "cases/insert_cte_known_wildcard_positional.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [
+        "mart.matches"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.matches.match_id",
+          "sources": [
+            "sales.orders.order_id"
+          ]
+        },
+        {
+          "target": "mart.matches.amount",
+          "sources": [
+            "sales.orders.total"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "An explicitly projected CTE exposes a known wildcard width and positional write sources"
     }
   ]
 }

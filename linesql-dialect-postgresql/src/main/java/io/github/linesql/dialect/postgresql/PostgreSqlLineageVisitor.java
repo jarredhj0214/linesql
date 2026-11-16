@@ -9,6 +9,7 @@ import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
 import io.github.linesql.dialect.postgresql.antlr.PostgreSqlParser;
 import io.github.linesql.dialect.postgresql.antlr.PostgreSqlParserBaseVisitor;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
@@ -2135,6 +2136,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         String name = alias == null ? "$values" + derivedColumnLineage.size() : alias;
         Map<String, List<ColumnRef>> columns = valueColumns(ctx.valuesClause(), tableAliasColumnNames(ctx.tableAlias()));
         derivedColumnLineage.put(name.toLowerCase(Locale.ROOT), columns);
+        knownColumnRelations.add(name.toLowerCase(Locale.ROOT));
         addDerivedReference(name, null);
         return null;
     }
@@ -2195,11 +2197,18 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
             PostgreSqlParser.JoinCriteriaContext criteria = join.joinCriteria();
-            if (criteria != null && criteria.identifierList() != null) {
+            if (join.NATURAL() != null || (criteria != null && criteria.identifierList() != null)) {
                 Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(join.relationPrimary());
                 List<VisibleRelation> left = visibleRelations.subList(relationStart, rightStart);
                 List<VisibleRelation> right = visibleRelations.subList(rightStart, visibleRelations.size());
-                Map<String, List<ColumnRef>> merged = collectMergedJoinKeys(join, left, right, keys, rightKeys);
+                List<String> columns = criteria == null
+                        ? naturalJoinColumns(left, right, keys, rightKeys)
+                        : identifierNames(criteria.identifierList());
+                Map<String, List<ColumnRef>> merged = collectMergedJoinKeys(
+                        joinDirection(join), columns, left, right, keys, rightKeys);
+                if (criteria != null) {
+                    registerUsingAlias(criteria, merged);
+                }
                 keys.putAll(rightKeys);
                 keys.putAll(merged);
             } else {
@@ -2233,28 +2242,58 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return Collections.emptyMap();
     }
 
-    private Map<String, List<ColumnRef>> collectMergedJoinKeys(PostgreSqlParser.JoinRelationContext join,
+    private List<String> naturalJoinColumns(List<VisibleRelation> left, List<VisibleRelation> right,
+                                            Map<String, List<ColumnRef>> leftKeys,
+                                            Map<String, List<ColumnRef>> rightKeys) {
+        Set<String> columns = knownJoinOperandColumns(left, leftKeys);
+        columns.retainAll(knownJoinOperandColumns(right, rightKeys));
+        return new ArrayList<>(columns);
+    }
+
+    private Set<String> knownJoinOperandColumns(List<VisibleRelation> relations,
+                                                Map<String, List<ColumnRef>> joinKeys) {
+        Set<String> columns = new LinkedHashSet<>(joinKeys.keySet());
+        for (VisibleRelation relation : relations) {
+            if (!knownColumnRelations.contains(relation.derivedName)) {
+                return new LinkedHashSet<>();
+            }
+            for (String column : derivedColumnLineage.get(relation.derivedName).keySet()) {
+                if (!columns.add(column) && !joinKeys.containsKey(column)) {
+                    return new LinkedHashSet<>();
+                }
+            }
+        }
+        return columns;
+    }
+
+    private static int joinDirection(PostgreSqlParser.JoinRelationContext join) {
+        ParserRuleContext type = join.joinType();
+        if (type == null) {
+            type = join.naturalJoinType();
+        }
+        return type == null ? 0 : type.getStart().getType();
+    }
+
+    private Map<String, List<ColumnRef>> collectMergedJoinKeys(int direction,
+                                                               List<String> columns,
                                                                List<VisibleRelation> left,
                                                                List<VisibleRelation> right,
                                                                Map<String, List<ColumnRef>> leftKeys,
                                                                Map<String, List<ColumnRef>> rightKeys) {
-        PostgreSqlParser.JoinCriteriaContext criteria = join.joinCriteria();
-        PostgreSqlParser.JoinTypeContext type = join.joinType();
         Map<String, List<ColumnRef>> merged = new LinkedHashMap<>();
-        for (String column : identifierNames(criteria.identifierList())) {
+        for (String column : columns) {
             List<ColumnRef> leftRefs = joinKeySources(left, leftKeys, column);
             List<ColumnRef> rightRefs = joinKeySources(right, rightKeys, column);
             List<ColumnRef> predicateRefs = LineageModelUtils.mergeColumnRefs(leftRefs, rightRefs);
             LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, predicateRefs);
             List<ColumnRef> sources = predicateRefs;
-            if (type != null && type.LEFT() != null) {
+            if (direction == PostgreSqlParser.LEFT) {
                 sources = leftRefs;
-            } else if (type != null && type.RIGHT() != null) {
+            } else if (direction == PostgreSqlParser.RIGHT) {
                 sources = rightRefs;
             }
             merged.put(column, sources);
         }
-        registerUsingAlias(criteria, merged);
         return merged;
     }
 
@@ -2666,6 +2705,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        relationVisitor.knownColumnRelations.addAll(knownColumnRelations);
         relationVisitor.derivedAliases.putAll(derivedAliases);
         relationVisitor.derivedReferences.addAll(derivedReferences);
         relationVisitor.visit(query);
@@ -2679,6 +2719,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             columns.put(columnName, lineage.getSources());
         }
         derivedColumnLineage.put(name, columns);
+        int width = setOutputWidth(query.queryTerm());
+        if (width > 0 && lineages.size() == width && columns.size() == width) {
+            knownColumnRelations.add(name);
+        } else {
+            knownColumnRelations.remove(name);
+        }
         for (TableRef table : relationResult.getInputTables()) {
             addInputTable(table, false);
         }
@@ -2694,6 +2740,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        relationVisitor.knownColumnRelations.addAll(knownColumnRelations);
         relationVisitor.derivedAliases.putAll(derivedAliases);
         relationVisitor.derivedReferences.addAll(derivedReferences);
         relationVisitor.returningSourcesForCte = true;
@@ -2726,6 +2773,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.knownColumnRelations.addAll(knownColumnRelations);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.setBranchSelect = fullyExplicitSelect(queryTerm);
@@ -3085,6 +3133,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.knownColumnRelations.addAll(knownColumnRelations);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(assignment.query());
@@ -3530,6 +3579,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.knownColumnRelations.addAll(knownColumnRelations);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
@@ -3543,6 +3593,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.knownColumnRelations.addAll(knownColumnRelations);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
