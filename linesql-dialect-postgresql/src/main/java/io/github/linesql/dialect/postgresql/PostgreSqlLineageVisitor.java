@@ -34,7 +34,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
-    private final Set<String> knownFunctionRelations = new LinkedHashSet<>();
+    private final Set<String> knownColumnRelations = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
@@ -45,6 +45,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private boolean returningSourcesForCte;
     private int visibleRelationCount;
+    private int firstUnknownStarOrdinal = Integer.MAX_VALUE;
     private boolean suppressColumnLineage;
     private PostgreSqlParser.SelectClauseContext setBranchSelect;
 
@@ -1707,9 +1708,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private void registerFunctionRelation(String name, Map<String, List<ColumnRef>> columns, boolean completeShape) {
         String key = name.toLowerCase(Locale.ROOT);
         if (completeShape) {
-            knownFunctionRelations.add(key);
+            knownColumnRelations.add(key);
         } else {
-            knownFunctionRelations.remove(key);
+            knownColumnRelations.remove(key);
         }
         derivedColumnLineage.put(key, columns);
         addDerivedReference(name, null);
@@ -2078,28 +2079,34 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 }
                 ordinal++;
             } else {
-                ordinal += Math.max(1, addFunctionStarProjections(item, ordinal));
+                int width = addKnownStarProjections(item, ordinal);
+                if (width == 0) {
+                    firstUnknownStarOrdinal = Math.min(firstUnknownStarOrdinal, ordinal);
+                }
+                ordinal += Math.max(1, width);
             }
         }
         return visitChildren(ctx);
     }
 
-    private int addFunctionStarProjections(PostgreSqlParser.SelectItemContext item, int ordinal) {
+    private int addKnownStarProjections(PostgreSqlParser.SelectItemContext item, int ordinal) {
         String relation = null;
+        String qualifier = null;
         if (item instanceof PostgreSqlParser.SelectQualifiedStarContext) {
             PostgreSqlParser.SelectQualifiedStarContext star = (PostgreSqlParser.SelectQualifiedStarContext) item;
             List<PostgreSqlParser.IdentifierContext> parts = star.qualifiedName().identifier();
-            String qualifier = cleanIdentifier(parts.get(parts.size() - 1)).toLowerCase(Locale.ROOT);
+            qualifier = cleanIdentifier(parts.get(parts.size() - 1)).toLowerCase(Locale.ROOT);
             relation = derivedAliases.get(qualifier);
         } else if (visibleRelations.size() == 1) {
             relation = visibleRelations.get(0).derivedName;
         }
-        if (!knownFunctionRelations.contains(relation)) {
+        if (!knownColumnRelations.contains(relation)) {
             return 0;
         }
         Set<String> columns = derivedColumnLineage.get(relation).keySet();
+        String sourceQualifier = qualifier == null ? relation : qualifier;
         for (String column : columns) {
-            projections.add(new Projection(Collections.singletonList(new SourceColumn(relation, column)),
+            projections.add(new Projection(Collections.singletonList(new SourceColumn(sourceQualifier, column)),
                     column, item.getText(), ordinal++));
         }
         return columns.size();
@@ -2590,6 +2597,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             String name = "$join_using_" + derivedColumnLineage.size();
             derivedColumnLineage.put(name, joinColumns);
             derivedAliases.put(alias, name);
+            knownColumnRelations.add(name);
         }
     }
 
@@ -3304,6 +3312,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         List<ColumnLineage> lineages = new ArrayList<>();
         for (Projection projection : queryVisitor.projections) {
+            if (!insertTargetColumns.isEmpty() && projection.ordinal >= queryVisitor.firstUnknownStarOrdinal) {
+                break;
+            }
             List<ColumnRef> sources = queryVisitor.columnRefs(projection);
             if (sources == null || sources.isEmpty()) {
                 continue;

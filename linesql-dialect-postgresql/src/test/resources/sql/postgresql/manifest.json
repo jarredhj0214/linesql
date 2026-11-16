@@ -792,6 +792,64 @@
       "description": "Set operation ordering uses all branch sources and retains aggregate filters"
     },
     {
+      "id": "select_join_using_alias_wildcard",
+      "file": "cases/select_join_using_alias_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": ["public.events", "public.legacy_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["public.events.id", "public.legacy_events.id"]},
+        {"target": "day", "sources": ["public.events.day", "public.legacy_events.day"]},
+        {"target": "payload", "sources": ["public.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "JOIN_ON", "column": "public.events.day"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.day"},
+        {"type": "ORDER_BY", "column": "public.events.day"},
+        {"type": "ORDER_BY", "column": "public.legacy_events.day"}
+      ],
+      "description": "A USING alias star expands in key order without exposing either input row"
+    },
+    {
+      "id": "insert_join_using_alias_wildcard",
+      "file": "cases/insert_join_using_alias_wildcard.sql",
+      "statementType": "INSERT",
+      "inputTables": ["public.events", "public.legacy_events"],
+      "outputTables": ["audit.merged_keys"],
+      "columnLineage": [
+        {"target": "audit.merged_keys.event_id", "sources": ["public.legacy_events.id"]},
+        {"target": "audit.merged_keys.event_day", "sources": ["public.legacy_events.day"]},
+        {"target": "audit.merged_keys.body", "sources": ["public.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "JOIN_ON", "column": "public.events.day"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.day"}
+      ],
+      "description": "A right join alias star maps both keys and the following expression by position"
+    },
+    {
+      "id": "insert_unknown_wildcard_preserves_prior_positions",
+      "file": "cases/insert_unknown_wildcard_preserves_prior_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": ["public.events", "public.legacy_events"],
+      "outputTables": ["audit.merged_keys"],
+      "columnLineage": [
+        {"target": "audit.merged_keys.event_id", "sources": ["public.legacy_events.id"]},
+        {"target": "audit.merged_keys.event_day", "sources": ["public.legacy_events.day"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "public.events.id"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.id"},
+        {"type": "JOIN_ON", "column": "public.events.day"},
+        {"type": "JOIN_ON", "column": "public.legacy_events.day"}
+      ],
+      "description": "A base table wildcard of unknown width leaves later destination positions unresolved"
+    },
+    {
       "id": "select_full_join_using_key",
       "file": "cases/select_full_join_using_key.sql",
       "statementType": "SELECT",
