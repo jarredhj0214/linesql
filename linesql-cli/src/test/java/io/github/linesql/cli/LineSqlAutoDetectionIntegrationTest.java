@@ -319,6 +319,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsSqlServerNativeCursorControl() {
+        LineageResult fetch = LineSql.parse("FETCH ABSOLUTE @offset FROM report_cursor INTO @amount");
+        assertEquals(SqlDialect.SQLSERVER, fetch.getDialect());
+        assertEquals(StatementType.CONTROL, fetch.getStatementType());
+        assertDialect(SqlDialect.SQLSERVER, "FETCH LAST FROM GLOBAL report_cursor");
+        assertDialect(SqlDialect.SPARK, "FETCH report_cursor INTO @amount");
+        assertDialect(SqlDialect.SQLSERVER, "DECLARE report_cursor CURSOR LOCAL SCROLL STATIC TYPE_WARNING "
+                + "FOR SELECT amount FROM warehouse.orders");
+        assertDialect(SqlDialect.SPARK, "SELECT 'FETCH LAST FROM GLOBAL report_cursor' AS notes");
+        assertDialect(SqlDialect.POSTGRESQL,
+                "DECLARE report_cursor CURSOR FOR SELECT type_warning::text FROM warehouse.orders");
+    }
+
+    @Test
     public void detectsFlinkMaterializedTableLifecycleStatements() {
         LineageResult alter = LineSql.parse("ALTER MATERIALIZED TABLE mart.sales "
                 + "AS SELECT product_id FROM staging.orders");

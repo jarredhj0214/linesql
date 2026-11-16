@@ -6355,6 +6355,77 @@
       "description": "SQL Server OPEN cursor command is accepted as cursor control"
     },
     {
+      "id": "declare_iso_scroll_cursor",
+      "file": "cases/declare_iso_scroll_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["warehouse.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "amount", "sources": ["warehouse.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "warehouse.orders.active"}
+      ],
+      "description": "ISO cursor options and FOR READ_ONLY preserve the enclosed SELECT lineage"
+    },
+    {
+      "id": "declare_extended_scroll_cursor",
+      "file": "cases/declare_extended_scroll_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["warehouse.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["warehouse.orders.order_id"]},
+        {"target": "amount", "sources": ["warehouse.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "warehouse.orders.order_id"}
+      ],
+      "description": "Extended cursor options and the writeability clause preserve the enclosed SELECT dependencies"
+    },
+    {
+      "id": "fetch_last_global_cursor",
+      "file": "cases/fetch_last_global_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+
+      ],
+      "columnUsages": [
+
+      ],
+      "description": "FETCH LAST reads a global cursor and writes local variables without table lineage"
+    },
+    {
+      "id": "fetch_absolute_cursor_variable",
+      "file": "cases/fetch_absolute_cursor_variable.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+
+      ],
+      "columnUsages": [
+
+      ],
+      "description": "An absolute position may come from a local variable"
+    },
+    {
+      "id": "fetch_relative_negative_cursor",
+      "file": "cases/fetch_relative_negative_cursor.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+
+      ],
+      "columnUsages": [
+
+      ],
+      "description": "A relative position may be a signed numeric literal"
+    },
+    {
       "id": "fetch_cursor",
       "file": "cases/fetch_cursor.sql",
       "statementType": "CONTROL",

@@ -84,6 +84,13 @@ public class SimpleDialectDetector implements DialectDetector {
             "::\\s*(?:pg_catalog\\s*\\.\\s*)?(?:tsvector|tsquery|regconfig)\\b"
                     + "|\\b(?:to_tsvector|(?:plain|phrase|websearch_)?to_tsquery|ts_rank(?:_cd)?|ts_headline)\\s*\\(");
 
+    private static final Pattern TSQL_CURSOR_CONTROL = Pattern.compile(
+            "^\\s*fetch\\b(?:\\s+(?:absolute|relative)\\s+@"
+                    + "|\\s+(?:prior|first|last|absolute|relative)\\s+[^;]*\\binto\\s+@"
+                    + "|[^;]*\\bfrom\\s+global\\s+\\S)"
+                    + "|^\\s*declare\\s+[^;]+?\\bcursor\\s+"
+                    + "(?:(?:local|global|forward_only|scroll|static|keyset|dynamic|fast_forward|read_only)\\s+)*"
+                    + "(?:scroll_locks|optimistic|type_warning)\\b");
     private static final Pattern TSQL_DML_OUTPUT = Pattern.compile(
             "(?s)^\\s*(?:with\\b[^;]*?)?(?:insert|update|delete|merge)\\b[^;]*\\boutput\\s+"
                     + "(?:\\(\\s*)*(?:(?:inserted|deleted)\\s*\\.|\\$action\\b)");
@@ -382,6 +389,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (unquotedSyntax.contains("option") && TSQL_QUERY_OPTION_START.matcher(unquotedSyntax).find()
                     && TSQL_QUERY_HINT.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server table or query hint"));
+        } else if (TSQL_CURSOR_CONTROL.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server cursor options or variables"));
         } else if (TSQL_TRUNCATE_PARTITIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server partition truncation"));
         } else if (TSQL_SP_EXECUTESQL.matcher(relationSyntax).find()) {

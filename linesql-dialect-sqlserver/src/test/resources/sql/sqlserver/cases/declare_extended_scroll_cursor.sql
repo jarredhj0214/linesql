@@ -1,0 +1,3 @@
+DECLARE report_cursor CURSOR LOCAL SCROLL STATIC OPTIMISTIC TYPE_WARNING
+FOR SELECT order_id, amount FROM warehouse.orders ORDER BY order_id
+FOR UPDATE OF amount;
