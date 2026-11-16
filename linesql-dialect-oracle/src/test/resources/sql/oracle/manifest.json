@@ -2,6 +2,36 @@
   "dialect": "ORACLE",
   "cases": [
     {
+      "id": "union_unnamed_constant_order",
+      "file": "cases/union_unnamed_constant_order.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "0", "sources": []}, {"target": "amount", "sources": ["ods.a.amount", "ods.b.total"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.a.amount"}, {"type": "ORDER_BY", "column": "ods.b.total"}],
+      "description": "Oracle set queries preserve explicit output positions for sorting and writes"
+    },
+    {
+      "id": "insert_union_unnamed_derivations",
+      "file": "cases/insert_union_unnamed_derivations.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.a", "ods.b"],
+      "outputTables": ["mart.rollup"],
+      "columnLineage": [{"target": "mart.rollup.amount", "sources": ["ods.a.amount", "ods.b.amount", "ods.b.adjustment"]}, {"target": "mart.rollup.status", "sources": ["ods.a.status"]}],
+      "columnUsages": [],
+      "description": "Oracle set queries preserve explicit output positions for sorting and writes"
+    },
+    {
+      "id": "union_scalar_subquery_position",
+      "file": "cases/union_scalar_subquery_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.payments", "ods.a", "ods.b"],
+      "outputTables": [],
+      "columnLineage": [{"target": "amount", "sources": ["ods.payments.amount"]}, {"target": "id", "sources": ["ods.a.id", "ods.b.id"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.a.id"}, {"type": "ORDER_BY", "column": "ods.b.id"}],
+      "description": "Oracle set queries preserve explicit output positions for sorting and writes"
+    },
+    {
       "id": "insert_values_subquery_without_target_columns",
       "file": "cases/insert_values_subquery_without_target_columns.sql",
       "statementType": "INSERT",

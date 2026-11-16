@@ -54,6 +54,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
+    private OracleParser.SelectClauseContext setBranchSelect;
 
     OracleLineageVisitor(LineageResult result) {
         this.result = result;
@@ -1179,12 +1180,30 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitScalarSubquery(OracleParser.ScalarSubqueryContext ctx) {
+        if (setBranchSelect == null) {
+            return visitChildren(ctx);
+        }
+        LineageResult inner = lineageForQuery(ctx.query());
+        for (TableRef table : inner.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, inner);
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(OracleParser.SelectClauseContext ctx) {
         List<OracleParser.SelectItemContext> items = ctx.selectItemList().selectItem();
         for (int i = 0; i < items.size(); i++) {
             OracleParser.SelectItemContext item = items.get(i);
             if (item instanceof OracleParser.SelectExpressionContext) {
-                Projection projection = projection((OracleParser.SelectExpressionContext) item, i);
+                OracleParser.SelectExpressionContext selected = (OracleParser.SelectExpressionContext) item;
+                Projection projection = projection(selected, i);
+                if (projection == null && ctx == setBranchSelect) {
+                    OracleParser.ExpressionContext expression = selected.expression();
+                    projection = new Projection(sourceColumns(expression), expression.getText(), expression.getText(), i);
+                }
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -1411,16 +1430,78 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(OracleParser.QueryOrganizationContext ctx) {
-        boolean setQuery = ctx.getParent() instanceof OracleParser.QueryContext
-                && ((OracleParser.QueryContext) ctx.getParent()).queryTerm() instanceof OracleParser.SetOperationContext;
+        OracleParser.QueryTermContext term = ctx.getParent() instanceof OracleParser.QueryContext
+                ? ((OracleParser.QueryContext) ctx.getParent()).queryTerm() : null;
         for (OracleParser.SortItemContext sortItem : ctx.sortItem()) {
-            if (setQuery) {
-                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            if (term instanceof OracleParser.SetOperationContext) {
+                addSetSortUsage(term, sortItem.expression().getText());
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
             }
         }
         return visitChildren(ctx);
+    }
+
+    private void addSetSortUsage(OracleParser.QueryTermContext term, String sortKey) {
+        List<ColumnLineage> columns = result.getColumnLineage();
+        if (!sortKey.matches("[0-9]+")) {
+            LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
+            return;
+        }
+        if (columns.isEmpty() || columns.size() != explicitOutputWidth(term)) {
+            return;
+        }
+        int position;
+        try {
+            position = Integer.parseInt(sortKey);
+        } catch (NumberFormatException ignored) {
+            return;
+        }
+        if (position > 0 && position <= columns.size()) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY,
+                    columns.get(position - 1).getSources());
+        }
+    }
+
+    private static int explicitOutputWidth(OracleParser.QueryTermContext term) {
+        term = unwrapSetBranch(term);
+        if (term instanceof OracleParser.SetOperationContext) {
+            OracleParser.SetOperationContext set = (OracleParser.SetOperationContext) term;
+            int left = explicitOutputWidth(set.left);
+            return left == explicitOutputWidth(set.right) ? left : 0;
+        }
+        OracleParser.SelectClauseContext select = explicitBranchSelect(term);
+        return select == null ? 0 : select.selectItemList().selectItem().size();
+    }
+
+    private static OracleParser.SelectClauseContext explicitBranchSelect(OracleParser.QueryTermContext term) {
+        term = unwrapSetBranch(term);
+        if (!(term instanceof OracleParser.QueryTermDefaultContext)) {
+            return null;
+        }
+        OracleParser.QueryPrimaryContext primary =
+                ((OracleParser.QueryTermDefaultContext) term).queryPrimary();
+        if (primary instanceof OracleParser.QueryPrimaryDefaultContext) {
+            OracleParser.SelectClauseContext select =
+                    ((OracleParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
+            if (select.selectItemList().selectItem().stream()
+                    .allMatch(item -> item instanceof OracleParser.SelectExpressionContext)) {
+                return select;
+            }
+        }
+        return null;
+    }
+
+    private static OracleParser.QueryTermContext unwrapSetBranch(OracleParser.QueryTermContext term) {
+        while (term instanceof OracleParser.QueryTermDefaultContext) {
+            OracleParser.QueryPrimaryContext primary =
+                    ((OracleParser.QueryTermDefaultContext) term).queryPrimary();
+            if (!(primary instanceof OracleParser.SubqueryPrimaryContext)) {
+                break;
+            }
+            term = ((OracleParser.SubqueryPrimaryContext) primary).query().queryTerm();
+        }
+        return term;
     }
 
     // ============ Internal helpers ============
@@ -1545,6 +1626,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
+        queryVisitor.setBranchSelect = explicitBranchSelect(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryResult;
@@ -1675,9 +1757,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
-                continue;
+                if (setBranchSelect == null) {
+                    continue;
+                }
+                sources = Collections.emptyList();
             }
-            if (sources.isEmpty()
+            if (setBranchSelect == null && sources.isEmpty()
                     && targetTable == null
                     && inputTables.isEmpty()
                     && !isSequencePseudocolumnExpression(projection.expression)) {

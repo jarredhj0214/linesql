@@ -762,6 +762,7 @@ Implemented Oracle table-level lineage scenarios:
 | COMMENT ON TABLE affected table | `comment on table mart.t is '...'` | `comment_table` |
 | COMMENT ON COLUMN affected table | `comment on column mart.t.c is '...'` | `comment_column` |
 | INSERT VALUES without a target column list | A scalar subquery in VALUES preserves the input table while target names depend on the table schema. | `insert_values_subquery_without_target_columns` |
+| Set output positions | UNION preserves constants, expressions and scalar subqueries by position for ORDER BY and INSERT. | `union_unnamed_constant_order`, `insert_union_unnamed_derivations`, `union_scalar_subquery_position` |
 
 Implemented Oracle column-level lineage scenarios:
 
