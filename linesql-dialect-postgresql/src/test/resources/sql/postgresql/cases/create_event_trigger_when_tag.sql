@@ -1,0 +1,3 @@
+CREATE EVENT TRIGGER audit_ddl ON ddl_command_end
+WHEN TAG IN ('CREATE TABLE', 'ALTER VIEW')
+EXECUTE PROCEDURE audit.log_ddl();

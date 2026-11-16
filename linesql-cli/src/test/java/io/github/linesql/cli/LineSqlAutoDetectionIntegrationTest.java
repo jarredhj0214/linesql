@@ -319,6 +319,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresSchemaDdlWithoutGenericObjectNames() {
+        assertEquals(StatementType.CONTROL, LineSql.parse("CREATE EVENT TRIGGER audit_ddl "
+                + "ON ddl_command_end WHEN TAG IN ('CREATE VIEW') EXECUTE FUNCTION audit.log_ddl()")
+                .getStatementType());
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER EVENT TRIGGER audit_ddl ENABLE REPLICA");
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER TYPE app.status ADD VALUE IF NOT EXISTS 'queued' AFTER 'new'");
+        assertDialect(SqlDialect.POSTGRESQL, "CREATE TYPE app.time_range AS RANGE (subtype = timestamptz)");
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER DOMAIN app.amount VALIDATE CONSTRAINT nonnegative");
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE EVENT TRIGGER audit_ddl' AS note");
+    }
+
+    @Test
     public void detectsSqlServerNativeCursorControl() {
         LineageResult fetch = LineSql.parse("FETCH ABSOLUTE @offset FROM report_cursor INTO @amount");
         assertEquals(SqlDialect.SQLSERVER, fetch.getDialect());

@@ -5342,6 +5342,33 @@
       "description": "PostgreSQL DROP STATISTICS is accepted as statistics object control"
     },
     {
+      "id": "create_event_trigger_when_tag",
+      "file": "cases/create_event_trigger_when_tag.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Event filters and the historical callback spelling do not create table references"
+    },
+    {
+      "id": "alter_event_trigger_enable_replica",
+      "file": "cases/alter_event_trigger_enable_replica.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Replica activation is event trigger control"
+    },
+    {
+      "id": "alter_event_trigger_owner_current_role",
+      "file": "cases/alter_event_trigger_owner_current_role.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "The current role is an owner specification and not a source table"
+    },
+    {
       "id": "create_event_trigger_control",
       "file": "cases/create_event_trigger_control.sql",
       "statementType": "CONTROL",

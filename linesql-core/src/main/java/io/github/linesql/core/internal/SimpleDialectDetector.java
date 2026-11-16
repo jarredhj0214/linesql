@@ -60,6 +60,12 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
+    private static final Pattern POSTGRES_SCHEMA_DDL = Pattern.compile(
+            "^\\s*(?:create|alter|drop)\\s+event\\s+trigger\\b"
+                    + "|^\\s*create\\s+type\\b[^;]*\\bas\\s+(?:enum|range)\\s*\\("
+                    + "|^\\s*alter\\s+type\\b[^;]*\\b(?:add|rename)\\s+value\\b"
+                    + "|^\\s*alter\\s+domain\\b[^;]*\\b(?:validate\\s+constraint"
+                    + "|(?:set|drop)\\s+(?:default|not\\s+null)|not\\s+valid)\\b");
     private static final Pattern POSTGRES_DML_TARGET = Pattern.compile(
             "\\b(?:delete\\s+from\\s+|update\\s+(?!set\\b))(?:only\\s+(?:\\(\\s*" + POSTGRES_RELATION + "\\s*\\)"
                     + "|" + POSTGRES_RELATION + "(?=\\s+(?:as|using|where|set|returning)\\b|\\s*(?:;|$)))"
@@ -232,6 +238,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL PL/pgSQL routine language"));
         } else if (SimpleStatementSplitter.containsPostgresAtomicRoutine(unquotedSyntax)) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL SQL-standard routine body"));
+        } else if (POSTGRES_SCHEMA_DDL.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL event trigger, enum, range, or domain DDL"));
         } else if (unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\balter\\b[^;]*"
                 + "\\b(?:set|drop)\\s+expression\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL generated-column expression alteration"));
