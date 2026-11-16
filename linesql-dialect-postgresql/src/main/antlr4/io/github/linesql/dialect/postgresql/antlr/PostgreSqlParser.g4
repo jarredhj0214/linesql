@@ -341,7 +341,7 @@ primaryExpression
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
     | ARRAY LBRACKET expressionList? RBRACKET                        #arrayConstructor
-    | ARRAY LPAREN query RPAREN                                      #arraySubqueryConstructor
+    | ARRAY LPAREN arrayConstructorQuery RPAREN                      #arraySubqueryConstructor
     | ROW LPAREN expressionList? RPAREN                              #rowConstructor
     | EXTRACT LPAREN identifier FROM expression RPAREN               #extractExpression
     | POSITION LPAREN expression IN expression RPAREN                #positionExpression
@@ -350,6 +350,7 @@ primaryExpression
     | OVERLAY LPAREN expression PLACING expression FROM expression (FOR expression)? RPAREN #overlayExpression
     | JSON_OBJECT LPAREN (jsonObjectPair (COMMA jsonObjectPair)*)?
       jsonNullClause? jsonUniqueKeys? jsonReturningClause? RPAREN    #jsonObjectExpression
+    | JSON_ARRAY LPAREN arrayConstructorQuery jsonReturningClause? RPAREN #jsonArrayQueryExpression
     | JSON_ARRAY LPAREN (jsonInputValue (COMMA jsonInputValue)*)?
       jsonNullClause? jsonReturningClause? RPAREN                    #jsonArrayExpression
     | JSON LPAREN jsonInputValue jsonUniqueKeys? RPAREN              #jsonConstructorExpression
@@ -378,6 +379,10 @@ primaryExpression
     | (DATE | TIME | TIMESTAMP) string                               #dateTimeLiteral
     | INTERVAL string identifier?                                    #intervalLiteral
     | DEFAULT                                                        #defaultLiteral
+    ;
+
+arrayConstructorQuery
+    : query
     ;
 
 jsonObjectPair

@@ -1731,6 +1731,13 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitArrayConstructorQuery(PostgreSqlParser.ArrayConstructorQueryContext ctx) {
+        addSubqueryDependencies(ctx.query(), true);
+        result.setInputTables(new ArrayList<>(inputTables));
+        return null;
+    }
+
+    @Override
     public Void visitScalarSubquery(PostgreSqlParser.ScalarSubqueryContext ctx) {
         if (setBranchSelect == null) {
             return visitChildren(ctx);
@@ -1810,11 +1817,33 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         try {
-            return visitChildren(ctx);
+            if (ctx.fromClause() == null || !containsArrayConstructorQuery(ctx.selectClause())) {
+                return visitChildren(ctx);
+            }
+            // The array query can reference relations declared in the enclosing FROM clause.
+            visit(ctx.fromClause());
+            for (ParseTree child : ctx.children) {
+                if (child != ctx.fromClause()) {
+                    visit(child);
+                }
+            }
+            return null;
         } finally {
             namedWindowSources.clear();
             namedWindowSources.putAll(previousWindows);
         }
+    }
+
+    private static boolean containsArrayConstructorQuery(ParseTree tree) {
+        if (tree instanceof PostgreSqlParser.ArrayConstructorQueryContext) {
+            return true;
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            if (containsArrayConstructorQuery(tree.getChild(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -2285,9 +2314,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {
-        TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
-                ? inputTables.iterator().next()
-                : null;
+        TableRef defaultTable = visibleRelations.size() == 1 ? visibleRelations.get(0).table : null;
+        if (defaultTable == null && visibleRelationCount <= 1 && inputTables.size() == 1) {
+            defaultTable = inputTables.iterator().next();
+        }
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn rawSourceColumn : sourceColumns) {
             if (rawSourceColumn.resolvedRef != null) {
@@ -2786,6 +2816,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private void collectSubqueryDependencies(ParseTree tree, boolean includeColumnUsages) {
+        if (tree instanceof PostgreSqlParser.ArrayConstructorQueryContext) {
+            addSubqueryDependencies(((PostgreSqlParser.ArrayConstructorQueryContext) tree).query(), true);
+            return;
+        }
         if (tree instanceof PostgreSqlParser.ScalarSubqueryContext) {
             addSubqueryDependencies(((PostgreSqlParser.ScalarSubqueryContext) tree).query(), includeColumnUsages);
             return;
@@ -2823,6 +2857,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private boolean containsSubquery(ParseTree tree) {
+        if (tree instanceof PostgreSqlParser.ArrayConstructorQueryContext) {
+            return false;
+        }
         if (tree instanceof PostgreSqlParser.ScalarSubqueryContext) {
             return true;
         }
@@ -2981,6 +3018,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 }
                 if (primary instanceof PostgreSqlParser.JsonObjectExpressionContext
                         || primary instanceof PostgreSqlParser.JsonArrayExpressionContext
+                        || primary instanceof PostgreSqlParser.JsonArrayQueryExpressionContext
                         || primary instanceof PostgreSqlParser.JsonConstructorExpressionContext
                         || primary instanceof PostgreSqlParser.JsonSerializeExpressionContext) {
                     return primary.getStart().getText().toLowerCase(Locale.ROOT);
@@ -3070,6 +3108,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (!parts.isEmpty()) {
                 columns.add(new SourceColumn(null, String.join(".", parts)));
             }
+            return;
+        }
+        if (tree instanceof PostgreSqlParser.ArrayConstructorQueryContext) {
+            addScalarSubquerySourceColumns(((PostgreSqlParser.ArrayConstructorQueryContext) tree).query(), columns);
             return;
         }
         if (tree instanceof PostgreSqlParser.ScalarSubqueryContext) {
