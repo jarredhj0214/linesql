@@ -2521,6 +2521,42 @@
       "description": "PostgreSQL RELEASE SAVEPOINT is classified as transaction control"
     },
     {
+      "id": "create_plpgsql_function_with_options",
+      "file": "cases/create_plpgsql_function_with_options.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Dollar-quoted bodies can precede the language and routine properties"
+    },
+    {
+      "id": "create_sql_function_returns_table",
+      "file": "cases/create_sql_function_returns_table.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "SQL functions can declare named table results and default arguments"
+    },
+    {
+      "id": "create_procedure_with_modes_and_options",
+      "file": "cases/create_procedure_with_modes_and_options.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Procedures accept INOUT and OUT parameters, routine attributes, and language before the body"
+    },
+    {
+      "id": "create_function_two_body_operands",
+      "file": "cases/create_function_two_body_operands.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "External functions accept library and symbol operands without inventing table dependencies"
+    },
+    {
       "id": "create_function",
       "file": "cases/create_function.sql",
       "statementType": "CREATE_ROUTINE",

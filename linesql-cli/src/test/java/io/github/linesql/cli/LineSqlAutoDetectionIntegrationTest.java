@@ -169,6 +169,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void autoDetectsPlPgSqlRoutineWithBodyBeforeLanguage() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE FUNCTION mart.score(IN n int DEFAULT 0) RETURNS int AS $body$ "
+                        + "BEGIN PERFORM 'CREATE PUBLICATION fake;'; RETURN n; END; "
+                        + "$body$ LANGUAGE plpgsql IMMUTABLE; "
+                        + "SELECT id FROM ods.events;");
+
+        assertEquals(2, results.size());
+        assertEquals(SqlDialect.POSTGRESQL, results.get(0).getDialect());
+        assertEquals(StatementType.CREATE_ROUTINE, results.get(0).getStatementType());
+        assertFalse(results.get(0).getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertEquals("events", results.get(1).getInputTables().get(0).getName());
+    }
+
+    @Test
     public void parseScriptAutoDetectsPostgresDollarQuotesAmongOtherDialects() {
         List<LineageResult> results = LineSql.parseScript(
                 "DO $Body$ BEGIN PERFORM 'from dual;'; END; $Body$;"

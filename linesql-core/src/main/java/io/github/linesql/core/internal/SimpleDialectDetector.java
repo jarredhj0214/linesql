@@ -118,6 +118,9 @@ public class SimpleDialectDetector implements DialectDetector {
                         + "\\s+row\\s+level\\s+security\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98,
                     "PostgreSQL row-level security, logical replication, or default privileges syntax"));
+        } else if (unquotedSyntax.matches("(?s)^\\s*create\\s+(?:or\\s+replace\\s+)?(?:function|procedure)\\b"
+                + "[^;]*\\blanguage\\s+plpgsql\\b.*")) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL PL/pgSQL routine language"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
         } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")
