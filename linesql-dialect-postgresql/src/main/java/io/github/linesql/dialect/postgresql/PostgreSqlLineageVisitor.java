@@ -2957,6 +2957,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 if (primary instanceof PostgreSqlParser.FunctionCallEmptyContext) {
                     return unqualifiedName(((PostgreSqlParser.FunctionCallEmptyContext) primary).functionName().getText());
                 }
+                if (primary instanceof PostgreSqlParser.JsonObjectExpressionContext
+                        || primary instanceof PostgreSqlParser.JsonArrayExpressionContext
+                        || primary instanceof PostgreSqlParser.JsonConstructorExpressionContext
+                        || primary instanceof PostgreSqlParser.JsonSerializeExpressionContext) {
+                    return primary.getStart().getText().toLowerCase(Locale.ROOT);
+                }
             }
         }
         return "?column?";

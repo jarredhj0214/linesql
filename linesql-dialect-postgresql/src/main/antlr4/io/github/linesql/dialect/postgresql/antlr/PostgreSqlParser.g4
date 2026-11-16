@@ -315,6 +315,7 @@ predicate
     | NOTNULL
     | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
     | IS NOT? DISTINCT FROM valueExpression
+    | IS NOT? JSON (VALUE | SCALAR | ARRAY | OBJECT)? jsonUniqueKeys?
     ;
 
 valueExpression
@@ -323,7 +324,7 @@ valueExpression
     | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
-    | left=valueExpression operator=(ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | CONTAINS | CONTAINED_BY | TS_MATCH | ARRAY_OVERLAP | QUESTION | QUESTION_PIPE | QUESTION_AMP | TILDE | TILDE_STAR | BANG_TILDE | BANG_TILDE_STAR) right=valueExpression #postgresOperatorExpression
+    | left=valueExpression operator=(ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | JSON_PATH_EXISTS | JSON_PATH_DELETE | CONTAINS | CONTAINED_BY | TS_MATCH | ARRAY_OVERLAP | QUESTION | QUESTION_PIPE | QUESTION_AMP | TILDE | TILDE_STAR | BANG_TILDE | BANG_TILDE_STAR) right=valueExpression #postgresOperatorExpression
     | valueExpression COLON COLON dataType                            #postgresCast
     | valueExpression AT TIME ZONE valueExpression                   #atTimeZoneExpression
     | valueExpression COLLATE multipartIdentifier                    #collateExpression
@@ -347,10 +348,16 @@ primaryExpression
     | SUBSTRING LPAREN expression FROM expression (FOR expression)? RPAREN #substringExpression
     | TRIM LPAREN ((BOTH | LEADING | TRAILING) expression? FROM)? expression RPAREN #trimExpression
     | OVERLAY LPAREN expression PLACING expression FROM expression (FOR expression)? RPAREN #overlayExpression
+    | JSON_OBJECT LPAREN (jsonObjectPair (COMMA jsonObjectPair)*)?
+      jsonNullClause? jsonUniqueKeys? jsonReturningClause? RPAREN    #jsonObjectExpression
+    | JSON_ARRAY LPAREN (jsonInputValue (COMMA jsonInputValue)*)?
+      jsonNullClause? jsonReturningClause? RPAREN                    #jsonArrayExpression
+    | JSON LPAREN jsonInputValue jsonUniqueKeys? RPAREN              #jsonConstructorExpression
+    | JSON_SERIALIZE LPAREN jsonInputValue jsonReturningClause? RPAREN #jsonSerializeExpression
     | JSON_VALUE LPAREN expression COMMA expression jsonPassingClause? (RETURNING dataType)?
       jsonValueBehavior* RPAREN                                     #jsonValueExpression
     | JSON_QUERY LPAREN expression COMMA expression jsonPassingClause?
-      (RETURNING dataType (FORMAT JSON (ENCODING UTF8)?)?)?
+      jsonReturningClause?
       jsonWrapperClause? jsonQuotesClause? jsonQueryBehavior* RPAREN                                     #jsonQueryExpression
     | JSON_EXISTS LPAREN expression COMMA expression jsonPassingClause?
       ((TRUE | FALSE | UNKNOWN | ERROR) ON ERROR)? RPAREN            #jsonExistsExpression
@@ -371,6 +378,30 @@ primaryExpression
     | (DATE | TIME | TIMESTAMP) string                               #dateTimeLiteral
     | INTERVAL string identifier?                                    #intervalLiteral
     | DEFAULT                                                        #defaultLiteral
+    ;
+
+jsonObjectPair
+    : expression (VALUE | COLON) jsonInputValue
+    ;
+
+jsonInputValue
+    : expression jsonFormatClause?
+    ;
+
+jsonFormatClause
+    : FORMAT JSON (ENCODING UTF8)?
+    ;
+
+jsonReturningClause
+    : RETURNING dataType jsonFormatClause?
+    ;
+
+jsonNullClause
+    : (NULL | ABSENT) ON NULL
+    ;
+
+jsonUniqueKeys
+    : (WITH | WITHOUT) UNIQUE KEYS?
     ;
 
 jsonPassingClause
@@ -1305,7 +1336,7 @@ nonReservedKeyword
     | ANALYZE | ANY | BINARY | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | CURSOR | DATABASE | DEALLOCATE | DECLARE | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
     | ATTACH | BACKWARD | CHECK | CLOSE | CUBE | DETACH | ENGINE | ENUM | EVENT | EXCLUDING | EXECUTE | EXISTS | EXPLAIN | EXTENSION | EXTERNAL | EXTRACT | FALSE | FETCH | FILTER | FIRST | FOLLOWING | FOR | FORWARD | FOREIGN | FORMAT | FUNCTION | FUNCTIONS | GENERATED | GRANT | GROUPING | GROUPS | HEADER | HOLD | IF | ILIKE | IDENTITY | IMPORT | INCLUDE | INCLUDING | INDEX | INHERITS | INSENSITIVE | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LEADING | LIMIT | MAPPING | MATCHED | MATERIALIZED | MOVE | NEXT | NULL | NULLS
     | DATE | LABEL | LISTEN | LOCK | LOCKED | LOGGED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OPTIONS | ORDINALITY | OVERLAY | OVERRIDING | OVER | PARTITION | PERMISSIVE | PLACING | POLICY | OWNER | VALID | VALIDATE | POSITION | PRECEDING | PRIVILEGES | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROLE | ROW | ROWS | RULE | SECURITY | SEPARATOR | SERVER | SHARE | SIMILAR | SKIP_ | SUBSTRING | TIME | TIMESTAMP | TRAILING | TRIM
-    | ENABLE | DISABLE | FORCE | SOME | SOURCE | TARGET | OPERATOR | TABLESPACE | PRESERVE | CASCADED | LOCAL | OPTION | EXCLUDE | OTHERS | ESCAPE | JSON_VALUE | JSON_EXISTS | JSON_QUERY | JSON_TABLE | COLUMNS | PATH | NESTED | JSON | ENCODING | UTF8 | CONDITIONAL | UNCONDITIONAL | QUOTES | OMIT | KEEP | OBJECT | SCALAR | STRING_KEYWORD | PASSING | ERROR | EMPTY | FINALIZE | MODULUS | REMAINDER | CHAIN | DEFERRABLE | SEARCH | CYCLE | BREADTH | DEPTH | RESTART | CONTINUE | VARYING | DOUBLE | PRECISION
+    | ENABLE | DISABLE | FORCE | SOME | SOURCE | TARGET | OPERATOR | TABLESPACE | PRESERVE | CASCADED | LOCAL | OPTION | EXCLUDE | OTHERS | ESCAPE | JSON_VALUE | JSON_EXISTS | JSON_QUERY | JSON_TABLE | JSON_OBJECT | JSON_ARRAY | JSON_SERIALIZE | ABSENT | KEYS | COLUMNS | PATH | NESTED | JSON | ENCODING | UTF8 | CONDITIONAL | UNCONDITIONAL | QUOTES | OMIT | KEEP | OBJECT | SCALAR | STRING_KEYWORD | PASSING | ERROR | EMPTY | FINALIZE | MODULUS | REMAINDER | CHAIN | DEFERRABLE | SEARCH | CYCLE | BREADTH | DEPTH | RESTART | CONTINUE | VARYING | DOUBLE | PRECISION
     | OLD | NEW | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RESET | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMP | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER | ZONE | DISCARD | PLANS
     ;
 

@@ -2,6 +2,80 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "union_json_constructor_order",
+      "file": "cases/union_json_constructor_order.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events", "ods.events_history"],
+      "outputTables": [],
+      "columnLineage": [{"target": "json", "sources": ["ods.events.payload", "ods.events_history.document"]}],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.events.payload"},
+        {"type": "ORDER_BY", "column": "ods.events_history.document"}
+      ],
+      "description": "JSON constructors keep their implicit output name for set query ordering"
+    },
+    {
+      "id": "select_sql_json_predicate",
+      "file": "cases/select_sql_json_predicate.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "is_object", "sources": ["ods.events.payload"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.payload"}],
+      "description": "SQL/JSON type and uniqueness tests preserve the tested value dependency"
+    },
+    {
+      "id": "insert_json_object_constructor",
+      "file": "cases/insert_json_object_constructor.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.events"],
+      "outputTables": ["mart.event_docs"],
+      "columnLineage": [
+        {"target": "mart.event_docs.document", "sources": ["ods.events.field_name", "ods.events.payload", "ods.events.id"]}
+      ],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.active"}],
+      "description": "JSON_OBJECT tracks dynamic keys and values through INSERT SELECT"
+    },
+    {
+      "id": "select_json_array_serialize",
+      "file": "cases/select_json_array_serialize.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "items", "sources": ["ods.events.id", "ods.events.payload"]},
+        {"target": "bytes", "sources": ["ods.events.payload"]},
+        {"target": "legacy_object", "sources": ["ods.events.field_names", "ods.events.field_values"]}
+      ],
+      "description": "SQL/JSON constructor options keep expression sources and legacy json_object calls"
+    },
+    {
+      "id": "select_json_path_operators",
+      "file": "cases/select_json_path_operators.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "cleaned", "sources": ["ods.events.payload", "ods.events.remove_path"]},
+        {"target": "extracted", "sources": ["ods.events.payload", "ods.events.read_path"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.payload"},
+        {"type": "WHERE", "column": "ods.events.search_path"}
+      ],
+      "description": "JSON path existence and deletion operators trace both operands"
+    },
+    {
+      "id": "create_table_json_check",
+      "file": "cases/create_table_json_check.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.inbound_events"],
+      "columnLineage": [],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.inbound_events.payload"}],
+      "description": "An IS JSON table constraint records the checked model column"
+    },
+    {
       "id": "update_returning_scalar_subquery",
       "file": "cases/update_returning_scalar_subquery.sql",
       "statementType": "UPDATE",

@@ -354,6 +354,7 @@ Initial PostgreSQL extension focus:
 - PostgreSQL `DISTINCT ON`, `ORDER BY ... NULLS FIRST/LAST`, aggregate `FILTER`, ordered-set aggregates with `WITHIN GROUP`, analytic window frames, JSON operators, and array subscripts are covered for baseline SELECT lineage.
 - PostgreSQL NULL-safe comparison with `IS [NOT] DISTINCT FROM` preserves both operands in projection lineage and predicate/join usages.
 - PostgreSQL native expressions include `ARRAY[...]`, `ROW(...)`, quantified comparisons against array constructors, `AT TIME ZONE`, and `COLLATE`, with operand dependencies preserved.
+- PostgreSQL SQL/JSON predicates, variadic constructors, and path operators preserve input expressions, check columns, and filter references.
 - PostgreSQL keyword function forms include `EXTRACT`, `POSITION`, `SUBSTRING ... FROM ... FOR`, `TRIM ... FROM`, and `OVERLAY ... PLACING ... FROM ... FOR` with all semantic operands preserved.
 - PostgreSQL `MERGE` covers inherited relations, `BY SOURCE` update/delete actions, `BY TARGET` insert actions, explicit and default insert values, and merge predicate usages.
 - PostgreSQL cursor and prepared-statement controls are accepted; `DECLARE CURSOR FOR SELECT` and `PREPARE ... AS SELECT` preserve the embedded query lineage while `FETCH`, `MOVE`, `CLOSE`, `EXECUTE`, and `DEALLOCATE PREPARE` remain control statements. Standard `ALTER TABLE ... ALTER COLUMN` default/nullability/type changes are tracked as table-model maintenance.
