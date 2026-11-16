@@ -4187,6 +4187,42 @@
       "description": "SQL Server EXCEPT column sources merged by projection position"
     },
     {
+      "id": "update_scalar_assignment_with_output",
+      "file": "cases/update_scalar_assignment_with_output.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["dbo.users", "ods.active_users", "ods.user_flags"],
+      "outputTables": ["dbo.users"],
+      "columnLineage": [
+        {"target": "dbo.users.latest_flag", "sources": ["ods.user_flags.flag"]},
+        {"target": "dbo.users.active", "sources": ["ods.active_users.active"]},
+        {"target": "new_flag", "sources": ["ods.user_flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.users.id"},
+        {"type": "WHERE", "column": "ods.active_users.user_id"},
+        {"type": "WHERE", "column": "ods.user_flags.user_id"}
+      ],
+      "description": "A scalar assignment does not suppress another SET mapping, and OUTPUT follows the assigned value"
+    },
+    {
+      "id": "merge_update_scalar_assignment",
+      "file": "cases/merge_update_scalar_assignment.sql",
+      "statementType": "MERGE",
+      "inputTables": ["dbo.orders", "stage.changed_orders", "stage.adjustments"],
+      "outputTables": ["dbo.orders"],
+      "columnLineage": [
+        {"target": "dbo.orders.amount", "sources": ["stage.adjustments.amount"]},
+        {"target": "new_amount", "sources": ["stage.adjustments.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "dbo.orders.id"},
+        {"type": "MERGE_ON", "column": "stage.changed_orders.id"},
+        {"type": "WHERE", "column": "stage.adjustments.order_id"},
+        {"type": "WHERE", "column": "stage.changed_orders.id"}
+      ],
+      "description": "MERGE scalar assignments retain their source lookup and correlated predicates"
+    },
+    {
       "id": "update_with_subquery",
       "file": "cases/update_with_subquery.sql",
       "statementType": "UPDATE",
@@ -4198,7 +4234,7 @@
       "outputTables": [
         "dbo.users"
       ],
-      "columnLineage": [],
+      "columnLineage": [{"target": "dbo.users.latest_flag", "sources": ["ods.user_flags.flag"]}],
       "columnUsages": [
         {
           "type": "WHERE",

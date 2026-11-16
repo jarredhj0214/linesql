@@ -189,21 +189,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
             collectSubqueryInputs(ctx.whereClause());
         }
-        collectSubqueryInputs(ctx.assignmentList());
-
-        // Check if assignments have subqueries; if so, suppress column lineage
-        boolean hasSubquery = false;
-        for (SqlServerParser.AssignmentContext assignment : ctx.assignmentList().assignment()) {
-            if (containsSubquery(assignment.expression())) {
-                hasSubquery = true;
-                break;
-            }
-        }
-
-        List<ColumnLineage> lineages = new ArrayList<>();
-        if (!hasSubquery) {
-            lineages.addAll(readAssignments(ctx.assignmentList(), target));
-        }
+        List<ColumnLineage> lineages = readAssignments(ctx.assignmentList(), target);
         appendOutputResultLineage(ctx.outputClause(), target, lineages);
         result.setColumnLineage(lineages);
 
@@ -2191,9 +2177,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private List<ColumnLineage> readAssignments(SqlServerParser.AssignmentListContext ctx, TableRef defaultTarget) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (SqlServerParser.AssignmentContext assignment : ctx.assignment()) {
-            if (containsSubquery(assignment.expression())) {
-                continue;
-            }
+            collectSubqueryInputs(assignment.expression(), true);
             List<String> parts = identifierParts(assignment.multipartIdentifier());
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
@@ -2308,27 +2292,33 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private void collectSubqueryInputs(ParseTree tree) {
+        collectSubqueryInputs(tree, false);
+    }
+
+    private void collectSubqueryInputs(ParseTree tree, boolean includeColumnUsages) {
         if (tree instanceof SqlServerParser.ScalarSubqueryContext) {
-            SqlServerParser.ScalarSubqueryContext subquery = (SqlServerParser.ScalarSubqueryContext) tree;
-            LineageResult subResult = lineageForQuery(subquery.query());
-            inputTables.addAll(subResult.getInputTables());
+            addSubqueryInputs(((SqlServerParser.ScalarSubqueryContext) tree).query(), includeColumnUsages);
             return;
         }
         if (tree instanceof SqlServerParser.ExistsExprContext) {
-            SqlServerParser.ExistsExprContext exists = (SqlServerParser.ExistsExprContext) tree;
-            LineageResult subResult = lineageForQuery(exists.query());
-            inputTables.addAll(subResult.getInputTables());
+            addSubqueryInputs(((SqlServerParser.ExistsExprContext) tree).query(), includeColumnUsages);
             return;
         }
-        if (tree instanceof SqlServerParser.PredicateContext) {
-            SqlServerParser.PredicateContext predicate = (SqlServerParser.PredicateContext) tree;
-            if (predicate.query() != null) {
-                LineageResult subResult = lineageForQuery(predicate.query());
-                inputTables.addAll(subResult.getInputTables());
-            }
+        SqlServerParser.QueryContext predicateQuery = tree instanceof SqlServerParser.PredicateContext
+                ? ((SqlServerParser.PredicateContext) tree).query() : null;
+        if (predicateQuery != null) {
+            addSubqueryInputs(predicateQuery, includeColumnUsages);
         }
         for (int i = 0; i < tree.getChildCount(); i++) {
-            collectSubqueryInputs(tree.getChild(i));
+            collectSubqueryInputs(tree.getChild(i), includeColumnUsages);
+        }
+    }
+
+    private void addSubqueryInputs(SqlServerParser.QueryContext query, boolean includeColumnUsages) {
+        LineageResult nested = lineageForQuery(query);
+        inputTables.addAll(nested.getInputTables());
+        if (includeColumnUsages) {
+            LineageModelUtils.mergeColumnUsages(result, nested);
         }
     }
 
