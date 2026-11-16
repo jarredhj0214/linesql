@@ -1298,15 +1298,60 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (query.ctes() != null || !(query.queryTerm() instanceof MySqlParser.SetOperationContext)) {
             return;
         }
-        MySqlParser.SetOperationContext union = (MySqlParser.SetOperationContext) query.queryTerm();
-        if (union.UNION() == null) {
+        List<MySqlParser.QueryTermContext> members = new ArrayList<>();
+        collectUnionMembers(query.queryTerm(), members);
+        int firstRecursive = 0;
+        while (firstRecursive < members.size() && !referencesRelation(members.get(firstRecursive), name)) {
+            firstRecursive++;
+        }
+        if (firstRecursive == 0 || firstRecursive == members.size()) {
             return;
         }
-        List<ColumnLineage> anchor = lineageForQueryTerm(union.left).getColumnLineage();
-        if (aliases.isEmpty() || aliases.size() == anchor.size()) {
-            LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
-                    () -> lineageForQueryTerm(union.right).getColumnLineage());
+        List<ColumnLineage> anchor = combinedCteMembers(members.subList(0, firstRecursive));
+        if (!aliases.isEmpty() && aliases.size() != anchor.size()) {
+            return;
         }
+        List<MySqlParser.QueryTermContext> recursive = members.subList(firstRecursive, members.size());
+        LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
+                () -> combinedCteMembers(recursive));
+    }
+
+    private static void collectUnionMembers(MySqlParser.QueryTermContext term,
+                                            List<MySqlParser.QueryTermContext> members) {
+        if (term instanceof MySqlParser.SetOperationContext) {
+            MySqlParser.SetOperationContext set = (MySqlParser.SetOperationContext) term;
+            if (set.UNION() != null) {
+                collectUnionMembers(set.left, members);
+                collectUnionMembers(set.right, members);
+                return;
+            }
+        }
+        members.add(term);
+    }
+
+    private List<ColumnLineage> combinedCteMembers(List<MySqlParser.QueryTermContext> members) {
+        LineageResult combined = lineageForQueryTerm(members.get(0));
+        for (int index = 1; index < members.size(); index++) {
+            LineageResult member = lineageForQueryTerm(members.get(index));
+            if (combined.getColumnLineage().size() != member.getColumnLineage().size()) {
+                return Collections.emptyList();
+            }
+            combined.setColumnLineage(LineageModelUtils.mergeSetColumnLineage(combined, member));
+        }
+        return combined.getColumnLineage();
+    }
+
+    private static boolean referencesRelation(ParseTree tree, String name) {
+        if (tree instanceof MySqlParser.TableNameContext) {
+            TableRef table = tableRef(((MySqlParser.TableNameContext) tree).multipartIdentifier());
+            return table.getCatalog() == null && table.getSchema() == null && name.equalsIgnoreCase(table.getName());
+        }
+        for (int index = 0; index < tree.getChildCount(); index++) {
+            if (referencesRelation(tree.getChild(index), name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

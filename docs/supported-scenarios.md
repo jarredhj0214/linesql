@@ -1713,7 +1713,7 @@ Known Hive gaps:
 
 ## MySQL
 
-Recursive CTEs follow transitive output columns across anchor and step queries in `recursive_cte_transitive_join_sources`. Recursive `UNION DISTINCT` keeps source-column mappings for positional writes in `recursive_cte_insert_union_distinct`. The `cte_max_recursion_depth` setting identifies MySQL script context.
+Recursive CTEs follow transitive output columns across anchor and step queries in `recursive_cte_transitive_join_sources`. Recursive `UNION DISTINCT` keeps source-column mappings for positional writes in `recursive_cte_insert_union_distinct`. The `cte_max_recursion_depth` setting identifies MySQL script context. Multiple anchor and recursive members are covered by `recursive_cte_multiple_anchor_members`, `recursive_cte_multiple_union_members` and `mysql_mode_recursive_cte_multiple_union_members`.
 
 MySQL is an active parser dialect path. It uses an ANTLR4 lexer with a lightweight lineage walker for common MySQL statement shapes, including SELECT, DML, DDL, lifecycle statements, metadata reads, control statements, and common expression lineage.
 

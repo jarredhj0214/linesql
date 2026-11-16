@@ -6300,6 +6300,57 @@
         }
       ],
       "description": "A nonrecursive definition reads the same-named physical table, and later CTEs read the completed definition"
+    },
+    {
+      "id": "mysql_mode_recursive_cte_multiple_union_members",
+      "file": "cases/mysql_mode_recursive_cte_multiple_union_members.sql",
+      "compatibilityMode": "mysql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.nodes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "a",
+          "sources": [
+            "org.nodes.id",
+            "org.nodes.owner_id",
+            "org.nodes.root_id"
+          ]
+        },
+        {
+          "target": "b",
+          "sources": [
+            "org.nodes.owner_id",
+            "org.nodes.root_id",
+            "org.nodes.id"
+          ]
+        },
+        {
+          "target": "c",
+          "sources": [
+            "org.nodes.root_id",
+            "org.nodes.id",
+            "org.nodes.owner_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "org.nodes.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.owner_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.root_id"
+        }
+      ],
+      "description": "Every recursive UNION member contributes to transitive MySQL column lineage"
     }
   ]
 }
