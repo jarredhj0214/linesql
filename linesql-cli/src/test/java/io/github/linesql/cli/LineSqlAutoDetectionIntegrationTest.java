@@ -319,6 +319,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOraclePartitionedJoinOutsideWindowExpressions() {
+        LineageResult partitioned = LineSql.parse("SELECT c.day_id, s.amount FROM dims.calendar c "
+                + "LEFT JOIN facts.sales s PARTITION BY (s.region) ON s.day_id = c.day_id");
+        assertEquals(SqlDialect.ORACLE, partitioned.getDialect());
+        assertEquals(StatementType.SELECT, partitioned.getStatementType());
+        assertTrue(partitioned.getColumnUsages().stream()
+                .anyMatch(usage -> "region".equals(usage.getColumn().getName())));
+        assertDialect(SqlDialect.SPARK,
+                "SELECT sum(amount) OVER (PARTITION BY (region)) AS total FROM facts.sales");
+    }
+
+    @Test
     public void detectsHiveLateralTableValues() {
         LineageResult values = LineSql.parse("SELECT v.item FROM raw.docs d "
                 + "LATERAL TABLE(VALUES(d.sku)) v(item)");

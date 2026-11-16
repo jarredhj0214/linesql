@@ -85,6 +85,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_XML_PASSING_OPTION = Pattern.compile(
             "\\bpassing\\s+by\\s+ref\\b|\\bby\\s+(?:ref|value)(?:\\s+columns\\b|\\s*\\))"
                     + "|::\\s*(?:pg_catalog\\s*\\.\\s*)?xml\\b");
+    private static final Pattern ORACLE_PARTITIONED_JOIN = Pattern.compile(
+            "\\b(?:from|join)\\s+[a-z_][\\w$#]*(?:\\s*\\.\\s*[a-z_][\\w$#]*)*\\s+"
+                    + "(?:(?:as\\s+)?[a-z_][\\w$#]*\\s+)?partition\\s+by\\s*\\(");
     private static final Pattern ORACLE_DOMAIN_DDL = Pattern.compile(
             "^\\s*(?:create|alter)\\s+usecase\\s+domain\\b"
                     + "|^\\s*create\\s+domain\\s+(?:if\\s+not\\s+exists\\b|[^;]*\\bas\\s+(?:enum\\s*)?\\()"
@@ -358,6 +361,10 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle SQL*Plus slash separator"));
         } else if (literals.oracleQuoted) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle alternative-quoted string literal"));
+        } else if (unquotedSyntax.contains("partition") && unquotedSyntax.contains("join")
+                && ORACLE_PARTITIONED_JOIN.matcher(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle partitioned join"));
         } else if (ORACLE_DOMAIN_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle data use case domain DDL"));
         } else if (ORACLE_RETURNING_TARGET.matcher(unquotedSyntax).find()) {

@@ -880,6 +880,7 @@ Implemented Oracle column-level lineage scenarios:
 | --- | --- | --- |
 | Subqueries in SELECT projections | Scalar and IN subqueries keep inner projections scoped. Predicates inside them preserve both local and enclosing column references. | `select_correlated_scalar_projection_scope`, `select_in_subquery_projection_scope` |
 | JOIN USING output keys | Full outer keys depend on both inputs. A left or right outer join carries the retained side through CTEs, filters, subsequent ON predicates and positional writes. | `select_full_using_key_with_chained_on`, `select_right_using_derived_key`, `insert_using_join_key_by_position` |
+| Partitioned and natural outer joins | Partition keys on either side are counted with join dependencies. Natural joins preserve the source aliases and directly qualified columns. Native partitioned joins identify Oracle. | `select_partitioned_outer_join_on`, `select_partitioned_outer_join_using`, `select_natural_left_join_sources` |
 | Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
 | Data dictionary views | `select ... from sys.dba_tables where ...`, `select ... from sys.all_tab_columns where ...` | `data_dictionary_dba_tables`, `data_dictionary_all_tab_columns` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |

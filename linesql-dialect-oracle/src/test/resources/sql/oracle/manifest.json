@@ -5764,6 +5764,56 @@
         {"type": "JOIN_ON", "column": "ods.shipments.order_id"}
       ],
       "description": "A left join key keeps the left value through a positional insert"
+    },
+    {
+      "id": "select_partitioned_outer_join_on",
+      "file": "cases/select_partitioned_outer_join_on.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dims.calendar", "facts.sales"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "day_id", "sources": ["dims.calendar.day_id"]},
+        {"target": "amount", "sources": ["facts.sales.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "facts.sales.region"},
+        {"type": "JOIN_ON", "column": "dims.calendar.day_id"},
+        {"type": "JOIN_ON", "column": "facts.sales.day_id"}
+      ],
+      "description": "The partitioning keys on the right participate in the outer join dependencies"
+    },
+    {
+      "id": "select_partitioned_outer_join_using",
+      "file": "cases/select_partitioned_outer_join_using.sql",
+      "statementType": "SELECT",
+      "inputTables": ["facts.sales", "dims.calendar"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "month_id", "sources": ["dims.calendar.month_id"]},
+        {"target": "units", "sources": ["facts.sales.units"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "facts.sales.store_id"},
+        {"type": "JOIN_ON", "column": "facts.sales.product_id"},
+        {"type": "JOIN_ON", "column": "facts.sales.month_id"},
+        {"type": "JOIN_ON", "column": "dims.calendar.month_id"},
+        {"type": "WHERE", "column": "dims.calendar.month_id"}
+      ],
+      "description": "A left partitioned input retains its partition dependencies while the right join exposes the right key"
+    },
+    {
+      "id": "select_natural_left_join_sources",
+      "file": "cases/select_natural_left_join_sources.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.customers", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "customer_name", "sources": ["ods.customers.customer_name"]},
+        {"target": "amount", "sources": ["ods.orders.amount"]}
+      ],
+      "columnUsages": [
+      ],
+      "description": "The natural outer join preserves source aliases and directly qualified non-key columns"
     }
   ]
 }

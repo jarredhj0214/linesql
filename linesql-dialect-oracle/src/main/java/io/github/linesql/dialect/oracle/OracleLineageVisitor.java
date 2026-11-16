@@ -985,6 +985,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             visit(ctx.matchRecognizeClause());
             registerMatchRecognizeDerivedRelation(ctx.relationPrimary(), ctx.matchRecognizeClause());
         }
+        if (ctx.joinPartitionClause() != null) {
+            visit(ctx.joinPartitionClause());
+        }
         Map<String, List<ColumnRef>> keys = new LinkedHashMap<>(nestedJoinKeys(
                 ctx.relationPrimary(), ctx.pivotClause(), ctx.matchRecognizeClause()));
         for (OracleParser.JoinRelationContext join : ctx.joinRelation()) {
@@ -997,6 +1000,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 registerMatchRecognizeDerivedRelation(join.relationPrimary(), join.matchRecognizeClause());
             }
 
+            if (join.joinPartitionClause() != null) {
+                visit(join.joinPartitionClause());
+            }
             Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(
                     join.relationPrimary(), join.pivotClause(), join.matchRecognizeClause());
             OracleParser.JoinCriteriaContext criteria = join.joinCriteria();
@@ -1020,6 +1026,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (!keys.isEmpty()) {
             relationJoinKeys.put(ctx, keys);
         }
+        return null;
+    }
+
+    @Override
+    public Void visitJoinPartitionClause(OracleParser.JoinPartitionClauseContext ctx) {
+        addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expressionList()));
         return null;
     }
 
