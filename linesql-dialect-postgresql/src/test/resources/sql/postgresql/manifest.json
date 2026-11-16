@@ -224,6 +224,68 @@
       "description": "A physical relation named excluded in a subquery shadows the proposed row"
     },
     {
+      "id": "select_correlated_scalar_projection_scope",
+      "file": "cases/select_correlated_scalar_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "single_flag", "sources": ["ods.flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"}
+      ],
+      "description": "A scalar SELECT retains correlations and does not expose its internal output as a separate outer projection"
+    },
+    {
+      "id": "select_correlated_scalar_value_expression",
+      "file": "cases/select_correlated_scalar_value_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "weighted_flag", "sources": ["ods.flags.flag", "ods.orders.weight"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"}
+      ],
+      "description": "The scalar result can use inner and enclosing relation columns in the same value expression"
+    },
+    {
+      "id": "select_exists_does_not_leak_projection",
+      "file": "cases/select_exists_does_not_leak_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.flags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"}
+      ],
+      "description": "An EXISTS subquery keeps its predicate usages without exposing its projection columns"
+    },
+    {
+      "id": "select_in_does_not_leak_projection",
+      "file": "cases/select_in_does_not_leak_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.flags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.id"},
+        {"type": "WHERE", "column": "ods.flags.active"},
+        {"type": "WHERE", "column": "ods.flags.order_id"}
+      ],
+      "description": "An IN subquery uses its projected column in the filter without adding an outer projection"
+    },
+    {
       "id": "update_scalar_assignment",
       "file": "cases/update_scalar_assignment.sql",
       "statementType": "UPDATE",

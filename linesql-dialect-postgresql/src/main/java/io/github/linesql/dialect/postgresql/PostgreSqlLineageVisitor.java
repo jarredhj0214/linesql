@@ -1618,11 +1618,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx.query() == null) {
             return visitChildren(ctx);
         }
-        LineageResult queryResult = lineageForQuery(ctx.query());
-        for (TableRef table : queryResult.getInputTables()) {
-            addInputTable(table, false);
-        }
-        LineageModelUtils.mergeColumnUsages(result, queryResult);
+        addSubqueryDependencies(ctx.query(), true);
         visit(ctx.left);
         return null;
     }
@@ -1965,20 +1961,27 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitArrayConstructorQuery(PostgreSqlParser.ArrayConstructorQueryContext ctx) {
         addSubqueryDependencies(ctx.query(), true);
-        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 
     @Override
     public Void visitScalarSubquery(PostgreSqlParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null) {
+        addSubqueryDependencies(ctx.query(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitExistsExpr(PostgreSqlParser.ExistsExprContext ctx) {
+        addSubqueryDependencies(ctx.query(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitPredicate(PostgreSqlParser.PredicateContext ctx) {
+        if (ctx.query() == null) {
             return visitChildren(ctx);
         }
-        LineageResult inner = lineageForQuery(ctx.query());
-        for (TableRef table : inner.getInputTables()) {
-            addInputTable(table, false);
-        }
-        LineageModelUtils.mergeColumnUsages(result, inner);
+        addSubqueryDependencies(ctx.query(), true);
         return null;
     }
 
@@ -2072,22 +2075,48 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         try {
-            if (ctx.fromClause() == null
-                    || !(hasSelectStar(ctx.selectClause()) || containsArrayConstructorQuery(ctx.selectClause()))) {
-                return visitChildren(ctx);
-            }
-            // Wildcards and correlated array queries need the enclosing FROM relations first.
-            visit(ctx.fromClause());
-            for (ParseTree child : ctx.children) {
-                if (child != ctx.fromClause()) {
-                    visit(child);
+            if (ctx.fromClause() != null) {
+                boolean visitFromFirst = hasSelectStar(ctx.selectClause())
+                        || containsArrayConstructorQuery(ctx.selectClause());
+                if (visitFromFirst || containsQuery(ctx.selectClause())) {
+                    return visitWithSelectScope(ctx, !visitFromFirst);
                 }
             }
-            return null;
+            return visitChildren(ctx);
         } finally {
             namedWindowSources.clear();
             namedWindowSources.putAll(previousWindows);
         }
+    }
+
+    private Void visitWithSelectScope(PostgreSqlParser.QuerySpecificationContext ctx, boolean preserveInputOrder) {
+        Set<TableRef> previousInputs = new LinkedHashSet<>(inputTables);
+        visit(ctx.fromClause());
+        Set<TableRef> fromInputs = new LinkedHashSet<>(inputTables);
+        if (preserveInputOrder) {
+            inputTables.retainAll(previousInputs);
+        }
+        for (ParseTree child : ctx.children) {
+            if (child != ctx.fromClause()) {
+                visit(child);
+            } else if (preserveInputOrder) {
+                inputTables.addAll(fromInputs);
+                result.setInputTables(new ArrayList<>(inputTables));
+            }
+        }
+        return null;
+    }
+
+    private static boolean containsQuery(ParseTree tree) {
+        if (tree instanceof PostgreSqlParser.QueryContext) {
+            return true;
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            if (containsQuery(tree.getChild(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasSelectStar(PostgreSqlParser.SelectClauseContext select) {
@@ -3103,7 +3132,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private void addSubqueryDependencies(PostgreSqlParser.QueryContext query, boolean includeColumnUsages) {
         LineageResult subquery = lineageForQuery(query);
-        inputTables.addAll(subquery.getInputTables());
+        if (inputTables.addAll(subquery.getInputTables())) {
+            result.setInputTables(new ArrayList<>(inputTables));
+        }
         if (includeColumnUsages) {
             LineageModelUtils.mergeColumnUsages(result, subquery);
         }
