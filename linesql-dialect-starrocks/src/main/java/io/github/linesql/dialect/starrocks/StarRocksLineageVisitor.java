@@ -1517,9 +1517,28 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         for (StarRocksParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
             String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
             cteNames.add(cteName);
-            registerDerivedRelation(cteName, namedQuery.query(), cteColumnAliases(namedQuery));
+            List<String> aliases = cteColumnAliases(namedQuery);
+            if (ctx.RECURSIVE() != null) {
+                seedRecursiveRelation(cteName, namedQuery.query(), aliases);
+            }
+            registerDerivedRelation(cteName, namedQuery.query(), aliases);
         }
         return null;
+    }
+
+    private void seedRecursiveRelation(String name, StarRocksParser.QueryContext query, List<String> aliases) {
+        if (query.ctes() != null || !(query.queryTerm() instanceof StarRocksParser.SetOperationContext)) {
+            return;
+        }
+        StarRocksParser.SetOperationContext union = (StarRocksParser.SetOperationContext) query.queryTerm();
+        if (union.UNION() == null) {
+            return;
+        }
+        List<ColumnLineage> anchor = lineageForQueryTerm(union.left, true).getColumnLineage();
+        if (aliases.isEmpty() || aliases.size() == anchor.size()) {
+            LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
+                    () -> lineageForQueryTerm(union.right, true).getColumnLineage());
+        }
     }
 
     @Override

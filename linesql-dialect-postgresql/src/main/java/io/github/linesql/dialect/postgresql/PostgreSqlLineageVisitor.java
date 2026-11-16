@@ -1607,27 +1607,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return;
         }
         List<ColumnLineage> anchor = lineageForQueryTerm(union.left).getColumnLineage();
-        if (anchor.isEmpty() || aliases.size() > anchor.size() || LineageModelUtils.hasWildcardOutput(anchor)) {
-            return;
-        }
-        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        for (int index = 0; index < anchor.size(); index++) {
-            ColumnLineage column = anchor.get(index);
-            String columnName = index < aliases.size() ? aliases.get(index) : column.getTarget().getName();
-            if (columns.containsKey(columnName)) {
-                return;
-            }
-            columns.put(columnName, LineageModelUtils.mergeColumnRefs(Collections.emptyList(), column.getSources()));
-        }
-        Map<String, List<ColumnRef>> previous = derivedColumnLineage.put(name, columns);
-        if (!LineageModelUtils.expandRecursiveColumnSources(columns,
-                () -> lineageForQueryTerm(union.right).getColumnLineage())) {
-            if (previous == null) {
-                derivedColumnLineage.remove(name);
-            } else {
-                derivedColumnLineage.put(name, previous);
-            }
-        }
+        LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
+                () -> lineageForQueryTerm(union.right).getColumnLineage());
     }
 
     private static List<ColumnRef> cteKeySources(Map<String, List<ColumnRef>> columns,

@@ -83,6 +83,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern STARROCKS_RECURSION_SETTINGS = Pattern.compile(
+            "\\bset\\s+(?:(?:global|session)\\s+)?(?:enable_recursive_cte|recursive_cte_max_depth)\\s*=");
+    private static final Pattern MYSQL_RECURSION_SETTING = Pattern.compile(
+            "\\bset\\s+(?:(?:global|session)\\s+)?cte_max_recursion_depth\\s*=");
     private static final Pattern ORACLE_RECURSIVE_CTE_OPTIONS = Pattern.compile(
             "\\bwith\\s+(?!recursive\\b)[^;]*?\\)\\s*(?:search\\s+(?:breadth|depth)\\s+first\\s+by\\b"
                     + "|cycle\\s+[a-z_][\\w$#]*(?:\\s*,\\s*[a-z_][\\w$#]*)*\\s+set\\s+[a-z_][\\w$#]*\\s+to\\b)");
@@ -224,6 +228,8 @@ public class SimpleDialectDetector implements DialectDetector {
 
         if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
+        } else if (MYSQL_RECURSION_SETTING.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.MYSQL, 0.98, "MySQL recursive CTE depth setting"));
         } else if (mysqlExecutableComment
                 || normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
                 || unquotedSyntax.matches("(?s).*\\bdelete\\s+from\\b[^;]*\\busing\\b.*")
@@ -384,7 +390,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }
-        if (unquotedSyntax.contains("temporary") && unquotedSyntax.contains("partition")
+        if (STARROCKS_RECURSION_SETTINGS.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks recursive CTE settings"));
+        } else if (unquotedSyntax.contains("temporary") && unquotedSyntax.contains("partition")
                 && STARROCKS_TEMPORARY_PARTITION.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks temporary partition syntax"));

@@ -2088,6 +2088,14 @@
           "column": "employees.manager_id"
         },
         {
+          "type": "JOIN_ON",
+          "column": "employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "employees.employee_id"
+        },
+        {
           "type": "ORDER_BY",
           "column": "employees.employee_id"
         }
@@ -10214,6 +10222,14 @@
         {
           "type": "WHERE",
           "column": "ods.employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.employees.id"
         }
       ],
       "description": "StarRocks WITH RECURSIVE CTE keeps physical source lineage and ignores the recursive self-reference as a table"
@@ -11912,6 +11928,62 @@
         {"type": "WHERE", "column": "mart.site_access.event_day"}
       ],
       "description": "Temporary partitions preserve a quoted source relation and its join alias"
+    },
+    {
+      "id": "recursive_cte_transitive_join_sources",
+      "file": "cases/recursive_cte_transitive_join_sources.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.roots",
+        "org.edges"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "node_id",
+          "sources": [
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "inherited_root",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "lvl",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.roots.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.child_id"
+        }
+      ],
+      "description": "StarRocks recursive CTE propagates anchor and step columns into subsequent join keys"
+    },
+    {
+      "id": "set_recursive_cte_limit",
+      "file": "cases/set_recursive_cte_limit.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "StarRocks recursive depth setting is native script context"
     }
   ]
 }

@@ -997,6 +997,8 @@ Known Oracle gaps:
 
 ## StarRocks
 
+The recursive CTE join follows transitive output-column dependencies in `recursive_cte_transitive_join_sources`. The `recursive_cte_max_depth` setting in `set_recursive_cte_limit` and the `enable_recursive_cte` session setting provide dialect evidence for following queries.
+
 Scalar and `IN` subqueries inside a projection keep their own output scope. The outer
 projection retains its value dependencies, and correlated filters identify the enclosing
 relation (`select_correlated_scalar_projection_scope`, `select_in_subquery_projection_scope`).
@@ -1695,6 +1697,8 @@ Known Hive gaps:
 | Complex expressions, CTEs, subqueries, and lateral view | Single CTE, chained CTE direct projection, CTE column aliases, single/nested derived subquery direct projection propagation, and common lateral-view generated columns are covered. Recursive CTEs, complex subquery joins, and function-specific UDTF output semantics are not complete yet. |
 
 ## MySQL
+
+Recursive CTEs follow transitive output columns across anchor and step queries in `recursive_cte_transitive_join_sources`. Recursive `UNION DISTINCT` keeps source-column mappings for positional writes in `recursive_cte_insert_union_distinct`. The `cte_max_recursion_depth` setting identifies MySQL script context.
 
 MySQL is an active parser dialect path. It uses an ANTLR4 lexer with a lightweight lineage walker for common MySQL statement shapes, including SELECT, DML, DDL, lifecycle statements, metadata reads, control statements, and common expression lineage.
 

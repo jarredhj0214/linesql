@@ -864,23 +864,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             return;
         }
         List<ColumnLineage> anchor = lineageForQueryTerm(union.left).getColumnLineage();
-        if (aliases.size() != anchor.size() || LineageModelUtils.hasWildcardOutput(anchor)) {
-            return;
-        }
-
-        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        for (int index = 0; index < aliases.size(); index++) {
-            columns.put(aliases.get(index),
-                    LineageModelUtils.mergeColumnRefs(Collections.emptyList(), anchor.get(index).getSources()));
-        }
-        Map<String, List<ColumnRef>> previous = derivedColumnLineage.put(name, columns);
-        if (!LineageModelUtils.expandRecursiveColumnSources(columns,
-                () -> lineageForQueryTerm(union.right).getColumnLineage())) {
-            if (previous == null) {
-                derivedColumnLineage.remove(name);
-            } else {
-                derivedColumnLineage.put(name, previous);
-            }
+        if (aliases.size() == anchor.size()) {
+            LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
+                    () -> lineageForQueryTerm(union.right).getColumnLineage());
         }
     }
 

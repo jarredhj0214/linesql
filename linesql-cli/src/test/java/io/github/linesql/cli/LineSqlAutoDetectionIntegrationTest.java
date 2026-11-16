@@ -347,6 +347,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void inheritsNativeRecursiveCteSettingsAcrossScripts() {
+        String recursive = "WITH RECURSIVE walk(n) AS"
+                + " (SELECT 1 UNION ALL SELECT n + 1 FROM walk WHERE n < 3) SELECT n FROM walk";
+        List<LineageResult> starrocks = LineSql.parseScript("SET enable_recursive_cte = TRUE; " + recursive);
+        assertEquals(2, starrocks.size());
+        assertEquals(SqlDialect.STARROCKS, starrocks.get(0).getDialect());
+        assertEquals(SqlDialect.STARROCKS, starrocks.get(1).getDialect());
+        assertEquals(StatementType.SELECT, starrocks.get(1).getStatementType());
+        List<LineageResult> mysql = LineSql.parseScript("SET SESSION cte_max_recursion_depth = 8; " + recursive);
+        assertEquals(2, mysql.size());
+        assertEquals(SqlDialect.MYSQL, mysql.get(0).getDialect());
+        assertEquals(SqlDialect.MYSQL, mysql.get(1).getDialect());
+        assertEquals(StatementType.SELECT, mysql.get(1).getStatementType());
+        assertDialect(SqlDialect.SPARK, "SELECT 'SET enable_recursive_cte = TRUE' AS note");
+    }
+
+    @Test
     public void detectsOracleRecursiveSubqueryFactoringOptions() {
         assertDialect(SqlDialect.ORACLE, "WITH walk(n) AS (SELECT 1 FROM dual"
                 + " UNION ALL SELECT n + 1 FROM walk WHERE n < 4)"

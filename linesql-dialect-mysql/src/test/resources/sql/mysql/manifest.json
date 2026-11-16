@@ -12309,6 +12309,90 @@
         {"type": "JOIN_ON", "column": "mart.lookup.lookup_key"}
       ],
       "description": "A later ON condition uses the exposed key of the preceding USING join"
+    },
+    {
+      "id": "recursive_cte_transitive_join_sources",
+      "file": "cases/recursive_cte_transitive_join_sources.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.roots",
+        "org.edges"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "node_id",
+          "sources": [
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "inherited_root",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "lvl",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.roots.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.child_id"
+        }
+      ],
+      "description": "MySQL recursive CTE propagates anchor and step columns into subsequent join keys"
+    },
+    {
+      "id": "recursive_cte_insert_union_distinct",
+      "file": "cases/recursive_cte_insert_union_distinct.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "org.nodes"
+      ],
+      "outputTables": [
+        "mart.snapshots"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.snapshots.root_id",
+          "sources": [
+            "org.nodes.root_id",
+            "org.nodes.parent_id"
+          ]
+        },
+        {
+          "target": "mart.snapshots.parent_id",
+          "sources": [
+            "org.nodes.parent_id",
+            "org.nodes.root_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "org.nodes.root_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.parent_id"
+        }
+      ],
+      "description": "MySQL recursive UNION DISTINCT resolves both directions before binding positional inserts"
     }
   ]
 }

@@ -2198,28 +2198,9 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
 
         List<ColumnLineage> anchor = lineageForQueryTerm(union.left, true).getColumnLineage();
-        if (anchor.isEmpty() || (!aliases.isEmpty() && anchor.size() != aliases.size()) || LineageModelUtils.hasWildcardOutput(anchor)) {
-            return false;
-        }
-        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        Set<String> names = new LinkedHashSet<>();
-        for (int index = 0; index < anchor.size(); index++) {
-            ColumnLineage column = anchor.get(index);
-            String columnName = aliases.isEmpty() ? column.getTarget().getName() : aliases.get(index);
-            if (!names.add(columnName.toLowerCase(Locale.ROOT))) {
-                return false;
-            }
-            columns.put(columnName, LineageModelUtils.mergeColumnRefs(Collections.emptyList(), column.getSources()));
-        }
-
-        Map<String, List<ColumnRef>> previous = derivedColumnLineage.put(name, columns);
-        if (!LineageModelUtils.expandRecursiveColumnSources(columns,
+        if ((!aliases.isEmpty() && aliases.size() != anchor.size())
+                || !LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
                 () -> lineageForQueryTerm(union.right, true).getColumnLineage())) {
-            if (previous == null) {
-                derivedColumnLineage.remove(name);
-            } else {
-                derivedColumnLineage.put(name, previous);
-            }
             return false;
         }
         registerDerivedRelation(name, query, aliases, true);

@@ -8,6 +8,7 @@ import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.TableRef;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -72,7 +73,41 @@ public final class LineageModelUtils {
         return new ArrayList<ColumnRef>(refs.values());
     }
 
-    public static boolean expandRecursiveColumnSources(Map<String, List<ColumnRef>> columns,
+    public static boolean registerRecursiveColumnSources(
+            Map<String, Map<String, List<ColumnRef>>> relations,
+            String name,
+            List<ColumnLineage> anchor,
+            List<String> aliases,
+            Supplier<List<ColumnLineage>> evaluateStep) {
+        if (anchor.isEmpty() || aliases.size() > anchor.size() || hasWildcardOutput(anchor)) {
+            return false;
+        }
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int index = 0; index < anchor.size(); index++) {
+            ColumnLineage column = anchor.get(index);
+            String columnName = index < aliases.size() ? aliases.get(index) : column.getTarget().getName();
+            if (columns.containsKey(columnName)) {
+                return false;
+            }
+            columns.put(columnName, mergeColumnRefs(Collections.emptyList(), column.getSources()));
+        }
+        Map<String, List<ColumnRef>> previous = relations.put(name, columns);
+        boolean resolved = false;
+        try {
+            resolved = expandRecursiveColumnSources(columns, evaluateStep);
+            return resolved;
+        } finally {
+            if (!resolved) {
+                if (previous == null) {
+                    relations.remove(name);
+                } else {
+                    relations.put(name, previous);
+                }
+            }
+        }
+    }
+
+    private static boolean expandRecursiveColumnSources(Map<String, List<ColumnRef>> columns,
                                                        Supplier<List<ColumnLineage>> evaluateStep) {
         // Every source reaches all dependent columns in at most the number of columns passes.
         for (int pass = 0; pass < columns.size(); pass++) {
@@ -95,7 +130,7 @@ public final class LineageModelUtils {
         return true;
     }
 
-    public static boolean hasWildcardOutput(List<ColumnLineage> columns) {
+    private static boolean hasWildcardOutput(List<ColumnLineage> columns) {
         return columns.stream().anyMatch(column -> "*".equals(column.getTarget().getName()));
     }
 
