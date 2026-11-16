@@ -746,6 +746,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         outputTables.add(table);
         tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
         for (PostgreSqlParser.PolicyPredicateContext predicate : ctx.policyPredicate()) {
+            collectSubqueryDependencies(predicate.expression(), true);
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(predicate.expression()));
         }
         result.setOutputTables(new ArrayList<>(outputTables));

@@ -3604,6 +3604,38 @@
       "description": "PostgreSQL DROP RULE records the affected table"
     },
     {
+      "id": "create_policy_with_correlated_subqueries",
+      "file": "cases/create_policy_with_correlated_subqueries.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["security.members", "security.accounts"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "security.members.user_id"},
+        {"type": "WHERE", "column": "mart.orders.user_id"},
+        {"type": "WHERE", "column": "security.members.active"},
+        {"type": "WHERE", "column": "security.accounts.enabled"},
+        {"type": "WHERE", "column": "mart.orders.account_id"},
+        {"type": "WHERE", "column": "security.accounts.id"}
+      ],
+      "description": "Correlated USING and WITH CHECK conditions record their lookup tables and references to the protected row"
+    },
+    {
+      "id": "alter_policy_with_scalar_check_subquery",
+      "file": "cases/alter_policy_with_scalar_check_subquery.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["security.limits"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "security.limits.tenant_id"},
+        {"type": "WHERE", "column": "mart.orders.tenant_id"},
+        {"type": "WHERE", "column": "mart.orders.amount"},
+        {"type": "WHERE", "column": "security.limits.max_amount"}
+      ],
+      "description": "Scalar policy checks preserve both the predicate columns and the resulting lookup value"
+    },
+    {
       "id": "create_policy_using",
       "file": "cases/create_policy_using.sql",
       "statementType": "ALTER_TABLE",
