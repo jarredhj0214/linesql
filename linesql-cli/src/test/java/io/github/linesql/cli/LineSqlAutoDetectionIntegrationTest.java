@@ -411,6 +411,21 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void distinguishesExactVectorSignaturesFromNullSafeEquality() {
+        assertDialect(SqlDialect.ORACLE, "SELECT d.embedding <=> TO_VECTOR(q.text, 8, FLOAT32, DENSE)"
+                + " FROM app.docs d CROSS JOIN app.queries q");
+        assertDialect(SqlDialect.ORACLE, "SELECT FROM_VECTOR(embedding RETURNING CLOB FORMAT SPARSE)"
+                + " FROM app.docs");
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT embedding <=> '[1,2,3]'::halfvec FROM app.docs");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT VECTOR_DISTANCE('cosine', left_vector, right_vector)"
+                + " AS distance FROM docs");
+        assertDialect(SqlDialect.SQLSERVER, "CREATE TABLE dbo.docs (embedding VECTOR(32, FLOAT16))");
+        assertDialect(SqlDialect.SPARK, "SELECT a <=> b AS matches FROM docs");
+        assertDialect(SqlDialect.SPARK, "SELECT 'VECTOR_DISTANCE(''cosine'',a,b)' AS example");
+        assertDialect(SqlDialect.SPARK, "SELECT \"VECTOR_DISTANCE('cosine',a,b)\" AS example");
+    }
+
+    @Test
     public void detectsOracleVectorSchemasWithoutClaimingOtherVectorFunctions() {
         assertDialect(SqlDialect.ORACLE, "CREATE VECTOR INDEX doc_ivf_idx ON docs (embedding)"
                 + " INCLUDE (category_id) ORGANIZATION NEIGHBOR PARTITIONS"

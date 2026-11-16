@@ -6266,6 +6266,42 @@
       ],
       "columnUsages": [],
       "description": "Nested named and unnamed scalar queries retain the deepest projected column and every input table"
+    },
+    {
+      "id": "select_halfvec_cosine_distance_cast",
+      "file": "cases/select_halfvec_cosine_distance_cast.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "search.docs",
+        "search.queries"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "search.docs.id"
+          ]
+        },
+        {
+          "target": "distance",
+          "sources": [
+            "search.docs.embedding",
+            "search.queries.input_text"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "search.docs.embedding"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "search.queries.input_text"
+        }
+      ],
+      "description": "PostgreSQL halfvec cast retains input columns and disambiguates cosine distance from null-safe equality"
     }
   ]
 }

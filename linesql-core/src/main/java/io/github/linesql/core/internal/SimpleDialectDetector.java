@@ -82,6 +82,12 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
+    private static final Pattern ORACLE_VECTOR_SERIALIZER = Pattern.compile(
+            "\\b(?:vector_serialize|from_vector)\\s*\\([^;]*?\\b(?:returning\\s+(?:clob|varchar2)|format\\s+(?:sparse|dense))\\b");
+    private static final Pattern SQL_SERVER_VECTOR_FLOAT16 = Pattern.compile(
+            "(?s)^\\s*(?:create|alter)\\s+table\\b[^;]*?\\bvector\\s*\\(\\s*[0-9]+\\s*,\\s*float16\\s*\\)");
+    private static final Pattern POSTGRES_VECTOR_CAST = Pattern.compile(
+            "::\\s*(?:[a-z_][\\w$]*\\s*\\.\\s*)?(?:vector|halfvec|sparsevec)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
     private static final Pattern STARROCKS_RECURSION_SETTINGS = Pattern.compile(
             "\\bset\\s+(?:(?:global|session)\\s+)?(?:enable_recursive_cte|recursive_cte_max_depth)\\s*=");
@@ -193,6 +199,10 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static final Pattern QUOTED_IDENTIFIER = Pattern.compile(
             "`(?:``|[^`])*`|\"(?:\"\"|[^\"])*\"|\\[(?:\\]\\]|[^\\]])*\\]");
+    private static final String SINGLE_QUOTED_STRING = "'(?:''|\\\\.|[^'\\\\])*'";
+    private static final Pattern SQL_SERVER_VECTOR_METRIC_OR_QUOTE = Pattern.compile(
+            "(\\bvector_distance\\s*\\(\\s*n?'(?:cosine|dot|euclidean)'\\s*,)|"
+                    + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
 
     @Override
     public List<SqlDialect> detect(String sql) {
@@ -219,7 +229,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bmod\\b.*")
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*");
 
-        String relationSyntax = normalized.replaceAll("'(?:''|\\\\.|[^'\\\\])*'", " ");
+        String relationSyntax = normalized.replaceAll(SINGLE_QUOTED_STRING, " ");
 
         String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
 
@@ -318,6 +328,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL XML passing mode or cast"));
         } else if (POSTGRES_VECTOR_INDEX.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL vector index method"));
+        } else if (POSTGRES_VECTOR_CAST.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL vector cast"));
         } else if (POSTGRES_OPERATOR_SYNTAX.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL vector or qualified operator"));
         } else if (POSTGRES_TEXT_SEARCH.matcher(unquotedSyntax).find()) {
@@ -434,7 +446,8 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (ORACLE_VECTOR_SCHEMA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle vector schema"));
         } else if (ORACLE_VECTOR_QUERY.matcher(unquotedSyntax).find()
-                || (SHARED_VECTOR_OPERATOR.matcher(unquotedSyntax).find()
+                || ORACLE_VECTOR_SERIALIZER.matcher(unquotedSyntax).find()
+                || ((SHARED_VECTOR_OPERATOR.matcher(unquotedSyntax).find() || unquotedSyntax.contains("<=>"))
                     && ORACLE_VECTOR_CONSTRUCTOR.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle vector search options or constructor"));
         } else if (ORACLE_DOMAIN_DDL.matcher(unquotedSyntax).find()) {
@@ -473,6 +486,8 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (SQL_SERVER_AI_MODEL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server external model or embedding syntax"));
         } else if (SQL_SERVER_VECTOR_QUERY.matcher(unquotedSyntax).find()
+                || SQL_SERVER_VECTOR_FLOAT16.matcher(unquotedSyntax).find()
+                || (unquotedSyntax.contains("vector_distance") && hasSqlServerVectorMetric(normalized))
                 || (CREATE_VECTOR_INDEX.matcher(unquotedSyntax).find()
                     && !ORACLE_VECTOR_SCHEMA.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server vector search or index syntax"));
@@ -642,6 +657,16 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static String stripComments(String sql) {
         return rewriteLexicalText(sql, false).text;
+    }
+
+    private static boolean hasSqlServerVectorMetric(String sql) {
+        Matcher matcher = SQL_SERVER_VECTOR_METRIC_OR_QUOTE.matcher(sql);
+        while (matcher.find()) {
+            if (matcher.group(1) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static LexicalRewrite maskQuotedLiterals(String sql) {

@@ -474,6 +474,9 @@ primaryExpression
     | COLON (identifier | NUMBER_LITERAL)                           #bindExpression
     | VECTOR_DISTANCE LPAREN expression COMMA expression (COMMA vectorMetric)? RPAREN #vectorDistanceExpression
     | (TO_VECTOR | VECTOR) LPAREN expression vectorConstructorOptions? RPAREN          #vectorConstructorExpression
+    | (FROM_VECTOR | VECTOR_SERIALIZE) LPAREN expression
+      (RETURNING (CLOB | VARCHAR2 (LPAREN number (BYTE | CHAR_KEYWORD)? RPAREN)?))?
+      (FORMAT (DENSE | SPARSE))? RPAREN                             #vectorSerializeExpression
     | JSON_ARRAYAGG LPAREN expression (FORMAT JSON)? jsonAggregateOrderBy?
       jsonOnNullClause? jsonAggregateReturning? STRICT? RPAREN jsonAggregateFilter?
                                                                       #jsonArrayAggregateExpression
@@ -1125,7 +1128,7 @@ nonReservedKeyword
     | MIN_VECTORS_PER_PARTITION | L2_SQUARED | QUANTIZATION | COMPRESSION | RATIO | SCALAR | RESCORE | FACTOR | OFF
     | JSON_ARRAYAGG | JSON_OBJECTAGG | ABSENT | KEYS | FILTER | VARCHAR2
     | CHAR_KEYWORD | BYTE | CLOB | BLOB | TYPENAME | REFERENCE
-    | VECTOR_DISTANCE | TO_VECTOR | VECTOR | COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED
+    | VECTOR_DISTANCE | TO_VECTOR | FROM_VECTOR | VECTOR_SERIALIZE | VECTOR | COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED
     | MANHATTAN | HAMMING | JACCARD | INT8 | FLOAT32 | FLOAT64 | BINARY | DENSE | SPARSE
     | APPROX | APPROXIMATE | EXACT | TARGET | ACCURACY | PARAMETERS | EFSEARCH | NEIGHBOR | PROBES
     | SEARCH | CYCLE | DEPTH | BREADTH

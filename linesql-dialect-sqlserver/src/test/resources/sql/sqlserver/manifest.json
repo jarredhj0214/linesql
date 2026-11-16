@@ -7629,6 +7629,62 @@
         }
       ],
       "description": "SQL Server recursive CTE names inferred from anchor projections map by position into INSERT"
+    },
+    {
+      "id": "select_exact_vector_distance_metric",
+      "file": "cases/select_exact_vector_distance_metric.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "search.docs",
+        "search.queries"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "search.docs.id"
+          ]
+        },
+        {
+          "target": "score",
+          "sources": [
+            "search.docs.embedding",
+            "search.queries.embedding"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "search.docs.embedding"
+        },
+        {
+          "type": "WHERE",
+          "column": "search.queries.embedding"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "search.docs.embedding"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "search.queries.embedding"
+        }
+      ],
+      "description": "SQL Server exact vector distance uses a literal metric before both vector operands"
+    },
+    {
+      "id": "create_table_float16_vector",
+      "file": "cases/create_table_float16_vector.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "search.docs"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server FLOAT16 vector type identifies the native declaration"
     }
   ]
 }

@@ -6192,6 +6192,48 @@
       ],
       "columnUsages": [],
       "description": "Nested named and unnamed scalar queries retain the deepest projected column and every input table"
+    },
+    {
+      "id": "select_vector_serializer_and_cosine_constructor",
+      "file": "cases/select_vector_serializer_and_cosine_constructor.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "search.docs",
+        "search.queries"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "sparse_text",
+          "sources": [
+            "search.docs.embedding"
+          ]
+        },
+        {
+          "target": "dense_text",
+          "sources": [
+            "search.queries.input_text"
+          ]
+        },
+        {
+          "target": "distance",
+          "sources": [
+            "search.docs.embedding",
+            "search.queries.input_text"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "search.docs.embedding"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "search.queries.input_text"
+        }
+      ],
+      "description": "Oracle vector serialization and cosine shorthand retain input text and vector sources"
     }
   ]
 }
