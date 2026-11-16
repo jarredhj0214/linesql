@@ -571,7 +571,7 @@ mergeStatement
     : MERGE INTO multipartIdentifier tableAlias
       USING (multipartIdentifier tableAlias | LPAREN query RPAREN tableAlias)
       ON expression
-      mergeClause+
+      mergeClause+ returningClause?
     ;
 
 mergeClause

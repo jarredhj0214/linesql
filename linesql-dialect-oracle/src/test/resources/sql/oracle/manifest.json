@@ -539,6 +539,44 @@
       "description": "DELETE returns the old target column and the requested NEW image has no source"
     },
     {
+      "id": "merge_returning_old_new_branch_sources",
+      "file": "cases/merge_returning_old_new_branch_sources.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.orders", "staging.order_changes"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.amount", "sources": ["staging.order_changes.update_amount"]},
+        {"target": "mart.orders.id", "sources": ["staging.order_changes.id"]},
+        {"target": "mart.orders.amount", "sources": ["staging.order_changes.insert_amount"]},
+        {"target": "mart.orders.note", "sources": ["staging.order_changes.note"]},
+        {"target": ":old_amount", "sources": ["mart.orders.amount"]},
+        {"target": ":new_amount", "sources": ["staging.order_changes.update_amount", "staging.order_changes.insert_amount"]},
+        {"target": ":new_note", "sources": ["staging.order_changes.note", "mart.orders.note"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.orders.id"},
+        {"type": "MERGE_ON", "column": "staging.order_changes.id"}
+      ],
+      "description": "MERGE combines possible NEW values and retains the existing value on an UPDATE branch that does not assign it"
+    },
+    {
+      "id": "merge_insert_only_returning_bind_images",
+      "file": "cases/merge_insert_only_returning_bind_images.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.orders", "staging.order_changes"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.id", "sources": ["staging.order_changes.id"]},
+        {"target": ":previous_id", "sources": []},
+        {"target": ":inserted_id", "sources": ["staging.order_changes.id"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.orders.id"},
+        {"type": "MERGE_ON", "column": "staging.order_changes.id"}
+      ],
+      "description": "Insert-only MERGE has a NEW write source and no OLD row"
+    },
+    {
       "id": "update_returning_into",
       "file": "cases/update_returning_into.sql",
       "statementType": "UPDATE",

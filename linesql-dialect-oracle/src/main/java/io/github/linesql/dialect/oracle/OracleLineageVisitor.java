@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -212,26 +213,38 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (returning == null || target == null) {
             return;
         }
+        Map<String, List<ColumnRef>> writtenSources = returningWriteSources(lineages);
+        appendReturningRows(returning, lineages, statementType != StatementType.INSERT,
+                statementType != StatementType.DELETE, source -> writtenSources.getOrDefault(
+                        LineageModelUtils.columnKey(source), Collections.singletonList(source)));
+    }
+
+    private static Map<String, List<ColumnRef>> returningWriteSources(List<ColumnLineage> lineages) {
         Map<String, List<ColumnRef>> writtenSources = new LinkedHashMap<>();
         for (ColumnLineage lineage : lineages) {
             if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
-                writtenSources.put(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources());
+                writtenSources.merge(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources(),
+                        LineageModelUtils::mergeColumnRefs);
             }
         }
+        return writtenSources;
+    }
+
+    private void appendReturningRows(OracleParser.ReturningClauseContext returning,
+                                     List<ColumnLineage> lineages, boolean hasOldRow, boolean hasNewRow,
+                                     Function<ColumnRef, List<ColumnRef>> newValueSources) {
         List<OracleParser.ReturningExpressionContext> expressions = returning.returningExpression();
         List<OracleParser.ReturningTargetContext> variables = returning.returningTarget();
         int count = Math.min(expressions.size(), variables.size());
         for (int i = 0; i < count; i++) {
             OracleParser.ReturningExpressionContext expression = expressions.get(i);
-            boolean before = expression.OLD() != null;
-            boolean hasRow = !(before && statementType == StatementType.INSERT)
-                    && !(expression.NEW() != null && statementType == StatementType.DELETE);
+            boolean before = expression.OLD() != null || (expression.NEW() == null && !hasNewRow);
+            boolean hasRow = before ? hasOldRow : hasNewRow;
             List<ColumnRef> sources = hasRow ? resolveSources(sourceColumns(expression.expression())) : null;
             List<ColumnRef> propagated = new ArrayList<>();
             if (sources != null) {
                 for (ColumnRef source : sources) {
-                    List<ColumnRef> written = before ? null : writtenSources.get(LineageModelUtils.columnKey(source));
-                    propagated.addAll(written == null ? Collections.singletonList(source) : written);
+                    propagated.addAll(before ? Collections.singletonList(source) : newValueSources.apply(source));
                 }
             }
             OracleParser.ReturningTargetContext variable = variables.get(i);
@@ -284,10 +297,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
 
         List<ColumnLineage> lineages = new ArrayList<>();
+        List<Map<String, List<ColumnRef>>> matchedWrites = new ArrayList<>();
         for (OracleParser.MergeClauseContext clause : ctx.mergeClause()) {
             if (clause.mergeMatchedAction() != null) {
                 OracleParser.MergeMatchedActionContext action = clause.mergeMatchedAction();
-                lineages.addAll(readAssignments(action.assignmentList(), target));
+                List<ColumnLineage> assignments = readAssignments(action.assignmentList(), target);
+                lineages.addAll(assignments);
+                if (ctx.returningClause() != null) {
+                    matchedWrites.add(returningWriteSources(assignments));
+                }
                 if (action.updateWhere != null) {
                     addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.updateWhere.expression()));
                 }
@@ -303,10 +321,29 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 }
             }
         }
+        if (ctx.returningClause() != null) {
+            Map<String, List<ColumnRef>> writtenSources = returningWriteSources(lineages);
+            appendReturningRows(ctx.returningClause(), lineages, !matchedWrites.isEmpty(), true,
+                    source -> mergeNewRowSources(source, target, writtenSources, matchedWrites));
+        }
         result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private static List<ColumnRef> mergeNewRowSources(
+            ColumnRef source, TableRef target, Map<String, List<ColumnRef>> writtenSources,
+            List<Map<String, List<ColumnRef>>> matchedWrites) {
+        if (!target.equals(source.getTable())) {
+            return Collections.singletonList(source);
+        }
+        String column = LineageModelUtils.columnKey(source);
+        List<ColumnRef> writes = writtenSources.getOrDefault(column, Collections.emptyList());
+        if (matchedWrites.stream().anyMatch(branch -> !branch.containsKey(column))) {
+            return LineageModelUtils.mergeColumnRefs(writes, Collections.singletonList(source));
+        }
+        return writes;
     }
 
     @Override

@@ -749,6 +749,11 @@ An updated `OLD` value traces to the target column, and `NEW` follows the write
 assignment. A requested image that the statement has no row for carries no source columns
 (`update_returning_old_new_row_images`, `delete_returning_old_new_row_images`).
 
+Oracle `MERGE … RETURNING … INTO` keeps the old target image and combines possible new
+values from UPDATE and INSERT. An unassigned column on an UPDATE branch keeps its target
+source. An insert-only MERGE has no old image
+(`merge_returning_old_new_branch_sources`, `merge_insert_only_returning_bind_images`).
+
 Implemented Oracle table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
