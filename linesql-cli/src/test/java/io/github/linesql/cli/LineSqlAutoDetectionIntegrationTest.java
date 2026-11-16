@@ -37,6 +37,35 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void keepsPostgresCopyDataOutOfScriptLineage() {
+        String script = scriptFixture("/sql/postgresql/copy_stdin_script.sql");
+        assertPostgresCopyScript(LineSql.parseScript(script));
+        assertPostgresCopyScript(LineSql.parseScript(script.replace("\n", "\r\n"), SqlDialect.POSTGRESQL));
+
+        List<LineageResult> noInlineData = LineSql.parseScript(
+                "COPY staging.events FROM STDIN; SELECT id FROM staging.events;", SqlDialect.POSTGRESQL);
+        assertEquals(2, noInlineData.size());
+        assertEquals(StatementType.SELECT, noInlineData.get(1).getStatementType());
+    }
+
+    private void assertPostgresCopyScript(List<LineageResult> results) {
+        assertEquals(4, results.size());
+        assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
+        assertEquals(StatementType.LOAD_DATA, results.get(1).getStatementType());
+        assertEquals(StatementType.LOAD_DATA, results.get(2).getStatementType());
+        assertEquals(StatementType.SELECT, results.get(3).getStatementType());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+        assertEquals("notes", results.get(1).getOutputTables().get(0).getName());
+        assertEquals("note", results.get(1).getColumnUsages().get(0).getColumn().getName());
+        assertEquals(0, results.get(1).getInputTables().size());
+        assertEquals("empty", results.get(2).getOutputTables().get(0).getName());
+        assertEquals("events", results.get(3).getInputTables().get(0).getName());
+    }
+
+    @Test
     public void detectsPostgreSqlJsonbEvenWhenJsonTableIsSharedSyntax() {
         LineageResult result = LineSql.parse(
                 "SELECT jt.customer FROM ods.orders o CROSS JOIN "

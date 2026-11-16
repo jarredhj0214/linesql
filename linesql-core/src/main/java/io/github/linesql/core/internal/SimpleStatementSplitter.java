@@ -42,6 +42,13 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final String SQL_TRIVIA = "(?:\\s++|--[^\\r\\n]*|/\\*[\\s\\S]*?\\*/)";
     private static final Pattern POSTGRES_ROUTINE = Pattern.compile(
             "^\\s*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:FUNCTION|PROCEDURE)\\b", Pattern.CASE_INSENSITIVE);
+    private static final String POSTGRES_COPY_IDENTIFIER = "(?:\"(?:\"\"|[^\"])*\"|[\\p{L}_][\\p{L}\\p{N}_$]*)";
+    private static final Pattern POSTGRES_COPY_STDIN = Pattern.compile(
+            "(?:^|;)\\s*COPY\\s+" + POSTGRES_COPY_IDENTIFIER + "(?:\\s*\\.\\s*" + POSTGRES_COPY_IDENTIFIER + ")*"
+                    + "(?:\\s*\\(\\s*" + POSTGRES_COPY_IDENTIFIER
+                    + "(?:\\s*,\\s*" + POSTGRES_COPY_IDENTIFIER + ")*\\s*\\)\\s*|\\s+)FROM\\s+STDIN\\b",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern POSTGRES_COPY_END = Pattern.compile("(?<=\\n)\\\\\\.(?=\\r?\\n|\\z)");
     private static final Pattern POSTGRES_ATOMIC = Pattern.compile(
             "\\bBEGIN" + SQL_TRIVIA + "++ATOMIC\\b(?!" + SQL_TRIVIA + "++WITH" + SQL_TRIVIA + "*+\\()",
             Pattern.CASE_INSENSITIVE);
@@ -90,6 +97,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean oracleQuotedLiterals = oracle || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE;
         boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
         boolean postgresAtomic = dialect == SqlDialect.POSTGRESQL || dialect == SqlDialect.UNKNOWN;
+        boolean postgresCopyData = postgresAtomic && script.contains("\\.");
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         boolean mysql = dialect == SqlDialect.MYSQL;
         boolean checkMySqlDelimiters = (mysql || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE)
@@ -283,6 +291,13 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 if (!routineBatch) {
                     addIfNotBlank(statements, current, dialect, nestedComments);
+                    if (postgresCopyData && !mysql && POSTGRES_COPY_STDIN
+                            .matcher(stripComments(current.toString(), nestedComments)).lookingAt()) {
+                        int copyEnd = endOfPostgresCopyData(script, i);
+                        if (copyEnd >= 0) {
+                            i = copyEnd - 1;
+                        }
+                    }
                     current.setLength(0);
                     continue;
                 }
@@ -361,6 +376,20 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
     static boolean containsSqlServerGo(String sql) {
         return GO_SCRIPT_LINE.matcher(sql).find();
+    }
+
+    static boolean containsPostgresCopyFromStdin(String sql) {
+        return POSTGRES_COPY_STDIN.matcher(sql).find();
+    }
+
+    private static int endOfPostgresCopyData(String script, int semicolon) {
+        int lineEnd = script.indexOf('\n', semicolon + 1);
+        if (lineEnd < 0 || !stripComments(script.substring(semicolon + 1, lineEnd), true).trim().isEmpty()) {
+            return -1;
+        }
+        Matcher endMarker = POSTGRES_COPY_END.matcher(script).useTransparentBounds(true)
+                .region(lineEnd + 1, script.length());
+        return endMarker.find() ? endMarker.end() : -1;
     }
 
     static boolean containsPostgresAtomicRoutine(String sql) {
