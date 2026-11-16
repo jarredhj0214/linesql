@@ -20,7 +20,7 @@ Implemented detection anchors:
 | MySQL | `REPLACE INTO`, `ON DUPLICATE KEY`, `LIMIT offset, size`, `UPDATE ... JOIN ... SET`, `LOW_PRIORITY`/`QUICK` DML modifiers, `RENAME TABLE`, `LOCK TABLES`, `INTO OUTFILE`, `JSON_TABLE`, `LOAD XML`, JSON arrow operators |
 | PostgreSQL | Dollar-quoted `DO` blocks, `ON CONFLICT`, `RETURNING`, `::` casts, `ILIKE` |
 | Hive | `ROW FORMAT`, `STORED AS`, `STORED BY`, `SERDEPROPERTIES`, `CLUSTERED BY` |
-| Flink | connector options, `WATERMARK FOR`, plan/job/model statements, procedure calls |
+| Flink | connector options, `WATERMARK FOR`, statement-set blocks, plan/job/model statements, procedure calls |
 | StarRocks | `CREATE TABLE ... DUPLICATE KEY`, `CREATE TABLE ... AGGREGATE KEY`, `CREATE TABLE ... DISTRIBUTED BY HASH`, replication properties, routine/load jobs, materialized-view refresh, `SHOW PROC`, `SHOW TABLET`, `ADMIN SHOW`, `SUBMIT TASK` |
 | Oracle | `FROM DUAL`, `CONNECT BY`, `START WITH`, `AS OF TIMESTAMP`, `AS OF SCN`, `CREATE SEQUENCE`, `CREATE SYNONYM`, `CREATE DATABASE LINK` |
 | SQL Server | `SELECT TOP n`, parenthesized numeric and variable `TOP` in queries and writes, bracketed identifiers, `WITH (NOLOCK)`, `OPENJSON`, `OPENXML`, `OPENQUERY`, `OPENROWSET`, bracketed DML identifiers, `ON OBJECT::`, `ON SCHEMA::`, `TRANSFER OBJECT::` |
@@ -1231,6 +1231,7 @@ Implemented Flink table-level lineage scenarios:
 | UPDATE with subquery sources | `update ads_t set c = (select ... from ods_s1) where id in (select ... from ods_s2)` | `update_with_subquery` |
 | DELETE with subquery sources | `delete from ads_t where id in (select ... from ods_s)` | `delete_with_subquery` |
 | Statement set write lineage | `statement set begin insert into ...; end`, `execute statement set begin insert into ...; end`, mixed `insert into` and `insert overwrite` sinks; input/output tables and per-sink column mappings are merged | `statement_set`, `statement_set_mixed_overwrite`, `execute_statement_set`, `execute_statement_set_mixed_overwrite` |
+| Statement sets in scripts | The default splitter keeps internal INSERT delimiters, including legacy `BEGIN STATEMENT SET` and wrapped `EXPLAIN` or `COMPILE PLAN` forms. The block reports all sinks in one result. | `legacy_begin_statement_set`, `compile_plan_statement_set`, `LineSqlAutoDetectionIntegrationTest.keepsDefaultFlinkStatementSetAndTemporaryViewLineage` |
 | EXPLAIN statement set lineage | `explain plan for statement set begin insert into ...; end` keeps explained multi-sink table and column lineage while classifying as metadata read | `explain_statement_set` |
 | CREATE TABLE connector DDL | `create table ods_t (...) with ('connector' = 'kafka')` | `create_table_connector` |
 | CREATE TABLE connector DDL tolerance | `with ('password' = 'secret' 'table-name' = 't')` preserves table lineage when a comma is missing between properties | `create_table_properties_missing_comma_tolerant` |

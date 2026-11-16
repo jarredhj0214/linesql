@@ -171,6 +171,13 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void ignoresStatementSetWordsInsideLiteralsAndQuotedIdentifiers() {
+        assertFalse(detector.detect("SELECT 'x; EXECUTE STATEMENT SET BEGIN' FROM ods.t").contains(SqlDialect.FLINK));
+        assertFalse(detector.detect("SELECT `x; EXECUTE STATEMENT SET BEGIN` FROM ods.t").contains(SqlDialect.FLINK));
+        assertFalse(detector.detect("SELECT [x; EXECUTE STATEMENT SET BEGIN] FROM dbo.t").contains(SqlDialect.FLINK));
+    }
+
+    @Test
     public void detectsPostgreSqlAnchors() {
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1) on conflict (id) do nothing");
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1)\non conflict (id) do nothing");

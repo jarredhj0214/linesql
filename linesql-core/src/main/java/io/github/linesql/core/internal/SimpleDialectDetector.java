@@ -30,6 +30,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|deny\\b[^;]*\\bon\\b"
                     + "|alter\\s+schema\\b[^;]*\\btransfer\\s+object\\s*::)");
 
+    private static final Pattern QUOTED_IDENTIFIER = Pattern.compile(
+            "`(?:``|[^`])*`|\"(?:\"\"|[^\"])*\"|\\[(?:\\]\\]|[^\\]])*\\]");
+
     @Override
     public List<SqlDialect> detect(String sql) {
         List<SqlDialect> dialects = new ArrayList<SqlDialect>();
@@ -124,7 +127,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bclustered\\s+by\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.90, "Hive storage or table layout syntax"));
         }
-        if (rawNormalized.matches("(?s).*?/\\*\\+\\s*options\\s*\\(.*")
+        if (SimpleStatementSplitter.containsFlinkStatementSet(QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" "))
+                || rawNormalized.matches("(?s).*?/\\*\\+\\s*options\\s*\\(.*")
                 || normalized.contains("'connector'")
                 || normalized.contains("'connector.type'")
                 || normalized.contains("\"connector\"")

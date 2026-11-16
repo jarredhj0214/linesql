@@ -2,6 +2,30 @@
   "dialect": "FLINK",
   "cases": [
     {
+      "id": "legacy_begin_statement_set",
+      "file": "cases/legacy_begin_statement_set.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.order_events", "mart.order_snapshot"],
+      "columnLineage": [
+        {"target": "mart.order_events.id", "sources": ["ods.orders.id"]},
+        {"target": "mart.order_snapshot.id", "sources": ["ods.orders.id"]}
+      ],
+      "description": "Legacy BEGIN STATEMENT SET retains both sink mappings"
+    },
+    {
+      "id": "compile_plan_statement_set",
+      "file": "cases/compile_plan_statement_set.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["ods.orders", "ods.audit"],
+      "outputTables": ["mart.order_events", "mart.order_audit"],
+      "columnLineage": [
+        {"target": "mart.order_events.id", "sources": ["ods.orders.id"]},
+        {"target": "mart.order_audit.id", "sources": ["ods.audit.order_id"]}
+      ],
+      "description": "COMPILE PLAN IF NOT EXISTS retains lineage from each planned insert"
+    },
+    {
       "id": "union_constant_order_by_alias",
       "file": "cases/union_constant_order_by_alias.sql",
       "statementType": "SELECT",

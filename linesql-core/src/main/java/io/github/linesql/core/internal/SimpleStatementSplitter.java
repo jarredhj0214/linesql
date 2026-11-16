@@ -15,6 +15,15 @@ public class SimpleStatementSplitter implements StatementSplitter {
             "^\\s*(?:CREATE\\s+(?:OR\\s+ALTER\\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER)"
                     + "|ALTER\\s+(?:PROC(?:EDURE)?|FUNCTION))\\b", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern FLINK_STATEMENT_SET = Pattern.compile(
+            "(?:^|;)\\s*(?:(?:EXPLAIN(?:\\s+(?:PLAN\\s+FOR|\\w+(?:\\s*,\\s*\\w+)*))?"
+                    + "|COMPILE\\s+PLAN(?:\\s+IF\\s+NOT\\s+EXISTS)?"
+                    + "(?:\\s+(?:'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"))?\\s+FOR)\\s+)?"
+                    + "(?:(?:EXECUTE\\s+)?STATEMENT\\s+SET\\s+BEGIN|BEGIN\\s+STATEMENT\\s+SET)\\b",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern FLINK_STATEMENT_SET_CONTINUATION = Pattern.compile(
+            "(?:\\s++|--[^\\r\\n]*|/\\*[\\s\\S]*?\\*/)*+(?:INSERT|WITH|END)\\b", Pattern.CASE_INSENSITIVE);
+
     @Override
     public List<String> split(String script) {
         return split(script, SqlDialect.UNKNOWN);
@@ -22,12 +31,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
     List<String> split(String script, SqlDialect dialect) {
         boolean sqlServer = dialect == SqlDialect.SQLSERVER;
+        boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         char quote = 0;
         boolean lineComment = false;
         boolean routineBatch = false;
+        int statementSetPartStart = -1;
         int blockCommentDepth = 0;
 
         for (int i = 0; i < script.length(); i++) {
@@ -122,6 +133,19 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 continue;
             }
             if (quote == 0 && c == ';' && !routineBatch) {
+                if (flinkStatementSets && FLINK_STATEMENT_SET_CONTINUATION.matcher(script)
+                        .region(i + 1, script.length()).lookingAt()) {
+                    String part = stripComments(current.substring(Math.max(0, statementSetPartStart)), false);
+                    boolean inStatementSet = statementSetPartStart >= 0
+                            ? !part.trim().equalsIgnoreCase("END")
+                            : FLINK_STATEMENT_SET.matcher(part).lookingAt();
+                    if (inStatementSet) {
+                        current.append(c);
+                        statementSetPartStart = current.length();
+                        continue;
+                    }
+                }
+                statementSetPartStart = -1;
                 routineBatch = sqlServer && SQL_SERVER_ROUTINE.matcher(stripComments(current.toString(), true)).find();
                 if (!routineBatch) {
                     addIfNotBlank(statements, current, nestedComments);
@@ -134,6 +158,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
         addIfNotBlank(statements, current, nestedComments);
         return statements;
+    }
+
+    static boolean containsFlinkStatementSet(String sql) {
+        return FLINK_STATEMENT_SET.matcher(sql).find();
     }
 
     private static boolean isLineStart(String text, int index) {

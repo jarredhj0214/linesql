@@ -796,7 +796,7 @@ explainDetailList
     ;
 
 planStatement
-    : COMPILE PLAN string? FOR statement                              #compilePlanStatement
+    : COMPILE PLAN (IF NOT EXISTS)? string? FOR statement                              #compilePlanStatement
     | EXECUTE PLAN string                                             #executePlanStatement
     ;
 
@@ -866,7 +866,7 @@ jobStatement
 // ============ STATEMENT SET ============
 
 executeStatementSet
-    : EXECUTE? STATEMENT SET BEGIN (insertStatement SEMI)+ END
+    : (EXECUTE? STATEMENT SET BEGIN | BEGIN STATEMENT SET SEMI) (insertStatement SEMI)+ END
     ;
 
 // ============ DDL Helpers ============

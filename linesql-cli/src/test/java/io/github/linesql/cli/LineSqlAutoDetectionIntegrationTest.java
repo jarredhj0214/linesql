@@ -177,6 +177,27 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("ts", result.getColumnUsages().get(1).getColumn().getName());
     }
 
+    @Test
+    public void keepsDefaultFlinkStatementSetAndTemporaryViewLineage() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TEMPORARY VIEW staged AS SELECT order_id AS id FROM ods.orders;"
+                        + "EXECUTE STATEMENT SET BEGIN "
+                        + "INSERT INTO mart.order_events (id) SELECT id FROM staged; "
+                        + "INSERT OVERWRITE mart.order_snapshot (id) SELECT id FROM staged; END;"
+                        + "SELECT id FROM ods.footer;");
+
+        assertEquals(3, results.size());
+        assertEquals(SqlDialect.FLINK, results.get(0).getDialect());
+        LineageResult statementSet = results.get(1);
+        assertEquals(SqlDialect.FLINK, statementSet.getDialect());
+        assertEquals(StatementType.INSERT, statementSet.getStatementType());
+        assertEquals(2, statementSet.getOutputTables().size());
+        assertEquals("orders", statementSet.getInputTables().get(0).getName());
+        assertEquals("order_id", statementSet.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("order_id", statementSet.getColumnLineage().get(1).getSources().get(0).getName());
+        assertEquals("footer", results.get(2).getInputTables().get(0).getName());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

@@ -77,4 +77,18 @@ public class SimpleStatementSplitterTest {
         String sql = "select\nGO\nfrom src";
         assertEquals(sql, splitter.split(sql).get(0));
     }
+    @Test
+    public void keepsFlinkStatementSetSemicolonsAndRecoversAtKnownStatements() {
+        String set = "EXPLAIN PLAN FOR STATEMENT SET BEGIN "
+                + "INSERT INTO dst SELECT CASE WHEN id > 0 THEN id ELSE 0 END FROM src; "
+                + "/* second sink */ INSERT INTO dst2 SELECT id FROM src; END";
+        assertEquals(set, splitter.split(set + "; SELECT id FROM src;").get(0));
+        assertEquals(2, splitter.split(set + "; SELECT id FROM src;").size());
+
+        String incomplete = "EXECUTE STATEMENT SET BEGIN INSERT INTO dst SELECT id FROM src";
+        List<String> results = splitter.split(incomplete + "; SELECT id FROM src;");
+        assertEquals(2, results.size());
+        assertEquals(incomplete, results.get(0));
+        assertEquals("SELECT id FROM src", results.get(1));
+    }
 }
