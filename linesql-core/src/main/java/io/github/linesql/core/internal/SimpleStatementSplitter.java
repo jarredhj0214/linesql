@@ -16,6 +16,11 @@ public class SimpleStatementSplitter implements StatementSplitter {
             "^\\s*(?:CREATE\\s+(?:OR\\s+ALTER\\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER)"
                     + "|ALTER\\s+(?:PROC(?:EDURE)?|FUNCTION))\\b", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern ORACLE_BLOCK = Pattern.compile(
+            "^\\s*(?:BEGIN|DECLARE|CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:PROCEDURE|FUNCTION|PACKAGE|TRIGGER))\\b",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern ORACLE_SLASH = Pattern.compile("[ \\t]*/[ \\t]*");
+
     private static final Pattern FLINK_STATEMENT_SET = Pattern.compile(
             "(?:^|;)\\s*(?:(?:EXPLAIN(?:\\s+(?:PLAN\\s+FOR|\\w+(?:\\s*,\\s*\\w+)*))?"
                     + "|COMPILE\\s+PLAN(?:\\s+IF\\s+NOT\\s+EXISTS)?"
@@ -32,6 +37,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
     List<String> split(String script, SqlDialect dialect) {
         boolean sqlServer = dialect == SqlDialect.SQLSERVER;
+        boolean oracle = dialect == SqlDialect.ORACLE;
         boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         boolean executableComments = dialect == SqlDialect.MYSQL || dialect == SqlDialect.OCEANBASE
@@ -68,13 +74,18 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if (sqlServer && quote == 0 && isLineStart(script, i)) {
+            if ((sqlServer || oracle) && quote == 0 && isLineStart(script, i)) {
                 int lineEnd = i;
                 while (lineEnd < script.length()
                         && script.charAt(lineEnd) != '\r' && script.charAt(lineEnd) != '\n') {
                     lineEnd++;
                 }
-                if (lineEnd > i && GO_LINE.matcher(script).region(i, lineEnd).matches()) {
+                boolean delimiter = sqlServer && GO_LINE.matcher(script).region(i, lineEnd).matches();
+                if (oracle && ORACLE_SLASH.matcher(script).region(i, lineEnd).matches()) {
+                    String preceding = stripComments(current.toString(), false);
+                    delimiter = routineBatch || preceding.trim().isEmpty() || ORACLE_BLOCK.matcher(preceding).find();
+                }
+                if (delimiter) {
                     addIfNotBlank(statements, current, nestedComments, executableComments);
                     current.setLength(0);
                     routineBatch = false;
@@ -149,7 +160,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     }
                 }
                 statementSetPartStart = -1;
-                routineBatch = sqlServer && SQL_SERVER_ROUTINE.matcher(stripComments(current.toString(), true)).find();
+                if (sqlServer || oracle) {
+                    Pattern routine = sqlServer ? SQL_SERVER_ROUTINE : ORACLE_BLOCK;
+                    routineBatch = routine.matcher(stripComments(current.toString(), nestedComments)).find();
+                }
                 if (!routineBatch) {
                     addIfNotBlank(statements, current, nestedComments, executableComments);
                     current.setLength(0);

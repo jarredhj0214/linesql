@@ -99,4 +99,13 @@ public class SimpleStatementSplitterTest {
         assertEquals(executable, splitter.split(script, SqlDialect.MYSQL).get(0));
         assertEquals(0, splitter.split(script, SqlDialect.POSTGRESQL).size());
     }
+    @Test
+    public void splitsOracleBlocksAtStandaloneSlashAndKeepsDivision() {
+        String block = "BEGIN v := 'text\n/\ninside'; NULL; END;";
+        String division = "SELECT 10\n/\n2 AS ratio FROM dual";
+        List<String> statements = splitter.split(block + "\n/\n" + division + ";\n/\n", SqlDialect.ORACLE);
+        assertEquals(2, statements.size());
+        assertEquals(block, statements.get(0));
+        assertEquals(division, statements.get(1));
+    }
 }

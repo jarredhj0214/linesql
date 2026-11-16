@@ -3,10 +3,12 @@ package io.github.linesql.cli;
 import io.github.linesql.core.LineSql;
 import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -217,6 +219,33 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertFalse(literal.getColumnLineage().isEmpty());
         assertEquals("CONCAT(payload,'/*!80000 leave this literal */')",
                 literal.getColumnLineage().get(0).getExpression());
+    }
+
+    @Test
+    public void keepsOracleAndOceanBaseOracleBlocksTogether() {
+        String script = "DECLARE v NUMBER;\n"
+                + "BEGIN\n"
+                + "  INSERT INTO mart.audit (id) SELECT id FROM ods.orders;\n"
+                + "  BEGIN NULL; END;\n"
+                + "END;\n/\n"
+                + "SELECT id FROM mart.audit;";
+        assertOracleBlockScript(LineSql.parseScript(script, SqlDialect.ORACLE), SqlDialect.ORACLE);
+
+        ParseOptions oceanBase = ParseOptions.builder()
+                .dialectHints(Collections.singletonList(SqlDialect.OCEANBASE))
+                .dialectOption("oceanbase.compatibilityMode", "oracle")
+                .build();
+        assertOracleBlockScript(LineSql.parseScript(script, oceanBase), SqlDialect.OCEANBASE);
+    }
+
+    private static void assertOracleBlockScript(List<LineageResult> results, SqlDialect dialect) {
+        assertEquals(2, results.size());
+        assertEquals(dialect, results.get(0).getDialect());
+        assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
+        assertEquals("orders", results.get(0).getInputTables().get(0).getName());
+        assertEquals("audit", results.get(0).getOutputTables().get(0).getName());
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertEquals("audit", results.get(1).getInputTables().get(0).getName());
     }
 
     private static void assertDialect(SqlDialect expected, String sql) {

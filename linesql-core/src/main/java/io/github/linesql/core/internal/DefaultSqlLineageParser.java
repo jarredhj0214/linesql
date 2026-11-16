@@ -83,7 +83,14 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     private List<String> splitScript(String script, ParseOptions options) {
         if (!options.getDialectHints().isEmpty()
                 && statementSplitter.getClass() == SimpleStatementSplitter.class) {
-            return ((SimpleStatementSplitter) statementSplitter).split(script, options.getDialectHints().get(0));
+            SqlDialect dialect = options.getDialectHints().get(0);
+            if (dialect == SqlDialect.OCEANBASE && options.getDialectOptions() != null) {
+                String mode = options.getDialectOptions().get("oceanbase.compatibilityMode");
+                if (mode != null && "oracle".equalsIgnoreCase(mode.trim())) {
+                    dialect = SqlDialect.ORACLE;
+                }
+            }
+            return ((SimpleStatementSplitter) statementSplitter).split(script, dialect);
         }
         return statementSplitter.split(script);
     }
