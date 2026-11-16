@@ -100,7 +100,7 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause? queryHintClause?
+    : selectClause selectIntoClause? fromClause? whereClause? groupByClause? havingClause?
     ;
 
 selectClause
@@ -296,7 +296,7 @@ queryOrganization
       (LIMIT expression)?
       (OFFSET expression (ROW | ROWS)?)?
       (FETCH (FIRST | NEXT) expression (ROW | ROWS) ONLY)?
-      forOutputClause?
+      forOutputClause? queryHintClause?
     ;
 
 forOutputClause

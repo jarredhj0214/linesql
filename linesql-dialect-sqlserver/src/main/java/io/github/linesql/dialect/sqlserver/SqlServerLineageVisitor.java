@@ -1269,9 +1269,71 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         for (SqlServerParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
             String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
             cteNames.add(cteName);
-            registerDerivedRelation(cteName, namedQuery.query(), cteColumnAliases(namedQuery));
+            List<String> aliases = cteColumnAliases(namedQuery);
+            seedRecursiveRelation(cteName, namedQuery.query(), aliases);
+            registerDerivedRelation(cteName, namedQuery.query(), aliases);
         }
         return null;
+    }
+
+    private void seedRecursiveRelation(String name, SqlServerParser.QueryContext query, List<String> aliases) {
+        if (query.ctes() != null || !(query.queryTerm() instanceof SqlServerParser.SetOperationContext)) {
+            return;
+        }
+        List<SqlServerParser.QueryTermContext> members = new ArrayList<>();
+        collectUnionAllMembers(query.queryTerm(), members);
+        int firstRecursive = 0;
+        while (firstRecursive < members.size() && !referencesRelation(members.get(firstRecursive), name)) {
+            firstRecursive++;
+        }
+        if (firstRecursive == 0 || firstRecursive == members.size()) {
+            return;
+        }
+        List<ColumnLineage> anchor = combinedCteMembers(members.subList(0, firstRecursive));
+        if (!aliases.isEmpty() && aliases.size() != anchor.size()) {
+            return;
+        }
+        List<SqlServerParser.QueryTermContext> recursive = members.subList(firstRecursive, members.size());
+        LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
+                () -> combinedCteMembers(recursive));
+    }
+
+    private static void collectUnionAllMembers(SqlServerParser.QueryTermContext term,
+                                                List<SqlServerParser.QueryTermContext> members) {
+        if (term instanceof SqlServerParser.SetOperationContext) {
+            SqlServerParser.SetOperationContext set = (SqlServerParser.SetOperationContext) term;
+            if (set.UNION() != null && set.setQuantifier() != null && set.setQuantifier().ALL() != null) {
+                collectUnionAllMembers(set.left, members);
+                collectUnionAllMembers(set.right, members);
+                return;
+            }
+        }
+        members.add(term);
+    }
+
+    private List<ColumnLineage> combinedCteMembers(List<SqlServerParser.QueryTermContext> members) {
+        LineageResult combined = lineageForQueryTerm(members.get(0));
+        for (int index = 1; index < members.size(); index++) {
+            LineageResult member = lineageForQueryTerm(members.get(index));
+            if (combined.getColumnLineage().size() != member.getColumnLineage().size()) {
+                return Collections.emptyList();
+            }
+            combined.setColumnLineage(LineageModelUtils.mergeSetColumnLineage(combined, member));
+        }
+        return combined.getColumnLineage();
+    }
+
+    private static boolean referencesRelation(ParseTree tree, String name) {
+        if (tree instanceof SqlServerParser.TableNameContext) {
+            TableRef table = tableRef(((SqlServerParser.TableNameContext) tree).multipartIdentifier());
+            return table.getCatalog() == null && table.getSchema() == null && name.equalsIgnoreCase(table.getName());
+        }
+        for (int index = 0; index < tree.getChildCount(); index++) {
+            if (referencesRelation(tree.getChild(index), name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -1999,7 +2061,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
-        if (cteNames.contains(name) && !columnAliases.isEmpty()) {
+        if (cteNames.contains(name) && !columnAliases.isEmpty()
+                && !relationVisitor.derivedColumnLineage.containsKey(name)) {
             Map<String, List<ColumnRef>> recursiveColumns = new LinkedHashMap<>();
             for (String columnAlias : columnAliases) {
                 recursiveColumns.put(columnAlias, new ArrayList<>());

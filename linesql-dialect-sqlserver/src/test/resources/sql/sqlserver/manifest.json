@@ -3854,6 +3854,10 @@
         {
           "type": "JOIN_ON",
           "column": "dbo.employees.manager_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.employees.id"
         }
       ],
       "description": "SQL Server recursive CTE direct column propagation"
@@ -7507,6 +7511,124 @@
         }
       ],
       "description": "IN with UNION retains projection and predicate sources without leaking inner outputs"
+    },
+    {
+      "id": "recursive_cte_multiple_members_order_hint",
+      "file": "cases/recursive_cte_multiple_members_order_hint.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.roots",
+        "org.secondary_edges",
+        "org.primary_edges"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "a",
+          "sources": [
+            "org.roots.first_id",
+            "org.roots.second_id",
+            "org.primary_edges.next_id",
+            "org.secondary_edges.next_id"
+          ]
+        },
+        {
+          "target": "b",
+          "sources": [
+            "org.roots.second_id",
+            "org.primary_edges.next_id",
+            "org.roots.first_id",
+            "org.secondary_edges.next_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.roots.first_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.roots.second_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.secondary_edges.next_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.primary_edges.next_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.primary_edges.prior_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.secondary_edges.prior_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.roots.first_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.roots.second_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.primary_edges.next_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.secondary_edges.next_id"
+        }
+      ],
+      "description": "Multiple SQL Server recursive members propagate transitive sources and preserve ORDER BY before MAXRECURSION"
+    },
+    {
+      "id": "recursive_cte_implicit_columns_insert",
+      "file": "cases/recursive_cte_implicit_columns_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "org.seeds",
+        "org.edges"
+      ],
+      "outputTables": [
+        "mart.paths"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.paths.origin",
+          "sources": [
+            "org.seeds.source_id",
+            "org.seeds.current_id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "mart.paths.endpoint",
+          "sources": [
+            "org.seeds.current_id",
+            "org.edges.child_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.seeds.current_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.child_id"
+        }
+      ],
+      "description": "SQL Server recursive CTE names inferred from anchor projections map by position into INSERT"
     }
   ]
 }
