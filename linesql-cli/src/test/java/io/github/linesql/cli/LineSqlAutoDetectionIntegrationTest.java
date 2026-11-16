@@ -347,6 +347,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void usesFlinkConnectorSyntaxWithoutClaimingStringData() {
+        assertDialect(SqlDialect.POSTGRESQL, "INSERT INTO app.events(id, note) VALUES(1, 'connector')"
+                + " ON CONFLICT DO NOTHING");
+        assertDialect(SqlDialect.SPARK, "SELECT 'connector' AS note FROM app.events");
+        assertDialect(SqlDialect.SPARK, "SELECT '/*+ OPTIONS (''connector''=''kafka'') */' AS note");
+        assertDialect(SqlDialect.FLINK, "CREATE TABLE s (id INT)"
+                + " WITH ('format'='json', 'connector.type'='kafka')");
+        assertDialect(SqlDialect.FLINK, "SELECT id FROM s /*+ OPTIONS('scan.startup.mode'='latest-offset') */");
+        assertDialect(SqlDialect.FLINK, "ALTER TABLE `warehouse`.`events` RESET ('format')");
+        assertDialect(SqlDialect.FLINK, "ALTER TABLE IF EXISTS app.events SET ('connector'='kafka')");
+
+        List<LineageResult> results = LineSql.parseScript("CREATE TABLE s (id INT)"
+                + " WITH ('format'='json', 'connector'='kafka');"
+                + " INSERT INTO t SELECT id FROM s ON CONFLICT DO NOTHING;");
+        assertEquals(2, results.size());
+        assertEquals(SqlDialect.FLINK, results.get(1).getDialect());
+        assertEquals(StatementType.INSERT, results.get(1).getStatementType());
+    }
+
+    @Test
     public void distinguishesOracleUsecaseDomainDropFromPostgresIdentifiers() {
         assertDialect(SqlDialect.ORACLE, "DROP USECASE DOMAIN IF EXISTS workflow.ticket_status");
         assertDialect(SqlDialect.ORACLE, "DROP DOMAIN \"workflow\".\"force\" FORCE PRESERVE");

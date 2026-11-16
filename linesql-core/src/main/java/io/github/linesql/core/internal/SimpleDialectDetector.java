@@ -209,6 +209,19 @@ public class SimpleDialectDetector implements DialectDetector {
             "(\\bvector_distance\\s*\\(\\s*n?'(?:cosine|dot|euclidean)'\\s*,)|"
                     + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
 
+    private static final String FLINK_OPTION_LITERAL = "(?:" + SINGLE_QUOTED_STRING + "|\"(?:\"\"|[^\"\\\\]|\\\\.)*\")";
+    private static final Pattern SQL_WITH_OPTIONS_OR_QUOTE = Pattern.compile(
+            "(\\bwith\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
+    private static final Pattern FLINK_OPTION_PAIR = Pattern.compile(
+            "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
+    private static final String FLINK_IDENTIFIER = "(?:[a-z_][\\w$]*|`(?:``|[^`])*`|\"(?:\"\"|[^\"])*\")";
+    private static final Pattern FLINK_ALTER_STRING_OPTIONS = Pattern.compile(
+            "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*\\s+(?:set|reset)\\s*\\(\\s*" + SINGLE_QUOTED_STRING);
+    private static final Pattern FLINK_HINT_OR_IGNORED_TOKEN = Pattern.compile(
+            "(/\\*\\+\\s*options\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern()
+                    + "|--[^\\r\\n]*|(?s:/\\*.*?(?:\\*/|$))");
+
     @Override
     public List<SqlDialect> detect(String sql) {
         List<SqlDialect> dialects = new ArrayList<SqlDialect>();
@@ -376,11 +389,9 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark recursive CTE level limit"));
         }
         if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)
-                || rawNormalized.matches("(?s).*?/\\*\\+\\s*options\\s*\\(.*")
-                || normalized.contains("'connector'")
-                || normalized.contains("'connector.type'")
-                || normalized.contains("\"connector\"")
-                || normalized.contains("\"connector.type\"")
+                || hasFlinkOptionsHint(rawNormalized)
+                || hasFlinkConnectorOptions(normalized)
+                || FLINK_ALTER_STRING_OPTIONS.matcher(normalized).find()
                 || normalized.matches("(?s)^\\s*set\\s+table\\..*")
                 || normalized.matches("(?s)^\\s*set\\s+['\"]table\\..*")
                 || normalized.matches("(?s)^\\s*reset\\s+table\\..*")
@@ -406,7 +417,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*call\\s+`[^`]+`\\s*\\..*")
                 || normalized.matches("(?s)^\\s*create\\s+(temporary\\s+)?model\\b.*")
                 || FLINK_MATERIALIZED_TABLE.matcher(unquotedSyntax).find()
-                || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
+                || unquotedSyntax.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }
         if (STARROCKS_RECURSION_SETTINGS.matcher(unquotedSyntax).find()) {
@@ -665,6 +676,42 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static String stripComments(String sql) {
         return rewriteLexicalText(sql, false).text;
+    }
+
+    private static boolean hasFlinkOptionsHint(String sql) {
+        if (!sql.contains("/*+")) {
+            return false;
+        }
+        Matcher matcher = FLINK_HINT_OR_IGNORED_TOKEN.matcher(sql);
+        while (matcher.find()) {
+            if (matcher.group(1) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasFlinkConnectorOptions(String sql) {
+        if (!sql.contains("connector")) {
+            return false;
+        }
+        Matcher optionLists = SQL_WITH_OPTIONS_OR_QUOTE.matcher(sql);
+        Matcher option = FLINK_OPTION_PAIR.matcher(sql);
+        while (optionLists.find()) {
+            if (optionLists.group(1) == null) {
+                continue;
+            }
+            option.region(optionLists.end(), sql.length());
+            while (option.lookingAt()) {
+                String key = option.group(1);
+                key = key.substring(1, key.length() - 1);
+                if ("connector".equals(key) || "connector.type".equals(key)) {
+                    return true;
+                }
+                option.region(option.end(), sql.length());
+            }
+        }
+        return false;
     }
 
     private static boolean hasSqlServerVectorMetric(String sql) {

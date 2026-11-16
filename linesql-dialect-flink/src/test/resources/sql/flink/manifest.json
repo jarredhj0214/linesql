@@ -7504,6 +7504,37 @@
         }
       ],
       "description": "A nonrecursive definition reads the same-named physical table, and later CTEs read the completed definition"
+    },
+    {
+      "id": "select_options_hint_without_connector",
+      "file": "cases/select_options_hint_without_connector.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A Flink dynamic OPTIONS hint identifies the dialect even without a connector property"
+    },
+    {
+      "id": "create_table_connector_after_format",
+      "file": "cases/create_table_connector_after_format.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "app.events"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "A Flink connector option can follow other quoted properties"
     }
   ]
 }

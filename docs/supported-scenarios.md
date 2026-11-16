@@ -61,6 +61,8 @@ SQL Server XML detection recognizes WITH XMLNAMESPACES, APPLY with an XML nodes(
 
 Across PostgreSQL, MySQL, Spark, Flink and Hive, `select_nonrecursive_cte_shadows_physical_table` covers a definition that reads a same-named physical table and later CTEs that read the completed definition. OceanBase MySQL mode covers the same resolution in `mysql_mode_select_nonrecursive_cte_shadows_physical_table`.
 
+Flink uses connector properties in a WITH option list and dynamic OPTIONS hints as dialect evidence. An ordinary value named `connector` leaves standalone PostgreSQL conflict handling available. See `select_options_hint_without_connector`, `create_table_connector_after_format` and `insert_conflict_connector_literal`.
+
 ## PostgreSQL
 
 PostgreSQL preserves the deepest source column and every input table across named and unnamed scalar projections in `select_deep_scalar_projection_dependencies`.

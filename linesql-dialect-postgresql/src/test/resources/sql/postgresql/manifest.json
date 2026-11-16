@@ -6595,6 +6595,27 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "PostgreSQL FORCE and USECASE identifier names remain ordinary DROP DOMAIN targets"
+    },
+    {
+      "id": "insert_conflict_connector_literal",
+      "file": "cases/insert_conflict_connector_literal.sql",
+      "statementType": "INSERT",
+      "inputTables": [],
+      "outputTables": [
+        "app.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "app.events.id",
+          "sources": []
+        },
+        {
+          "target": "app.events.note",
+          "sources": []
+        }
+      ],
+      "columnUsages": [],
+      "description": "A connector string used as data preserves PostgreSQL default conflict handling"
     }
   ]
 }
