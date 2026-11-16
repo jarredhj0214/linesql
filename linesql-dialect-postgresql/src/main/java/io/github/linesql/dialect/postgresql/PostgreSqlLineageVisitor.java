@@ -2920,11 +2920,27 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 sources = new ArrayList<>();
             }
             ColumnLineage lineage = new ColumnLineage();
-            lineage.setTarget(new ColumnRef(table, columnName));
-            lineage.setSources(sources);
+            ColumnRef target = new ColumnRef(table, columnName);
+            lineage.setTarget(target);
+            lineage.setSources(assignmentValueSources(assignment, target, sources));
             lineages.add(lineage);
         }
         return lineages;
+    }
+
+    private List<ColumnRef> assignmentValueSources(PostgreSqlParser.AssignmentContext assignment,
+                                                   ColumnRef target, List<ColumnRef> valueSources) {
+        if (assignment.assignmentSubscript().isEmpty()) {
+            return valueSources;
+        }
+        List<ColumnRef> sources = Collections.singletonList(target);
+        for (PostgreSqlParser.AssignmentSubscriptContext selector : assignment.assignmentSubscript()) {
+            List<ColumnRef> selectorSources = resolveSources(sourceColumns(selector));
+            if (selectorSources != null) {
+                sources = LineageModelUtils.mergeColumnRefs(sources, selectorSources);
+            }
+        }
+        return LineageModelUtils.mergeColumnRefs(sources, valueSources);
     }
 
     private List<ColumnLineage> readRowQueryAssignment(
@@ -3029,8 +3045,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 sources = new ArrayList<>();
             }
             ColumnLineage lineage = new ColumnLineage();
-            lineage.setTarget(new ColumnRef(table, columnName));
-            lineage.setSources(sources);
+            ColumnRef target = new ColumnRef(table, columnName);
+            lineage.setTarget(target);
+            lineage.setSources(assignmentValueSources(assignment, target, sources));
             lineage.setExpression(assignment.expression().getText());
             lineages.add(lineage);
         }

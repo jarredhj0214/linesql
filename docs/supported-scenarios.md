@@ -90,6 +90,7 @@ Implemented PostgreSQL scenarios:
 | Data-modifying CTE | `DELETE`, `UPDATE`, and `INSERT ... SELECT` CTEs propagate `RETURNING` columns and write-expression sources into the outer query | `data_modifying_cte_delete_insert`, `data_modifying_cte_update_returning`, `data_modifying_cte_insert_returning` |
 | Typed date/time and interval literals | `date '2026-09-28'`, `time '09:00:00'`, `timestamp '...'`, `interval '1 day'` | `date_time_interval_literals` |
 | Derived composite field propagation | inner `jsonb_build_object(...) AS payload`, outer `q.payload.user_id` | `derived_composite_field_projection` |
+| UPDATE ROW and array writes | Explicit ROW assignments map source expressions and DEFAULT by position. Array element and slice updates keep old array values, selectors, and replacement dependencies, including through RETURNING in a CTE. | `update_explicit_row_assignment`, `update_array_slice_assignment`, `update_array_element_returning_cte` |
 | UPDATE row assignment from subquery | `update t set (c1, c2) = (select s1, s2 from ...) returning ...` | `update_row_assignment_subquery` |
 | Scalar subqueries in write assignments | UPDATE column and row assignments and MERGE UPDATE expressions preserve selected value columns, inner read tables, and correlated predicate references. | `update_scalar_assignment`, `update_row_with_scalar_assignment`, `merge_scalar_update_assignment` |
 | COPY CSV column options | `FORCE_QUOTE (…)`, `FORCE_NULL (…)`, and `FORCE_NOT_NULL (…)` record the named columns. | `copy_to_csv_force_quote`, `copy_from_csv_force_null` |

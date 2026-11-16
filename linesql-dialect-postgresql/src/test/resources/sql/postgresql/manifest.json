@@ -949,6 +949,53 @@
       "description": "A base table wildcard of unknown width leaves later destination positions unresolved"
     },
     {
+      "id": "update_explicit_row_assignment",
+      "file": "cases/update_explicit_row_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.inventory", "staging.stock"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "mart.inventory.quantity", "sources": ["staging.stock.quantity"]},
+        {"target": "mart.inventory.state", "sources": []},
+        {"target": "mart.inventory.recorded_at", "sources": ["staging.stock.changed_at"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.stock.item_id"},
+        {"type": "WHERE", "column": "mart.inventory.id"}
+      ],
+      "description": "The explicit ROW constructor keeps UPDATE assignments positional across DEFAULT"
+    },
+    {
+      "id": "update_array_slice_assignment",
+      "file": "cases/update_array_slice_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.inventory", "staging.stock"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "mart.inventory.counts", "sources": ["mart.inventory.counts", "staging.stock.low_index", "staging.stock.high_index", "staging.stock.new_counts"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.inventory.id"},
+        {"type": "WHERE", "column": "staging.stock.item_id"}
+      ],
+      "description": "A slice update keeps the old array along with both bounds and the replacement array"
+    },
+    {
+      "id": "update_array_element_returning_cte",
+      "file": "cases/update_array_element_returning_cte.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.inventory", "staging.stock"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "updated_counts", "sources": ["mart.inventory.counts", "staging.stock.bucket", "staging.stock.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.inventory.id"},
+        {"type": "WHERE", "column": "staging.stock.item_id"}
+      ],
+      "description": "A data-modifying CTE carries the original array and partial write dependencies through NEW"
+    },
+    {
       "id": "select_parenthesized_join_output_alias",
       "file": "cases/select_parenthesized_join_output_alias.sql",
       "statementType": "SELECT",

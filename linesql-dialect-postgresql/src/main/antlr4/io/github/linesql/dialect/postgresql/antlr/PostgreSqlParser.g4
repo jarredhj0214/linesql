@@ -653,8 +653,12 @@ assignmentList
     ;
 
 assignment
-    : multipartIdentifier EQ expression
-    | LPAREN identifierList RPAREN EQ LPAREN (expressionList | query) RPAREN
+    : multipartIdentifier assignmentSubscript* EQ expression
+    | LPAREN identifierList RPAREN EQ (ROW? LPAREN expressionList RPAREN | LPAREN query RPAREN)
+    ;
+
+assignmentSubscript
+    : LBRACKET (expression | expression? COLON expression?) RBRACKET
     ;
 
 // ============ DDL Statements ============
