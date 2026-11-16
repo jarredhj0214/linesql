@@ -22,6 +22,19 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final Pattern MYSQL_DELIMITER_SCRIPT_LINE = Pattern.compile(
             "^" + MYSQL_DELIMITER_LINE.pattern() + "$", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
 
+    private static final String MYSQL_ROUTINE_NAME = "(?:`(?:``|[^`])*`|[\\p{L}\\p{N}_$]+)";
+    private static final Pattern MYSQL_PROCEDURE_PREFIX = Pattern.compile(
+            "^\\s*CREATE\\s+(?:DEFINER\\s*=\\s*\\S+\\s+)?PROCEDURE\\s+"
+                    + "(?:IF\\s+NOT\\s+EXISTS\\s+)?" + MYSQL_ROUTINE_NAME
+                    + "(?:\\s*\\.\\s*" + MYSQL_ROUTINE_NAME + ")?\\s*\\(",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern MYSQL_PROCEDURE_CHARACTERISTICS = Pattern.compile(
+            "(?:\\s+(?:COMMENT\\s+(?:'(?:''|\\\\.|[^'\\\\])*'|\"(?:\"\"|\\\\.|[^\"\\\\])*\")"
+                    + "|LANGUAGE\\s+SQL|(?:NOT\\s+)?DETERMINISTIC|(?:CONTAINS|NO)\\s+SQL"
+                    + "|(?:READS|MODIFIES)\\s+SQL\\s+DATA|SQL\\s+SECURITY\\s+(?:DEFINER|INVOKER)))*\\s*",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern MYSQL_BEGIN = Pattern.compile("\\bBEGIN\\b", Pattern.CASE_INSENSITIVE);
+
     private static final Pattern SQL_SERVER_ROUTINE = Pattern.compile(
             "^\\s*(?:CREATE\\s+(?:OR\\s+ALTER\\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER)"
                     + "|ALTER\\s+(?:PROC(?:EDURE)?|FUNCTION))\\b", Pattern.CASE_INSENSITIVE);
@@ -91,7 +104,9 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean sawGo = false;
         boolean sawMySqlDelimiter = false;
         int statementSetPartStart = -1;
-        int atomicPartStart = -1;
+        int compoundPartStart = -1;
+        int mysqlCompoundDepth = 0;
+        Matcher mysqlOpening = MYSQL_BEGIN.matcher(script).useTransparentBounds(true);
         Matcher atomicOpening = POSTGRES_ATOMIC.matcher(script).useTransparentBounds(true);
         int blockCommentDepth = 0;
 
@@ -224,20 +239,30 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 current.append(c);
                 continue;
             }
-            if (postgresAtomic && !mysql && atomicPartStart < 0 && quote == 0 && (c == 'b' || c == 'B')
-                    && atomicOpening.region(i, script.length()).lookingAt()
-                    && POSTGRES_ROUTINE.matcher(stripComments(current.toString(), nestedComments)).find()) {
-                atomicPartStart = current.length() + atomicOpening.end() - i;
+            if (quote == 0 && (c == 'b' || c == 'B')) {
+                if (postgresAtomic && !mysql && compoundPartStart < 0
+                        && atomicOpening.region(i, script.length()).lookingAt()
+                        && POSTGRES_ROUTINE.matcher(stripComments(current.toString(), nestedComments)).find()) {
+                    compoundPartStart = current.length() + atomicOpening.end() - i;
+                } else if (mysql && ";".equals(mysqlDelimiter) && mysqlOpening.region(i, script.length()).lookingAt()) {
+                    if (compoundPartStart < 0 && isCompleteMySqlProcedureHeader(current.toString())) {
+                        compoundPartStart = current.length() + mysqlOpening.end() - i;
+                        mysqlCompoundDepth = 1;
+                    } else if (mysqlCompoundDepth > 0 && compoundPartStart <= current.length()
+                            && stripComments(current.substring(compoundPartStart), false, true).trim().isEmpty()) {
+                        mysqlCompoundDepth++;
+                    }
+                }
             }
             if (quote == 0 && c == ';' && !routineBatch && ";".equals(mysqlDelimiter)) {
-                if (atomicPartStart >= 0) {
-                    String part = stripComments(current.substring(atomicPartStart), nestedComments).trim();
-                    if (!part.equalsIgnoreCase("END")) {
+                if (compoundPartStart >= 0) {
+                    String part = stripComments(current.substring(compoundPartStart), nestedComments, mysql).trim();
+                    if (!part.equalsIgnoreCase("END") || (mysqlCompoundDepth > 0 && --mysqlCompoundDepth > 0)) {
                         current.append(c);
-                        atomicPartStart = current.length();
+                        compoundPartStart = current.length();
                         continue;
                     }
-                    atomicPartStart = -1;
+                    compoundPartStart = -1;
                 }
                 if (flinkStatementSets && !mysql && FLINK_STATEMENT_SET_CONTINUATION.matcher(script)
                         .region(i + 1, script.length()).lookingAt()) {
@@ -272,6 +297,31 @@ public class SimpleStatementSplitter implements StatementSplitter {
     static boolean containsMySqlDelimiterDirective(String sql) {
         return MYSQL_DELIMITER_SCRIPT_LINE.matcher(sql).find()
                 && splitWithDelimiters(sql, SqlDialect.UNKNOWN).mySqlDelimiterDirective;
+    }
+
+    private static boolean isCompleteMySqlProcedureHeader(String sql) {
+        String header = stripComments(sql, false, true);
+        Matcher prefix = MYSQL_PROCEDURE_PREFIX.matcher(header);
+        if (!prefix.find()) {
+            return false;
+        }
+        int depth = 1;
+        char quote = 0;
+        for (int i = prefix.end(); i < header.length(); i++) {
+            char current = header.charAt(i);
+            if (current == '\'' || current == '"' || current == '`') {
+                if (quote == 0) {
+                    quote = current;
+                } else if (current == quote && !isEscaped(header, i)) {
+                    quote = 0;
+                }
+            } else if (quote == 0 && current == '(') {
+                depth++;
+            } else if (quote == 0 && current == ')' && --depth == 0) {
+                return MYSQL_PROCEDURE_CHARACTERISTICS.matcher(header).region(i + 1, header.length()).matches();
+            }
+        }
+        return false;
     }
 
     private static String readMySqlDelimiter(String argument) {

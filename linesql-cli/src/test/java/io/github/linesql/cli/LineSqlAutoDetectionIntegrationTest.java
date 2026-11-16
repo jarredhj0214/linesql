@@ -417,6 +417,33 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void mysqlUnframedProcedureKeepsStaticStatementsAndStopsAtItsEnd() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE PROCEDURE mart.refresh(IN minimum DECIMAL(12, 2)) "
+                        + "COMMENT 'reload' MODIFIES SQL DATA BEGIN "
+                        + "INSERT INTO mart.audit (id) SELECT id FROM ods.events WHERE amount > minimum; "
+                        + "END; SELECT CASE WHEN 1 = 1 THEN id END FROM ods.checkpoints;",
+                SqlDialect.MYSQL);
+
+        assertEquals(2, results.size());
+        LineageResult routine = results.get(0);
+        assertEquals(StatementType.CREATE_ROUTINE, routine.getStatementType());
+        assertEquals("events", routine.getInputTables().get(0).getName());
+        assertEquals("audit", routine.getOutputTables().get(0).getName());
+        assertEquals("id", routine.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals(1, routine.getColumnUsages().size());
+        assertEquals("amount", routine.getColumnUsages().get(0).getColumn().getName());
+        assertEquals("checkpoints", results.get(1).getInputTables().get(0).getName());
+
+        List<LineageResult> simple = LineSql.parseScript(
+                "CREATE PROCEDURE mart.read_events() SELECT COUNT(*) begin FROM ods.events; "
+                        + "SELECT id FROM ods.checkpoints;",
+                SqlDialect.MYSQL);
+        assertEquals(2, simple.size());
+        assertEquals(StatementType.CREATE_ROUTINE, simple.get(0).getStatementType());
+    }
+
+    @Test
     public void mysqlClientDelimiterDirectivesPreserveRoutineAndSubsequentStatements() {
         String script = scriptFixture("/sql/mysql/client_delimiters.sql");
         assertMySqlDelimiterScript(LineSql.parseScript(script), SqlDialect.MYSQL);
