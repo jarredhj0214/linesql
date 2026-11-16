@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 
 class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
+    private static final String EXCLUDED_RELATION = "$on_conflict_excluded";
     private final LineageResult result;
     private final Set<TableRef> inputTables = new LinkedHashSet<>();
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
@@ -142,13 +143,30 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return;
         }
         Map<String, List<ColumnRef>> insertedSources = insertedSourcesByColumn();
-        List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
-        lineages.addAll(readDuplicateKeyAssignments(conflict.assignmentList(), target, insertedSources));
-        result.setColumnLineage(lineages);
-        suppressColumnLineage = true;
-        if (conflict.actionPredicate != null) {
-            addColumnUsages(ColumnUsageType.WHERE, conflictSourceColumns(
-                    conflict.actionPredicate.expression(), insertedSources));
+        String previousAlias = derivedAliases.put("excluded", EXCLUDED_RELATION);
+        Map<String, List<ColumnRef>> previousColumns = derivedColumnLineage.put(EXCLUDED_RELATION, insertedSources);
+        try {
+            collectSubqueryDependencies(conflict.assignmentList(), true);
+            List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
+            lineages.addAll(readConflictAssignments(conflict.assignmentList(), target, insertedSources));
+            result.setColumnLineage(lineages);
+            suppressColumnLineage = true;
+            if (conflict.actionPredicate != null) {
+                collectSubqueryDependencies(conflict.actionPredicate.expression(), true);
+                addColumnUsages(ColumnUsageType.WHERE, conflictSourceColumns(
+                        conflict.actionPredicate.expression(), insertedSources));
+            }
+        } finally {
+            if (previousColumns == null) {
+                derivedColumnLineage.remove(EXCLUDED_RELATION);
+            } else {
+                derivedColumnLineage.put(EXCLUDED_RELATION, previousColumns);
+            }
+            if (previousAlias == null) {
+                derivedAliases.remove("excluded");
+            } else {
+                derivedAliases.put("excluded", previousAlias);
+            }
         }
     }
 
@@ -1987,6 +2005,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
         }
+        if (visibleRelation) {
+            String visibleName = (alias == null ? table.getName() : alias).toLowerCase(Locale.ROOT);
+            derivedAliases.remove(visibleName, EXCLUDED_RELATION);
+        }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
     }
@@ -2390,7 +2412,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 refs = columns.get(sourceColumn.name.substring(0, dot));
             }
         }
-        return refs;
+        return refs == null && EXCLUDED_RELATION.equals(derivedName) ? Collections.emptyList() : refs;
     }
 
     private boolean isCteReference(TableRef table) {
@@ -2507,16 +2529,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return sourcesByColumn;
     }
 
-    private List<ColumnLineage> readDuplicateKeyAssignments(PostgreSqlParser.AssignmentListContext ctx,
+    private List<ColumnLineage> readConflictAssignments(PostgreSqlParser.AssignmentListContext ctx,
                                                             TableRef defaultTarget,
                                                             Map<String, List<ColumnRef>> insertedSourcesByColumn) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (PostgreSqlParser.AssignmentContext assignment : ctx.assignment()) {
-            if (assignment.identifierList() != null && assignment.expressionList() != null) {
-                lineages.addAll(readDuplicateKeyRowAssignments(assignment, defaultTarget, insertedSourcesByColumn));
+            if (assignment.identifierList() != null && assignment.query() != null) {
+                lineages.addAll(readRowQueryAssignment(assignment, defaultTarget));
                 continue;
             }
-            if (containsSubquery(assignment.expression())) {
+            if (assignment.identifierList() != null && assignment.expressionList() != null) {
+                lineages.addAll(readConflictRowAssignments(assignment, defaultTarget, insertedSourcesByColumn));
                 continue;
             }
             List<String> parts = identifierParts(assignment.multipartIdentifier());
@@ -2529,7 +2552,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                     table = resolved;
                 }
             }
-            List<ColumnRef> sources = duplicateKeySources(assignment.expression(), insertedSourcesByColumn);
+            List<ColumnRef> sources = resolveConflictSources(assignment.expression(), insertedSourcesByColumn);
             if (sources == null) {
                 sources = new ArrayList<>();
             }
@@ -2542,7 +2565,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return lineages;
     }
 
-    private List<ColumnLineage> readDuplicateKeyRowAssignments(PostgreSqlParser.AssignmentContext assignment,
+    private List<ColumnLineage> readConflictRowAssignments(PostgreSqlParser.AssignmentContext assignment,
                                                                TableRef defaultTarget,
                                                                Map<String, List<ColumnRef>> insertedSourcesByColumn) {
         List<ColumnLineage> lineages = new ArrayList<>();
@@ -2551,10 +2574,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         int count = Math.min(targets.size(), expressions.size());
         for (int i = 0; i < count; i++) {
             PostgreSqlParser.ExpressionContext expression = expressions.get(i);
-            if (containsSubquery(expression)) {
-                continue;
-            }
-            List<ColumnRef> sources = duplicateKeySources(expression, insertedSourcesByColumn);
+            List<ColumnRef> sources = resolveConflictSources(expression, insertedSourcesByColumn);
             if (sources == null) {
                 sources = new ArrayList<>();
             }
@@ -2567,7 +2587,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return lineages;
     }
 
-    private List<ColumnRef> duplicateKeySources(PostgreSqlParser.ExpressionContext expression,
+    private List<ColumnRef> resolveConflictSources(PostgreSqlParser.ExpressionContext expression,
                                                 Map<String, List<ColumnRef>> insertedSourcesByColumn) {
         String valuesColumn = valuesFunctionColumn(expression);
         if (valuesColumn != null) {

@@ -2,6 +2,63 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "insert_conflict_row_subquery",
+      "file": "cases/insert_conflict_row_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.delta", "sales.payments"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.id", "sources": ["staging.delta.id"]},
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.amount"]},
+        {"target": "mart.accounts.status", "sources": ["staging.delta.state"]},
+        {"target": "mart.accounts.balance", "sources": ["sales.payments.amount"]},
+        {"target": "mart.accounts.status", "sources": ["staging.delta.state"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.accounts.id"},
+        {"type": "WHERE", "column": "sales.payments.account_id"},
+        {"type": "WHERE", "column": "staging.delta.id"}
+      ],
+      "description": "An ON CONFLICT tuple subquery binds both positions and resolves EXCLUDED inside the subquery"
+    },
+    {
+      "id": "insert_conflict_scalar_subquery",
+      "file": "cases/insert_conflict_scalar_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.delta", "sales.payments", "ops.approvals"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.id", "sources": ["staging.delta.id"]},
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.amount"]},
+        {"target": "mart.accounts.balance", "sources": ["sales.payments.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.accounts.id"},
+        {"type": "WHERE", "column": "sales.payments.account_id"},
+        {"type": "WHERE", "column": "staging.delta.id"},
+        {"type": "WHERE", "column": "ops.approvals.account_id"},
+        {"type": "WHERE", "column": "mart.accounts.id"}
+      ],
+      "description": "ON CONFLICT assignment and action predicate subqueries retain their distinct dependencies"
+    },
+    {
+      "id": "insert_conflict_excluded_alias_scope",
+      "file": "cases/insert_conflict_excluded_alias_scope.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.delta", "sales.payments"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.id", "sources": ["staging.delta.id"]},
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.amount"]},
+        {"target": "mart.accounts.balance", "sources": ["sales.payments.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.accounts.id"},
+        {"type": "WHERE", "column": "sales.payments.active"}
+      ],
+      "description": "A physical relation named excluded in a subquery shadows the proposed row"
+    },
+    {
       "id": "update_scalar_assignment",
       "file": "cases/update_scalar_assignment.sql",
       "statementType": "UPDATE",

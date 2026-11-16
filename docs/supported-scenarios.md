@@ -223,6 +223,7 @@ Known PostgreSQL gaps:
 | ON CONFLICT with RETURNING | Insert mappings, `excluded` update mappings, conflict targets, and returned expressions remain distinct in one result | `insert_on_conflict_returning` |
 | ON CONFLICT expression indexes | Index expressions report referenced target columns. Collation and operator class names are accepted. | `insert_on_conflict_expression_index` |
 | ON CONFLICT expressions and predicates | References to `excluded` in update expressions and action predicates resolve to the proposed row sources. The index predicate uses target columns. | `insert_on_conflict_excluded_expression` |
+| ON CONFLICT subqueries | Scalar and row subqueries in conflict assignments preserve write positions. `EXCLUDED` resolves to the proposed row's sources inside subqueries, with local aliases taking precedence. | `insert_conflict_row_subquery`, `insert_conflict_scalar_subquery`, `insert_conflict_excluded_alias_scope` |
 | Broader PostgreSQL-specific DDL | Core table/view/index/comment/maintenance/locking DDL is covered; policy and logical replication lifecycle statements have baseline coverage; advanced storage and procedural bodies are still being expanded. | - |
 
 ## OceanBase
