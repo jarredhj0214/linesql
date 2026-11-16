@@ -2,6 +2,15 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "declare_table_variable_as",
+      "file": "cases/declare_table_variable_as.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["@events"],
+      "columnLineage": [],
+      "description": "The optional AS keyword preserves table-variable declaration and output identity"
+    },
+    {
       "id": "insert_select_unnamed_position_with_output",
       "file": "cases/insert_select_unnamed_position_with_output.sql",
       "statementType": "INSERT",

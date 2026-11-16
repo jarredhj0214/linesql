@@ -948,7 +948,7 @@ multipartIdentifier
     ;
 
 dbLinkSuffix
-    : AT identifier
+    : AT qualifiedName
     ;
 
 qualifiedName

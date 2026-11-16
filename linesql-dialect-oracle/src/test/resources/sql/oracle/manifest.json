@@ -2,6 +2,26 @@
   "dialect": "ORACLE",
   "cases": [
     {
+      "id": "select_dblink_global_name",
+      "file": "cases/select_dblink_global_name.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.remote_orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "order_id", "sources": ["ods.remote_orders.order_id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.remote_orders.status"}],
+      "description": "A fully qualified link name is consumed without changing the remote table identity"
+    },
+    {
+      "id": "insert_dblink_global_name",
+      "file": "cases/insert_dblink_global_name.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.pending_orders"],
+      "outputTables": ["ods.remote_orders"],
+      "columnLineage": [{"target": "ods.remote_orders.order_id", "sources": ["staging.pending_orders.order_id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "staging.pending_orders.ready"}],
+      "description": "A remote insert target keeps its column mapping across a qualified database link"
+    },
+    {
       "id": "insert_select_unnamed_position",
       "file": "cases/insert_select_unnamed_position.sql",
       "statementType": "INSERT",

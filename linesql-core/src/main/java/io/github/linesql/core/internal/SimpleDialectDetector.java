@@ -29,6 +29,15 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|deny\\b[^;]*\\bon\\b"
                     + "|alter\\s+schema\\b[^;]*\\btransfer\\s+object\\s*::)");
 
+    private static final String TSQL_LOCAL_VARIABLE = "@[\\p{L}_][\\p{L}\\p{N}_$#]*";
+    private static final Pattern TSQL_TABLE_VARIABLE = Pattern.compile(
+            "\\bdeclare\\s+" + TSQL_LOCAL_VARIABLE + "\\s+(?:as\\s+)?table\\s*\\("
+                    + "|\\b(?:from|join|update|delete|insert\\s+into|merge(?:\\s+into)?)\\s+" + TSQL_LOCAL_VARIABLE);
+    private static final String ORACLE_NAME = "[\\p{L}_][\\p{L}\\p{N}_$#]*";
+    private static final Pattern ORACLE_REMOTE_RELATION = Pattern.compile(
+            "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
+                    + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
+
     private static final Pattern TSQL_DML_OUTPUT = Pattern.compile(
             "(?s)^\\s*(?:with\\b[^;]*?)?(?:insert|update|delete|merge)\\b[^;]*\\boutput\\s+"
                     + "(?:\\(\\s*)*(?:(?:inserted|deleted)\\s*\\.|\\$action\\b)");
@@ -69,7 +78,7 @@ public class SimpleDialectDetector implements DialectDetector {
         String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
 
         boolean sqlServerTemporalQuery = unquotedSyntax.matches("(?s).*\\bfor\\s+system_time\\s+"
-                + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+@[\\p{L}_][\\p{L}\\p{N}_$#]*).*");
+                + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+" + TSQL_LOCAL_VARIABLE + ").*");
 
         if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
@@ -206,6 +215,9 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         if (literals.oracleQuoted) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle alternative-quoted string literal"));
+        } else if (relationSyntax.indexOf('@') >= 0 && ORACLE_REMOTE_RELATION
+                .matcher(QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle database link on a relation"));
         } else if (relationSyntax.matches("(?s).*[,\\s]xmltable\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.97, "XMLTABLE relation syntax"));
         } else if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
@@ -235,6 +247,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || relationSyntax.matches("(?s).*\\b(?:cross|outer)\\s+apply\\s+[^\\s();]+\\s*\\.\\s*nodes\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\bfrom\\s+@[\\w$#]+\\s*\\.\\s*nodes\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server XML namespaces or nodes() method"));
+        } else if (TSQL_TABLE_VARIABLE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server table variable"));
         } else if (TSQL_DML_OUTPUT.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server DML OUTPUT row images"));
         } else if (TSQL_OBJECT_SCOPE.matcher(relationSyntax).find()) {

@@ -127,6 +127,36 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOracleRelationsWithDatabaseLinks() {
+        LineageResult result = LineSql.parse(
+                "SELECT r.id FROM ods.remote_orders@warehouse.example.com r WHERE r.active = 1");
+        assertEquals(SqlDialect.ORACLE, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals("remote_orders", result.getInputTables().get(0).getName());
+        assertEquals("id", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("active", result.getColumnUsages().get(0).getColumn().getName());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertDialect(SqlDialect.SPARK, "SELECT \"from ods.orders@warehouse\" AS label FROM ods.events");
+    }
+
+    @Test
+    public void detectsSqlServerTableVariablesThroughTheScriptApi() {
+        List<LineageResult> results = LineSql.parseScript(scriptFixture("/sql/sqlserver/table_variable_batch.sql"));
+        assertEquals(3, results.size());
+        assertEquals(StatementType.CREATE_TABLE, results.get(0).getStatementType());
+        assertEquals(StatementType.INSERT, results.get(1).getStatementType());
+        assertEquals(StatementType.SELECT, results.get(2).getStatementType());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.SQLSERVER, result.getDialect());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+        assertEquals("@events", results.get(1).getOutputTables().get(0).getName());
+        assertEquals("events", results.get(1).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertEquals("@events", results.get(2).getInputTables().get(0).getName());
+        assertDialect(SqlDialect.SPARK, "SELECT id INTO @saved_id FROM ods.events");
+    }
+
+    @Test
     public void autoDetectedSqlServerDmlUsesRegisteredParser() {
         LineageResult result = LineSql.parse(
                 "update [ads].[user_summary] set [user_name] = u.[name] "

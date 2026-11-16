@@ -628,7 +628,7 @@ externalTableOptionContent
     ;
 
 declareTableVariableStatement
-    : DECLARE identifier TABLE LPAREN tableElementList RPAREN
+    : DECLARE identifier AS? TABLE LPAREN tableElementList RPAREN
     ;
 
 declareScalarVariableStatement
