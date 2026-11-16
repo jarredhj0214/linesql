@@ -1650,8 +1650,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             index++;
         }
         String alias = tableAlias(aliasContext);
-        String name = alias == null ? defaultName : alias;
-        derivedColumnLineage.put(name.toLowerCase(Locale.ROOT), namedColumns);
+        registerFunctionRelation(alias == null ? defaultName : alias, namedColumns);
+    }
+
+    private void registerFunctionRelation(String name, Map<String, List<ColumnRef>> columns) {
+        derivedColumnLineage.put(name.toLowerCase(Locale.ROOT), columns);
         addDerivedReference(name, null);
     }
 
@@ -1688,7 +1691,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 : sourceColumns(ctx.functionArguments());
         addColumnUsages(ColumnUsageType.JOIN_ON, sources);
         if (ctx.recordColumn().isEmpty()) {
-            registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
+            if (!registerUnnestColumns(ctx)) {
+                registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
+            }
         } else {
             String alias = ctx.recordAlias == null
                     ? unqualifiedName(cleanIdentifier(ctx.functionName().getText()))
@@ -1700,6 +1705,38 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             registerGeneratedRelation(alias, columnNames, sources, false);
         }
         return null;
+    }
+
+    private boolean registerUnnestColumns(PostgreSqlParser.TableFunctionContext ctx) {
+        String functionName = ctx.functionName().getText();
+        if (ctx.functionArguments() == null
+                || !(functionName.equalsIgnoreCase("unnest") || functionName.equalsIgnoreCase("pg_catalog.unnest"))) {
+            return false;
+        }
+
+        List<PostgreSqlParser.CallArgumentContext> arguments = ctx.functionArguments().callArgument();
+        List<String> aliasColumns = tableAliasColumnNames(ctx.tableAlias());
+        boolean withOrdinality = ctx.ORDINALITY() != null;
+        int valueCount = arguments.size();
+        if (aliasColumns.size() > valueCount + (withOrdinality ? 1 : 0)) {
+            return false;
+        }
+
+        String alias = tableAlias(ctx.tableAlias());
+        String relation = alias == null ? "unnest" : alias;
+        String defaultColumn = valueCount == 1 ? relation : "unnest";
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int i = 0; i < valueCount; i++) {
+            String column = i < aliasColumns.size() ? aliasColumns.get(i) : defaultColumn;
+            List<ColumnRef> refs = columnUsageRefs(sourceColumns(arguments.get(i).expression()));
+            columns.merge(column, refs == null ? Collections.emptyList() : refs, LineageModelUtils::mergeColumnRefs);
+        }
+        if (withOrdinality) {
+            String ordinal = aliasColumns.size() > valueCount ? aliasColumns.get(valueCount) : "ordinality";
+            columns.putIfAbsent(ordinal, Collections.emptyList());
+        }
+        registerFunctionRelation(relation, columns);
+        return true;
     }
 
     @Override
@@ -2080,15 +2117,13 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (alias == null) {
             return;
         }
-        String derivedName = alias.toLowerCase(Locale.ROOT);
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         List<ColumnRef> refs = columnUsageRefs(sources);
         for (int i = 0; i < aliasColumns.size(); i++) {
             boolean ordinalityColumn = withOrdinality && i == aliasColumns.size() - 1;
             columns.put(aliasColumns.get(i), ordinalityColumn || refs == null ? new ArrayList<>() : new ArrayList<>(refs));
         }
-        derivedColumnLineage.put(derivedName, columns);
-        addDerivedReference(alias, null);
+        registerFunctionRelation(alias, columns);
     }
 
     private static List<String> tableAliasColumnNames(PostgreSqlParser.TableAliasContext ctx) {

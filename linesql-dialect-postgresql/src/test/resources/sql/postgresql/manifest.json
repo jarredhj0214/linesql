@@ -3329,6 +3329,55 @@
       "description": "PostgreSQL LATERAL UNNEST WITH ORDINALITY maps value column to input array and keeps ordinality generated"
     },
     {
+      "id": "unnest_with_partial_ordinality_alias",
+      "file": "cases/unnest_with_partial_ordinality_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "tag", "sources": ["ods.events.tags"]},
+        {"target": "position_number", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.tags"},
+        {"type": "WHERE", "column": "ods.events.tags"}
+      ],
+      "description": "A prefix column alias names the array value and leaves the generated ordinal column visible"
+    },
+    {
+      "id": "unnest_with_implicit_names",
+      "file": "cases/unnest_with_implicit_names.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "element", "sources": ["ods.events.tags"]},
+        {"target": "position_number", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.tags"}
+      ],
+      "description": "The built-in function supplies default relation and column names"
+    },
+    {
+      "id": "unnest_multiple_arrays_with_ordinality",
+      "file": "cases/unnest_multiple_arrays_with_ordinality.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "tag", "sources": ["ods.events.tags"]},
+        {"target": "qty", "sources": ["ods.events.quantities"]},
+        {"target": "pos", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.tags"},
+        {"type": "JOIN_ON", "column": "ods.events.quantities"},
+        {"type": "WHERE", "column": "ods.events.quantities"}
+      ],
+      "description": "Each generated value column maps to the corresponding input array while ordinality stays generated"
+    },
+    {
       "id": "lateral_query_column_projection",
       "file": "cases/lateral_query_column_projection.sql",
       "statementType": "SELECT",
