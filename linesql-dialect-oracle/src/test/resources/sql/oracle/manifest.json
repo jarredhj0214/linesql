@@ -5636,6 +5636,37 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "Oracle NOAUDIT table statement is accepted as audit control"
+    },
+    {
+      "id": "select_correlated_scalar_projection_scope",
+      "file": "cases/select_correlated_scalar_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "selected_flag", "sources": ["ods.flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"}
+      ],
+      "description": "A scalar SELECT keeps its output alias private and binds its outer predicate"
+    },
+    {
+      "id": "select_in_subquery_projection_scope",
+      "file": "cases/select_in_subquery_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "flagged", "sources": ["ods.orders.id", "ods.flags.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.active"}
+      ],
+      "description": "A projected IN query keeps the tested values and its own clause usage"
     }
   ]
 }

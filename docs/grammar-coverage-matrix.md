@@ -376,7 +376,7 @@ OceanBase should be tracked by compatibility mode rather than as a single flat g
 | Join | PARTIAL | COVERED | COVERED | COVERED | P0 |
 | Set operation | PARTIAL | COVERED | COVERED | N/A | P1 |
 | Expression | PARTIAL | COVERED | COVERED | PARTIAL | P0 |
-| Predicate subquery | PLANNED | PLANNED | PLANNED | PLANNED | P0 |
+| Predicate subquery | PARTIAL | COVERED | PARTIAL | COVERED | P0 |
 | Aggregation | PLANNED | PLANNED | PLANNED | PLANNED | P1 |
 | Window | PLANNED | PLANNED | PLANNED | PLANNED | P2 |
 | Insert | PARTIAL | COVERED | COVERED | COVERED | P0 |

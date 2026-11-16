@@ -1238,15 +1238,30 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(OracleParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null && positionalInsertSelect == null) {
+        mergeSubqueryDependencies(ctx.query());
+        return null;
+    }
+
+    @Override
+    public Void visitExistsExpr(OracleParser.ExistsExprContext ctx) {
+        mergeSubqueryDependencies(ctx.query());
+        return null;
+    }
+
+    @Override
+    public Void visitPredicate(OracleParser.PredicateContext ctx) {
+        if (ctx.query() == null) {
             return visitChildren(ctx);
         }
-        LineageResult inner = lineageForQuery(ctx.query());
-        for (TableRef table : inner.getInputTables()) {
-            addInputTable(table, false);
-        }
-        LineageModelUtils.mergeColumnUsages(result, inner);
+        mergeSubqueryDependencies(ctx.query());
         return null;
+    }
+
+    private void mergeSubqueryDependencies(OracleParser.QueryContext query) {
+        LineageResult inner = lineageForQuery(query);
+        inputTables.addAll(inner.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
+        LineageModelUtils.mergeColumnUsages(result, inner);
     }
 
     @Override
@@ -1260,13 +1275,22 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                             sourceColumns(window.windowSpec()));
                 }
             }
-            if (ctx.selectClause() != positionalInsertSelect || ctx.fromClause() == null) {
+            boolean positionalInsert = ctx.selectClause() == positionalInsertSelect;
+            if (ctx.fromClause() == null || (!positionalInsert && !containsSubquery(ctx.selectClause()))) {
                 return visitChildren(ctx);
             }
+            Set<TableRef> priorInputs = new LinkedHashSet<>(inputTables);
             visit(ctx.fromClause());
-            for (int i = 0; i < ctx.getChildCount(); i++) {
-                if (ctx.getChild(i) != ctx.fromClause()) {
-                    visit(ctx.getChild(i));
+            Set<TableRef> fromInputs = new LinkedHashSet<>(inputTables);
+            if (!positionalInsert) {
+                inputTables.retainAll(priorInputs);
+            }
+            for (ParseTree child : ctx.children) {
+                if (child != ctx.fromClause()) {
+                    visit(child);
+                } else if (!positionalInsert) {
+                    inputTables.addAll(fromInputs);
+                    result.setInputTables(new ArrayList<>(inputTables));
                 }
             }
             return null;
@@ -1930,9 +1954,10 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {
-        TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
-                ? inputTables.iterator().next()
-                : null;
+        TableRef defaultTable = visibleRelations.size() == 1 ? visibleRelations.get(0).table : null;
+        if (defaultTable == null && visibleRelationCount <= 1 && inputTables.size() == 1) {
+            defaultTable = inputTables.iterator().next();
+        }
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn rawSourceColumn : sourceColumns) {
             if (rawSourceColumn.resolvedRef != null) {
@@ -2170,24 +2195,19 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private void collectSubqueryInputs(ParseTree tree) {
         if (tree instanceof OracleParser.ScalarSubqueryContext) {
             OracleParser.ScalarSubqueryContext subquery = (OracleParser.ScalarSubqueryContext) tree;
-            LineageResult subResult = lineageForQuery(subquery.query());
-            inputTables.addAll(subResult.getInputTables());
-            LineageModelUtils.mergeColumnUsages(result, subResult);
+            mergeSubqueryDependencies(subquery.query());
             return;
         }
         if (tree instanceof OracleParser.ExistsExprContext) {
             OracleParser.ExistsExprContext exists = (OracleParser.ExistsExprContext) tree;
-            LineageResult subResult = lineageForQuery(exists.query());
-            inputTables.addAll(subResult.getInputTables());
-            LineageModelUtils.mergeColumnUsages(result, subResult);
+            mergeSubqueryDependencies(exists.query());
             return;
         }
         if (tree instanceof OracleParser.PredicateContext) {
             OracleParser.PredicateContext predicate = (OracleParser.PredicateContext) tree;
             if (predicate.query() != null) {
-                LineageResult subResult = lineageForQuery(predicate.query());
-                inputTables.addAll(subResult.getInputTables());
-                LineageModelUtils.mergeColumnUsages(result, subResult);
+                mergeSubqueryDependencies(predicate.query());
+                return;
             }
         }
         for (int i = 0; i < tree.getChildCount(); i++) {
@@ -2226,7 +2246,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 
@@ -2327,6 +2347,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private List<ColumnRef> scalarSubqueryProjectionRefs(OracleParser.QueryContext query) {
         OracleLineageVisitor queryVisitor = new OracleLineageVisitor(new LineageResult());
         queryVisitor.cteNames.addAll(cteNames);
+        queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);

@@ -6193,6 +6193,23 @@
       ],
       "columnLineage": [],
       "description": "OceanBase Oracle mode ALTER TABLE MOVE PARTITION records the affected table"
+    },
+    {
+      "id": "oracle_mode_correlated_scalar_projection_scope",
+      "file": "cases/oracle_mode_correlated_scalar_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "selected_flag", "sources": ["ods.flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"}
+      ],
+      "compatibilityMode": "oracle",
+      "description": "OceanBase Oracle mode preserves scalar projection scope and correlated WHERE references"
     }
   ]
 }
