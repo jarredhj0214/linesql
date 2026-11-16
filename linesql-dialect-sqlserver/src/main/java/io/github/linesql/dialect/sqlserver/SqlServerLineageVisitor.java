@@ -85,6 +85,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
+    private final List<Set<String>> mergeUpdateColumns = new ArrayList<>();
+    private boolean outputHasInsertedRows = true;
+    private boolean outputHasDeletedRows = true;
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
@@ -290,6 +293,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
 
         List<ColumnLineage> lineages = new ArrayList<>();
+        outputHasInsertedRows = false;
+        outputHasDeletedRows = false;
         for (SqlServerParser.MergeClauseContext clause : ctx.mergeClause()) {
             if (clause.matchedCondition != null) {
                 addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(clause.matchedCondition));
@@ -302,8 +307,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
             if (clause.mergeMatchedAction() != null) {
                 SqlServerParser.MergeMatchedActionContext action = clause.mergeMatchedAction();
+                outputHasDeletedRows = true;
                 if (action.assignmentList() != null) {
-                    lineages.addAll(readAssignments(action.assignmentList(), target));
+                    addMergeUpdateLineage(action.assignmentList(), target, lineages);
                 }
                 if (action.whereClause() != null) {
                     addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.whereClause().expression()));
@@ -311,6 +317,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
             if (clause.mergeNotMatchedAction() != null) {
                 SqlServerParser.MergeNotMatchedActionContext action = clause.mergeNotMatchedAction();
+                outputHasInsertedRows = true;
                 lineages.addAll(readMergeInsertValues(action, target));
                 if (action.whereClause() != null) {
                     addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.whereClause().expression()));
@@ -318,8 +325,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
             if (clause.mergeMatchedBySourceAction() != null) {
                 SqlServerParser.MergeMatchedBySourceActionContext action = clause.mergeMatchedBySourceAction();
+                outputHasDeletedRows = true;
                 if (action.assignmentList() != null) {
-                    lineages.addAll(readAssignments(action.assignmentList(), target));
+                    addMergeUpdateLineage(action.assignmentList(), target, lineages);
                 }
                 if (action.whereClause() != null) {
                     addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(action.whereClause().expression()));
@@ -332,6 +340,19 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void addMergeUpdateLineage(SqlServerParser.AssignmentListContext assignments,
+                                       TableRef target,
+                                       List<ColumnLineage> lineages) {
+        outputHasInsertedRows = true;
+        List<ColumnLineage> branch = readAssignments(assignments, target);
+        Set<String> updated = new LinkedHashSet<>();
+        for (ColumnLineage lineage : branch) {
+            updated.add(lineage.getTarget().getName().toLowerCase(Locale.ROOT));
+        }
+        mergeUpdateColumns.add(updated);
+        lineages.addAll(branch);
     }
 
     @Override
@@ -453,7 +474,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         Map<String, List<ColumnRef>> writtenSources = new LinkedHashMap<>();
         for (ColumnLineage lineage : lineages) {
             if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
-                writtenSources.put(lineage.getTarget().getName().toLowerCase(Locale.ROOT), lineage.getSources());
+                writtenSources.merge(lineage.getTarget().getName().toLowerCase(Locale.ROOT),
+                        lineage.getSources(), LineageModelUtils::mergeColumnRefs);
             }
         }
         appendOutputItems(outputClause.primaryOutput, target, outputTarget, outputColumns, writtenSources, lineages);
@@ -480,12 +502,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             for (SourceColumn source : sourceColumns(item.expression())) {
                 String qualifier = source.qualifier == null ? "" : source.qualifier.toLowerCase(Locale.ROOT);
                 if ("inserted".equals(qualifier)) {
-                    List<ColumnRef> written = writtenSources.get(source.name.toLowerCase(Locale.ROOT));
-                    sources.addAll(written == null
-                            ? java.util.Collections.singletonList(new ColumnRef(target, source.name))
-                            : written);
+                    if (outputHasInsertedRows) {
+                        sources.addAll(insertedOutputSources(source.name, target, writtenSources));
+                    }
                 } else if ("deleted".equals(qualifier)) {
-                    sources.add(new ColumnRef(target, source.name));
+                    if (outputHasDeletedRows) {
+                        sources.add(new ColumnRef(target, source.name));
+                    }
                 } else {
                     List<ColumnRef> resolved = resolveSources(java.util.Collections.singletonList(source));
                     if (resolved != null) {
@@ -506,6 +529,19 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             lineages.add(LineageModelUtils.columnLineage(
                     outputTarget, outputName, sources, item.expression().getText()));
         }
+    }
+
+    private List<ColumnRef> insertedOutputSources(String column, TableRef target,
+                                                   Map<String, List<ColumnRef>> writtenSources) {
+        String key = column.toLowerCase(Locale.ROOT);
+        List<ColumnRef> written = writtenSources.get(key);
+        if (written == null) {
+            return Collections.singletonList(new ColumnRef(target, column));
+        }
+        if (mergeUpdateColumns.stream().anyMatch(columns -> !columns.contains(key))) {
+            return LineageModelUtils.mergeColumnRefs(written, Collections.singletonList(new ColumnRef(target, column)));
+        }
+        return written;
     }
 
     private void visitRelationPrimaryForDml(SqlServerParser.RelationPrimaryContext primary) {
