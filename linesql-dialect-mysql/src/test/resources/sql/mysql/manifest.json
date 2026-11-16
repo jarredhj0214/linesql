@@ -2,6 +2,38 @@
   "dialect": "MYSQL",
   "cases": [
     {
+      "id": "insert_select_unnamed_position",
+      "file": "cases/insert_select_unnamed_position.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.net_amount", "sources": ["ods.orders.amount", "ods.orders.discount"]},
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "Only data-bearing expressions create lineage while the constant keeps its position"
+    },
+    {
+      "id": "replace_select_unnamed_scalar",
+      "file": "cases/replace_select_unnamed_scalar.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.adjustments"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]},
+        {"target": "mart.audit.max_adjustment", "sources": ["ods.adjustments.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.adjustments.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"},
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "A scalar subquery contributes its value and correlated predicates without taking over the outer projection"
+    },
+    {
       "id": "select_adjacent_minus_and_comments",
       "file": "cases/select_adjacent_minus_and_comments.sql",
       "statementType": "SELECT",

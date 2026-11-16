@@ -42,6 +42,8 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
     private MySqlParser.SelectClauseContext setBranchSelect;
+    private MySqlParser.SelectClauseContext positionalWriteSelect;
+    private boolean visitingPositionalSelectChildren;
     private final Set<String> routineParameters;
     private ParseContext context;
 
@@ -165,9 +167,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         }
         registerInsertRowAlias(ctx.insertRowAlias());
         if (ctx.query() != null) {
-            visit(ctx.query());
-            refreshColumnLineage();
-            retargetColumnLineage(target);
+            visitWriteQuery(ctx.query(), target);
             if (ctx.onDuplicateKeyUpdate() != null) {
                 TableRef previousDmlTarget = currentDmlTarget;
                 currentDmlTarget = target;
@@ -263,9 +263,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             }
         }
         if (ctx.query() != null) {
-            visit(ctx.query());
-            refreshColumnLineage();
-            retargetColumnLineage(target);
+            visitWriteQuery(ctx.query(), target);
         } else if (ctx.assignmentList() != null) {
             collectSubqueryInputs(ctx.assignmentList());
             result.setColumnLineage(readAssignments(ctx.assignmentList(), target));
@@ -1462,13 +1460,18 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitQuery(MySqlParser.QueryContext ctx) {
+        return visitingPositionalSelectChildren ? null : visitChildren(ctx);
+    }
+
+    @Override
     public Void visitSelectClause(MySqlParser.SelectClauseContext ctx) {
         List<MySqlParser.SelectItemContext> items = ctx.selectItemList().selectItem();
         for (int i = 0; i < items.size(); i++) {
             MySqlParser.SelectItemContext item = items.get(i);
             if (item instanceof MySqlParser.SelectExpressionContext) {
                 MySqlParser.SelectExpressionContext selected = (MySqlParser.SelectExpressionContext) item;
-                Projection projection = projection(selected, i);
+                Projection projection = projection(selected, i, ctx == positionalWriteSelect && i < insertTargetColumns.size());
                 if (projection == null && ctx == setBranchSelect) {
                     MySqlParser.ExpressionContext expression = selected.expression();
                     projection = new Projection(sourceColumns(expression), expression.getText(),
@@ -1482,6 +1485,15 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             } else if (item instanceof MySqlParser.SelectQualifiedStarContext) {
                 MySqlParser.SelectQualifiedStarContext star = (MySqlParser.SelectQualifiedStarContext) item;
                 projections.add(starProjection(qualifiedNameText(star.qualifiedName()), item.getText(), i));
+            }
+        }
+        if (ctx == positionalWriteSelect) {
+            // Positional projections resolve subqueries in their own visitors.
+            visitingPositionalSelectChildren = true;
+            try {
+                return visitChildren(ctx);
+            } finally {
+                visitingPositionalSelectChildren = false;
             }
         }
         return visitChildren(ctx);
@@ -1907,6 +1919,20 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
         } else {
             addUsingColumnUsages(ctx.identifierList(), relationStart);
+        }
+    }
+
+    private void visitWriteQuery(MySqlParser.QueryContext query, TableRef target) {
+        MySqlParser.QueryTermContext term = unwrapSetBranch(query.queryTerm());
+        if (!insertTargetColumns.isEmpty() && term instanceof MySqlParser.QueryTermDefaultContext) {
+            positionalWriteSelect = explicitBranchSelect(((MySqlParser.QueryTermDefaultContext) term).queryPrimary());
+        }
+        try {
+            visit(query);
+            refreshColumnLineage();
+            retargetColumnLineage(target);
+        } finally {
+            positionalWriteSelect = null;
         }
     }
 
@@ -2513,7 +2539,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         for (int i = 0; i < items.size(); i++) {
             MySqlParser.SelectItemContext item = items.get(i);
             if (item instanceof MySqlParser.SelectExpressionContext) {
-                Projection projection = projection((MySqlParser.SelectExpressionContext) item, i);
+                Projection projection = projection((MySqlParser.SelectExpressionContext) item, i, false);
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -2538,7 +2564,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         return ((MySqlParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
-    private Projection projection(MySqlParser.SelectExpressionContext ctx, int ordinal) {
+    private Projection projection(MySqlParser.SelectExpressionContext ctx, int ordinal, boolean positionalWrite) {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         addNamedWindowSourceColumns(ctx.expression(), sourceColumns);
@@ -2548,10 +2574,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (sourceColumns.isEmpty() && ctx.alias == null) {
             return null;
         }
-        if (sourceColumns.size() > 1 && ctx.alias == null) {
-            return null;
+        String targetColumn = directColumn;
+        if (ctx.alias != null) {
+            targetColumn = cleanIdentifier(ctx.alias);
+        } else if (positionalWrite && targetColumn == null) {
+            targetColumn = expression;
         }
-        String targetColumn = ctx.alias == null ? directColumn : cleanIdentifier(ctx.alias);
         if (targetColumn == null) {
             return null;
         }
