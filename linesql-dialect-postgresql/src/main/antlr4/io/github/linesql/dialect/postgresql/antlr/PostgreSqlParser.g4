@@ -659,8 +659,13 @@ assignmentList
     ;
 
 assignment
-    : multipartIdentifier assignmentSubscript* EQ expression
-    | LPAREN identifierList RPAREN EQ (LPAREN query RPAREN | ROW? LPAREN expressionList RPAREN)
+    : assignmentTarget EQ expression
+    | LPAREN assignmentTarget (COMMA assignmentTarget)* RPAREN
+      EQ (LPAREN query RPAREN | ROW? LPAREN expressionList RPAREN)
+    ;
+
+assignmentTarget
+    : multipartIdentifier (assignmentSubscript (DOT identifier)*)*
     ;
 
 assignmentSubscript

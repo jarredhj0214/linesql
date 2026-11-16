@@ -1079,6 +1079,53 @@
       "description": "DELETE USING retains the right key in WHERE and RETURNING while tracing both join operands"
     },
     {
+      "id": "update_composite_subfield",
+      "file": "cases/update_composite_subfield.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "staging.locations"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.shipping_address", "sources": ["mart.orders.shipping_address", "staging.locations.city"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.locations.order_id"}
+      ],
+      "description": "A field write retains the surrounding composite value and traces the new field"
+    },
+    {
+      "id": "update_composite_and_array_row_targets",
+      "file": "cases/update_composite_and_array_row_targets.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "staging.locations"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.shipping_address", "sources": ["mart.orders.shipping_address", "staging.locations.city"]},
+        {"target": "mart.orders.previous_addresses", "sources": ["mart.orders.previous_addresses", "staging.locations.position", "staging.locations.postal_code"]},
+        {"target": "mart.orders.region", "sources": ["staging.locations.region"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.locations.order_id"}
+      ],
+      "description": "Composite and array subfields are written by row position with their old container dependencies"
+    },
+    {
+      "id": "update_composite_query_row_returning",
+      "file": "cases/update_composite_query_row_returning.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders", "staging.locations"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "updated_address", "sources": ["mart.orders.shipping_address", "staging.locations.city"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.locations.order_id"},
+        {"type": "WHERE", "column": "mart.orders.id"}
+      ],
+      "description": "The returned composite follows its old value and the corresponding subquery position"
+    },
+    {
       "id": "update_row_assignment_values_query",
       "file": "cases/update_row_assignment_values_query.sql",
       "statementType": "UPDATE",

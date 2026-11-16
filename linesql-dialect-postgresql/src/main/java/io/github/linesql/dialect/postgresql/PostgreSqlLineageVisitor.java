@@ -198,7 +198,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             collectSubqueryInputs(ctx.whereClause());
         }
         collectSubqueryDependencies(ctx.assignmentList(), true);
-        List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), firstOutputTable());
+        List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), firstOutputTable(),
+                !ctx.relation().joinRelation().isEmpty());
         result.setColumnLineage(assignments);
         appendReturningLineage(ctx.returningClause(), firstOutputTable(), true, true);
         result.setInputTables(new ArrayList<>(inputTables));
@@ -458,7 +459,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 if (matched.assignmentList() != null) {
                     hasNewRow = true;
                     collectSubqueryDependencies(matched.assignmentList(), true);
-                    lineages.addAll(readAssignments(matched.assignmentList(), target));
+                    lineages.addAll(readAssignments(matched.assignmentList(), target, false));
                 }
             }
             PostgreSqlParser.MergeNotMatchedActionContext notMatched = clause.mergeNotMatchedAction();
@@ -2915,54 +2916,48 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 && cteNames.contains(table.getName().toLowerCase(Locale.ROOT));
     }
 
-    private List<ColumnLineage> readAssignments(PostgreSqlParser.AssignmentListContext ctx, TableRef defaultTarget) {
+    private List<ColumnLineage> readAssignments(PostgreSqlParser.AssignmentListContext ctx, TableRef defaultTarget,
+                                                 boolean qualifiedTargets) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (PostgreSqlParser.AssignmentContext assignment : ctx.assignment()) {
-            if (assignment.identifierList() != null && assignment.query() != null) {
+            if (assignment.query() != null) {
                 lineages.addAll(readRowQueryAssignment(assignment, defaultTarget));
-                continue;
-            }
-            if (assignment.identifierList() != null && assignment.expressionList() != null) {
+            } else if (assignment.expressionList() != null) {
                 lineages.addAll(readRowAssignments(assignment, defaultTarget));
-                continue;
+            } else {
+                List<ColumnRef> sources = resolveSources(sourceColumns(assignment.expression()));
+                lineages.add(assignedColumnLineage(assignment.assignmentTarget(0), defaultTarget,
+                        sources, null, qualifiedTargets));
             }
-            List<String> parts = identifierParts(assignment.multipartIdentifier());
-            String columnName = parts.get(parts.size() - 1);
-            TableRef table = defaultTarget;
-            if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
-                TableRef resolved = tableAliases.get(qualifier);
-                if (resolved != null) {
-                    table = resolved;
-                }
-            }
-            List<SourceColumn> sourceColumns = sourceColumns(assignment.expression());
-            List<ColumnRef> sources = resolveSources(sourceColumns);
-            if (sources == null) {
-                sources = new ArrayList<>();
-            }
-            ColumnLineage lineage = new ColumnLineage();
-            ColumnRef target = new ColumnRef(table, columnName);
-            lineage.setTarget(target);
-            lineage.setSources(assignmentValueSources(assignment, target, sources));
-            lineages.add(lineage);
         }
         return lineages;
     }
 
-    private List<ColumnRef> assignmentValueSources(PostgreSqlParser.AssignmentContext assignment,
-                                                   ColumnRef target, List<ColumnRef> valueSources) {
-        if (assignment.assignmentSubscript().isEmpty()) {
-            return valueSources;
-        }
-        List<ColumnRef> sources = Collections.singletonList(target);
-        for (PostgreSqlParser.AssignmentSubscriptContext selector : assignment.assignmentSubscript()) {
-            List<ColumnRef> selectorSources = resolveSources(sourceColumns(selector));
-            if (selectorSources != null) {
-                sources = LineageModelUtils.mergeColumnRefs(sources, selectorSources);
+    private ColumnLineage assignedColumnLineage(PostgreSqlParser.AssignmentTargetContext target,
+                                                  TableRef table, List<ColumnRef> valueSources,
+                                                  String expression, boolean qualifiedTarget) {
+        List<String> parts = identifierParts(target.multipartIdentifier());
+        int columnIndex = 0;
+        if (qualifiedTarget && parts.size() >= 2) {
+            TableRef resolved = tableAliases.get(parts.get(parts.size() - 2).toLowerCase(Locale.ROOT));
+            if (resolved != null) {
+                table = resolved;
+                columnIndex = parts.size() - 1;
             }
         }
-        return LineageModelUtils.mergeColumnRefs(sources, valueSources);
+        String name = parts.get(columnIndex);
+        List<ColumnRef> sources = valueSources == null ? Collections.emptyList() : valueSources;
+        if (parts.size() > columnIndex + 1 || !target.assignmentSubscript().isEmpty()) {
+            List<ColumnRef> selected = Collections.singletonList(new ColumnRef(table, name));
+            for (PostgreSqlParser.AssignmentSubscriptContext selector : target.assignmentSubscript()) {
+                List<ColumnRef> selectorSources = resolveSources(sourceColumns(selector));
+                if (selectorSources != null) {
+                    selected = LineageModelUtils.mergeColumnRefs(selected, selectorSources);
+                }
+            }
+            sources = LineageModelUtils.mergeColumnRefs(selected, sources);
+        }
+        return LineageModelUtils.columnLineage(table, name, sources, expression);
     }
 
     private List<ColumnLineage> readRowQueryAssignment(
@@ -2980,25 +2975,28 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.finalizeResult();
         inputTables.addAll(queryResult.getInputTables());
         LineageModelUtils.mergeColumnUsages(result, queryResult);
-        List<PostgreSqlParser.IdentifierContext> targets = assignment.identifierList().identifier();
+        List<PostgreSqlParser.AssignmentTargetContext> targets = assignment.assignmentTarget();
         PostgreSqlParser.QuerySpecificationContext specification = topLevelQuerySpecification(assignment.query());
+        List<ColumnLineage> lineages = new ArrayList<>();
         if (specification == null || specification.selectClause() == null) {
             List<ColumnLineage> sources = queryResult.getColumnLineage();
             int width = setOutputWidth(assignment.query().queryTerm());
-            return width == targets.size() && sources.size() == width
-                    ? LineageModelUtils.retargetColumnLineage(sources, defaultTarget,
-                            identifierNames(assignment.identifierList()))
-                    : Collections.emptyList();
+            if (width == targets.size() && sources.size() == width) {
+                for (int i = 0; i < width; i++) {
+                    lineages.add(assignedColumnLineage(targets.get(i), defaultTarget,
+                            sources.get(i).getSources(), sources.get(i).getExpression(), false));
+                }
+            }
+            return lineages;
         }
-        List<ColumnLineage> lineages = new ArrayList<>();
         if (hasSelectStar(specification.selectClause())) {
             int width = Math.min(targets.size(), queryVisitor.firstUnknownStarOrdinal);
             for (Projection projection : queryVisitor.projections) {
                 if (projection.ordinal < width) {
                     List<ColumnRef> sources = queryVisitor.columnRefs(projection);
                     if (sources != null) {
-                        lineages.add(LineageModelUtils.columnLineage(defaultTarget,
-                                cleanIdentifier(targets.get(projection.ordinal)), sources, projection.expression));
+                        lineages.add(assignedColumnLineage(targets.get(projection.ordinal), defaultTarget,
+                                sources, projection.expression, false));
                     }
                 }
             }
@@ -3018,18 +3016,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (sources == null) {
                 continue;
             }
-            ColumnLineage lineage = new ColumnLineage();
-            lineage.setTarget(new ColumnRef(defaultTarget, cleanIdentifier(targets.get(i))));
-            lineage.setSources(sources);
-            lineage.setExpression(expression.getText());
-            lineages.add(lineage);
+            lineages.add(assignedColumnLineage(targets.get(i), defaultTarget, sources,
+                    expression.getText(), false));
         }
         return lineages;
     }
 
     private List<ColumnLineage> readRowAssignments(PostgreSqlParser.AssignmentContext assignment, TableRef defaultTarget) {
         List<ColumnLineage> lineages = new ArrayList<>();
-        List<PostgreSqlParser.IdentifierContext> targets = assignment.identifierList().identifier();
+        List<PostgreSqlParser.AssignmentTargetContext> targets = assignment.assignmentTarget();
         List<PostgreSqlParser.ExpressionContext> expressions = assignment.expressionList().expression();
         int count = Math.min(targets.size(), expressions.size());
         for (int i = 0; i < count; i++) {
@@ -3038,11 +3033,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (sources == null) {
                 sources = new ArrayList<>();
             }
-            ColumnLineage lineage = new ColumnLineage();
-            lineage.setTarget(new ColumnRef(defaultTarget, cleanIdentifier(targets.get(i))));
-            lineage.setSources(sources);
-            lineage.setExpression(expression.getText());
-            lineages.add(lineage);
+            lineages.add(assignedColumnLineage(targets.get(i), defaultTarget, sources,
+                    expression.getText(), false));
         }
         return lineages;
     }
@@ -3062,34 +3054,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                                                             Map<String, List<ColumnRef>> insertedSourcesByColumn) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (PostgreSqlParser.AssignmentContext assignment : ctx.assignment()) {
-            if (assignment.identifierList() != null && assignment.query() != null) {
+            if (assignment.query() != null) {
                 lineages.addAll(readRowQueryAssignment(assignment, defaultTarget));
-                continue;
-            }
-            if (assignment.identifierList() != null && assignment.expressionList() != null) {
+            } else if (assignment.expressionList() != null) {
                 lineages.addAll(readConflictRowAssignments(assignment, defaultTarget, insertedSourcesByColumn));
-                continue;
+            } else {
+                List<ColumnRef> sources = resolveConflictSources(assignment.expression(), insertedSourcesByColumn);
+                lineages.add(assignedColumnLineage(assignment.assignmentTarget(0), defaultTarget,
+                        sources, assignment.expression().getText(), false));
             }
-            List<String> parts = identifierParts(assignment.multipartIdentifier());
-            String columnName = parts.get(parts.size() - 1);
-            TableRef table = defaultTarget;
-            if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
-                TableRef resolved = tableAliases.get(qualifier);
-                if (resolved != null) {
-                    table = resolved;
-                }
-            }
-            List<ColumnRef> sources = resolveConflictSources(assignment.expression(), insertedSourcesByColumn);
-            if (sources == null) {
-                sources = new ArrayList<>();
-            }
-            ColumnLineage lineage = new ColumnLineage();
-            ColumnRef target = new ColumnRef(table, columnName);
-            lineage.setTarget(target);
-            lineage.setSources(assignmentValueSources(assignment, target, sources));
-            lineage.setExpression(assignment.expression().getText());
-            lineages.add(lineage);
         }
         return lineages;
     }
@@ -3098,7 +3071,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                                                                TableRef defaultTarget,
                                                                Map<String, List<ColumnRef>> insertedSourcesByColumn) {
         List<ColumnLineage> lineages = new ArrayList<>();
-        List<PostgreSqlParser.IdentifierContext> targets = assignment.identifierList().identifier();
+        List<PostgreSqlParser.AssignmentTargetContext> targets = assignment.assignmentTarget();
         List<PostgreSqlParser.ExpressionContext> expressions = assignment.expressionList().expression();
         int count = Math.min(targets.size(), expressions.size());
         for (int i = 0; i < count; i++) {
@@ -3107,11 +3080,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (sources == null) {
                 sources = new ArrayList<>();
             }
-            ColumnLineage lineage = new ColumnLineage();
-            lineage.setTarget(new ColumnRef(defaultTarget, cleanIdentifier(targets.get(i))));
-            lineage.setSources(sources);
-            lineage.setExpression(expression.getText());
-            lineages.add(lineage);
+            lineages.add(assignedColumnLineage(targets.get(i), defaultTarget, sources,
+                    expression.getText(), false));
         }
         return lineages;
     }
