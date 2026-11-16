@@ -507,6 +507,38 @@
       "description": "Oracle double-FROM deletion can return target columns to a collection"
     },
     {
+      "id": "update_returning_old_new_row_images",
+      "file": "cases/update_returning_old_new_row_images.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "staging.amount_updates"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.amount", "sources": ["staging.amount_updates.amount"]},
+        {"target": ":old_amount", "sources": ["mart.orders.amount"]},
+        {"target": ":new_amount", "sources": ["staging.amount_updates.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.amount_updates.order_id"}
+      ],
+      "description": "OLD reads the target before UPDATE and NEW follows the assignment source into the returned bind"
+    },
+    {
+      "id": "delete_returning_old_new_row_images",
+      "file": "cases/delete_returning_old_new_row_images.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.orders"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": ":original_id", "sources": ["mart.orders.id"]},
+        {"target": ":missing_id", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.active"}
+      ],
+      "description": "DELETE returns the old target column and the requested NEW image has no source"
+    },
+    {
       "id": "update_returning_into",
       "file": "cases/update_returning_into.sql",
       "statementType": "UPDATE",

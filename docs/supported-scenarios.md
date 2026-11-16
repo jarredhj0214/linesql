@@ -744,6 +744,11 @@ aliases. `RETURNING … INTO :bind` and `RETURN … BULK COLLECT INTO` identify 
 and report the returned values (`update_from_direct_join`, `delete_using_with_returning_bind`,
 `delete_from_with_bulk_collect`).
 
+A leading `OLD` or `NEW` on a `RETURNING` item selects the corresponding row image.
+An updated `OLD` value traces to the target column, and `NEW` follows the write
+assignment. A requested image that the statement has no row for carries no source columns
+(`update_returning_old_new_row_images`, `delete_returning_old_new_row_images`).
+
 Implemented Oracle table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |

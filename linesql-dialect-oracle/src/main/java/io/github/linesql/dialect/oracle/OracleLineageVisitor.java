@@ -116,7 +116,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             if (ctx.returningClause() != null) {
                 currentDmlTarget = target;
                 tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-                appendReturningIntoLineage(ctx.returningClause(), target, lineages);
+                appendReturningIntoLineage(ctx.returningClause(), target, lineages, StatementType.INSERT);
             }
             result.setColumnLineage(lineages);
         } else if (ctx.VALUES() != null) {
@@ -124,7 +124,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             if (ctx.returningClause() != null) {
                 currentDmlTarget = target;
                 tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-                appendReturningIntoLineage(ctx.returningClause(), target, lineages);
+                appendReturningIntoLineage(ctx.returningClause(), target, lineages, StatementType.INSERT);
             } else {
                 suppressColumnLineage = true;
             }
@@ -164,7 +164,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), table);
-        appendReturningIntoLineage(ctx.returningClause(), table, assignments);
+        appendReturningIntoLineage(ctx.returningClause(), table, assignments, StatementType.UPDATE);
         result.setColumnLineage(assignments);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -197,7 +197,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
         List<ColumnLineage> lineages = new ArrayList<>();
-        appendReturningIntoLineage(ctx.returningClause(), target, lineages);
+        appendReturningIntoLineage(ctx.returningClause(), target, lineages, StatementType.DELETE);
         result.setColumnLineage(lineages);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -207,7 +207,8 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private void appendReturningIntoLineage(
             OracleParser.ReturningClauseContext returning,
             TableRef target,
-            List<ColumnLineage> lineages) {
+            List<ColumnLineage> lineages,
+            StatementType statementType) {
         if (returning == null || target == null) {
             return;
         }
@@ -217,21 +218,21 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 writtenSources.put(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources());
             }
         }
-        List<OracleParser.ExpressionContext> expressions = returning.expressionList().expression();
+        List<OracleParser.ReturningExpressionContext> expressions = returning.returningExpression();
         List<OracleParser.ReturningTargetContext> variables = returning.returningTarget();
         int count = Math.min(expressions.size(), variables.size());
         for (int i = 0; i < count; i++) {
-            OracleParser.ExpressionContext expression = expressions.get(i);
-            List<ColumnRef> sources = resolveSources(sourceColumns(expression));
-            if (sources == null) {
-                sources = new ArrayList<>();
-            }
+            OracleParser.ReturningExpressionContext expression = expressions.get(i);
+            boolean before = expression.OLD() != null;
+            boolean hasRow = !(before && statementType == StatementType.INSERT)
+                    && !(expression.NEW() != null && statementType == StatementType.DELETE);
+            List<ColumnRef> sources = hasRow ? resolveSources(sourceColumns(expression.expression())) : null;
             List<ColumnRef> propagated = new ArrayList<>();
-            for (ColumnRef source : sources) {
-                List<ColumnRef> written = writtenSources.get(LineageModelUtils.columnKey(source));
-                propagated.addAll(written == null
-                        ? java.util.Collections.singletonList(source)
-                        : written);
+            if (sources != null) {
+                for (ColumnRef source : sources) {
+                    List<ColumnRef> written = before ? null : writtenSources.get(LineageModelUtils.columnKey(source));
+                    propagated.addAll(written == null ? Collections.singletonList(source) : written);
+                }
             }
             OracleParser.ReturningTargetContext variable = variables.get(i);
             String name = variable.identifier() == null
