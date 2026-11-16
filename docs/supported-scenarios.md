@@ -722,6 +722,7 @@ Implemented Oracle table-level lineage scenarios:
 | Bitwise and integer arithmetic | Bitwise operators, DIV, and MOD preserve operand dependencies in projections and filters. | `select_bitwise_integer_arithmetic` |
 | Null-safe equality | `UPDATE … FROM … WHERE a.key <=> b.key` records both predicate operands and the assignment source. | `update_null_safe_from` |
 | Set operation sort aliases | `UNION ALL … ORDER BY output_alias` resolves both branch projections and retains aggregate sort keys. | `union_ordered_aggregate_alias` |
+| StarRocks set output positions | Explicit UNION branches preserve constants, unnamed expressions, and scalar subqueries through ordinal sorting, INSERT target lists, and CTE aliases. | `union_constant_order_position`, `insert_union_unnamed_expressions`, `cte_union_scalar_position` |
 | Multi-array UNNEST | `UNNEST(skus, quantities) AS u(sku, quantity)` maps each named output and filter to its corresponding array. | `unnest_multiple_arrays_positional` |
 | Ordered ARRAY_AGG | `ARRAY_AGG(value ORDER BY sort_key DESC NULLS LAST, id)` captures value and sorting dependencies. | `aggregate_inline_order_by` |
 | Aggregate FILTER clause | `sum(v) filter (where flag = ...)`, `count(*) filter (where ...)` | `aggregate_filter_where_lineage` |

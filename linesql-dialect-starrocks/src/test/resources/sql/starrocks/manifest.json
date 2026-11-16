@@ -2,6 +2,50 @@
   "dialect": "STARROCKS",
   "cases": [
     {
+      "id": "union_constant_order_position",
+      "file": "cases/union_constant_order_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.current_orders", "ods.archived_orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "0", "sources": ["ods.archived_orders.marker"]},
+        {"target": "amount", "sources": ["ods.current_orders.amount", "ods.archived_orders.total"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.current_orders.amount"},
+        {"type": "ORDER_BY", "column": "ods.archived_orders.total"}
+      ],
+      "description": "A constant reserves the first UNION position and ORDER BY 2 follows both second-column sources"
+    },
+    {
+      "id": "insert_union_unnamed_expressions",
+      "file": "cases/insert_union_unnamed_expressions.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.current_orders", "ods.archived_orders"],
+      "outputTables": ["mart.order_rollup"],
+      "columnLineage": [
+        {"target": "mart.order_rollup.amount", "sources": ["ods.current_orders.amount", "ods.archived_orders.total", "ods.archived_orders.adjustment"]},
+        {"target": "mart.order_rollup.status", "sources": ["ods.current_orders.status"]}
+      ],
+      "description": "Unnamed expressions and a constant preserve explicit INSERT target positions"
+    },
+    {
+      "id": "cte_union_scalar_position",
+      "file": "cases/cte_union_scalar_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.payments", "ods.current_orders", "ods.archived_orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "payment", "sources": ["ods.payments.amount", "ods.archived_orders.amount"]},
+        {"target": "order_id", "sources": ["ods.current_orders.id", "ods.archived_orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.current_orders.id"},
+        {"type": "ORDER_BY", "column": "ods.archived_orders.id"}
+      ],
+      "description": "A scalar subquery contributes one UNION output and CTE aliases preserve both positions"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",
@@ -1987,6 +2031,10 @@
           "sources": [
             "employees.title"
           ]
+        },
+        {
+          "target": "path",
+          "sources": ["employees.name"]
         }
       ],
       "columnUsages": [
