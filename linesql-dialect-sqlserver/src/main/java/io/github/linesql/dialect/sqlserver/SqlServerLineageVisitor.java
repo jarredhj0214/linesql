@@ -20,6 +20,7 @@ import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1147,6 +1148,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitExternalModelStmt(SqlServerParser.ExternalModelStmtContext ctx) {
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitScriptControlStmt(SqlServerParser.ScriptControlStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         SqlServerParser.QueryContext cursorQuery = ctx.scriptControlStatement().cursorQuery;
@@ -1295,6 +1302,43 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     public Void visitTemporalTableName(SqlServerParser.TemporalTableNameContext ctx) {
         TableRef table = tableRef(ctx.multipartIdentifier());
         addInputTable(table, ctx.tableAlias(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitGenerateChunksRelation(SqlServerParser.GenerateChunksRelationContext ctx) {
+        List<SourceColumn> sources = sourceColumns(ctx.textSource);
+        if (ctx.chunkSize != null) {
+            sources.addAll(sourceColumns(ctx.chunkSize));
+        }
+        if (ctx.overlap != null) {
+            sources.addAll(sourceColumns(ctx.overlap));
+        }
+        List<ColumnRef> chunkSources = columnRefs(sources);
+        if (chunkSources == null) {
+            chunkSources = Collections.emptyList();
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, chunkSources);
+        if (ctx.setId != null) {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.setId));
+        }
+
+        List<String> names = new ArrayList<>(Arrays.asList("chunk", "chunk_order", "chunk_offset", "chunk_length"));
+        String setId = ctx.setId == null ? "0" : ctx.setId.getText();
+        if (!"0".equals(setId) && !"NULL".equalsIgnoreCase(setId)) {
+            names.add("chunk_set_id");
+        }
+        List<String> aliases = tableColumnAliases(ctx.tableAlias());
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int index = 0; index < names.size(); index++) {
+            String name = index < aliases.size() ? aliases.get(index) : names.get(index);
+            columns.put(name, "chunk_set_id".equals(names.get(index)) ? Collections.emptyList() : chunkSources);
+        }
+        String alias = tableAlias(ctx.tableAlias());
+        String relation = (alias == null ? "ai_generate_chunks" : alias).toLowerCase(Locale.ROOT);
+        documentTableRelations.add(relation);
+        derivedColumnLineage.put(relation, columns);
+        addDerivedReference(relation, ctx.tableAlias());
         return null;
     }
 

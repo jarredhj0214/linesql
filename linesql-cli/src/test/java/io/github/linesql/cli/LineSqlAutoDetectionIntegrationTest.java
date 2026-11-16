@@ -347,6 +347,16 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsSqlServerExternalModelsAndEmbeddingSyntax() {
+        assertDialect(SqlDialect.SQLSERVER, "SELECT AI_GENERATE_EMBEDDINGS(body USE MODEL encode_text"
+                + " PARAMETERS @settings) AS embedding FROM dbo.documents");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT chunk FROM AI_GENERATE_CHUNKS("
+                + "SOURCE = @text, CHUNK_TYPE = FIXED, CHUNK_SIZE = 16)");
+        assertDialect(SqlDialect.SQLSERVER, "DROP EXTERNAL MODEL encode_text");
+        assertDialect(SqlDialect.SPARK, "SELECT 'AI_GENERATE_EMBEDDINGS(x USE MODEL m)' AS example");
+    }
+
+    @Test
     public void distinguishesSqlServerAndOracleVectorSyntax() {
         assertDialect(SqlDialect.SQLSERVER, "CREATE VECTOR INDEX vec_idx ON dbo.docs (vec)"
                 + " WITH (METRIC = 'cosine', TYPE = 'DiskANN')");

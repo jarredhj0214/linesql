@@ -7247,6 +7247,130 @@
         }
       ],
       "description": "SQL Server DiskANN index captures its table and vector column"
+    },
+    {
+      "id": "insert_generate_chunk_embeddings",
+      "file": "cases/insert_generate_chunk_embeddings.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dbo.documents"
+      ],
+      "outputTables": [
+        "dbo.document_vectors"
+      ],
+      "columnLineage": [
+        {
+          "target": "dbo.document_vectors.document_id",
+          "sources": [
+            "dbo.documents.id"
+          ]
+        },
+        {
+          "target": "dbo.document_vectors.embedding",
+          "sources": [
+            "dbo.documents.body",
+            "dbo.documents.chunk_size",
+            "dbo.documents.overlap_pct",
+            "dbo.documents.model_options"
+          ]
+        },
+        {
+          "target": "dbo.document_vectors.start_at",
+          "sources": [
+            "dbo.documents.body",
+            "dbo.documents.chunk_size",
+            "dbo.documents.overlap_pct"
+          ]
+        },
+        {
+          "target": "dbo.document_vectors.group_id",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.documents.body"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.documents.chunk_size"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.documents.overlap_pct"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.documents.body"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.documents.chunk_size"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.documents.overlap_pct"
+        }
+      ],
+      "description": "SQL Server chunk aliases resolve through embeddings and positional INSERT targets"
+    },
+    {
+      "id": "select_generate_chunks_constant_star",
+      "file": "cases/select_generate_chunks_constant_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "chunk",
+          "sources": []
+        },
+        {
+          "target": "chunk_order",
+          "sources": []
+        },
+        {
+          "target": "chunk_offset",
+          "sources": []
+        },
+        {
+          "target": "chunk_length",
+          "sources": []
+        }
+      ],
+      "columnUsages": [],
+      "description": "SQL Server constant chunking exposes generated names and omits the disabled chunk set identifier"
+    },
+    {
+      "id": "create_external_embedding_model",
+      "file": "cases/create_external_embedding_model.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server external model creation is metadata control"
+    },
+    {
+      "id": "alter_external_embedding_model",
+      "file": "cases/alter_external_embedding_model.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server external model options accept JSON parameter literals"
+    },
+    {
+      "id": "drop_external_embedding_model",
+      "file": "cases/drop_external_embedding_model.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "SQL Server external model removal is metadata control"
     }
   ]
 }

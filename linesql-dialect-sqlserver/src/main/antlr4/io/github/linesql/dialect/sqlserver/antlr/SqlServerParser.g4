@@ -54,6 +54,7 @@ statement
     | transactionStatement                                           #transactionStmt
     | backupRestoreStatement                                         #backupRestoreStmt
     | dbccStatement                                                  #dbccStmt
+    | externalModelStatement                                         #externalModelStmt
     | scriptControlStatement                                         #scriptControlStmt
     | grantStatement                                                 #grantStmt
     | revokeStatement                                                #revokeStmt
@@ -164,6 +165,10 @@ relation
 
 relationPrimary
     : multipartIdentifier FOR SYSTEM_TIME temporalTablePeriod tableHint? tableAlias tableSampleClause? tableHint? #temporalTableName
+    | AI_GENERATE_CHUNKS LPAREN SOURCE EQ textSource=expression COMMA CHUNK_TYPE EQ FIXED
+      (COMMA CHUNK_SIZE EQ chunkSize=expression)? (COMMA OVERLAP EQ overlap=expression)?
+      (COMMA ENABLE_CHUNK_SET_ID EQ setId=expression)? RPAREN tableAlias
+                                                                      #generateChunksRelation
     | VECTOR_SEARCH LPAREN TABLE EQ multipartIdentifier sourceAlias=tableAlias
       COMMA COLUMN EQ identifier COMMA SIMILAR_TO EQ queryVector=expression
       COMMA METRIC EQ string (COMMA TOP_N EQ number)? RPAREN resultAlias=tableAlias
@@ -354,6 +359,8 @@ primaryExpression
     | TRY_CAST LPAREN expression AS dataType RPAREN                  #tryCastExpr
     | CONVERT LPAREN dataType COMMA expression (COMMA expression)? RPAREN #convertExpr
     | TRY_CONVERT LPAREN dataType COMMA expression (COMMA expression)? RPAREN #tryConvertExpr
+    | AI_GENERATE_EMBEDDINGS LPAREN expression USE MODEL multipartIdentifier
+      (PARAMETERS expression)? RPAREN                                 #generateEmbeddingsExpression
     | JSON_ARRAYAGG LPAREN expression jsonAggregateOrderBy? jsonNullClause?
       (RETURNING JSON)? RPAREN                                       #jsonArrayAggregate
     | JSON_OBJECTAGG LPAREN expression COLON expression jsonNullClause?
@@ -496,6 +503,12 @@ assignment
     ;
 
 // ============ DDL Statements ============
+
+externalModelStatement
+    : CREATE EXTERNAL MODEL identifier (AUTHORIZATION identifier)? indexOptionClause
+    | ALTER EXTERNAL MODEL identifier SET LPAREN indexOptionList RPAREN
+    | DROP EXTERNAL MODEL identifier
+    ;
 
 createIndexStatement
     : CREATE UNIQUE? (CLUSTERED | NONCLUSTERED)? COLUMNSTORE? INDEX multipartIdentifier
@@ -1042,6 +1055,8 @@ nonReservedKeyword
     | DEALLOCATE | DYNAMIC | ENCRYPTION | FOREIGN | GLOBAL | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | JSON_ARRAYAGG | JSON_OBJECTAGG | RETURNING | ABSENT | KEY | KEYSET | LIKE | LIMIT | LOCAL | LOG | LOGIN | LOOP | HASH | REMOTE | MASTER | MAXDOP | MEMBER | NOLOCK | NONCLUSTERED | NULL | OFF | OPEN | OPTION | OPTIMIZE
     | ABSOLUTE | CLOSE | CURSOR | DENY | FAST_FORWARD | FETCH | FIRST | LAST | INSENSITIVE | OPTIMISTIC | SCROLL_LOCKS | TYPE_WARNING | FOR | FORWARD_ONLY | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PASSWORD | PERCENT_KEYWORD | POLICY | PREDICATE | PRIOR | READ_ONLY | RELATIVE | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
     | AFTER | CATCH | CONTAINSTABLE | CUBE | DELAY | FREETEXTTABLE | FUNCTION | KILL | PERSISTED | PRIMARY | PRINT | PROC | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLE | ROLLBACK | SAVE | SCHEMA | SCOPED | SECRET | SECURITY | SEQUENCE | SET | SETS | SHOW | SOURCE | STATE | STATISTICS | STATUSONLY | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TIME | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | USER | VALUE | VALUES | VIEW | WAITFOR
+    | AI_GENERATE_EMBEDDINGS | AI_GENERATE_CHUNKS | MODEL | PARAMETERS | AUTHORIZATION
+    | CHUNK_TYPE | CHUNK_SIZE | OVERLAP | ENABLE_CHUNK_SET_ID | FIXED
     | VECTOR | VECTOR_SEARCH | SIMILAR_TO | METRIC | TOP_N | APPROXIMATE
     | CONVERT | SCROLL | STATIC | SYMMETRIC
     | UNIQUE | WITHIN | XML | XMLNAMESPACES

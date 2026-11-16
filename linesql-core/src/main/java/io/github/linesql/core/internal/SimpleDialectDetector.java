@@ -83,6 +83,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern SQL_SERVER_AI_MODEL = Pattern.compile(
+            "^\\s*(?:create|alter|drop)\\s+external\\s+model\\b"
+                    + "|\\bai_generate_chunks\\s*\\(\\s*source\\s*="
+                    + "|(?s)\\bai_generate_embeddings\\s*\\([^;]*?\\buse\\s+model\\b");
     private static final Pattern SQL_SERVER_VECTOR_QUERY = Pattern.compile(
             "\\bvector_search\\s*\\(\\s*table\\s*=|\\btop\\s*(?:\\([^)]*\\)|[0-9]+)\\s+with\\s+approximate\\b");
     private static final Pattern CREATE_VECTOR_INDEX = Pattern.compile("^\\s*create\\s+vector\\s+index\\b");
@@ -443,6 +447,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 + "(?:\\bperiod\\s+for\\s+system_time\\b|\\bsystem_versioning\\s*=).*")
                 || sqlServerTemporalQuery) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server system-versioned temporal syntax"));
+        } else if (SQL_SERVER_AI_MODEL.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server external model or embedding syntax"));
         } else if (SQL_SERVER_VECTOR_QUERY.matcher(unquotedSyntax).find()
                 || (CREATE_VECTOR_INDEX.matcher(unquotedSyntax).find()
                     && !ORACLE_VECTOR_SCHEMA.matcher(unquotedSyntax).find())) {
