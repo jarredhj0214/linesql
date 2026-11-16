@@ -6244,6 +6244,26 @@
       ],
       "compatibilityMode": "mysql",
       "description": "OceanBase MySQL mode retains both lexical scopes for a scalar projection"
+    },
+    {
+      "id": "oracle_mode_full_using_key_with_chained_on",
+      "file": "cases/oracle_mode_full_using_key_with_chained_on.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.shipments", "ods.lookup"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.orders.order_id", "ods.shipments.order_id"]},
+        {"target": "label", "sources": ["ods.lookup.label"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"},
+        {"type": "JOIN_ON", "column": "ods.lookup.source_key"},
+        {"type": "WHERE", "column": "ods.orders.order_id"},
+        {"type": "WHERE", "column": "ods.shipments.order_id"}
+      ],
+      "compatibilityMode": "oracle",
+      "description": "OceanBase Oracle mode traces a full join key through a second join and filter"
     }
   ]
 }

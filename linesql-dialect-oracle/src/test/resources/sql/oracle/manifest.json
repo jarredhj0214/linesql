@@ -5712,6 +5712,58 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "FORCE PRESERVE drops a domain without guessing dependent tables"
+    },
+    {
+      "id": "select_full_using_key_with_chained_on",
+      "file": "cases/select_full_using_key_with_chained_on.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.shipments", "ods.lookup"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.orders.order_id", "ods.shipments.order_id"]},
+        {"target": "label", "sources": ["ods.lookup.label"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"},
+        {"type": "JOIN_ON", "column": "ods.lookup.source_key"},
+        {"type": "WHERE", "column": "ods.orders.order_id"},
+        {"type": "WHERE", "column": "ods.shipments.order_id"}
+      ],
+      "description": "A full join key traces to both sides in the projection, subsequent join and filter"
+    },
+    {
+      "id": "select_right_using_derived_key",
+      "file": "cases/select_right_using_derived_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.shipments", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.shipments.external_id"]},
+        {"target": "carrier", "sources": ["ods.shipments.carrier"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.external_id"},
+        {"type": "ORDER_BY", "column": "ods.shipments.external_id"}
+      ],
+      "description": "A right join follows its retained key through a derived projection"
+    },
+    {
+      "id": "insert_using_join_key_by_position",
+      "file": "cases/insert_using_join_key_by_position.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.shipments"],
+      "outputTables": ["mart.order_status"],
+      "columnLineage": [
+        {"target": "mart.order_status.joined_id", "sources": ["ods.orders.order_id"]},
+        {"target": "mart.order_status.status", "sources": ["ods.orders.status"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"}
+      ],
+      "description": "A left join key keeps the left value through a positional insert"
     }
   ]
 }

@@ -436,6 +436,7 @@ Implemented OceanBase scenarios:
 | Oracle mode SAMPLE table clause | `select ... from t sample (...)`, `sample block (...) seed (...)` | `oracle_mode_sample_table_source`, `oracle_mode_sample_block_seed_table_source` |
 | Oracle mode table function, SQL/JSON, nested derived, recursive CTE, and lateral relation | `from table(app.fn(...)) f`, `join table(app.fn(t.c)) f`, `cross/outer apply table(app.fn(t.c)) f`, `json_value(payload, '$.id')`, `json_query(payload, '$.items')`, `json_exists(payload, '$.id')`, `select q.c from (select p.c from (select a as c from ods.s) p) q`, `with q(id, parent_id) as (select ... union all select ... from q) select ...`, `from xmltable(... passing t.c columns c number path 'c') x`, `cross join lateral (select ... from t where ...) q` | `oracle_mode_table_function_relation`, `oracle_mode_json_scalar_function_lineage`, `oracle_mode_nested_derived_query_column_projection`, `oracle_mode_recursive_cte_column_projection`, `oracle_mode_xml_table_relation`, `oracle_mode_lateral_inline_view`, `oracle_mode_join_table_function_relation`, `oracle_mode_cross_apply_table_function`, `oracle_mode_outer_apply_table_function` |
 | Oracle mode correlated scalar projections | A scalar subquery resolves outer columns in its predicate and keeps inner outputs local. | `oracle_mode_correlated_scalar_projection_scope` |
+| Oracle mode merged JOIN USING keys | A full outer join traces both sources through later predicates and projection. | `oracle_mode_full_using_key_with_chained_on` |
 | Oracle mode partition/subpartition table extension | `select ... from t partition(...)`, `select ... from t subpartition(...)` | `oracle_mode_partition_table_source`, `oracle_mode_subpartition_table_source`, `oracle_mode_partition_for_value_source` |
 | Oracle mode INSERT through DBLink | `insert into ods.remote_orders@remote_dw (...) values (...)` | `oracle_mode_insert_dblink_values` |
 | Oracle mode INSERT SELECT through DBLink | `insert into ods.remote_orders@remote_dw (...) select ... from ods.s` | `oracle_mode_insert_dblink_select` |
@@ -878,6 +879,7 @@ Implemented Oracle column-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Subqueries in SELECT projections | Scalar and IN subqueries keep inner projections scoped. Predicates inside them preserve both local and enclosing column references. | `select_correlated_scalar_projection_scope`, `select_in_subquery_projection_scope` |
+| JOIN USING output keys | Full outer keys depend on both inputs. A left or right outer join carries the retained side through CTEs, filters, subsequent ON predicates and positional writes. | `select_full_using_key_with_chained_on`, `select_right_using_derived_key`, `insert_using_join_key_by_position` |
 | Direct single-table projection | `select id as user_id, name from ods.users` | `select_basic` |
 | Data dictionary views | `select ... from sys.dba_tables where ...`, `select ... from sys.all_tab_columns where ...` | `data_dictionary_dba_tables`, `data_dictionary_all_tab_columns` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |

@@ -15,6 +15,7 @@ import org.antlr.v4.runtime.misc.Interval;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -54,6 +55,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private Map<String, List<SourceColumn>> namedWindowSources = new LinkedHashMap<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
+    private final Map<OracleParser.RelationContext, Map<String, List<ColumnRef>>> relationJoinKeys =
+            new IdentityHashMap<>();
+    private Map<String, List<ColumnRef>> usingJoinKeys = Collections.emptyMap();
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
@@ -963,6 +967,15 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitRelationList(OracleParser.RelationListContext ctx) {
+        visitChildren(ctx);
+        usingJoinKeys = ctx.relation().size() == 1
+                ? relationJoinKeys.getOrDefault(ctx.relation(0), Collections.emptyMap())
+                : Collections.emptyMap();
+        return null;
+    }
+
+    @Override
     public Void visitRelation(OracleParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
@@ -972,7 +985,10 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             visit(ctx.matchRecognizeClause());
             registerMatchRecognizeDerivedRelation(ctx.relationPrimary(), ctx.matchRecognizeClause());
         }
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>(nestedJoinKeys(
+                ctx.relationPrimary(), ctx.pivotClause(), ctx.matchRecognizeClause()));
         for (OracleParser.JoinRelationContext join : ctx.joinRelation()) {
+            int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
             registerPivotDerivedRelation(join.relationPrimary(), join.pivotClause());
             registerUnpivotDerivedRelation(join.relationPrimary(), join.pivotClause());
@@ -980,11 +996,77 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 visit(join.matchRecognizeClause());
                 registerMatchRecognizeDerivedRelation(join.relationPrimary(), join.matchRecognizeClause());
             }
-            if (join.joinCriteria() != null) {
-                collectJoinColumnUsages(join.joinCriteria(), relationStart);
+
+            Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(
+                    join.relationPrimary(), join.pivotClause(), join.matchRecognizeClause());
+            OracleParser.JoinCriteriaContext criteria = join.joinCriteria();
+            if (criteria != null && criteria.identifierList() != null) {
+                Map<String, List<ColumnRef>> merged = mergedUsingKeys(join, keys, rightKeys, relationStart, rightStart);
+                keys.putAll(rightKeys);
+                keys.putAll(merged);
+            } else {
+                keys.putAll(rightKeys);
+                if (criteria != null) {
+                    Map<String, List<ColumnRef>> enclosingKeys = usingJoinKeys;
+                    usingJoinKeys = keys;
+                    try {
+                        addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(criteria.expression()));
+                    } finally {
+                        usingJoinKeys = enclosingKeys;
+                    }
+                }
             }
         }
+        if (!keys.isEmpty()) {
+            relationJoinKeys.put(ctx, keys);
+        }
         return null;
+    }
+
+    private Map<String, List<ColumnRef>> nestedJoinKeys(OracleParser.RelationPrimaryContext relation,
+                                                        List<OracleParser.PivotClauseContext> pivots,
+                                                        OracleParser.MatchRecognizeClauseContext pattern) {
+        if (pivots.isEmpty() && pattern == null && relation instanceof OracleParser.AliasedRelationContext) {
+            return relationJoinKeys.getOrDefault(
+                    ((OracleParser.AliasedRelationContext) relation).relation(), Collections.emptyMap());
+        }
+        return Collections.emptyMap();
+    }
+
+    private Map<String, List<ColumnRef>> mergedUsingKeys(OracleParser.JoinRelationContext join,
+                                                         Map<String, List<ColumnRef>> leftKeys,
+                                                         Map<String, List<ColumnRef>> rightKeys,
+                                                         int leftStart, int rightStart) {
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>();
+        OracleParser.JoinTypeContext type = join.joinType();
+        for (String name : identifierNames(join.joinCriteria().identifierList())) {
+            String key = name.toLowerCase(Locale.ROOT);
+            List<ColumnRef> left = usingKeySources(leftKeys, leftStart, rightStart, name, key);
+            List<ColumnRef> right = usingKeySources(rightKeys, rightStart, visibleRelations.size(), name, key);
+            List<ColumnRef> both = LineageModelUtils.mergeColumnRefs(left, right);
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, both);
+            List<ColumnRef> sources = both;
+            if (type != null && type.LEFT() != null) {
+                sources = left;
+            } else if (type != null && type.RIGHT() != null) {
+                sources = right;
+            }
+            keys.put(key, sources);
+        }
+        return keys;
+    }
+
+    private List<ColumnRef> usingKeySources(Map<String, List<ColumnRef>> keys, int start, int end,
+                                           String column, String key) {
+        List<ColumnRef> refs = keys.get(key);
+        if (refs != null) {
+            return refs;
+        }
+        refs = new ArrayList<>();
+        for (int i = start; i < end; i++) {
+            refs.addAll(usingColumnRefs(visibleRelations.get(i), column));
+        }
+        return refs;
     }
 
     private void registerMatchRecognizeDerivedRelation(
@@ -1801,14 +1883,6 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         addUsingColumnUsages(ctx, 0);
     }
 
-    private void collectJoinColumnUsages(OracleParser.JoinCriteriaContext ctx, int relationStart) {
-        if (ctx.expression() != null) {
-            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
-        } else {
-            addUsingColumnUsages(ctx.identifierList(), relationStart);
-        }
-    }
-
     private void addUsingColumnUsages(OracleParser.IdentifierListContext ctx, int relationStart) {
         List<VisibleRelation> relations = visibleRelationsSince(relationStart);
         if (ctx == null || relations.size() < 2) {
@@ -1965,6 +2039,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            List<ColumnRef> usingRefs = sourceColumn.qualifier == null
+                    ? usingJoinKeys.get(sourceColumn.name.toLowerCase(Locale.ROOT)) : null;
+            if (usingRefs != null) {
+                refs.addAll(usingRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
