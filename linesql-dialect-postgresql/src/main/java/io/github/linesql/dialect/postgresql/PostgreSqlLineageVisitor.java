@@ -2410,9 +2410,32 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitGroupByClause(PostgreSqlParser.GroupByClauseContext ctx) {
         for (PostgreSqlParser.GroupByItemContext item : ctx.groupByItem()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(item));
+            addGroupingColumnUsages(item);
         }
         return visitChildren(ctx);
+    }
+
+    private void addGroupingColumnUsages(PostgreSqlParser.GroupByItemContext item) {
+        if (item.expression() != null) {
+            addGroupingExpressionUsage(item.expression());
+        } else if (item.expressionList() != null) {
+            for (PostgreSqlParser.ExpressionContext expression : item.expressionList().expression()) {
+                addGroupingExpressionUsage(expression);
+            }
+        } else {
+            for (PostgreSqlParser.GroupByItemContext element : item.groupByItem()) {
+                addGroupingColumnUsages(element);
+            }
+        }
+    }
+
+    private void addGroupingExpressionUsage(PostgreSqlParser.ExpressionContext expression) {
+        int ordinal = outputOrdinal(expression.getText());
+        if (ordinal >= 0) {
+            addOrdinalColumnUsages(ColumnUsageType.GROUP_BY, ordinal);
+        } else {
+            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+        }
     }
 
     @Override
@@ -2546,7 +2569,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 || !valuesQueryRows(query).isEmpty();
         for (PostgreSqlParser.SortItemContext sortItem : ctx.sortItem()) {
             String sortKey = sortItem.expression().getText();
-            int ordinal = sortOrdinal(sortKey);
+            int ordinal = outputOrdinal(sortKey);
             if (outputOrder) {
                 List<ColumnLineage> lineages = result.getColumnLineage();
                 if (ordinal >= 0 && ordinal < lineages.size()
@@ -2556,12 +2579,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                     LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
                 }
             } else if (ordinal >= 0) {
-                for (Projection projection : projections) {
-                    if (projection.ordinal == ordinal) {
-                        addColumnUsages(ColumnUsageType.ORDER_BY, projection.sourceColumns);
-                        break;
-                    }
-                }
+                addOrdinalColumnUsages(ColumnUsageType.ORDER_BY, ordinal);
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
             }
@@ -2594,7 +2612,19 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return items.size();
     }
 
-    private static int sortOrdinal(String expression) {
+    private void addOrdinalColumnUsages(ColumnUsageType type, int ordinal) {
+        if (ordinal >= firstUnknownStarOrdinal) {
+            return;
+        }
+        for (Projection projection : projections) {
+            if (projection.ordinal == ordinal) {
+                addColumnUsages(type, projection.sourceColumns);
+                return;
+            }
+        }
+    }
+
+    private static int outputOrdinal(String expression) {
         try {
             return Integer.parseInt(expression) - 1;
         } catch (NumberFormatException ignored) {

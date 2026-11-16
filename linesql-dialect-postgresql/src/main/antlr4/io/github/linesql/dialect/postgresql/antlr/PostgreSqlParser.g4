@@ -277,11 +277,11 @@ groupByClause
     ;
 
 groupByItem
-    : LPAREN expressionList? RPAREN
-    | expression
-    | ROLLUP LPAREN groupByItem (COMMA groupByItem)* RPAREN
+    : ROLLUP LPAREN groupByItem (COMMA groupByItem)* RPAREN
     | CUBE LPAREN groupByItem (COMMA groupByItem)* RPAREN
     | GROUPING SETS LPAREN groupByItem (COMMA groupByItem)* RPAREN
+    | LPAREN expressionList? RPAREN
+    | expression
     ;
 
 havingClause

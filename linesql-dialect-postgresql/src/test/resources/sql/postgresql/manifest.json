@@ -6616,6 +6616,107 @@
       ],
       "columnUsages": [],
       "description": "A connector string used as data preserves PostgreSQL default conflict handling"
+    },
+    {
+      "id": "select_grouping_sets_output_ordinals",
+      "file": "cases/select_grouping_sets_output_ordinals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "customer_id",
+          "sources": [
+            "sales.orders.customer_id"
+          ]
+        },
+        {
+          "target": "channel_key",
+          "sources": [
+            "sales.orders.channel"
+          ]
+        },
+        {
+          "target": "total",
+          "sources": [
+            "sales.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "sales.orders.customer_id"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "sales.orders.channel"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "sales.orders.channel"
+        }
+      ],
+      "description": "Grouping sets and sorting resolve ordinals through their SELECT output expressions"
+    },
+    {
+      "id": "select_rollup_known_wildcard_ordinals",
+      "file": "cases/select_rollup_known_wildcard_ordinals.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "source.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "channel",
+          "sources": [
+            "source.events.channel"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "source.events.region"
+          ]
+        },
+        {
+          "target": "event_count",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "source.events.channel"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "source.events.region"
+        }
+      ],
+      "description": "ROLLUP positions resolve through a wildcard with known column order"
+    },
+    {
+      "id": "select_order_unresolved_wildcard_ordinal",
+      "file": "cases/select_order_unresolved_wildcard_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "source.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "status_key",
+          "sources": [
+            "source.events.status"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A wildcard of unknown width cannot position a later explicit projection"
     }
   ]
 }
