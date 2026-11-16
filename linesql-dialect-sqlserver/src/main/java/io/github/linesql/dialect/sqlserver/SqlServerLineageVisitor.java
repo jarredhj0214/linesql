@@ -22,6 +22,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -82,6 +83,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Map<SqlServerParser.QueryContext, LineageResult> subqueryResults = new IdentityHashMap<>();
+    private boolean correlatedScope;
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
@@ -1358,9 +1361,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, distanceSources);
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         columns.put("distance", distanceSources);
-        tableAliases.put(relation, table);
         derivedColumnLineage.put(relation, columns);
         addDerivedReference(relation, ctx.resultAlias);
+        tableAliases.put(relation, table);
         return null;
     }
 
@@ -1695,26 +1698,43 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(SqlServerParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null && positionalInsertSelect == null) {
+        addSubqueryInputs(ctx.query(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitExistsExpr(SqlServerParser.ExistsExprContext ctx) {
+        addSubqueryInputs(ctx.query(), true);
+        return null;
+    }
+
+    @Override
+    public Void visitPredicate(SqlServerParser.PredicateContext ctx) {
+        if (ctx.query() == null) {
             return visitChildren(ctx);
         }
-        LineageResult inner = lineageForQuery(ctx.query());
-        for (TableRef table : inner.getInputTables()) {
-            addInputTable(table, false);
-        }
-        LineageModelUtils.mergeColumnUsages(result, inner);
+        addSubqueryInputs(ctx.query(), true);
         return null;
     }
 
     @Override
     public Void visitQuerySpecification(SqlServerParser.QuerySpecificationContext ctx) {
-        if (ctx.selectClause() != positionalInsertSelect || ctx.fromClause() == null) {
+        boolean positional = ctx.selectClause() == positionalInsertSelect;
+        if (ctx.fromClause() == null || (!positional && !containsSubquery(ctx.selectClause()))) {
             return visitChildren(ctx);
         }
+        Set<TableRef> priorInputs = new LinkedHashSet<>(inputTables);
         visit(ctx.fromClause());
-        for (int i = 0; i < ctx.getChildCount(); i++) {
-            if (ctx.getChild(i) != ctx.fromClause()) {
-                visit(ctx.getChild(i));
+        Set<TableRef> scopedInputs = new LinkedHashSet<>(inputTables);
+        if (!positional) {
+            inputTables.retainAll(priorInputs);
+        }
+        for (ParseTree child : ctx.children) {
+            if (child == ctx.fromClause()) {
+                inputTables.addAll(scopedInputs);
+                result.setInputTables(new ArrayList<>(inputTables));
+            } else {
+                visit(child);
             }
         }
         return null;
@@ -1927,6 +1947,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
         }
+        if (visibleRelation && correlatedScope) {
+            derivedAliases.remove(table.getName().toLowerCase(Locale.ROOT));
+            if (alias != null) {
+                derivedAliases.remove(alias.toLowerCase(Locale.ROOT));
+            }
+        }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
     }
@@ -1942,6 +1968,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             derivedAliases.put(alias.toLowerCase(Locale.ROOT), derivedName);
         }
         addDerivedInputTables(derivedName);
+        if (correlatedScope) {
+            tableAliases.remove(derivedName);
+            if (alias != null) {
+                tableAliases.remove(alias.toLowerCase(Locale.ROOT));
+            }
+        }
         refreshColumnLineage();
     }
 
@@ -1962,6 +1994,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private void registerDerivedRelation(String name, SqlServerParser.QueryContext query, List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
         SqlServerLineageVisitor relationVisitor = new SqlServerLineageVisitor(relationResult);
+        relationVisitor.correlatedScope = true;
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -2015,6 +2048,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
+        queryVisitor.correlatedScope = correlatedScope;
         queryVisitor.setBranchSelect = explicitBranchSelect(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
@@ -2444,6 +2478,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private void addSubqueryInputs(SqlServerParser.QueryContext query, boolean includeColumnUsages) {
         LineageResult nested = lineageForQuery(query);
         inputTables.addAll(nested.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
         if (includeColumnUsages) {
             LineageModelUtils.mergeColumnUsages(result, nested);
         }
@@ -2471,49 +2506,21 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private LineageResult lineageForQuery(SqlServerParser.QueryContext query) {
+        return subqueryResults.computeIfAbsent(query, this::analyzeSubquery);
+    }
+
+    private LineageResult analyzeSubquery(SqlServerParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         SqlServerLineageVisitor queryVisitor = new SqlServerLineageVisitor(queryResult);
+        queryVisitor.correlatedScope = true;
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
-        queryVisitor.derivedReferences.addAll(derivedReferences);
+        queryVisitor.setBranchSelect = explicitBranchSelect(query.queryTerm());
         queryVisitor.visit(query);
-        queryVisitor.collectTopLevelQueryProjections(query);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
-    }
-
-    private void collectTopLevelQueryProjections(SqlServerParser.QueryContext query) {
-        if (!projections.isEmpty()) {
-            return;
-        }
-        SqlServerParser.QuerySpecificationContext specification = topLevelQuerySpecification(query);
-        if (specification == null || specification.selectClause() == null) {
-            return;
-        }
-        List<SqlServerParser.SelectItemContext> items = specification.selectClause().selectItemList().selectItem();
-        for (int i = 0; i < items.size(); i++) {
-            SqlServerParser.SelectItemContext item = items.get(i);
-            if (item instanceof SqlServerParser.SelectExpressionContext) {
-                Projection projection = projection((SqlServerParser.SelectExpressionContext) item, i, false);
-                if (projection != null) {
-                    projections.add(projection);
-                }
-            }
-        }
-    }
-
-    private static SqlServerParser.QuerySpecificationContext topLevelQuerySpecification(SqlServerParser.QueryContext query) {
-        if (!(query.queryTerm() instanceof SqlServerParser.QueryTermDefaultContext)) {
-            return null;
-        }
-        SqlServerParser.QueryPrimaryContext primary =
-                ((SqlServerParser.QueryTermDefaultContext) query.queryTerm()).queryPrimary();
-        if (!(primary instanceof SqlServerParser.QueryPrimaryDefaultContext)) {
-            return null;
-        }
-        return ((SqlServerParser.QueryPrimaryDefaultContext) primary).querySpecification();
     }
 
     private Projection projection(SqlServerParser.SelectExpressionContext ctx, int ordinal, boolean positionalInsert) {
@@ -2574,48 +2581,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private void addScalarSubquerySourceColumns(SqlServerParser.QueryContext query, Set<SourceColumn> columns) {
-        LineageResult subResult = lineageForQuery(query);
-        int before = columns.size();
-        for (ColumnLineage lineage : subResult.getColumnLineage()) {
+        for (ColumnLineage lineage : lineageForQuery(query).getColumnLineage()) {
             for (ColumnRef source : lineage.getSources()) {
                 if (source.getTable() != null) {
                     columns.add(SourceColumn.resolved(source));
                 }
             }
         }
-        if (columns.size() > before) {
-            return;
-        }
-        for (ColumnRef source : scalarSubqueryProjectionRefs(query)) {
-            if (source.getTable() != null) {
-                columns.add(SourceColumn.resolved(source));
-            }
-        }
-    }
-
-    private List<ColumnRef> scalarSubqueryProjectionRefs(SqlServerParser.QueryContext query) {
-        SqlServerLineageVisitor queryVisitor = new SqlServerLineageVisitor(new LineageResult());
-        queryVisitor.cteNames.addAll(cteNames);
-        queryVisitor.tableAliases.putAll(tableAliases);
-        queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
-        queryVisitor.derivedAliases.putAll(derivedAliases);
-        queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.visit(query);
-        SqlServerParser.QuerySpecificationContext specification = topLevelQuerySpecification(query);
-        if (specification == null || specification.selectClause() == null) {
-            return new ArrayList<>();
-        }
-        List<ColumnRef> refs = new ArrayList<>();
-        for (SqlServerParser.SelectItemContext item : specification.selectClause().selectItemList().selectItem()) {
-            if (item instanceof SqlServerParser.SelectExpressionContext) {
-                List<ColumnRef> itemRefs = queryVisitor.columnRefs(
-                        queryVisitor.sourceColumns(((SqlServerParser.SelectExpressionContext) item).expression()));
-                if (itemRefs != null) {
-                    refs.addAll(itemRefs);
-                }
-            }
-        }
-        return refs;
     }
 
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
@@ -2726,11 +2698,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                         collectSourceColumns(child, columns);
                     }
                 }
-                for (ColumnRef source : scalarSubqueryProjectionRefs(predicate.query())) {
-                    if (source.getTable() != null) {
-                        columns.add(SourceColumn.resolved(source));
-                    }
-                }
+                addScalarSubquerySourceColumns(predicate.query(), columns);
                 return;
             }
         }
