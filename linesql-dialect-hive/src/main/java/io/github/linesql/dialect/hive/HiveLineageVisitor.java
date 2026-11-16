@@ -12,6 +12,7 @@ import io.github.linesql.dialect.hive.antlr.HiveParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,6 +33,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     private final Map<String, List<SourceColumn>> generatedColumns = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
+    private HiveParser.SelectClauseContext setBranchSelect;
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
@@ -956,8 +958,9 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitSetOperation(HiveParser.SetOperationContext ctx) {
-        LineageResult leftResult = lineageForQueryTerm(ctx.left);
-        LineageResult rightResult = lineageForQueryTerm(ctx.right);
+        boolean explicitOutput = setOutputWidth(ctx) > 0;
+        LineageResult leftResult = lineageForQueryTerm(ctx.left, explicitOutput);
+        LineageResult rightResult = lineageForQueryTerm(ctx.right, explicitOutput);
         for (TableRef table : leftResult.getInputTables()) {
             addInputTable(table, false);
         }
@@ -1070,6 +1073,19 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitScalarSubquery(HiveParser.ScalarSubqueryContext ctx) {
+        if (setBranchSelect == null) {
+            return visitChildren(ctx);
+        }
+        LineageResult inner = lineageForQuery(ctx.query());
+        for (TableRef table : inner.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, inner);
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(HiveParser.SelectClauseContext ctx) {
         if (ctx.transformClause() != null) {
             return visit(ctx.transformClause());
@@ -1078,7 +1094,12 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         for (int i = 0; i < items.size(); i++) {
             HiveParser.SelectItemContext item = items.get(i);
             if (item instanceof HiveParser.SelectExpressionContext) {
-                Projection projection = projection((HiveParser.SelectExpressionContext) item, i);
+                HiveParser.SelectExpressionContext selected = (HiveParser.SelectExpressionContext) item;
+                Projection projection = projection(selected, i);
+                if (projection == null && ctx == setBranchSelect) {
+                    HiveParser.ExpressionContext expression = selected.expression();
+                    projection = new Projection(sourceColumns(expression), "_c" + i, expression.getText(), i);
+                }
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -1212,11 +1233,19 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(HiveParser.QueryOrganizationContext ctx) {
-        boolean setQuery = ctx.getParent() instanceof HiveParser.QueryContext
-                && ((HiveParser.QueryContext) ctx.getParent()).queryTerm() instanceof HiveParser.SetOperationContext;
+        HiveParser.QueryTermContext term = ctx.getParent() instanceof HiveParser.QueryContext
+                ? ((HiveParser.QueryContext) ctx.getParent()).queryTerm() : null;
+        boolean setQuery = term != null && unwrapQueryTerm(term) instanceof HiveParser.SetOperationContext;
         for (HiveParser.SortItemContext sortItem : ctx.sortItem()) {
             if (setQuery) {
-                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+                String key = sortItem.expression().getText();
+                int ordinal = ctx.sortByItems.contains(sortItem) ? -1 : sortOrdinal(key);
+                List<ColumnLineage> lineages = result.getColumnLineage();
+                if (ordinal >= 0 && ordinal < lineages.size() && lineages.size() == setOutputWidth(term)) {
+                    LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, lineages.get(ordinal).getSources());
+                } else if (ordinal < 0) {
+                    LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(key));
+                }
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
             }
@@ -1330,7 +1359,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         LineageModelUtils.mergeColumnUsages(result, relationResult);
     }
 
-    private LineageResult lineageForQueryTerm(HiveParser.QueryTermContext queryTerm) {
+    private LineageResult lineageForQueryTerm(HiveParser.QueryTermContext queryTerm, boolean explicitOutput) {
         LineageResult queryResult = new LineageResult();
         HiveLineageVisitor queryVisitor = new HiveLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
@@ -1339,9 +1368,64 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.generatedColumns.putAll(generatedColumns);
         queryVisitor.derivedReferences.addAll(derivedReferences);
+        if (explicitOutput) {
+            queryVisitor.setBranchSelect = explicitSelect(unwrapQueryTerm(queryTerm));
+        }
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryResult;
+    }
+
+
+    private static HiveParser.QueryTermContext unwrapQueryTerm(HiveParser.QueryTermContext term) {
+        while (term instanceof HiveParser.QueryTermDefaultContext) {
+            HiveParser.QueryPrimaryContext primary = ((HiveParser.QueryTermDefaultContext) term).queryPrimary();
+            if (!(primary instanceof HiveParser.SubqueryPrimaryContext)) {
+                break;
+            }
+            term = ((HiveParser.SubqueryPrimaryContext) primary).query().queryTerm();
+        }
+        return term;
+    }
+
+    private static int setOutputWidth(HiveParser.QueryTermContext term) {
+        HiveParser.QueryTermContext unwrapped = unwrapQueryTerm(term);
+        if (unwrapped instanceof HiveParser.SetOperationContext) {
+            HiveParser.SetOperationContext operation = (HiveParser.SetOperationContext) unwrapped;
+            int leftWidth = setOutputWidth(operation.left);
+            return leftWidth > 0 && leftWidth == setOutputWidth(operation.right) ? leftWidth : -1;
+        }
+        HiveParser.SelectClauseContext select = explicitSelect(unwrapped);
+        return select == null ? -1 : select.selectItemList().selectItem().size();
+    }
+
+    private static HiveParser.SelectClauseContext explicitSelect(HiveParser.QueryTermContext term) {
+        if (!(term instanceof HiveParser.QueryTermDefaultContext)) {
+            return null;
+        }
+        HiveParser.QueryPrimaryContext primary = ((HiveParser.QueryTermDefaultContext) term).queryPrimary();
+        if (!(primary instanceof HiveParser.QueryPrimaryDefaultContext)) {
+            return null;
+        }
+        HiveParser.SelectClauseContext select =
+                ((HiveParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
+        if (select.selectItemList() == null) {
+            return null;
+        }
+        for (HiveParser.SelectItemContext item : select.selectItemList().selectItem()) {
+            if (!(item instanceof HiveParser.SelectExpressionContext)) {
+                return null;
+            }
+        }
+        return select;
+    }
+
+    private static int sortOrdinal(String key) {
+        try {
+            return Integer.parseInt(key) - 1;
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
@@ -1452,7 +1536,10 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             Projection projection = projections.get(i);
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
-                continue;
+                if (setBranchSelect == null) {
+                    continue;
+                }
+                sources = Collections.emptyList();
             }
             String targetColumn = targetColumn(projection, projection.ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));

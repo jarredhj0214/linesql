@@ -754,6 +754,7 @@ Implemented Oracle table-level lineage scenarios:
 | CREATE VIEW over CTE | `create view ads.v as with q as (...) select ... from q` | `create_view_with_cte` |
 | INSERT OVERWRITE dynamic partition VALUES | `insert overwrite t partition(dt = '2026-08-28') with label ... values (...)` | `insert_overwrite_dynamic_partition_values` |
 | UNION output alias sorting | `UNION ALL … ORDER BY output_alias` resolves sort columns from both branches. | `union_output_alias_order_by` |
+| Hive UNION positions | Default `_cN` outputs preserve constants and unnamed expressions in explicit branches. They carry through CTEs and INSERT target lists. Ordinal `ORDER BY` follows the Hive 2.2+ default. | `union_constant_order_position`, `insert_union_unnamed_expressions`, `cte_union_default_projection_name` |
 | UNION source table propagation | `select a from ods.s1 union all select b from ods.s2` | `union_column_projection` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | DUAL pseudo table | `select sysdate from dual` | `dual_pseudo_table` |

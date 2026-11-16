@@ -2,6 +2,50 @@
   "dialect": "HIVE",
   "cases": [
     {
+      "id": "union_constant_order_position",
+      "file": "cases/union_constant_order_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.current_orders", "ods.archived_orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "_c0", "sources": []},
+        {"target": "amount", "sources": ["ods.current_orders.amount", "ods.archived_orders.total"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.current_orders.amount"},
+        {"type": "ORDER_BY", "column": "ods.archived_orders.total"}
+      ],
+      "description": "Hive UNION reserves constant positions for ORDER BY ordinals"
+    },
+    {
+      "id": "insert_union_unnamed_expressions",
+      "file": "cases/insert_union_unnamed_expressions.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.current_orders", "ods.archived_orders"],
+      "outputTables": ["mart.order_rollup"],
+      "columnLineage": [
+        {"target": "mart.order_rollup.amount", "sources": ["ods.current_orders.amount", "ods.archived_orders.total", "ods.archived_orders.adjustment"]},
+        {"target": "mart.order_rollup.status", "sources": ["ods.current_orders.status"]}
+      ],
+      "description": "Hive INSERT maps unnamed UNION expressions to explicit targets"
+    },
+    {
+      "id": "cte_union_default_projection_name",
+      "file": "cases/cte_union_default_projection_name.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.current_orders", "ods.archived_orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "batch_id", "sources": []},
+        {"target": "amount", "sources": ["ods.current_orders.amount", "ods.archived_orders.total"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.current_orders.amount"},
+        {"type": "ORDER_BY", "column": "ods.archived_orders.total"}
+      ],
+      "description": "A Hive CTE resolves an implicit _cN column without shifting named columns"
+    },
+    {
       "id": "create_iceberg_write_order",
       "file": "cases/create_iceberg_write_order.sql",
       "statementType": "CREATE_TABLE",
