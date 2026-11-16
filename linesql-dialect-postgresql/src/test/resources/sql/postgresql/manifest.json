@@ -792,6 +792,53 @@
       "description": "Set operation ordering uses all branch sources and retains aggregate filters"
     },
     {
+      "id": "select_nullable_boolean_unknown",
+      "file": "cases/select_nullable_boolean_unknown.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "approval_known", "sources": ["ods.events.approved"]},
+        {"target": "unknown", "sources": ["ods.events.unknown"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.approved"}
+      ],
+      "description": "UNKNOWN resolves as SQL null in the predicate and remains a valid column name"
+    },
+    {
+      "id": "select_sql_json_unknown_on_error",
+      "file": "cases/select_sql_json_unknown_on_error.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "scalar_check", "sources": ["ods.events.payload", "ods.events.selector"]},
+        {"target": "has_item", "sources": ["ods.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.payload"},
+        {"type": "WHERE", "column": "ods.events.payload"}
+      ],
+      "description": "JSON_EXISTS and JSON_TABLE EXISTS accept UNKNOWN error handling and retain their inputs"
+    },
+    {
+      "id": "update_unicode_normalization",
+      "file": "cases/update_unicode_normalization.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.contacts", "ods.contacts"],
+      "outputTables": ["mart.contacts"],
+      "columnLineage": [
+        {"target": "mart.contacts.display_name", "sources": ["ods.contacts.raw_name"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.contacts.id"},
+        {"type": "WHERE", "column": "ods.contacts.id"},
+        {"type": "WHERE", "column": "ods.contacts.raw_name"}
+      ],
+      "description": "Unicode forms are syntax, with only actual text input recorded as source lineage"
+    },
+    {
       "id": "select_xml_parse_serialize_document",
       "file": "cases/select_xml_parse_serialize_document.sql",
       "statementType": "SELECT",

@@ -354,6 +354,11 @@ predicate
     | IS NOT? DISTINCT FROM valueExpression
     | IS NOT? JSON (VALUE | SCALAR | ARRAY | OBJECT)? jsonUniqueKeys?
     | IS NOT? DOCUMENT
+    | IS NOT? unicodeNormalForm? NORMALIZED
+    ;
+
+unicodeNormalForm
+    : NFC | NFD | NFKC | NFKD
     ;
 
 valueExpression
@@ -386,6 +391,7 @@ primaryExpression
     | SUBSTRING LPAREN expression FROM expression (FOR expression)? RPAREN #substringExpression
     | TRIM LPAREN ((BOTH | LEADING | TRAILING) expression? FROM)? expression RPAREN #trimExpression
     | OVERLAY LPAREN expression PLACING expression FROM expression (FOR expression)? RPAREN #overlayExpression
+    | NORMALIZE LPAREN expression (COMMA unicodeNormalForm)? RPAREN #normalizeExpression
     | XMLPARSE LPAREN xmlDocumentMode expression RPAREN             #xmlParseExpression
     | XMLSERIALIZE LPAREN xmlDocumentMode expression AS dataType (NO? INDENT)? RPAREN #xmlSerializeExpression
     | XMLEXISTS LPAREN expression PASSING xmlPassingMode? expression xmlPassingMode? RPAREN #xmlExistsExpression
@@ -1442,7 +1448,7 @@ nonReservedKeyword
     | OLD | NEW | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RESET | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMP | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER | ZONE | DISCARD | PLANS
     | CALLED | COST | DEFINER | IMMUTABLE | INOUT | INPUT | INVOKER | LEAKPROOF | OUT | PARALLEL | RESTRICTED | SAFE | SETOF | STABLE | STRICT | SUPPORT | TRANSFORM | UNSAFE | VARIADIC | VOLATILE
     | ATOMIC | RETURN
-    | VIRTUAL | EXPRESSION
+    | VIRTUAL | EXPRESSION | UNKNOWN | NORMALIZE | NORMALIZED | NFC | NFD | NFKC | NFKD
     ;
 
 number

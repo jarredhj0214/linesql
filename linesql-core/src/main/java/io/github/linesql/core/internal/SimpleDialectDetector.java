@@ -75,6 +75,8 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\bpassing\\s+by\\s+ref\\b|\\bby\\s+(?:ref|value)(?:\\s+columns\\b|\\s*\\))"
                     + "|::\\s*(?:pg_catalog\\s*\\.\\s*)?xml\\b");
     private static final Pattern ORACLE_XML_SEQUENCE = Pattern.compile("\\breturning\\s+sequence\\s+by\\s+ref\\b");
+    private static final Pattern POSTGRES_UNICODE_PREDICATE = Pattern.compile(
+            "\\bis\\s+(?:not\\s+)?(?:nfc\\s+|nfd\\s+|nfkc\\s+|nfkd\\s+)?normalized\\b");
     private static final Pattern POSTGRES_TEXT_SEARCH = Pattern.compile(
             "::\\s*(?:pg_catalog\\s*\\.\\s*)?(?:tsvector|tsquery|regconfig)\\b"
                     + "|\\b(?:to_tsvector|(?:plain|phrase|websearch_)?to_tsquery|ts_rank(?:_cd)?|ts_headline)\\s*\\(");
@@ -241,6 +243,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL XML passing mode or cast"));
         } else if (POSTGRES_TEXT_SEARCH.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL text-search function or type"));
+        } else if (POSTGRES_UNICODE_PREDICATE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL Unicode normalization predicate"));
         } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL ROWS FROM relation"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {

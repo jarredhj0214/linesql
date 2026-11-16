@@ -3537,7 +3537,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                         || primary instanceof PostgreSqlParser.XmlSerializeExpressionContext
                         || primary instanceof PostgreSqlParser.XmlExistsExpressionContext
                         || primary instanceof PostgreSqlParser.XmlElementExpressionContext
-                        || primary instanceof PostgreSqlParser.XmlForestExpressionContext) {
+                        || primary instanceof PostgreSqlParser.XmlForestExpressionContext
+                        || primary instanceof PostgreSqlParser.NormalizeExpressionContext) {
                     return primary.getStart().getText().toLowerCase(Locale.ROOT);
                 }
             }

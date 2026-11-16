@@ -319,6 +319,15 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresUnicodePredicateOutsideQuotedText() {
+        LineageResult result = LineSql.parse("SELECT NORMALIZE(name, NFKC) AS clean_name "
+                + "FROM ods.contacts WHERE name IS NOT NFKC NORMALIZED");
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals("name", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.SPARK, "SELECT 'name IS NOT NFKC NORMALIZED' AS message");
+    }
+
+    @Test
     public void detectsPostgresXmlTableWithDialectSpecificSyntax() {
         LineageResult exists = LineSql.parse("SELECT XMLEXISTS('/row' PASSING d.payload BY REF) "
                 + "AS has_row FROM raw.docs d");
