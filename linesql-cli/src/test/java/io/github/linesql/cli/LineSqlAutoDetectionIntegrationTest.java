@@ -318,6 +318,23 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.FLINK, "SELECT top(5) AS cap, JSON_ARRAYAGG(payload) AS items FROM ods.events");
     }
 
+    @Test
+    public void detectsPostgresJsonbAndTextSearchFunctions() {
+        String update = "UPDATE mart.events e SET payload = pg_catalog.jsonb_set_lax(e.payload,"
+                + " ARRAY['value'], to_jsonb(s.new_value)) FROM staging.event_changes s WHERE e.id = s.event_id";
+        LineageResult result = LineSql.parse(update);
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.UPDATE, result.getStatementType());
+        assertEquals(2, result.getColumnLineage().get(0).getSources().size());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT j.sku FROM ods.orders o"
+                + " CROSS JOIN LATERAL jsonb_to_recordset(o.items) AS j(sku text)");
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT id FROM ods.events"
+                + " WHERE to_tsvector('simple', body) @@ websearch_to_tsquery('simple', query_text)");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT @@ROWCOUNT FROM dbo.events WITH (NOLOCK)");
+        assertDialect(SqlDialect.SPARK, "SELECT 'jsonb_set(x,y,z)' AS message");
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

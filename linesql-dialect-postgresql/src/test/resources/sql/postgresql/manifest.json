@@ -3064,6 +3064,53 @@
       "description": "PostgreSQL JSON path functions preserve payload column lineage and predicate usage"
     },
     {
+      "id": "update_jsonb_set_lax_from_source",
+      "file": "cases/update_jsonb_set_lax_from_source.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.events", "staging.event_changes"],
+      "outputTables": ["mart.events"],
+      "columnLineage": [
+        {"target": "mart.events.payload", "sources": ["mart.events.payload", "staging.event_changes.new_value"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.events.id"},
+        {"type": "WHERE", "column": "staging.event_changes.event_id"}
+      ],
+      "description": "Distinctive JSONB modification calls preserve both the existing JSON document and the joined update value"
+    },
+    {
+      "id": "select_lateral_jsonb_to_recordset",
+      "file": "cases/select_lateral_jsonb_to_recordset.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "sku", "sources": ["ods.orders.items"]},
+        {"target": "qty", "sources": ["ods.orders.items"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.items"},
+        {"type": "WHERE", "column": "ods.orders.items"}
+      ],
+      "description": "A JSONB recordset keeps explicitly typed output columns and their filter dependency"
+    },
+    {
+      "id": "select_full_text_rank_websearch_query",
+      "file": "cases/select_full_text_rank_websearch_query.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.events.id"]},
+        {"target": "relevance", "sources": ["ods.events.body", "ods.events.query_text"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.body"},
+        {"type": "WHERE", "column": "ods.events.query_text"}
+      ],
+      "description": "Text-search ranking and query functions preserve document and search-expression dependencies"
+    },
+    {
       "id": "full_text_search_operator_lineage",
       "file": "cases/full_text_search_operator_lineage.sql",
       "statementType": "SELECT",

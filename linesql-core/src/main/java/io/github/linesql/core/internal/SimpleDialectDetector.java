@@ -60,7 +60,13 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static final Pattern POSTGRES_JSON_SYNTAX = Pattern.compile(
             "::\\s*(?:pg_catalog\\s*\\.\\s*)?jsonb\\b|#>>?|@\\?"
-                    + "|\\bjsonb_(?:(?:array_elements|each)(?:_text)?|path_(?:exists|match|query(?:_array|_first)?)(?:_tz)?)\\s*\\(");
+                    + "|\\b(?:to_jsonb|jsonb_(?:array_elements(?:_text)?|array_length|each(?:_text)?|object_keys"
+                    + "|build_(?:array|object)|agg(?:_strict)?|object_agg(?:_strict|_unique(?:_strict)?)?"
+                    + "|strip_nulls|populate_record(?:set|_valid)?|to_record(?:set)?|insert|set(?:_lax)?|pretty|typeof"
+                    + "|path_(?:exists|match|query(?:_array|_first)?)(?:_tz)?))\\s*\\(");
+    private static final Pattern POSTGRES_TEXT_SEARCH = Pattern.compile(
+            "::\\s*(?:pg_catalog\\s*\\.\\s*)?(?:tsvector|tsquery|regconfig)\\b"
+                    + "|\\b(?:to_tsvector|(?:plain|phrase|websearch_)?to_tsquery|ts_rank(?:_cd)?|ts_headline)\\s*\\(");
 
     private static final Pattern TSQL_DML_OUTPUT = Pattern.compile(
             "(?s)^\\s*(?:with\\b[^;]*?)?(?:insert|update|delete|merge)\\b[^;]*\\boutput\\s+"
@@ -218,6 +224,8 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (POSTGRES_JSON_SYNTAX.matcher(unquotedSyntax).find()
                 && !TSQL_OBJECT_SCOPE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL JSONB cast, function, or path operator"));
+        } else if (POSTGRES_TEXT_SEARCH.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL text-search function or type"));
         } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL ROWS FROM relation"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
