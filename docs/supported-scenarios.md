@@ -92,6 +92,7 @@ Implemented PostgreSQL scenarios:
 | Derived composite field propagation | inner `jsonb_build_object(...) AS payload`, outer `q.payload.user_id` | `derived_composite_field_projection` |
 | UPDATE ROW and array writes | Explicit ROW assignments map source expressions and DEFAULT by position. Array element and slice updates keep old array values, selectors, and replacement dependencies, including through RETURNING in a CTE. | `update_explicit_row_assignment`, `update_array_slice_assignment`, `update_array_element_returning_cte` |
 | UPDATE row assignment from subquery | `update t set (c1, c2) = (select s1, s2 from ...) returning ...` | `update_row_assignment_subquery` |
+| Row assignment query sources | VALUES, set-operation branches, and function wildcards of known width map to UPDATE destinations by position. | `update_row_assignment_values_query`, `update_row_assignment_union_query`, `update_row_assignment_function_star` |
 | Scalar subqueries in write assignments | UPDATE column and row assignments and MERGE UPDATE expressions preserve selected value columns, inner read tables, and correlated predicate references. | `update_scalar_assignment`, `update_row_with_scalar_assignment`, `merge_scalar_update_assignment` |
 | COPY CSV column options | `FORCE_QUOTE (…)`, `FORCE_NULL (…)`, and `FORCE_NOT_NULL (…)` record the named columns. | `copy_to_csv_force_quote`, `copy_from_csv_force_null` |
 | COPY FROM row filtering | `COPY … FROM STDIN WITH (…) WHERE status <> …` records the incoming row column as a filter dependency. | `copy_from_where` |

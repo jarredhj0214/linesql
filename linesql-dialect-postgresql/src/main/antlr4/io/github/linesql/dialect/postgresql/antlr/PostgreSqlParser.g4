@@ -660,7 +660,7 @@ assignmentList
 
 assignment
     : multipartIdentifier assignmentSubscript* EQ expression
-    | LPAREN identifierList RPAREN EQ (ROW? LPAREN expressionList RPAREN | LPAREN query RPAREN)
+    | LPAREN identifierList RPAREN EQ (LPAREN query RPAREN | ROW? LPAREN expressionList RPAREN)
     ;
 
 assignmentSubscript

@@ -1079,6 +1079,55 @@
       "description": "DELETE USING retains the right key in WHERE and RETURNING while tracing both join operands"
     },
     {
+      "id": "update_row_assignment_values_query",
+      "file": "cases/update_row_assignment_values_query.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.inventory", "staging.stock"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "mart.inventory.status", "sources": []},
+        {"target": "mart.inventory.quantity", "sources": ["staging.stock.quantity"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.inventory.id"},
+        {"type": "WHERE", "column": "staging.stock.item_id"}
+      ],
+      "description": "A VALUES row assigns by position, including literal-only slots"
+    },
+    {
+      "id": "update_row_assignment_union_query",
+      "file": "cases/update_row_assignment_union_query.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.inventory", "staging.stock", "archive.stock"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "mart.inventory.quantity", "sources": ["staging.stock.quantity", "archive.stock.quantity"]},
+        {"target": "mart.inventory.state", "sources": ["staging.stock.state", "archive.stock.state"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.inventory.id"},
+        {"type": "WHERE", "column": "staging.stock.item_id"},
+        {"type": "WHERE", "column": "archive.stock.item_id"}
+      ],
+      "description": "A set operation assigns by position across source branches and correlated predicates"
+    },
+    {
+      "id": "update_row_assignment_function_star",
+      "file": "cases/update_row_assignment_function_star.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.inventory"],
+      "outputTables": ["mart.inventory"],
+      "columnLineage": [
+        {"target": "mart.inventory.lot", "sources": ["mart.inventory.stock_detail"]},
+        {"target": "mart.inventory.detail", "sources": ["mart.inventory.stock_detail"]},
+        {"target": "mart.inventory.previous_status", "sources": ["mart.inventory.status"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.inventory.stock_detail"}
+      ],
+      "description": "A known-width function wildcard and following expression map to successive destinations"
+    },
+    {
       "id": "update_explicit_row_assignment",
       "file": "cases/update_explicit_row_assignment.sql",
       "statementType": "UPDATE",

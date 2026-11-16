@@ -2956,13 +2956,31 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(assignment.query());
         queryVisitor.collectTopLevelQueryProjections(assignment.query());
-        queryVisitor.flushPendingColumnUsages();
+        queryVisitor.finalizeResult();
         inputTables.addAll(queryResult.getInputTables());
         LineageModelUtils.mergeColumnUsages(result, queryResult);
         List<PostgreSqlParser.IdentifierContext> targets = assignment.identifierList().identifier();
-        List<ColumnLineage> lineages = new ArrayList<>();
         PostgreSqlParser.QuerySpecificationContext specification = topLevelQuerySpecification(assignment.query());
         if (specification == null || specification.selectClause() == null) {
+            List<ColumnLineage> sources = queryResult.getColumnLineage();
+            int width = setOutputWidth(assignment.query().queryTerm());
+            return width == targets.size() && sources.size() == width
+                    ? LineageModelUtils.retargetColumnLineage(sources, defaultTarget,
+                            identifierNames(assignment.identifierList()))
+                    : Collections.emptyList();
+        }
+        List<ColumnLineage> lineages = new ArrayList<>();
+        if (hasSelectStar(specification.selectClause())) {
+            int width = Math.min(targets.size(), queryVisitor.firstUnknownStarOrdinal);
+            for (Projection projection : queryVisitor.projections) {
+                if (projection.ordinal < width) {
+                    List<ColumnRef> sources = queryVisitor.columnRefs(projection);
+                    if (sources != null) {
+                        lineages.add(LineageModelUtils.columnLineage(defaultTarget,
+                                cleanIdentifier(targets.get(projection.ordinal)), sources, projection.expression));
+                    }
+                }
+            }
             return lineages;
         }
         List<PostgreSqlParser.SelectItemContext> items =
