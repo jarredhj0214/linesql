@@ -4332,6 +4332,52 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Hive SHOW CONF is classified as configuration metadata inspection"
+    },
+    {
+      "id": "select_table_values_constant_columns",
+      "file": "cases/select_table_values_constant_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": []},
+        {"target": "letter", "sources": []}
+      ],
+      "columnUsages": [
+
+      ],
+      "description": "Named constant table values produce output columns without source tables"
+    },
+    {
+      "id": "select_lateral_table_values_rows",
+      "file": "cases/select_lateral_table_values_rows.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.finance"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "currency", "sources": ["ods.finance.current_code", "ods.finance.previous_code"]},
+        {"target": "amount", "sources": ["ods.finance.current_amount", "ods.finance.previous_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.finance.current_amount"},
+        {"type": "WHERE", "column": "ods.finance.previous_amount"}
+      ],
+      "description": "Correlated rows combine dependencies only within the same VALUES position"
+    },
+    {
+      "id": "insert_lateral_table_values_default_columns",
+      "file": "cases/insert_lateral_table_values_default_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.finance"],
+      "outputTables": ["mart.finance_items"],
+      "columnLineage": [
+        {"target": "mart.finance_items.currency", "sources": ["ods.finance.current_code"]},
+        {"target": "mart.finance_items.amount", "sources": ["ods.finance.current_amount"]}
+      ],
+      "columnUsages": [
+
+      ],
+      "description": "Comma lateral table values use native colN names and preserve sink positions"
     }
   ]
 }

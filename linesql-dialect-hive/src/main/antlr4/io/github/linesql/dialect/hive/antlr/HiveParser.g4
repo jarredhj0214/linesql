@@ -152,10 +152,16 @@ relation
 
 lateralView
     : LATERAL VIEW OUTER? functionName LPAREN expressionList RPAREN identifier AS identifier (COMMA identifier)*
+    | COMMA? LATERAL TABLE LPAREN inlineValues RPAREN tableAlias (LPAREN identifierList RPAREN)?
+    ;
+
+inlineValues
+    : VALUES valuesClause (COMMA valuesClause)*
     ;
 
 relationPrimary
     : multipartIdentifier tableSampleClause? tableTimeTravel? tableAlias #tableName
+    | TABLE LPAREN inlineValues RPAREN tableAlias (LPAREN identifierList RPAREN)? #inlineValuesTable
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery

@@ -1043,6 +1043,10 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitLateralView(HiveParser.LateralViewContext ctx) {
+        if (ctx.inlineValues() != null) {
+            registerInlineValues(ctx.inlineValues(), ctx.tableAlias(), ctx.identifierList());
+            return null;
+        }
         List<HiveParser.IdentifierContext> identifiers = ctx.identifier();
         if (identifiers.size() < 2) {
             return null;
@@ -1058,6 +1062,30 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             registerGeneratedColumn(relationAlias, cleanIdentifier(identifiers.get(i)), outputSources);
         }
         return null;
+    }
+
+    @Override
+    public Void visitInlineValuesTable(HiveParser.InlineValuesTableContext ctx) {
+        registerInlineValues(ctx.inlineValues(), ctx.tableAlias(), ctx.identifierList());
+        return null;
+    }
+
+    private void registerInlineValues(HiveParser.InlineValuesContext values, HiveParser.TableAliasContext alias,
+                                      HiveParser.IdentifierListContext columnAliases) {
+        List<HiveParser.ValuesClauseContext> rows = values.valuesClause();
+        List<String> names = columnAliases == null ? Collections.emptyList() : identifierNames(columnAliases);
+        int width = rows.get(0).expressionList().expression().size();
+        for (int i = 0; i < width; i++) {
+            Set<SourceColumn> sources = new LinkedHashSet<>();
+            for (HiveParser.ValuesClauseContext row : rows) {
+                List<HiveParser.ExpressionContext> items = row.expressionList().expression();
+                if (i < items.size()) {
+                    sources.addAll(sourceColumns(items.get(i)));
+                }
+            }
+            String name = i < names.size() ? names.get(i) : "col" + (i + 1);
+            registerGeneratedColumn(tableAlias(alias), name, new ArrayList<>(sources));
+        }
     }
 
     private List<SourceColumn> stackOutputSources(

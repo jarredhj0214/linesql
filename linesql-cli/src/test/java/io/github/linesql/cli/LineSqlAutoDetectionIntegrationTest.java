@@ -319,6 +319,16 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsHiveLateralTableValues() {
+        LineageResult values = LineSql.parse("SELECT v.item FROM raw.docs d "
+                + "LATERAL TABLE(VALUES(d.sku)) v(item)");
+        assertEquals(SqlDialect.HIVE, values.getDialect());
+        assertEquals(StatementType.SELECT, values.getStatementType());
+        assertEquals("sku", values.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.SPARK, "SELECT 'FROM TABLE(VALUES(1))' AS text_value");
+    }
+
+    @Test
     public void detectsOracleDataUseCaseDomainSyntax() {
         LineageResult domain = LineSql.parse("CREATE DOMAIN workflow.state AS ENUM (queued = 1, done = 2)");
         assertEquals(SqlDialect.ORACLE, domain.getDialect());

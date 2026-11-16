@@ -57,6 +57,8 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final String POSTGRES_NAME = "[\\p{L}_][\\p{L}\\p{N}_$]*";
     private static final String POSTGRES_RELATION =
             POSTGRES_NAME + "(?:\\s*\\.\\s*" + POSTGRES_NAME + ")*";
+    private static final Pattern HIVE_TABLE_VALUES = Pattern.compile(
+            "\\b(?:from|lateral)\\s+table\\s*\\(\\s*values\\s*\\(");
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
@@ -278,6 +280,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
                 || normalized.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
+        }
+        if (HIVE_TABLE_VALUES.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive TABLE VALUES relation"));
         }
         if (unquotedSyntax.matches("(?s).*\\bpartitioned\\s+by\\s+spec\\s*\\(.*")
                 || unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\bset\\s+partition\\s+spec\\s*\\(.*")) {
