@@ -81,6 +81,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
+    private SqlServerParser.SelectClauseContext setBranchSelect;
 
     SqlServerLineageVisitor(LineageResult result) {
         this.result = result;
@@ -1508,12 +1509,30 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitScalarSubquery(SqlServerParser.ScalarSubqueryContext ctx) {
+        if (setBranchSelect == null) {
+            return visitChildren(ctx);
+        }
+        LineageResult inner = lineageForQuery(ctx.query());
+        for (TableRef table : inner.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, inner);
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(SqlServerParser.SelectClauseContext ctx) {
         List<SqlServerParser.SelectItemContext> items = ctx.selectItemList().selectItem();
         for (int i = 0; i < items.size(); i++) {
             SqlServerParser.SelectItemContext item = items.get(i);
             if (item instanceof SqlServerParser.SelectExpressionContext) {
-                Projection projection = projection((SqlServerParser.SelectExpressionContext) item, i);
+                SqlServerParser.SelectExpressionContext selected = (SqlServerParser.SelectExpressionContext) item;
+                Projection projection = projection(selected, i);
+                if (projection == null && ctx == setBranchSelect) {
+                    SqlServerParser.ExpressionContext expression = selected.expression();
+                    projection = new Projection(sourceColumns(expression), "(No column name)", expression.getText(), i);
+                }
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -1636,24 +1655,44 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private static int explicitOutputWidth(SqlServerParser.QueryTermContext term) {
+        term = unwrapSetBranch(term);
         if (term instanceof SqlServerParser.SetOperationContext) {
             SqlServerParser.SetOperationContext set = (SqlServerParser.SetOperationContext) term;
             int left = explicitOutputWidth(set.left);
             return left == explicitOutputWidth(set.right) ? left : 0;
         }
+        SqlServerParser.SelectClauseContext select = explicitBranchSelect(term);
+        return select == null ? 0 : select.selectItemList().selectItem().size();
+    }
+
+    private static SqlServerParser.SelectClauseContext explicitBranchSelect(SqlServerParser.QueryTermContext term) {
+        term = unwrapSetBranch(term);
+        if (!(term instanceof SqlServerParser.QueryTermDefaultContext)) {
+            return null;
+        }
         SqlServerParser.QueryPrimaryContext primary =
                 ((SqlServerParser.QueryTermDefaultContext) term).queryPrimary();
-        if (primary instanceof SqlServerParser.SubqueryPrimaryContext) {
-            return explicitOutputWidth(((SqlServerParser.SubqueryPrimaryContext) primary).query().queryTerm());
-        }
         if (primary instanceof SqlServerParser.QueryPrimaryDefaultContext) {
-            List<SqlServerParser.SelectItemContext> items = ((SqlServerParser.QueryPrimaryDefaultContext) primary)
-                    .querySpecification().selectClause().selectItemList().selectItem();
-            if (items.stream().allMatch(item -> item instanceof SqlServerParser.SelectExpressionContext)) {
-                return items.size();
+            SqlServerParser.SelectClauseContext select =
+                    ((SqlServerParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
+            if (select.selectItemList().selectItem().stream()
+                    .allMatch(item -> item instanceof SqlServerParser.SelectExpressionContext)) {
+                return select;
             }
         }
-        return 0;
+        return null;
+    }
+
+    private static SqlServerParser.QueryTermContext unwrapSetBranch(SqlServerParser.QueryTermContext term) {
+        while (term instanceof SqlServerParser.QueryTermDefaultContext) {
+            SqlServerParser.QueryPrimaryContext primary =
+                    ((SqlServerParser.QueryTermDefaultContext) term).queryPrimary();
+            if (!(primary instanceof SqlServerParser.SubqueryPrimaryContext)) {
+                break;
+            }
+            term = ((SqlServerParser.SubqueryPrimaryContext) primary).query().queryTerm();
+        }
+        return term;
     }
 
     // ============ Internal helpers ============
@@ -1776,6 +1815,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
+        queryVisitor.setBranchSelect = explicitBranchSelect(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryResult;
@@ -1893,7 +1933,10 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
-                continue;
+                if (setBranchSelect == null) {
+                    continue;
+                }
+                sources = Collections.emptyList();
             }
             String targetColumn = targetColumn(projection.targetColumn, projection.ordinal + expandedColumns);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));

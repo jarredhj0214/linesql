@@ -2,6 +2,36 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "union_unnamed_constant_order",
+      "file": "cases/union_unnamed_constant_order.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.current_orders", "sales.archived_orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "(No column name)", "sources": []}, {"target": "amount", "sources": ["sales.current_orders.amount", "sales.archived_orders.total"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "sales.current_orders.amount"}, {"type": "ORDER_BY", "column": "sales.archived_orders.total"}],
+      "description": "SQL Server set query preserves the positions of explicit SELECT expressions"
+    },
+    {
+      "id": "insert_union_unnamed_derivations",
+      "file": "cases/insert_union_unnamed_derivations.sql",
+      "statementType": "INSERT",
+      "inputTables": ["sales.current_orders", "sales.archived_orders"],
+      "outputTables": ["mart.order_rollup"],
+      "columnLineage": [{"target": "mart.order_rollup.amount", "sources": ["sales.current_orders.amount", "sales.archived_orders.amount", "sales.archived_orders.adjustment"]}, {"target": "mart.order_rollup.status", "sources": ["sales.current_orders.status"]}],
+      "columnUsages": [],
+      "description": "SQL Server set query preserves the positions of explicit SELECT expressions"
+    },
+    {
+      "id": "union_scalar_subquery_output_position",
+      "file": "cases/union_scalar_subquery_output_position.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.payments", "sales.current_orders", "sales.archived_orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "amount", "sources": ["sales.payments.amount"]}, {"target": "order_id", "sources": ["sales.current_orders.order_id", "sales.archived_orders.order_id"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "sales.current_orders.order_id"}, {"type": "ORDER_BY", "column": "sales.archived_orders.order_id"}],
+      "description": "SQL Server set query preserves the positions of explicit SELECT expressions"
+    },
+    {
       "id": "union_order_by_output_position",
       "file": "cases/union_order_by_output_position.sql",
       "statementType": "SELECT",
