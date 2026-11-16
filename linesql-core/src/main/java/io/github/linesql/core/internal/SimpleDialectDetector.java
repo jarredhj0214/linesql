@@ -188,6 +188,10 @@ public class SimpleDialectDetector implements DialectDetector {
         if (unquotedSyntax.matches("(?s).*\\bpartitioned\\s+by\\s+spec\\s*\\(.*")
                 || unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\bset\\s+partition\\s+spec\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive Iceberg partition transform specification"));
+        } else if (unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\bexecute\\s+"
+                + "(?:rollback|expire_snapshots|set_current_snapshot|fast_forward|cherry_pick|delete\\s+orphan_files)\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bstored\\s+by\\s+iceberg\\b.*")) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive Iceberg storage or snapshot maintenance syntax"));
         } else if (normalized.matches("(?s).*\\brow\\s+format\\b.*")
                 || normalized.matches("(?s).*\\bstored\\s+as\\b.*")
                 || relationSyntax.matches("(?s)^\\s*create\\s+(?:(?:temporary|external)\\s+)*table\\b.*\\bstored\\s+by\\b.*")

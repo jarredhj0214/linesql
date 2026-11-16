@@ -85,6 +85,102 @@
       "description": "Columns declared in the schema can be reused as identity partition columns"
     },
     {
+      "id": "iceberg_for_system_version_as_of",
+      "file": "cases/iceberg_for_system_version_as_of.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.events", "ods.current_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["mart.events.id"]},
+        {"target": "status", "sources": ["ods.current_events.status"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.events.id"},
+        {"type": "JOIN_ON", "column": "ods.current_events.id"},
+        {"type": "WHERE", "column": "mart.events.status"},
+        {"type": "WHERE", "column": "ods.current_events.status"}
+      ],
+      "description": "Hive Iceberg snapshot selectors preserve relation aliases, join keys, and projection sources"
+    },
+    {
+      "id": "iceberg_for_system_time_as_of",
+      "file": "cases/iceberg_for_system_time_as_of.sql",
+      "statementType": "INSERT",
+      "inputTables": ["mart.events"],
+      "outputTables": ["mart.event_archive"],
+      "columnLineage": [
+        {"target": "mart.event_archive.event_id", "sources": ["mart.events.id"]},
+        {"target": "mart.event_archive.recorded_status", "sources": ["mart.events.status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.events.active"}
+      ],
+      "description": "An as-of timestamp reads from the selected table snapshot without changing target column mapping"
+    },
+    {
+      "id": "iceberg_expire_snapshots_between",
+      "file": "cases/iceberg_expire_snapshots_between.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "description": "Snapshot expiration between two timestamps records the affected Iceberg table"
+    },
+    {
+      "id": "iceberg_rollback_snapshot",
+      "file": "cases/iceberg_rollback_snapshot.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "description": "Snapshot rollback records the table whose current snapshot is changed"
+    },
+    {
+      "id": "iceberg_delete_orphan_files",
+      "file": "cases/iceberg_delete_orphan_files.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "description": "Orphan-file cleanup records the affected Iceberg table"
+    },
+    {
+      "id": "iceberg_expire_snapshots_retain_last",
+      "file": "cases/iceberg_expire_snapshots_retain_last.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "description": "Snapshot expiration preserves the requested retained count"
+    },
+    {
+      "id": "iceberg_set_current_snapshot",
+      "file": "cases/iceberg_set_current_snapshot.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "description": "Setting the current snapshot records the affected Iceberg table"
+    },
+    {
+      "id": "iceberg_fast_forward_branch",
+      "file": "cases/iceberg_fast_forward_branch.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "description": "Fast-forwarding a branch records the affected Iceberg table"
+    },
+    {
+      "id": "iceberg_cherry_pick_snapshot",
+      "file": "cases/iceberg_cherry_pick_snapshot.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.events"],
+      "columnLineage": [],
+      "description": "Cherry-picking a snapshot records the affected Iceberg table"
+    },
+    {
       "id": "create_iceberg_write_order",
       "file": "cases/create_iceberg_write_order.sql",
       "statementType": "CREATE_TABLE",

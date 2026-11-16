@@ -155,10 +155,14 @@ lateralView
     ;
 
 relationPrimary
-    : multipartIdentifier tableSampleClause? tableAlias              #tableName
+    : multipartIdentifier tableSampleClause? tableTimeTravel? tableAlias #tableName
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
+    ;
+
+tableTimeTravel
+    : FOR (SYSTEM_TIME | SYSTEM_VERSION) AS OF expression
     ;
 
 tableSampleClause
@@ -610,11 +614,28 @@ alterTableAction
     | (PARTITION partitionSpec)? SET SERDE string (WITH SERDEPROPERTIES LPAREN propertyList RPAREN)?
     | (PARTITION partitionSpec)? SET SERDEPROPERTIES LPAREN propertyList RPAREN
     | SET PARTITION SPEC partitionTransformSpec
+    | icebergSnapshotMaintenance
     | SET TBLPROPERTIES LPAREN propertyList RPAREN
     | UNSET TBLPROPERTIES LPAREN stringList RPAREN
     | SET LPAREN propertyList RPAREN
     | COMMENT EQ? string
     | .+?
+    ;
+
+icebergSnapshotMaintenance
+    : EXECUTE ROLLBACK LPAREN (string | number) RPAREN
+    | EXECUTE EXPIRE_SNAPSHOTS (LPAREN expression RPAREN
+        | BETWEEN icebergTimestamp AND icebergTimestamp
+        | RETAIN LAST number)?
+    | EXECUTE SET_CURRENT_SNAPSHOT LPAREN expression RPAREN
+    | EXECUTE FAST_FORWARD string string?
+    | EXECUTE CHERRY_PICK number
+    | EXECUTE DELETE ORPHAN_FILES (OLDER THAN LPAREN string RPAREN)?
+    ;
+
+icebergTimestamp
+    : string
+    | LPAREN expression RPAREN
     ;
 
 showStatement
@@ -816,6 +837,8 @@ nonReservedKeyword
     | DATE | DBPROPERTIES | DFS | DIV | FIRST | LAST | NULLS | FUNCTION | FUNCTIONS | GRANT | IF | INPUTFORMAT | INTERVAL | ITEMS | JAR | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | LOCK | LOCKS | MAP | NULL | OF | OPTION | OWNER | OUT
     | EXPORT | FOLLOWING | IMPORT | INDEX | INDEXES | MATERIALIZED | MATCHED | MERGE | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PRECEDING | PURGE | RANGE | REDUCE | RENAME | REWRITE
     | COMPACT | COMPACTIONS | CONCATENATE | CONF | CURRENT | EXCHANGE | OUTPUTFORMAT | PRINCIPALS | PRIVILEGES | REGEXP | RELOAD | REPAIR | REPLACE | RESET | RESTRICT | REVOKE | RLIKE | ROLE | ROLES | ROW | SCHEMA | SCHEMAS | SEMI_KW | SERDE | SERDEPROPERTIES | SET | SHARED | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TABLES | TBLPROPERTIES | TRANSACTIONS
+    | SYSTEM_TIME | SYSTEM_VERSION | EXECUTE | ROLLBACK | EXPIRE_SNAPSHOTS | SET_CURRENT_SNAPSHOT
+    | FAST_FORWARD | CHERRY_PICK | ORPHAN_FILES | RETAIN | OLDER | THAN
     | DAY | HOUR | MONTH | SPEC | YEAR | BUCKET | BUCKETS | CLUSTERED | DIRECTORIES | DISABLE | ENABLE | KEY | NORELY | NOVALIDATE | ORDERED | WRITE | LOCALLY | ZORDER | PERCENT_KW | RELY | ROWS | SKEWED | SORTED | TABLESAMPLE | TEMPORARY | TERMINATED | TIMESTAMP | TO | TOUCH | TRANSFORM | TRUE | TRUNCATE | UNARCHIVE | UNBOUNDED | UNLOCK | UNSET | USE | USER | VALIDATE | VALUES | VIEW | WAIT | WINDOW
     ;
 

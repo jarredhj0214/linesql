@@ -166,6 +166,20 @@ public class LineSqlAutoDetectionIntegrationTest {
         }
     }
 
+    @Test
+    public void usesHiveIcebergContextForSharedTimeTravelSyntax() {
+        String query = "SELECT e.id FROM mart.events FOR SYSTEM_VERSION AS OF 3369973735913135680 AS e";
+        String script = "CREATE EXTERNAL TABLE mart.events (id BIGINT) STORED BY ICEBERG;" + query + ";";
+        List<LineageResult> results = LineSql.parseScript(script);
+        assertEquals(2, results.size());
+        assertEquals(SqlDialect.HIVE, results.get(1).getDialect());
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertEquals("events", results.get(1).getInputTables().get(0).getName());
+        assertEquals("id", results.get(1).getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.events EXECUTE EXPIRE_SNAPSHOTS RETAIN LAST 3");
+        assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.events EXECUTE CHERRY_PICK 3369973735913135680");
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
