@@ -803,6 +803,58 @@
       "description": "INSERT REPLACE USING target table and BY NAME column lineage"
     },
     {
+      "id": "multi_insert_cte_positional_branches",
+      "file": "cases/multi_insert_cte_positional_branches.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.user_points", "mart.user_names"],
+      "columnLineage": [
+        {"target": "mart.user_points.user_id", "sources": ["ods.users.id"]},
+        {"target": "mart.user_points.adjusted_points", "sources": ["ods.users.points"]},
+        {"target": "mart.user_names.normalized_name", "sources": ["ods.users.name"]},
+        {"target": "mart.user_names.user_id", "sources": ["ods.users.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.users.region"},
+        {"type": "WHERE", "column": "ods.users.active"},
+        {"type": "WHERE", "column": "ods.users.points"}
+      ],
+      "description": "Each branch applies its own positional insert column list while retaining CTE sources and filters"
+    },
+    {
+      "id": "multi_insert_join_aggregate_branches",
+      "file": "cases/multi_insert_join_aggregate_branches.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users", "dwd.orders"],
+      "outputTables": ["mart.orders_by_user", "mart.active_orders"],
+      "columnLineage": [
+        {"target": "mart.orders_by_user.user_id", "sources": ["ods.users.id"]},
+        {"target": "mart.orders_by_user.total", "sources": ["dwd.orders.amount"]},
+        {"target": "mart.active_orders.order_id", "sources": ["dwd.orders.id"]},
+        {"target": "mart.active_orders.customer", "sources": ["ods.users.name"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.users.id"},
+        {"type": "JOIN_ON", "column": "dwd.orders.user_id"},
+        {"type": "WHERE", "column": "dwd.orders.status"},
+        {"type": "GROUP_BY", "column": "ods.users.id"},
+        {"type": "WHERE", "column": "ods.users.active"}
+      ],
+      "description": "A shared join feeds two sinks with independent projection, aggregation, and filter mappings"
+    },
+    {
+      "id": "multi_insert_partial_branch",
+      "file": "cases/multi_insert_partial_branch.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.user_ids", "mart.user_names"],
+      "columnLineage": [
+        {"target": "mart.user_ids.id", "sources": ["ods.users.id"]}
+      ],
+      "expectedDiagnostics": ["COLUMN_LINEAGE_PARTIAL"],
+      "description": "An unresolved branch projection keeps the other branch's target mapping and reports partial lineage"
+    },
+    {
       "id": "multi_insert",
       "file": "cases/multi_insert.sql",
       "statementType": "INSERT",
@@ -813,10 +865,11 @@
         "ads.user_ids",
         "ads.user_names"
       ],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      "columnLineage": [
+        {"target": "ads.user_ids.id", "sources": ["ods.users.id"]},
+        {"target": "ads.user_names.name", "sources": ["ods.users.name"]}
       ],
-      "description": "Spark FROM-first multi-insert table lineage with column lineage graceful degradation"
+      "description": "Spark FROM-first multi-insert maps projections to each branch's table"
     },
     {
       "id": "insert_overwrite_directory",

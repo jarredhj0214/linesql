@@ -75,11 +75,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitSingleInsertQuery(SqlBaseParser.SingleInsertQueryContext ctx) {
         result.setStatementType(StatementType.INSERT);
         SqlBaseParser.RegularQuerySpecificationContext query = topLevelQuerySpecification(ctx.query());
-        if (query != null && query.selectClause().namedExpressionSeq().namedExpression().stream()
-                .noneMatch(item -> item.identifierList() != null
-                        || isTopLevelStarExpression(item.expression().getText().toUpperCase(java.util.Locale.ROOT)))) {
-            positionalInsertSelect = query.selectClause();
-        }
+        positionalInsertSelect = positionalInsertSelect(query == null ? null : query.selectClause());
         try {
             return visitChildren(ctx);
         } finally {
@@ -91,7 +87,56 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitMultiInsertQuery(SqlBaseParser.MultiInsertQueryContext ctx) {
         result.setStatementType(StatementType.INSERT);
         suppressColumnLineage = true;
-        return visitChildren(ctx);
+        visit(ctx.fromClause());
+
+        Set<TableRef> branchInputs = new LinkedHashSet<>();
+        List<ColumnLineage> branchLineage = new ArrayList<>();
+        for (SqlBaseParser.MultiInsertQueryBodyContext body : ctx.multiInsertQueryBody()) {
+            SparkLineageVisitor branch = insertBranchVisitor();
+            branch.positionalInsertSelect = positionalInsertSelect(body.fromStatementBody().selectClause());
+            branch.visit(body);
+            branch.finalizeResult();
+            branchInputs.addAll(branch.inputTables);
+            outputTables.addAll(branch.outputTables);
+            LineageModelUtils.mergeColumnUsages(result, branch.result);
+            if (!branch.outputTables.isEmpty()) {
+                branchLineage.addAll(branch.result.getColumnLineage());
+                selectExpressionCount += branch.selectExpressionCount;
+                skippedProjectionCount += Math.max(branch.skippedProjectionCount,
+                        branch.projections.size() - branch.result.getColumnLineage().size());
+            }
+        }
+
+        inputTables.addAll(branchInputs);
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setOutputTables(new ArrayList<>(outputTables));
+        result.setColumnLineage(branchLineage);
+        return null;
+    }
+
+    private SparkLineageVisitor insertBranchVisitor() {
+        SparkLineageVisitor branch = new SparkLineageVisitor(new LineageResult());
+        branch.setContext(context);
+        branch.result.setStatementType(StatementType.INSERT);
+        branch.inputTables.addAll(inputTables);
+        branch.tableAliases.putAll(tableAliases);
+        branch.cteNames.addAll(cteNames);
+        branch.derivedColumnLineage.putAll(derivedColumnLineage);
+        branch.derivedAliases.putAll(derivedAliases);
+        branch.derivedReferences.addAll(derivedReferences);
+        branch.generatedColumns.putAll(generatedColumns);
+        branch.qualifiedColumnHints.putAll(qualifiedColumnHints);
+        branch.visibleRelations.addAll(visibleRelations);
+        branch.visibleRelationCount = visibleRelationCount;
+        branch.firstVisibleInputTable = firstVisibleInputTable;
+        return branch;
+    }
+
+    private static SqlBaseParser.SelectClauseContext positionalInsertSelect(SqlBaseParser.SelectClauseContext select) {
+        return select != null && select.namedExpressionSeq().namedExpression().stream()
+                .noneMatch(item -> item.identifierList() != null
+                        || isTopLevelStarExpression(item.expression().getText().toUpperCase(Locale.ROOT)))
+                ? select : null;
     }
 
     @Override

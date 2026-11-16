@@ -2062,7 +2062,7 @@ Implemented Spark table-level lineage scenarios:
 | INSERT OVERWRITE with static partition and target columns | `insert overwrite table ads.t partition (...) (c1) select ...` | `insert_overwrite_partition_column_list` |
 | INSERT REPLACE WHERE target and source | `insert into table ads.t target by name replace where ... select ... from ods.s` | `insert_replace_where` |
 | INSERT REPLACE USING target and source | `insert into table ads.t target by name replace using (...) select ... from ods.s` | `insert_replace_using` |
-| FROM-first multi-insert targets | `from ods.s insert overwrite table t1 select ... insert overwrite table t2 select ...` | `multi_insert` |
+| FROM-first multi-insert targets | A shared FROM source feeds independent INSERT branches. Each branch retains its target table, explicit target column order, projections, and filters. | `multi_insert`, `multi_insert_cte_positional_branches`, `multi_insert_join_aggregate_branches`, `multi_insert_partial_branch` |
 | INSERT OVERWRITE DIRECTORY export source | `insert overwrite directory '/path' using parquet select ... from ods.s` | `insert_overwrite_directory` |
 | LOAD DATA target table | `load data inpath '/path' into table ods.t` | `load_data_into_table` |
 | DROP TABLE affected table | `drop table if exists mart.t purge` | `drop_table` |
@@ -2348,5 +2348,4 @@ The following Spark lineage features are intentionally not complete yet:
 | Dynamic SQL expansion | `EXECUTE IMMEDIATE` analyzes one direct literal statement. Runtime SQL values and deeper nested execution remain opaque. |
 | Code literal expansion | Metric view code literals are parsed and diagnosed, but embedded code text is not recursively parsed. |
 | CDC column semantics | AUTO CDC source/target tables are extracted; CDC-specific field propagation is not complete yet. |
-| Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |
 | Complex nested fields and structs | Basic nested field paths are preserved, and fields read from derived expression roots are traced to the root expression sources. Schema-aware struct expansion is not implemented yet. |
