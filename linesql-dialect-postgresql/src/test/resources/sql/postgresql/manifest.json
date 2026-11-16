@@ -6336,6 +6336,127 @@
         }
       ],
       "description": "A nonrecursive definition reads the same-named physical table, and later CTEs read the completed definition"
+    },
+    {
+      "id": "recursive_cte_forward_table_query",
+      "file": "cases/recursive_cte_forward_table_query.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.nodes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "public.nodes.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "public.nodes.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "public.nodes.active"
+        }
+      ],
+      "description": "PostgreSQL evaluates a forward TABLE reference from its local CTE scope"
+    },
+    {
+      "id": "recursive_cte_forward_anchor_dependency",
+      "file": "cases/recursive_cte_forward_anchor_dependency.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.nodes",
+        "public.edges"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "public.nodes.id",
+            "public.edges.child_id"
+          ]
+        },
+        {
+          "target": "root_id",
+          "sources": [
+            "public.nodes.root_id",
+            "public.nodes.id",
+            "public.edges.child_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "public.nodes.root_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "public.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "public.nodes.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "public.edges.child_id"
+        }
+      ],
+      "description": "A recursive anchor can seed its columns from a later CTE definition"
+    },
+    {
+      "id": "recursive_cte_forward_reference_nested_shadow",
+      "file": "cases/recursive_cte_forward_reference_nested_shadow.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.nodes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "public.nodes.id"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A nonrecursive nested CTE definition can read an enclosing later definition of the same name"
+    },
+    {
+      "id": "recursive_cte_forward_dml_returning",
+      "file": "cases/recursive_cte_forward_dml_returning.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.nodes"
+      ],
+      "outputTables": [
+        "archive.nodes"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "public.nodes.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "public.nodes.active"
+        }
+      ],
+      "description": "PostgreSQL forward dependencies also propagate through INSERT RETURNING CTEs"
     }
   ]
 }

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -1571,15 +1572,20 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitCtes(PostgreSqlParser.CtesContext ctx) {
-        for (PostgreSqlParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
-            String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
-            if (ctx.RECURSIVE() != null) {
-                cteNames.add(cteName);
+        boolean recursive = ctx.RECURSIVE() != null;
+        List<PostgreSqlParser.NamedQueryContext> definitions = ctx.namedQuery();
+        if (recursive) {
+            for (PostgreSqlParser.NamedQueryContext definition : definitions) {
+                cteNames.add(cteName(definition));
             }
+            definitions = orderRecursiveCtes(definitions);
+        }
+        for (PostgreSqlParser.NamedQueryContext namedQuery : definitions) {
+            String cteName = cteName(namedQuery);
             PostgreSqlParser.CteBodyContext body = namedQuery.cteBody();
             if (body.query() != null) {
                 List<String> aliases = cteColumnAliases(namedQuery);
-                if (ctx.RECURSIVE() != null) {
+                if (recursive) {
                     seedRecursiveRelation(cteName, body.query(), aliases);
                 }
                 registerDerivedRelation(cteName, body.query(), aliases);
@@ -1600,6 +1606,96 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             cteNames.add(cteName);
         }
         return null;
+    }
+
+    private static String cteName(PostgreSqlParser.NamedQueryContext definition) {
+        return cleanIdentifier(definition.name).toLowerCase(Locale.ROOT);
+    }
+
+    private static List<PostgreSqlParser.NamedQueryContext> orderRecursiveCtes(
+            List<PostgreSqlParser.NamedQueryContext> definitions) {
+        if (definitions.size() < 2) {
+            return definitions;
+        }
+        Map<PostgreSqlParser.NamedQueryContext, Set<String>> pending = new LinkedHashMap<>();
+        Set<String> names = new LinkedHashSet<>();
+        for (PostgreSqlParser.NamedQueryContext definition : definitions) {
+            String name = cteName(definition);
+            if (!names.add(name)) {
+                return definitions;
+            }
+            Set<String> dependencies = new LinkedHashSet<>();
+            collectCteDependencies(definition.cteBody(), Collections.emptySet(), dependencies);
+            dependencies.remove(name);
+            pending.put(definition, dependencies);
+        }
+
+        List<PostgreSqlParser.NamedQueryContext> ordered = new ArrayList<>();
+        while (!pending.isEmpty()) {
+            int previousSize = pending.size();
+            Iterator<Map.Entry<PostgreSqlParser.NamedQueryContext, Set<String>>> iterator = pending.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<PostgreSqlParser.NamedQueryContext, Set<String>> next = iterator.next();
+                if (Collections.disjoint(next.getValue(), names)) {
+                    ordered.add(next.getKey());
+                    names.remove(cteName(next.getKey()));
+                    iterator.remove();
+                }
+            }
+            if (previousSize == pending.size()) {
+                ordered.addAll(pending.keySet());
+                break;
+            }
+        }
+        return ordered;
+    }
+
+    private static void collectCteDependencies(ParseTree tree, Set<String> hidden, Set<String> dependencies) {
+        PostgreSqlParser.InheritanceRelationContext relation = null;
+        if (tree instanceof PostgreSqlParser.TableNameContext) {
+            relation = ((PostgreSqlParser.TableNameContext) tree).inheritanceRelation();
+        } else if (tree instanceof PostgreSqlParser.TableQueryContext) {
+            PostgreSqlParser.InheritanceRelationContext requested =
+                    ((PostgreSqlParser.TableQueryContext) tree).inheritanceRelation();
+            if (requested.ONLY() == null && requested.STAR() == null) {
+                relation = requested;
+            }
+        }
+        if (relation != null) {
+            List<String> parts = identifierParts(relation.multipartIdentifier());
+            if (parts.size() == 1) {
+                String name = parts.get(0).toLowerCase(Locale.ROOT);
+                if (!hidden.contains(name)) {
+                    dependencies.add(name);
+                }
+            }
+        }
+
+        Set<String> scope = hidden;
+        for (int index = 0; index < tree.getChildCount(); index++) {
+            ParseTree child = tree.getChild(index);
+            if (child instanceof PostgreSqlParser.CtesContext) {
+                scope = collectNestedCteDependencies((PostgreSqlParser.CtesContext) child, scope, dependencies);
+            } else if (!(tree instanceof PostgreSqlParser.UpdateStatementContext)
+                    || child != ((PostgreSqlParser.UpdateStatementContext) tree).relation()) {
+                collectCteDependencies(child, scope, dependencies);
+            }
+        }
+    }
+
+    private static Set<String> collectNestedCteDependencies(PostgreSqlParser.CtesContext ctes,
+                                                            Set<String> hidden, Set<String> dependencies) {
+        Set<String> scope = new LinkedHashSet<>(hidden);
+        if (ctes.RECURSIVE() != null) {
+            for (PostgreSqlParser.NamedQueryContext definition : ctes.namedQuery()) {
+                scope.add(cteName(definition));
+            }
+        }
+        for (PostgreSqlParser.NamedQueryContext definition : ctes.namedQuery()) {
+            collectCteDependencies(definition.cteBody(), scope, dependencies);
+            scope.add(cteName(definition));
+        }
+        return scope;
     }
 
     private void seedRecursiveRelation(String name, PostgreSqlParser.QueryContext query, List<String> aliases) {
