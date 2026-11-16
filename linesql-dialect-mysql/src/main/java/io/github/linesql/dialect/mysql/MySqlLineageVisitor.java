@@ -366,7 +366,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        visitRelationListForInputs(ctx.relationList());
+        visit(ctx.relationList());
         TableRef defaultTarget = firstTableInRelationList(ctx.relationList());
         if (defaultTarget != null) {
             outputTables.add(defaultTarget);
@@ -412,16 +412,6 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         }
     }
 
-    private void visitRelationForUpdate(MySqlParser.RelationContext ctx) {
-        visitRelationPrimaryForDml(ctx.relationPrimary(), true);
-        for (MySqlParser.JoinRelationContext join : ctx.joinRelation()) {
-            visitRelationPrimaryForDml(join.relationPrimary(), false);
-            if (join.joinCriteria() != null) {
-                collectJoinColumnUsages(join.joinCriteria());
-            }
-        }
-    }
-
     @Override
     public Void visitDeleteStmt(MySqlParser.DeleteStmtContext ctx) {
         result.setStatementType(StatementType.DELETE);
@@ -443,7 +433,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
         }
         if (ctx.relationList() != null) {
-            visitRelationListForInputs(ctx.relationList());
+            visit(ctx.relationList());
         }
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
@@ -460,7 +450,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        visitRelationListForInputs(ctx.relationList());
+        visit(ctx.relationList());
         addDeleteTargets(ctx.deleteTargetList());
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
@@ -477,7 +467,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        visitRelationListForInputs(ctx.relationList());
+        visit(ctx.relationList());
         addDeleteTargets(ctx.deleteTargetList());
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
@@ -502,46 +492,6 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             } else if (parts.size() > 1) {
                 outputTables.add(tableRef(deleteTargetContext.multipartIdentifier()));
             }
-        }
-    }
-
-    private void visitRelationListForInputs(MySqlParser.RelationListContext ctx) {
-        for (MySqlParser.RelationContext relation : ctx.relation()) {
-            visitRelationPrimaryForDml(relation.relationPrimary(), false);
-            for (MySqlParser.JoinRelationContext join : relation.joinRelation()) {
-                visitRelationPrimaryForDml(join.relationPrimary(), false);
-                if (join.joinCriteria() != null) {
-                    collectJoinColumnUsages(join.joinCriteria());
-                }
-            }
-        }
-    }
-
-    private void visitRelationPrimaryForDml(MySqlParser.RelationPrimaryContext primary, boolean output) {
-        if (primary instanceof MySqlParser.TableNameContext) {
-            MySqlParser.TableNameContext tableName = (MySqlParser.TableNameContext) primary;
-            TableRef table = tableRef(tableName.multipartIdentifier());
-            if (isCteReference(table)) {
-                addDerivedReference(table.getName(), tableName.tableAlias());
-                return;
-            }
-            inputTables.add(table);
-            if (output) {
-                outputTables.add(table);
-            }
-            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
-            String alias = tableAlias(tableName.tableAlias());
-            if (alias != null) {
-                tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
-            }
-            return;
-        }
-        if (primary instanceof MySqlParser.AliasedQueryContext) {
-            MySqlParser.AliasedQueryContext query = (MySqlParser.AliasedQueryContext) primary;
-            String alias = tableAlias(query.tableAlias());
-            String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
-            registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), query.query(), tableAliasColumnAliases(query.tableAlias()));
-            addDerivedReference(relationName, query.tableAlias());
         }
     }
 

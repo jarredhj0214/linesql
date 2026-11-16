@@ -12178,6 +12178,39 @@
         }
       ],
       "description": "MySQL optimizer hints in comments do not interfere with table or column lineage"
+    },
+    {
+      "id": "delete_join_using_comma_scope",
+      "file": "cases/delete_join_using_comma_scope.sql",
+      "statementType": "DELETE",
+      "inputTables": ["audit.removal_log", "mart.orders", "staging.removals"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "staging.removals.order_id"},
+        {"type": "WHERE", "column": "staging.removals.expired"},
+        {"type": "WHERE", "column": "audit.removal_log.id"},
+        {"type": "WHERE", "column": "staging.removals.log_id"}
+      ],
+      "description": "A multi-table DELETE records JOIN USING dependencies within its joined source, excluding the comma-separated table"
+    },
+    {
+      "id": "update_join_using_derived_key",
+      "file": "cases/update_join_using_derived_key.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "staging.stock"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.quantity", "sources": ["staging.stock.quantity"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "staging.stock.source_key"},
+        {"type": "WHERE", "column": "staging.stock.quantity"}
+      ],
+      "description": "An UPDATE join key keeps the derived column alias and the assignment keeps its source"
     }
   ]
 }

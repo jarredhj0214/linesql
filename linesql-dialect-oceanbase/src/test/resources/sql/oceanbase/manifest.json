@@ -6210,6 +6210,23 @@
       ],
       "compatibilityMode": "oracle",
       "description": "OceanBase Oracle mode preserves scalar projection scope and correlated WHERE references"
+    },
+    {
+      "id": "mysql_mode_update_join_using_scope",
+      "file": "cases/mysql_mode_update_join_using_scope.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "staging.stock"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.quantity", "sources": ["staging.stock.quantity"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "staging.stock.order_id"},
+        {"type": "WHERE", "column": "staging.stock.active"}
+      ],
+      "compatibilityMode": "mysql",
+      "description": "OceanBase MySQL mode records both USING operands for joined UPDATE"
     }
   ]
 }
