@@ -5954,6 +5954,74 @@
         }
       ],
       "description": "Oracle bind variables in vector searches and filters are not source columns"
+    },
+    {
+      "id": "select_json_arrayagg_returning_with_filter",
+      "file": "cases/select_json_arrayagg_returning_with_filter.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "channel",
+          "sources": [
+            "app.events.channel"
+          ]
+        },
+        {
+          "target": "event_array",
+          "sources": [
+            "app.events.payload",
+            "app.events.seq",
+            "app.events.is_visible"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.events.channel"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.events.seq"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.is_visible"
+        }
+      ],
+      "description": "Oracle JSON array aggregates preserve payload, local order and filter"
+    },
+    {
+      "id": "insert_json_objectagg_key_returning_clob",
+      "file": "cases/insert_json_objectagg_key_returning_clob.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [
+        "archive.snapshots"
+      ],
+      "columnLineage": [
+        {
+          "target": "archive.snapshots.payload",
+          "sources": [
+            "app.events.event_key",
+            "app.events.payload",
+            "app.events.is_visible"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.is_visible"
+        }
+      ],
+      "description": "Oracle JSON object aggregates propagate key, value and filter columns to the destination"
     }
   ]
 }

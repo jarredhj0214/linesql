@@ -1591,6 +1591,24 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitJsonAggregateOrderBy(OracleParser.JsonAggregateOrderByContext ctx) {
+        for (OracleParser.SortItemContext sortItem : ctx.sortItem()) {
+            pendingColumnUsages.add(new PendingColumnUsage(
+                    ColumnUsageType.ORDER_BY,
+                    sourceColumns(sortItem.expression())));
+        }
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitJsonAggregateFilter(OracleParser.JsonAggregateFilterContext ctx) {
+        pendingColumnUsages.add(new PendingColumnUsage(
+                ColumnUsageType.WHERE,
+                sourceColumns(ctx.expression())));
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Void visitWindowSpec(OracleParser.WindowSpecContext ctx) {
         if (ctx.expressionList() != null) {
             for (OracleParser.ExpressionContext expression : ctx.expressionList().expression()) {

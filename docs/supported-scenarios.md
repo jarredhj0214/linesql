@@ -881,6 +881,7 @@ Implemented Oracle table-level lineage scenarios:
 Implemented Oracle column-level lineage scenarios:
 
 - Vector projections and nearest-neighbor ordering retain both operands while constructor formats, metrics and accuracy parameters are treated as syntax. Native approximate search and accuracy options identify Oracle. Cases include `select_oracle_vector_approx_accuracy`, `select_oracle_vector_metric_and_constructor` and `select_oracle_vector_accuracy_parameters`.
+- Oracle SQL/JSON aggregates preserve the JSON keys, values, local order and filter columns. Native `RETURNING VARCHAR2` and `RETURNING CLOB` identify Oracle. Cases include `select_json_arrayagg_returning_with_filter` and `insert_json_objectagg_key_returning_clob`.
 - Named and positional bind parameters in filters and vector search arguments are treated as parameters in `select_vector_search_with_bind_parameters`.
 - Oracle vector DDL captures indexed expressions for HNSW and vector plus covering columns for IVF. Vector types support dimension and format options. Examples include `create_vector_index_hnsw`, `create_vector_index_ivf_include` and `create_table_native_vector_columns`.
 

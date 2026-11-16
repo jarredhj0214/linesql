@@ -339,6 +339,14 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOracleJsonAggregateOptions() {
+        assertDialect(SqlDialect.ORACLE, "SELECT JSON_ARRAYAGG(e.payload ORDER BY e.seq"
+                + " RETURNING VARCHAR2(1000 CHAR) STRICT) FROM app.events e");
+        assertDialect(SqlDialect.ORACLE, "SELECT JSON_OBJECTAGG(KEY e.code VALUE e.payload"
+                + " RETURNING CLOB STRICT WITH UNIQUE KEYS) FROM app.events e");
+    }
+
+    @Test
     public void detectsOracleVectorSchemasWithoutClaimingOtherVectorFunctions() {
         assertDialect(SqlDialect.ORACLE, "CREATE VECTOR INDEX doc_ivf_idx ON docs (embedding)"
                 + " INCLUDE (category_id) ORGANIZATION NEIGHBOR PARTITIONS"
