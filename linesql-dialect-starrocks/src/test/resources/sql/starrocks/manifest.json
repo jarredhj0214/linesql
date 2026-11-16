@@ -11883,6 +11883,35 @@
         {"type": "JOIN_ON", "column": "mart.lookup.lookup_key"}
       ],
       "description": "A later ON condition uses the exposed key of the preceding USING join"
+    },
+    {
+      "id": "alter_table_replace_temporary_partition_lists",
+      "file": "cases/alter_table_replace_temporary_partition_lists.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.site_access"],
+      "columnLineage": [
+      ],
+      "columnUsages": [
+      ],
+      "description": "Parenthesized partition lists and replacement properties retain the altered table"
+    },
+    {
+      "id": "select_join_temporary_partition_source",
+      "file": "cases/select_join_temporary_partition_source.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.site_access", "mart.sites"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "site_id", "sources": ["mart.site_access.site_id"]},
+        {"target": "site_name", "sources": ["mart.sites.site_name"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.site_access.site_id"},
+        {"type": "JOIN_ON", "column": "mart.sites.id"},
+        {"type": "WHERE", "column": "mart.site_access.event_day"}
+      ],
+      "description": "Temporary partitions preserve a quoted source relation and its join alias"
     }
   ]
 }

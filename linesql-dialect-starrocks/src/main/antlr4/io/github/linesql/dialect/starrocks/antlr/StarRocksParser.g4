@@ -1011,7 +1011,7 @@ alterTableAction
     | DROP PARTITIONS (IF EXISTS)? START LPAREN expression RPAREN END LPAREN expression RPAREN EVERY everyValue FORCE?
     | DROP PARTITIONS WHERE expression
     | DROP TEMPORARY PARTITION identifier
-    | REPLACE PARTITION identifier WITH TEMPORARY PARTITION identifier
+    | REPLACE PARTITION replacementPartitionList WITH TEMPORARY PARTITION replacementPartitionList propertiesClause?
     | MODIFY TEMPORARY? PARTITION identifier SET LPAREN propertyList RPAREN
     | MODIFY TEMPORARY? PARTITION LPAREN STAR RPAREN SET LPAREN propertyList RPAREN
     | MODIFY TEMPORARY? PARTITIONS? LPAREN identifierList RPAREN SET LPAREN propertyList RPAREN
@@ -1024,6 +1024,12 @@ alterTableAction
     | COMMENT EQ? string
     | .+?
     ;
+
+replacementPartitionList
+    : identifier
+    | LPAREN identifierList RPAREN
+    ;
+
 
 analyzeTableStatement
     : ANALYZE (FULL | SAMPLE)? TABLE multipartIdentifier

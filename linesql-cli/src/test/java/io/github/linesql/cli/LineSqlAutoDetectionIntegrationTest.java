@@ -319,6 +319,21 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksTemporaryPartitionStatements() {
+        LineageResult read = LineSql.parse("SELECT id FROM mart.events TEMPORARY PARTITION(tp1)");
+        assertEquals(SqlDialect.STARROCKS, read.getDialect());
+        assertEquals(StatementType.SELECT, read.getStatementType());
+        assertEquals("events", read.getInputTables().get(0).getName());
+        assertDialect(SqlDialect.STARROCKS, "INSERT INTO mart.events TEMPORARY PARTITION(tp1) VALUES (5)");
+        assertDialect(SqlDialect.STARROCKS, "SHOW TEMPORARY PARTITIONS FROM mart.events");
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.events REPLACE PARTITION(p1) "
+                + "WITH TEMPORARY PARTITION(tp1) PROPERTIES ('strict_range' = 'true')");
+        assertDialect(SqlDialect.ORACLE, "SELECT id FROM mart.events PARTITION (p1)");
+        assertDialect(SqlDialect.SPARK, "SELECT 'FROM mart.events TEMPORARY PARTITION(tp1)' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'FROM mart.events SAMPLE (5)' AS note");
+    }
+
+    @Test
     public void detectsOraclePartitionedJoinOutsideWindowExpressions() {
         LineageResult partitioned = LineSql.parse("SELECT c.day_id, s.amount FROM dims.calendar c "
                 + "LEFT JOIN facts.sales s PARTITION BY (s.region) ON s.day_id = c.day_id");

@@ -57,6 +57,11 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final String POSTGRES_NAME = "[\\p{L}_][\\p{L}\\p{N}_$]*";
     private static final String POSTGRES_RELATION =
             POSTGRES_NAME + "(?:\\s*\\.\\s*" + POSTGRES_NAME + ")*";
+    private static final Pattern STARROCKS_TEMPORARY_PARTITION = Pattern.compile(
+            "\\b(?:from|join|into|overwrite)\\s+(?:table\\s+)?[a-z_][\\w$]*"
+                    + "(?:\\s*\\.\\s*[a-z_][\\w$]*)*\\s+temporary\\s+partition\\s*\\("
+                    + "|^\\s*show\\s+temporary\\s+partitions\\s+from\\b"
+                    + "|^\\s*alter\\s+table\\b[^;]*\\b(?:add|drop|modify|with)\\s+temporary\\s+partitions?\\b");
     private static final Pattern HIVE_TABLE_VALUES = Pattern.compile(
             "\\b(?:from|lateral)\\s+table\\s*\\(\\s*values\\s*\\(");
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
@@ -335,7 +340,11 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }
-        if (STARROCKS_JOIN.matcher(unquotedSyntax).find()
+        if (unquotedSyntax.contains("temporary") && unquotedSyntax.contains("partition")
+                && STARROCKS_TEMPORARY_PARTITION.matcher(
+                        QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks temporary partition syntax"));
+        } else if (STARROCKS_JOIN.matcher(unquotedSyntax).find()
                 || (!unquotedSyntax.contains("match_condition") && STARROCKS_ASOF_ON.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.98, "StarRocks ASOF or directional semi/anti join"));
         } else if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
@@ -379,10 +388,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (ORACLE_START_WITH.matcher(relationSyntax).find()
                     && relationSyntax.matches("(?s).*\\bselect\\b[^;]*\\bstart\\s+with\\b.*"))
                 || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
-                || (ORACLE_SAMPLE.matcher(normalized).find()
-                    && normalized.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*"))
-                || (ORACLE_PARTITION.matcher(normalized).find()
-                    && normalized.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*"))
+                || (ORACLE_SAMPLE.matcher(unquotedSyntax).find()
+                    && unquotedSyntax.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*"))
+                || (ORACLE_PARTITION.matcher(unquotedSyntax).find()
+                    && unquotedSyntax.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*"))
                 || normalized.matches("(?s)^\\s*create\\s+(global|private)\\s+temporary\\s+table\\b.*")
                 || normalized.matches("(?s)^\\s*create\\s+table\\b.*\\b(nologging|logging|parallel|noparallel|compress|nocompress)\\b.*\\bas\\s+select\\b.*")
                 || normalized.matches("(?s)^\\s*drop\\s+table\\b.*\\bcascade\\s+constraints\\b.*")
