@@ -12211,6 +12211,56 @@
         {"type": "WHERE", "column": "staging.stock.quantity"}
       ],
       "description": "An UPDATE join key keeps the derived column alias and the assignment keeps its source"
+    },
+    {
+      "id": "select_right_join_using_retained_key",
+      "file": "cases/select_right_join_using_retained_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders", "staging.stock"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["mart.orders.order_id"]},
+        {"target": "merged_id", "sources": ["staging.stock.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "staging.stock.order_id"},
+        {"type": "WHERE", "column": "staging.stock.order_id"},
+        {"type": "ORDER_BY", "column": "mart.orders.order_id"}
+      ],
+      "description": "A right join uses the right input key while ORDER BY can select a renamed left key"
+    },
+    {
+      "id": "select_chained_join_using_retained_key",
+      "file": "cases/select_chained_join_using_retained_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders", "staging.stock", "archive.stock"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["staging.stock.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "staging.stock.order_id"},
+        {"type": "JOIN_ON", "column": "archive.stock.order_id"}
+      ],
+      "description": "A chained join preserves the key exposed by the previous directional join"
+    },
+    {
+      "id": "update_using_join_assigns_merged_key",
+      "file": "cases/update_using_join_assigns_merged_key.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "staging.stock"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.imported_id", "sources": ["staging.stock.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.orders.order_id"},
+        {"type": "JOIN_ON", "column": "staging.stock.order_id"},
+        {"type": "WHERE", "column": "staging.stock.order_id"}
+      ],
+      "description": "A joined UPDATE uses the retained source key for assignments and filters"
     }
   ]
 }

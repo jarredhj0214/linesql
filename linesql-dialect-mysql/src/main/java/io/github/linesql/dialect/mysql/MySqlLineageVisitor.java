@@ -14,6 +14,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -38,6 +39,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
+    private final Map<MySqlParser.RelationContext, Map<String, List<ColumnRef>>> relationJoinKeys =
+            new IdentityHashMap<>();
+    private Map<String, List<ColumnRef>> usingJoinKeys = Collections.emptyMap();
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
@@ -1376,13 +1380,84 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     public Void visitRelation(MySqlParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>(nestedJoinKeys(ctx.relationPrimary()));
         for (MySqlParser.JoinRelationContext join : ctx.joinRelation()) {
+            int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
-            if (join.joinCriteria() != null) {
-                collectJoinColumnUsages(join.joinCriteria(), relationStart);
+            Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(join.relationPrimary());
+            MySqlParser.JoinCriteriaContext criteria = join.joinCriteria();
+            if (criteria == null || criteria.identifierList() == null) {
+                keys.putAll(rightKeys);
+                if (criteria != null) {
+                    addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(criteria.expression()));
+                }
+                continue;
             }
+            List<VisibleRelation> left = visibleRelations.subList(relationStart, rightStart);
+            List<VisibleRelation> right = visibleRelations.subList(rightStart, visibleRelations.size());
+            Map<String, List<ColumnRef>> merged = joinOutputKeys(join, left, right, keys, rightKeys);
+            keys.putAll(rightKeys);
+            keys.putAll(merged);
+        }
+        if (!keys.isEmpty()) {
+            relationJoinKeys.put(ctx, keys);
         }
         return null;
+    }
+
+    @Override
+    public Void visitRelationList(MySqlParser.RelationListContext ctx) {
+        visitChildren(ctx);
+        usingJoinKeys = ctx.relation().size() == 1
+                ? relationJoinKeys.getOrDefault(ctx.relation(0), Collections.emptyMap())
+                : Collections.emptyMap();
+        return null;
+    }
+
+    private Map<String, List<ColumnRef>> nestedJoinKeys(MySqlParser.RelationPrimaryContext primary) {
+        if (primary instanceof MySqlParser.AliasedRelationContext) {
+            return relationJoinKeys.getOrDefault(
+                    ((MySqlParser.AliasedRelationContext) primary).relation(), Collections.emptyMap());
+        }
+        return Collections.emptyMap();
+    }
+
+    private Map<String, List<ColumnRef>> joinOutputKeys(MySqlParser.JoinRelationContext join,
+                                                       List<VisibleRelation> left,
+                                                       List<VisibleRelation> right,
+                                                       Map<String, List<ColumnRef>> leftKeys,
+                                                       Map<String, List<ColumnRef>> rightKeys) {
+        Map<String, List<ColumnRef>> resultKeys = new LinkedHashMap<>();
+        for (String name : identifierNames(join.joinCriteria().identifierList())) {
+            String key = name.toLowerCase(Locale.ROOT);
+            List<ColumnRef> leftRefs = joinKeySources(left, leftKeys, name, key);
+            List<ColumnRef> rightRefs = joinKeySources(right, rightKeys, name, key);
+            List<ColumnRef> predicateRefs = LineageModelUtils.mergeColumnRefs(leftRefs, rightRefs);
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, predicateRefs);
+            MySqlParser.JoinTypeContext type = join.joinType();
+            if (type != null && type.RIGHT() != null) {
+                resultKeys.put(key, rightRefs);
+            } else if (type != null && type.FULL() != null) {
+                resultKeys.put(key, predicateRefs);
+            } else {
+                resultKeys.put(key, leftRefs);
+            }
+        }
+        return resultKeys;
+    }
+
+    private List<ColumnRef> joinKeySources(List<VisibleRelation> relations,
+                                         Map<String, List<ColumnRef>> joinedKeys,
+                                         String name, String key) {
+        List<ColumnRef> refs = joinedKeys.get(key);
+        if (refs != null) {
+            return refs;
+        }
+        refs = new ArrayList<>();
+        for (VisibleRelation relation : relations) {
+            refs.addAll(usingColumnRefs(relation, name));
+        }
+        return refs;
     }
 
     @Override
@@ -1804,15 +1879,22 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
-        List<ColumnRef> refs = columnUsageRefs(sourceColumns);
+        List<ColumnRef> refs = columnUsageRefs(type, sourceColumns);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
         }
     }
 
-    private List<ColumnRef> columnUsageRefs(List<SourceColumn> sourceColumns) {
+    private List<ColumnRef> columnUsageRefs(ColumnUsageType type, List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sourceColumn : sourceColumns) {
+            if (type != ColumnUsageType.ORDER_BY && type != ColumnUsageType.HAVING) {
+                List<ColumnRef> joinRefs = usingJoinRefs(sourceColumn);
+                if (joinRefs != null) {
+                    refs.addAll(joinRefs);
+                    continue;
+                }
+            }
             List<ColumnRef> projectionRefs = projectionAliasColumnRefs(sourceColumn);
             if (projectionRefs != null) {
                 refs.addAll(projectionRefs);
@@ -1969,6 +2051,11 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         return projection.targetColumn;
     }
 
+    private List<ColumnRef> usingJoinRefs(SourceColumn column) {
+        return column.resolvedRef == null && column.qualifier == null
+                ? usingJoinKeys.get(column.name.toLowerCase(Locale.ROOT)) : null;
+    }
+
     private List<ColumnRef> columnRefs(Projection projection) {
         return columnRefs(projection.sourceColumns);
     }
@@ -1998,6 +2085,11 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            List<ColumnRef> joinRefs = usingJoinRefs(sourceColumn);
+            if (joinRefs != null) {
+                refs.addAll(joinRefs);
+                continue;
+            }
             if ("*".equals(sourceColumn.name)) {
                 refs.addAll(wildcardColumnRefs(sourceColumn));
                 continue;
@@ -2369,6 +2461,11 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn col = scopedSourceColumn(sc);
+            List<ColumnRef> joinRefs = usingJoinRefs(col);
+            if (joinRefs != null) {
+                refs.addAll(joinRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(col);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);

@@ -1884,6 +1884,7 @@ Implemented MySQL column-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | DML JOIN USING scope | UPDATE and multi-table DELETE use the same source scopes as SELECT. Joined keys trace through derived column aliases and exclude unrelated comma-separated relations. | `update_join_using_derived_key`, `delete_join_using_comma_scope` |
+| Directional JOIN USING output keys | An unqualified output key follows the retained join side. This applies to projections, filters and UPDATE assignments, including chained nested joins. | `select_right_join_using_retained_key`, `select_chained_join_using_retained_key`, `update_using_join_assigns_merged_key` |
 | Direct single-table projection | `select id as user_id, name from app.users` | `select_basic` |
 | MySQL SELECT option projection | `select high_priority sql_calc_found_rows id as user_id from app.users` | `select_with_mysql_options` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
