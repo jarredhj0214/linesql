@@ -448,6 +448,12 @@ Known OceanBase gaps:
 
 SQL Server is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common SQL Server query and write shapes.
 
+For SQL Server scripts, pass `SqlDialect.SQLSERVER` to `LineSql.parseScript` to recognize
+standalone `GO` batch separators. A separator can include a positive repeat count and a
+trailing line comment. Analysis returns lineage once for each statement regardless of the
+repeat count. `GO` inside quoted values, bracketed identifiers, and comments stays in the
+statement. Custom statement splitters control their own batch handling.
+
 Current SQL Server SQL case assets:
 
 ```text

@@ -71,6 +71,21 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals(SqlDialect.FLINK, results.get(2).getDialect());
     }
 
+    @Test
+    public void parseScriptHandlesSqlServerGoBatchesThroughPublicApi() {
+        List<LineageResult> results = LineSql.parseScript(
+                "select [id] from [dbo].[customers]\n"
+                        + "GO 3 -- repeat\n"
+                        + "insert into [dbo].[archive] ([id]) select [id] from [dbo].[orders]\n"
+                        + "GO", SqlDialect.SQLSERVER);
+
+        assertEquals(2, results.size());
+        assertEquals("customers", results.get(0).getInputTables().get(0).getName());
+        assertEquals("orders", results.get(1).getInputTables().get(0).getName());
+        assertEquals("archive", results.get(1).getOutputTables().get(0).getName());
+        assertFalse(results.get(1).getColumnLineage().isEmpty());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

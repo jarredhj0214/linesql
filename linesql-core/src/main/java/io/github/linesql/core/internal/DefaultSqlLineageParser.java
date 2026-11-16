@@ -45,7 +45,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     public List<LineageResult> parseScript(String script, ParseOptions options, ParseContext context) {
         List<LineageResult> results = new ArrayList<>();
         DialectCandidate scriptCandidate = selectScriptDialect(script, options);
-        for (String statement : statementSplitter.split(script)) {
+        for (String statement : splitScript(script, options)) {
             DialectCandidate statementCandidate = selectStatementDialect(statement, options);
             DialectCandidate candidate = statementCandidate;
             if (shouldUseScriptDialect(scriptCandidate, statementCandidate, statement)) {
@@ -78,6 +78,15 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             return LineageResult.error(dialect, "DIALECT_NOT_REGISTERED", "No parser registered for dialect: " + dialect);
         }
         return parser.parse(sql, options, context);
+    }
+
+    private List<String> splitScript(String script, ParseOptions options) {
+        if (!options.getDialectHints().isEmpty()
+                && options.getDialectHints().get(0) == SqlDialect.SQLSERVER
+                && statementSplitter.getClass() == SimpleStatementSplitter.class) {
+            return ((SimpleStatementSplitter) statementSplitter).splitSqlServerBatches(script);
+        }
+        return statementSplitter.split(script);
     }
 
     private DialectCandidate selectStatementDialect(String statement, ParseOptions options) {

@@ -4,15 +4,27 @@ import io.github.linesql.core.spi.StatementSplitter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class SimpleStatementSplitter implements StatementSplitter {
+    private static final Pattern GO_LINE = Pattern.compile(
+            "[ \t]*GO(?:[ \t]+0*[1-9][0-9]*)?[ \t]*(?:--[^\r\n]*)?", Pattern.CASE_INSENSITIVE);
+
     @Override
     public List<String> split(String script) {
+        return split(script, false);
+    }
+
+    List<String> splitSqlServerBatches(String script) {
+        return split(script, true);
+    }
+
+    private List<String> split(String script, boolean sqlServer) {
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         char quote = 0;
         boolean lineComment = false;
-        boolean blockComment = false;
+        int blockCommentDepth = 0;
 
         for (int i = 0; i < script.length(); i++) {
             char c = script.charAt(i);
@@ -25,12 +37,44 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if (blockComment) {
+            if (blockCommentDepth > 0) {
                 current.append(c);
                 if (c == '*' && next == '/') {
                     current.append(next);
                     i++;
-                    blockComment = false;
+                    blockCommentDepth--;
+                } else if (sqlServer && c == '/' && next == '*') {
+                    current.append(next);
+                    i++;
+                    blockCommentDepth++;
+                }
+                continue;
+            }
+            if (sqlServer && quote == 0 && isLineStart(script, i)) {
+                int lineEnd = i;
+                while (lineEnd < script.length()
+                        && script.charAt(lineEnd) != '\r' && script.charAt(lineEnd) != '\n') {
+                    lineEnd++;
+                }
+                if (lineEnd > i && GO_LINE.matcher(script).region(i, lineEnd).matches()) {
+                    addIfNotBlank(statements, current, sqlServer);
+                    current.setLength(0);
+                    i = lineEnd - 1;
+                    continue;
+                }
+            }
+            if (sqlServer && quote == 0 && c == '[') {
+                quote = ']';
+                current.append(c);
+                continue;
+            }
+            if (quote == ']') {
+                current.append(c);
+                if (c == ']' && next == ']') {
+                    current.append(next);
+                    i++;
+                } else if (c == ']') {
+                    quote = 0;
                 }
                 continue;
             }
@@ -43,10 +87,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
             if (quote == 0 && c == '/' && next == '*') {
                 current.append(c).append(next);
                 i++;
-                blockComment = true;
+                blockCommentDepth = 1;
                 continue;
             }
-            if (quote == 0 && c == '$') {
+            if (!sqlServer && quote == 0 && c == '$') {
                 int end = dollarQuotedEnd(script, i);
                 if (end > i) {
                     current.append(script, i, end);
@@ -62,22 +106,30 @@ public class SimpleStatementSplitter implements StatementSplitter {
             if (c == '\'' || c == '"' || c == '`') {
                 if (quote == 0) {
                     quote = c;
-                } else if (quote == c && !isEscaped(script, i)) {
+                } else if (sqlServer && quote == c && next == c) {
+                    current.append(c).append(next);
+                    i++;
+                    continue;
+                } else if (quote == c && (sqlServer || !isEscaped(script, i))) {
                     quote = 0;
                 }
                 current.append(c);
                 continue;
             }
             if (quote == 0 && c == ';') {
-                addIfNotBlank(statements, current);
+                addIfNotBlank(statements, current, sqlServer);
                 current.setLength(0);
                 continue;
             }
             current.append(c);
         }
 
-        addIfNotBlank(statements, current);
+        addIfNotBlank(statements, current, sqlServer);
         return statements;
+    }
+
+    private static boolean isLineStart(String text, int index) {
+        return index == 0 || text.charAt(index - 1) == '\n' || text.charAt(index - 1) == '\r';
     }
 
     private static int dollarQuotedEnd(String text, int start) {
@@ -117,18 +169,18 @@ public class SimpleStatementSplitter implements StatementSplitter {
         return backslashes % 2 == 1;
     }
 
-    private static void addIfNotBlank(List<String> statements, StringBuilder sql) {
+    private static void addIfNotBlank(List<String> statements, StringBuilder sql, boolean sqlServer) {
         String value = sql.toString().trim();
-        if (!value.isEmpty() && !stripComments(value).trim().isEmpty()) {
+        if (!value.isEmpty() && !stripComments(value, sqlServer).trim().isEmpty()) {
             statements.add(value);
         }
     }
 
-    private static String stripComments(String sql) {
+    private static String stripComments(String sql, boolean sqlServer) {
         StringBuilder stripped = new StringBuilder(sql.length());
         char quote = 0;
         boolean lineComment = false;
-        boolean blockComment = false;
+        int blockCommentDepth = 0;
 
         for (int i = 0; i < sql.length(); i++) {
             char c = sql.charAt(i);
@@ -141,10 +193,13 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if (blockComment) {
+            if (blockCommentDepth > 0) {
                 if (c == '*' && next == '/') {
                     i++;
-                    blockComment = false;
+                    blockCommentDepth--;
+                } else if (sqlServer && c == '/' && next == '*') {
+                    i++;
+                    blockCommentDepth++;
                 }
                 continue;
             }
@@ -155,10 +210,10 @@ public class SimpleStatementSplitter implements StatementSplitter {
             }
             if (quote == 0 && c == '/' && next == '*') {
                 i++;
-                blockComment = true;
+                blockCommentDepth = 1;
                 continue;
             }
-            if (quote == 0 && c == '$') {
+            if (!sqlServer && quote == 0 && c == '$') {
                 int end = dollarQuotedEnd(sql, i);
                 if (end > i) {
                     stripped.append(sql, i, end);

@@ -58,4 +58,22 @@ public class SimpleStatementSplitterTest {
         assertEquals("select a$tag$ from ods.t", statements.get(0));
         assertEquals("select $tag$x;y$tag$", statements.get(1));
     }
+
+    @Test
+    public void splitsSqlServerGoLinesOutsideQuotedValuesAndComments() {
+        String select = "select [a]];\r\nGO\r\nb], 'semi;\r\nGO\r\nquote''s' from dbo.t";
+        String nestedComment = "/* outer /* inner */\r\nGO\r\n*/";
+        String script = "GO\r\n" + select + "\r\n  go 002 -- repeat\r\n" + nestedComment
+                + "\r\nGO\r\nselect go from dbo.u";
+        List<String> statements = splitter.splitSqlServerBatches(script);
+        assertEquals(2, statements.size());
+        assertEquals(select, statements.get(0));
+        assertEquals("select go from dbo.u", statements.get(1));
+    }
+
+    @Test
+    public void keepsGoAsSqlOutsideSqlServerBatchMode() {
+        String sql = "select\nGO\nfrom src";
+        assertEquals(sql, splitter.split(sql).get(0));
+    }
 }
