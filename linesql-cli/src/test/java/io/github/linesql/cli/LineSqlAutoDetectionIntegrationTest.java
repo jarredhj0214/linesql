@@ -111,6 +111,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgreSqlGeneratedExpressionChanges() {
+        LineageResult result = LineSql.parse(
+                "ALTER TABLE mart.metrics ALTER COLUMN net SET EXPRESSION AS (amount - discount)");
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, result.getStatementType());
+        assertEquals("net", result.getColumnLineage().get(0).getTarget().getName());
+        assertEquals(2, result.getColumnLineage().get(0).getSources().size());
+        assertEquals(3, result.getColumnUsages().size());
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER TABLE mart.metrics ALTER net DROP EXPRESSION IF EXISTS");
+    }
+
+    @Test
     public void autoDetectsPostgreSqlPolicyAndReplicationStatements() {
         LineageResult policy = LineSql.parse("CREATE POLICY tenant_view ON mart.events USING (tenant_id = 42)");
         assertEquals(SqlDialect.POSTGRESQL, policy.getDialect());

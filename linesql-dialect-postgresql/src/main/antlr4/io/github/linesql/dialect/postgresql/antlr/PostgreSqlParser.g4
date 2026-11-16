@@ -1014,6 +1014,10 @@ alterTableStatement
     | ALTER TABLE target=multipartIdentifier RENAME COLUMN sourceColumn=identifier TO targetColumn=identifier #alterTableRenameColumn
     | ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
     | ALTER TABLE target=multipartIdentifier DROP COLUMN (IF EXISTS)? dropColumn=identifier (CASCADE | RESTRICT)? #alterTableDropColumn
+    | ALTER TABLE (IF EXISTS)? ONLY? target=multipartIdentifier ALTER COLUMN? alterColumn=identifier
+      SET EXPRESSION AS LPAREN generatedExpression=expression RPAREN #alterTableSetGeneratedExpression
+    | ALTER TABLE (IF EXISTS)? ONLY? target=multipartIdentifier ALTER COLUMN? alterColumn=identifier
+      DROP EXPRESSION (IF EXISTS)? #alterTableDropGeneratedExpression
     | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier SET DEFAULT expression #alterTableAlterColumnSetDefault
     | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier DROP DEFAULT #alterTableAlterColumnDropDefault
     | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier SET NOT NULL #alterTableAlterColumnSetNotNull
@@ -1294,7 +1298,7 @@ columnConstraint
     | COMMENT string
     | DEFAULT expression
     | GENERATED (ALWAYS | BY DEFAULT) AS IDENTITY
-    | GENERATED ALWAYS AS LPAREN generatedExpression=expression RPAREN STORED
+    | GENERATED ALWAYS AS LPAREN generatedExpression=expression RPAREN (STORED | VIRTUAL)?
     | REFERENCES refTable=multipartIdentifier (LPAREN identifierList RPAREN)?
     | CHECK LPAREN checkExpression=expression RPAREN
     | CONSTRAINT identifier nestedColumnConstraint=columnConstraint
@@ -1390,6 +1394,7 @@ nonReservedKeyword
     | OLD | NEW | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RESET | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMP | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER | ZONE | DISCARD | PLANS
     | CALLED | COST | DEFINER | IMMUTABLE | INOUT | INPUT | INVOKER | LEAKPROOF | OUT | PARALLEL | RESTRICTED | SAFE | SETOF | STABLE | STRICT | SUPPORT | TRANSFORM | UNSAFE | VARIADIC | VOLATILE
     | ATOMIC | RETURN
+    | VIRTUAL | EXPRESSION
     ;
 
 number

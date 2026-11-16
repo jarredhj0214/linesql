@@ -2,6 +2,46 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "create_table_virtual_generated_columns",
+      "file": "cases/create_table_virtual_generated_columns.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.metrics"],
+      "columnLineage": [{"target": "mart.metrics.net", "sources": ["mart.metrics.amount", "mart.metrics.discount"]}, {"target": "mart.metrics.double_amount", "sources": ["mart.metrics.amount"]}],
+      "columnUsages": [],
+      "description": "PostgreSQL 18 accepts explicit and implicit virtual generation and keeps expression lineage"
+    },
+    {
+      "id": "alter_table_add_virtual_generated_column",
+      "file": "cases/alter_table_add_virtual_generated_column.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.metrics"],
+      "columnLineage": [{"target": "mart.metrics.net", "sources": ["mart.metrics.amount", "mart.metrics.discount"]}],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.metrics.net"}],
+      "description": "Adding a virtual generated column retains the column model and its dependencies"
+    },
+    {
+      "id": "alter_table_set_generated_expression",
+      "file": "cases/alter_table_set_generated_expression.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.metrics"],
+      "columnLineage": [{"target": "mart.metrics.net", "sources": ["mart.metrics.amount", "mart.metrics.discount"]}],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.metrics.net"}, {"type": "TABLE_MODEL", "column": "mart.metrics.amount"}, {"type": "TABLE_MODEL", "column": "mart.metrics.discount"}],
+      "description": "Replacing a generation expression records its target and source columns"
+    },
+    {
+      "id": "alter_table_drop_generated_expression",
+      "file": "cases/alter_table_drop_generated_expression.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.metrics"],
+      "columnLineage": [],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.metrics.net"}],
+      "description": "Dropping the definition keeps the affected column as a metadata usage"
+    },
+    {
       "id": "select_standard_backslash_strings",
       "file": "cases/select_standard_backslash_strings.sql",
       "statementType": "SELECT",

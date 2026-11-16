@@ -149,6 +149,9 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL PL/pgSQL routine language"));
         } else if (SimpleStatementSplitter.containsPostgresAtomicRoutine(unquotedSyntax)) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL SQL-standard routine body"));
+        } else if (unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\balter\\b[^;]*"
+                + "\\b(?:set|drop)\\s+expression\\b.*")) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL generated-column expression alteration"));
         } else if (SimpleStatementSplitter.containsPostgresClientCommand(sql)) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL psql client command"));
         } else if (unquotedSyntax.contains("copy") && SimpleStatementSplitter.containsPostgresCopyFromStdin(

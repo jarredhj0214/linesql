@@ -1132,6 +1132,24 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterTableSetGeneratedExpression(PostgreSqlParser.AlterTableSetGeneratedExpressionContext ctx) {
+        TableRef table = tableRef(ctx.target);
+        String column = cleanIdentifier(ctx.alterColumn);
+        currentDmlTarget = table;
+        recordAlterColumnUsage(table, column);
+        ColumnLineage lineage = generatedColumnLineage(table, column, ctx.generatedExpression);
+        result.setColumnLineage(Collections.singletonList(lineage));
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, lineage.getSources());
+        return null;
+    }
+
+    @Override
+    public Void visitAlterTableDropGeneratedExpression(PostgreSqlParser.AlterTableDropGeneratedExpressionContext ctx) {
+        recordAlterColumnUsage(tableRef(ctx.target), cleanIdentifier(ctx.alterColumn));
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableAlterColumnSetDefault(PostgreSqlParser.AlterTableAlterColumnSetDefaultContext ctx) {
         recordAlterColumnUsage(tableRef(ctx.target), cleanIdentifier(ctx.alterColumn));
         addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.expression()));
@@ -2877,15 +2895,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             inputTables.add(tableRef(ctx.refTable));
         }
         if (ctx.generatedExpression != null) {
-            List<ColumnRef> sources = resolveSources(sourceColumns(ctx.generatedExpression));
-            if (sources == null) {
-                sources = new ArrayList<>();
-            }
-            generatedColumns.add(LineageModelUtils.columnLineage(
-                    target,
-                    columnName,
-                    sources,
-                    ctx.generatedExpression.getText()));
+            generatedColumns.add(generatedColumnLineage(target, columnName, ctx.generatedExpression));
         }
         if (ctx.checkExpression != null) {
             addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.checkExpression));
@@ -2893,6 +2903,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx.nestedColumnConstraint != null) {
             collectColumnConstraint(ctx.nestedColumnConstraint, target, columnName, generatedColumns);
         }
+    }
+
+    private ColumnLineage generatedColumnLineage(TableRef table, String column, PostgreSqlParser.ExpressionContext expression) {
+        List<ColumnRef> sources = resolveSources(sourceColumns(expression));
+        return LineageModelUtils.columnLineage(table, column,
+                sources == null ? Collections.emptyList() : sources, expression.getText());
     }
 
     private void collectTableConstraint(PostgreSqlParser.TableConstraintContext ctx) {
