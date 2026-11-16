@@ -6717,6 +6717,70 @@
       ],
       "columnUsages": [],
       "description": "A wildcard of unknown width cannot position a later explicit projection"
+    },
+    {
+      "id": "select_group_by_prefers_known_input_name",
+      "file": "cases/select_group_by_prefers_known_input_name.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "ods.events.channel"
+          ]
+        },
+        {
+          "target": "total",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.channel"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.channel"
+        }
+      ],
+      "description": "The GROUP BY name refers to the known input and ORDER BY resolves the bare output alias"
+    },
+    {
+      "id": "select_order_expression_uses_input_scope",
+      "file": "cases/select_order_expression_uses_input_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "ods.events.channel"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.region"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.channel"
+        }
+      ],
+      "description": "A sort expression sees the input namespace and a parenthesized position resolves the output"
     }
   ]
 }

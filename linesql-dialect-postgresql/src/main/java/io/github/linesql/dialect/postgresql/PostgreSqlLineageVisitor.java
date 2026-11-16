@@ -2430,11 +2430,22 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private void addGroupingExpressionUsage(PostgreSqlParser.ExpressionContext expression) {
+        expression = unwrapParenthesizedExpression(expression);
         int ordinal = outputOrdinal(expression.getText());
         if (ordinal >= 0) {
             addOrdinalColumnUsages(ColumnUsageType.GROUP_BY, ordinal);
+            return;
+        }
+        List<SourceColumn> sources = sourceColumns(expression);
+        if (primaryExpression(expression) instanceof PostgreSqlParser.ColumnReferenceContext && !sources.isEmpty()) {
+            List<ColumnRef> input = derivedColumnRefs(sources.get(0));
+            if (input != null) {
+                LineageModelUtils.addColumnUsages(result, ColumnUsageType.GROUP_BY, input);
+            } else {
+                addColumnUsages(ColumnUsageType.GROUP_BY, sources);
+            }
         } else {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+            addInputColumnUsages(ColumnUsageType.GROUP_BY, sources);
         }
     }
 
@@ -2568,7 +2579,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         boolean outputOrder = query.queryTerm() instanceof PostgreSqlParser.SetOperationContext
                 || !valuesQueryRows(query).isEmpty();
         for (PostgreSqlParser.SortItemContext sortItem : ctx.sortItem()) {
-            String sortKey = sortItem.expression().getText();
+            PostgreSqlParser.ExpressionContext expression = unwrapParenthesizedExpression(sortItem.expression());
+            String sortKey = expression.getText();
             int ordinal = outputOrdinal(sortKey);
             if (outputOrder) {
                 List<ColumnLineage> lineages = result.getColumnLineage();
@@ -2580,8 +2592,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 }
             } else if (ordinal >= 0) {
                 addOrdinalColumnUsages(ColumnUsageType.ORDER_BY, ordinal);
+            } else if (primaryExpression(expression) instanceof PostgreSqlParser.ColumnReferenceContext) {
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(expression));
             } else {
-                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+                addInputColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(expression));
             }
         }
         return visitChildren(ctx);
@@ -2618,10 +2632,41 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         for (Projection projection : projections) {
             if (projection.ordinal == ordinal) {
-                addColumnUsages(type, projection.sourceColumns);
+                addInputColumnUsages(type, projection.sourceColumns);
                 return;
             }
         }
+    }
+
+    private void addInputColumnUsages(ColumnUsageType type, List<SourceColumn> sources) {
+        List<ColumnRef> refs = columnRefs(sources);
+        if (refs != null) {
+            LineageModelUtils.addColumnUsages(result, type, refs);
+        }
+    }
+
+    private static PostgreSqlParser.ExpressionContext unwrapParenthesizedExpression(
+            PostgreSqlParser.ExpressionContext expression) {
+        PostgreSqlParser.PrimaryExpressionContext primary = primaryExpression(expression);
+        while (primary instanceof PostgreSqlParser.ParenthesizedExpressionContext) {
+            expression = ((PostgreSqlParser.ParenthesizedExpressionContext) primary).expression();
+            primary = primaryExpression(expression);
+        }
+        return expression;
+    }
+
+    private static PostgreSqlParser.PrimaryExpressionContext primaryExpression(
+            PostgreSqlParser.ExpressionContext expression) {
+        if (!(expression.booleanExpression() instanceof PostgreSqlParser.PredicatedExprContext)) {
+            return null;
+        }
+        PostgreSqlParser.PredicatedExprContext value =
+                (PostgreSqlParser.PredicatedExprContext) expression.booleanExpression();
+        if (value.predicate() != null
+                || !(value.valueExpression() instanceof PostgreSqlParser.ValueExpressionDefaultContext)) {
+            return null;
+        }
+        return ((PostgreSqlParser.ValueExpressionDefaultContext) value.valueExpression()).primaryExpression();
     }
 
     private static int outputOrdinal(String expression) {
@@ -3728,36 +3773,28 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private static String defaultSetColumnName(PostgreSqlParser.ExpressionContext expression) {
-        if (expression.booleanExpression() instanceof PostgreSqlParser.PredicatedExprContext) {
-            PostgreSqlParser.PredicatedExprContext value =
-                    (PostgreSqlParser.PredicatedExprContext) expression.booleanExpression();
-            if (value.predicate() == null
-                    && value.valueExpression() instanceof PostgreSqlParser.ValueExpressionDefaultContext) {
-                PostgreSqlParser.PrimaryExpressionContext primary =
-                        ((PostgreSqlParser.ValueExpressionDefaultContext) value.valueExpression()).primaryExpression();
-                if (primary instanceof PostgreSqlParser.FunctionCallContext) {
-                    return unqualifiedName(((PostgreSqlParser.FunctionCallContext) primary).functionName().getText());
-                }
-                if (primary instanceof PostgreSqlParser.FunctionCallStarContext) {
-                    return unqualifiedName(((PostgreSqlParser.FunctionCallStarContext) primary).functionName().getText());
-                }
-                if (primary instanceof PostgreSqlParser.FunctionCallEmptyContext) {
-                    return unqualifiedName(((PostgreSqlParser.FunctionCallEmptyContext) primary).functionName().getText());
-                }
-                if (primary instanceof PostgreSqlParser.JsonObjectExpressionContext
-                        || primary instanceof PostgreSqlParser.JsonArrayExpressionContext
-                        || primary instanceof PostgreSqlParser.JsonArrayQueryExpressionContext
-                        || primary instanceof PostgreSqlParser.JsonConstructorExpressionContext
-                        || primary instanceof PostgreSqlParser.JsonSerializeExpressionContext
-                        || primary instanceof PostgreSqlParser.XmlParseExpressionContext
-                        || primary instanceof PostgreSqlParser.XmlSerializeExpressionContext
-                        || primary instanceof PostgreSqlParser.XmlExistsExpressionContext
-                        || primary instanceof PostgreSqlParser.XmlElementExpressionContext
-                        || primary instanceof PostgreSqlParser.XmlForestExpressionContext
-                        || primary instanceof PostgreSqlParser.NormalizeExpressionContext) {
-                    return primary.getStart().getText().toLowerCase(Locale.ROOT);
-                }
-            }
+        PostgreSqlParser.PrimaryExpressionContext primary = primaryExpression(expression);
+        if (primary instanceof PostgreSqlParser.FunctionCallContext) {
+            return unqualifiedName(((PostgreSqlParser.FunctionCallContext) primary).functionName().getText());
+        }
+        if (primary instanceof PostgreSqlParser.FunctionCallStarContext) {
+            return unqualifiedName(((PostgreSqlParser.FunctionCallStarContext) primary).functionName().getText());
+        }
+        if (primary instanceof PostgreSqlParser.FunctionCallEmptyContext) {
+            return unqualifiedName(((PostgreSqlParser.FunctionCallEmptyContext) primary).functionName().getText());
+        }
+        if (primary instanceof PostgreSqlParser.JsonObjectExpressionContext
+                || primary instanceof PostgreSqlParser.JsonArrayExpressionContext
+                || primary instanceof PostgreSqlParser.JsonArrayQueryExpressionContext
+                || primary instanceof PostgreSqlParser.JsonConstructorExpressionContext
+                || primary instanceof PostgreSqlParser.JsonSerializeExpressionContext
+                || primary instanceof PostgreSqlParser.XmlParseExpressionContext
+                || primary instanceof PostgreSqlParser.XmlSerializeExpressionContext
+                || primary instanceof PostgreSqlParser.XmlExistsExpressionContext
+                || primary instanceof PostgreSqlParser.XmlElementExpressionContext
+                || primary instanceof PostgreSqlParser.XmlForestExpressionContext
+                || primary instanceof PostgreSqlParser.NormalizeExpressionContext) {
+            return primary.getStart().getText().toLowerCase(Locale.ROOT);
         }
         return "?column?";
     }
