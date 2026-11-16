@@ -64,7 +64,9 @@ public class SimpleDialectDetector implements DialectDetector {
 
         String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
 
-        if (mysqlExecutableComment
+        if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
+            candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
+        } else if (mysqlExecutableComment
                 || normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\bfrom\\b.+\\bjoin\\b.*")

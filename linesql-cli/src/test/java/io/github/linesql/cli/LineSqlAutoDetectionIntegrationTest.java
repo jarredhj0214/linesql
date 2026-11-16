@@ -112,10 +112,7 @@ public class LineSqlAutoDetectionIntegrationTest {
 
     @Test
     public void detectsSqlServerGoInScriptsWithTransactSqlSyntax() {
-        List<LineageResult> results;
-        try (Scanner scanner = new Scanner(getClass().getResourceAsStream("/sql/sqlserver/go_routine_and_query.sql"), "UTF-8")) {
-            results = LineSql.parseScript(scanner.useDelimiter("\\A").next());
-        }
+        List<LineageResult> results = LineSql.parseScript(scriptFixture("/sql/sqlserver/go_routine_and_query.sql"));
 
         assertEquals(2, results.size());
         LineageResult routine = results.get(0);
@@ -405,6 +402,39 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void mysqlClientDelimiterDirectivesPreserveRoutineAndSubsequentStatements() {
+        String script = scriptFixture("/sql/mysql/client_delimiters.sql");
+        assertMySqlDelimiterScript(LineSql.parseScript(script), SqlDialect.MYSQL);
+        assertMySqlDelimiterScript(LineSql.parseScript(script, SqlDialect.MYSQL), SqlDialect.MYSQL);
+
+        ParseOptions oceanBase = ParseOptions.builder()
+                .dialectHints(Collections.singletonList(SqlDialect.OCEANBASE))
+                .dialectOption("oceanbase.compatibilityMode", "mysql")
+                .build();
+        assertMySqlDelimiterScript(LineSql.parseScript(script, oceanBase), SqlDialect.OCEANBASE);
+
+        assertDialect(SqlDialect.POSTGRESQL,
+                "DO $body$ BEGIN RAISE NOTICE 'literal\nDELIMITER //\n'; END; $body$");
+        assertDialect(SqlDialect.SPARK, "SELECT\ndelimiter alias\nFROM ods.events;");
+    }
+
+    private void assertMySqlDelimiterScript(List<LineageResult> results, SqlDialect dialect) {
+        assertEquals(4, results.size());
+        assertEquals(StatementType.DROP_ROUTINE, results.get(0).getStatementType());
+        assertEquals(StatementType.CREATE_ROUTINE, results.get(1).getStatementType());
+        assertEquals(StatementType.SELECT, results.get(2).getStatementType());
+        assertEquals(StatementType.SELECT, results.get(3).getStatementType());
+        for (LineageResult result : results) {
+            assertEquals(dialect, result.getDialect());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+        assertEquals("sales", results.get(2).getInputTables().get(0).getName());
+        assertEquals("net", results.get(2).getColumnLineage().get(0).getTarget().getName());
+        assertEquals(2, results.get(2).getColumnLineage().get(0).getSources().size());
+        assertEquals("refunds", results.get(3).getInputTables().get(0).getName());
+    }
+
+    @Test
     public void splitsMySqlAndOceanBaseMySqlScriptsWithHashComments() {
         String script = "# ignored; SELECT id FROM ghost.t\n"
                 + "SELECT amount--discount AS net FROM ods.sales; "
@@ -423,6 +453,12 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("sales", results.get(0).getInputTables().get(0).getName());
         assertEquals(2, results.get(0).getColumnLineage().get(0).getSources().size());
         assertEquals("refunds", results.get(1).getInputTables().get(0).getName());
+    }
+
+    private String scriptFixture(String path) {
+        try (Scanner scanner = new Scanner(getClass().getResourceAsStream(path), "UTF-8")) {
+            return scanner.useDelimiter("\\A").next();
+        }
     }
 
     private static void assertDialect(SqlDialect expected, String sql) {

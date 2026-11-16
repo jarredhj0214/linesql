@@ -17,6 +17,11 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final Pattern GO_SCRIPT_LINE = Pattern.compile(
             "^" + GO_LINE.pattern() + "$", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
 
+    private static final Pattern MYSQL_DELIMITER_LINE = Pattern.compile(
+            "[ \\t]*(DELIMITER|\\\\d)[ \\t]+(.+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern MYSQL_DELIMITER_SCRIPT_LINE = Pattern.compile(
+            "^" + MYSQL_DELIMITER_LINE.pattern() + "$", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+
     private static final Pattern SQL_SERVER_ROUTINE = Pattern.compile(
             "^\\s*(?:CREATE\\s+(?:OR\\s+ALTER\\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER)"
                     + "|ALTER\\s+(?:PROC(?:EDURE)?|FUNCTION))\\b", Pattern.CASE_INSENSITIVE);
@@ -53,14 +58,20 @@ public class SimpleStatementSplitter implements StatementSplitter {
     }
 
     List<String> split(String script, SqlDialect dialect) {
-        return split(script, dialect, false);
+        return splitWithDelimiters(script, dialect).statements;
     }
 
     List<String> splitDetectedSqlServerBatches(String script) {
-        return containsSqlServerGo(script) ? split(script, SqlDialect.SQLSERVER, true) : split(script);
+        if (containsSqlServerGo(script)) {
+            ScriptStatements batches = splitWithDelimiters(script, SqlDialect.SQLSERVER);
+            if (batches.sqlServerGo) {
+                return batches.statements;
+            }
+        }
+        return split(script);
     }
 
-    private List<String> split(String script, SqlDialect dialect, boolean requireGo) {
+    private static ScriptStatements splitWithDelimiters(String script, SqlDialect dialect) {
         boolean sqlServer = dialect == SqlDialect.SQLSERVER;
         boolean oracle = dialect == SqlDialect.ORACLE;
         boolean oracleQuotedLiterals = oracle || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE;
@@ -68,12 +79,17 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean postgresAtomic = dialect == SqlDialect.POSTGRESQL || dialect == SqlDialect.UNKNOWN;
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         boolean mysql = dialect == SqlDialect.MYSQL;
+        boolean checkMySqlDelimiters = (mysql || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE)
+                && MYSQL_DELIMITER_SCRIPT_LINE.matcher(script).find();
+        Matcher mysqlCommand = MYSQL_DELIMITER_LINE.matcher(script);
+        String mysqlDelimiter = ";";
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         char quote = 0;
         boolean lineComment = false;
         boolean routineBatch = false;
         boolean sawGo = false;
+        boolean sawMySqlDelimiter = false;
         int statementSetPartStart = -1;
         int atomicPartStart = -1;
         Matcher atomicOpening = POSTGRES_ATOMIC.matcher(script).useTransparentBounds(true);
@@ -103,11 +119,25 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if ((sqlServer || oracle) && quote == 0 && isLineStart(script, i)) {
+            if ((sqlServer || oracle || checkMySqlDelimiters) && quote == 0 && isLineStart(script, i)) {
                 int lineEnd = i;
                 while (lineEnd < script.length()
                         && script.charAt(lineEnd) != '\r' && script.charAt(lineEnd) != '\n') {
                     lineEnd++;
+                }
+                if (checkMySqlDelimiters && mysqlCommand.region(i, lineEnd).matches()
+                        && (mysql || "DELIMITER".equalsIgnoreCase(mysqlCommand.group(1)))
+                        && !hasSqlContent(current.toString(), SqlDialect.MYSQL, false)) {
+                    String newDelimiter = readMySqlDelimiter(mysqlCommand.group(2).trim());
+                    if (newDelimiter != null) {
+                        mysql = true;
+                        dialect = SqlDialect.MYSQL;
+                        mysqlDelimiter = newDelimiter;
+                        sawMySqlDelimiter = true;
+                        current.setLength(0);
+                        i = lineEnd - 1;
+                        continue;
+                    }
                 }
                 boolean delimiter = sqlServer && GO_LINE.matcher(script).region(i, lineEnd).matches();
                 if (oracle && ORACLE_SLASH.matcher(script).region(i, lineEnd).matches()) {
@@ -122,6 +152,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     i = lineEnd - 1;
                     continue;
                 }
+            }
+            if (mysql && quote == 0 && !";".equals(mysqlDelimiter) && script.startsWith(mysqlDelimiter, i)) {
+                addIfNotBlank(statements, current, dialect, nestedComments);
+                current.setLength(0);
+                i += mysqlDelimiter.length() - 1;
+                continue;
             }
             if (sqlServer && quote == 0 && c == '[') {
                 quote = ']';
@@ -138,7 +174,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if (oracleQuotedLiterals && quote == 0 && (c == 'q' || c == 'Q' || c == 'n' || c == 'N')) {
+            if (oracleQuotedLiterals && !mysql && quote == 0 && (c == 'q' || c == 'Q' || c == 'n' || c == 'N')) {
                 int end = oracle ? OracleQuotedLiterals.endOfLiteral(script, i)
                         : OracleQuotedLiterals.endOfClosedLiteral(script, i);
                 if (end > i) {
@@ -162,7 +198,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 blockCommentDepth = 1;
                 continue;
             }
-            if (!sqlServer && quote == 0 && c == '$') {
+            if (!sqlServer && !mysql && quote == 0 && c == '$') {
                 int end = dollarQuotedEnd(script, i, true);
                 if (end > i) {
                     current.append(script, i, end);
@@ -188,12 +224,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 current.append(c);
                 continue;
             }
-            if (postgresAtomic && atomicPartStart < 0 && quote == 0 && (c == 'b' || c == 'B')
+            if (postgresAtomic && !mysql && atomicPartStart < 0 && quote == 0 && (c == 'b' || c == 'B')
                     && atomicOpening.region(i, script.length()).lookingAt()
                     && POSTGRES_ROUTINE.matcher(stripComments(current.toString(), nestedComments)).find()) {
                 atomicPartStart = current.length() + atomicOpening.end() - i;
             }
-            if (quote == 0 && c == ';' && !routineBatch) {
+            if (quote == 0 && c == ';' && !routineBatch && ";".equals(mysqlDelimiter)) {
                 if (atomicPartStart >= 0) {
                     String part = stripComments(current.substring(atomicPartStart), nestedComments).trim();
                     if (!part.equalsIgnoreCase("END")) {
@@ -203,7 +239,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     }
                     atomicPartStart = -1;
                 }
-                if (flinkStatementSets && FLINK_STATEMENT_SET_CONTINUATION.matcher(script)
+                if (flinkStatementSets && !mysql && FLINK_STATEMENT_SET_CONTINUATION.matcher(script)
                         .region(i + 1, script.length()).lookingAt()) {
                     String part = stripComments(current.substring(Math.max(0, statementSetPartStart)), false);
                     boolean inStatementSet = statementSetPartStart >= 0
@@ -230,7 +266,47 @@ public class SimpleStatementSplitter implements StatementSplitter {
         }
 
         addIfNotBlank(statements, current, dialect, nestedComments);
-        return requireGo && !sawGo ? split(script) : statements;
+        return new ScriptStatements(statements, sawGo, sawMySqlDelimiter);
+    }
+
+    static boolean containsMySqlDelimiterDirective(String sql) {
+        return MYSQL_DELIMITER_SCRIPT_LINE.matcher(sql).find()
+                && splitWithDelimiters(sql, SqlDialect.UNKNOWN).mySqlDelimiterDirective;
+    }
+
+    private static String readMySqlDelimiter(String argument) {
+        if (argument.isEmpty()) {
+            return null;
+        }
+        char first = argument.charAt(0);
+        boolean quoted = first == '\'' || first == '"' || first == '`';
+        StringBuilder delimiter = new StringBuilder();
+        for (int i = quoted ? 1 : 0; i < argument.length(); i++) {
+            char current = argument.charAt(i);
+            if (quoted ? current == first : Character.isWhitespace(current)) {
+                return delimiter.length() == 0 ? null : delimiter.toString();
+            }
+            if (current == '\\') {
+                if (i + 1 >= argument.length() || argument.charAt(i + 1) == '\\') {
+                    return null;
+                }
+                current = argument.charAt(++i);
+            }
+            delimiter.append(current);
+        }
+        return quoted || delimiter.length() == 0 ? null : delimiter.toString();
+    }
+
+    private static final class ScriptStatements {
+        private final List<String> statements;
+        private final boolean sqlServerGo;
+        private final boolean mySqlDelimiterDirective;
+
+        private ScriptStatements(List<String> statements, boolean sqlServerGo, boolean mySqlDelimiterDirective) {
+            this.statements = statements;
+            this.sqlServerGo = sqlServerGo;
+            this.mySqlDelimiterDirective = mySqlDelimiterDirective;
+        }
     }
 
     static boolean containsSqlServerGo(String sql) {
@@ -302,16 +378,20 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static void addIfNotBlank(List<String> statements, StringBuilder sql,
                                       SqlDialect dialect, boolean nestedComments) {
         String value = sql.toString().trim();
-        if (value.isEmpty()) {
-            return;
+        if (hasSqlContent(value, dialect, nestedComments)) {
+            statements.add(value);
+        }
+    }
+
+    private static boolean hasSqlContent(String sql, SqlDialect dialect, boolean nestedComments) {
+        if (sql.isEmpty()) {
+            return false;
         }
         boolean mysql = dialect == SqlDialect.MYSQL;
         boolean executableComments = mysql || dialect == SqlDialect.OCEANBASE || dialect == SqlDialect.UNKNOWN;
-        if (!stripComments(value, nestedComments, mysql).trim().isEmpty()
-                || (executableComments && value.contains("/*!")
-                        && !stripComments(MySqlExecutableComments.unwrap(value), false, mysql).trim().isEmpty())) {
-            statements.add(value);
-        }
+        return !stripComments(sql, nestedComments, mysql).trim().isEmpty()
+                || (executableComments && sql.contains("/*!")
+                        && !stripComments(MySqlExecutableComments.unwrap(sql), false, mysql).trim().isEmpty());
     }
 
     private static boolean startsLineComment(String sql, int start, boolean mysql) {
