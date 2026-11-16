@@ -116,6 +116,33 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void detectsPostgresDollarQuotesWithoutReadingTheirContentsAsSql() {
+        List<SqlDialect> candidates = detector.detect(
+                "SELECT $Body$'connector' /*!50700 REPLACE INTO t */ OPENJSON(x) FROM dual; $Body$::text FROM ods.a");
+        assertEquals(SqlDialect.POSTGRESQL, candidates.get(0));
+        assertFalse(candidates.contains(SqlDialect.MYSQL));
+        assertFalse(candidates.contains(SqlDialect.FLINK));
+        assertFalse(candidates.contains(SqlDialect.SQLSERVER));
+        assertFalse(candidates.contains(SqlDialect.ORACLE));
+    }
+
+    @Test
+    public void keepsDollarQuotedSparkCodeLiteralOnTheSparkPath() {
+        List<SqlDialect> candidates = detector.detect(
+                "CREATE VIEW mart.metric_users LANGUAGE SQL AS $$SELECT id FROM ods.users$$");
+        assertEquals(SqlDialect.SPARK, candidates.get(0));
+        assertFalse(candidates.contains(SqlDialect.POSTGRESQL));
+    }
+
+    @Test
+    public void ignoresDollarDelimitersInCommentsStringsAndIdentifiers() {
+        List<SqlDialect> candidates = detector.detect(
+                "SELECT a$tag$, '$x$literal$x$', $unmatched$ FROM ods.a /* $block$comment$block$ */ -- $$comment$$");
+        assertEquals(SqlDialect.SPARK, candidates.get(0));
+        assertFalse(candidates.contains(SqlDialect.POSTGRESQL));
+    }
+
+    @Test
     public void detectsPostgreSqlAnchors() {
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1) on conflict (id) do nothing");
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1)\non conflict (id) do nothing");

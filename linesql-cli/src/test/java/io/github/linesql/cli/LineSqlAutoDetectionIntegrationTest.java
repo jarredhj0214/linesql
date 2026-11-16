@@ -86,6 +86,20 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertFalse(results.get(1).getColumnLineage().isEmpty());
     }
 
+    @Test
+    public void parseScriptAutoDetectsPostgresDollarQuotesAmongOtherDialects() {
+        List<LineageResult> results = LineSql.parseScript(
+                "DO $Body$ BEGIN PERFORM 'from dual;'; END; $Body$;"
+                        + "SELECT id FROM ods.a;"
+                        + "CREATE TABLE event_sink(id bigint) WITH ('connector' = 'kafka');");
+
+        assertEquals(3, results.size());
+        assertEquals(SqlDialect.POSTGRESQL, results.get(0).getDialect());
+        assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
+        assertEquals(SqlDialect.FLINK, results.get(1).getDialect());
+        assertEquals(SqlDialect.FLINK, results.get(2).getDialect());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

@@ -18,6 +18,7 @@ Implemented detection anchors:
 | Dialect | Anchor examples |
 | --- | --- |
 | MySQL | `REPLACE INTO`, `ON DUPLICATE KEY`, `LIMIT offset, size`, `UPDATE ... JOIN ... SET`, `LOW_PRIORITY`/`QUICK` DML modifiers, `RENAME TABLE`, `LOCK TABLES`, `INTO OUTFILE`, `JSON_TABLE`, `LOAD XML`, JSON arrow operators |
+| PostgreSQL | Dollar-quoted `DO` blocks, `ON CONFLICT`, `RETURNING`, `::` casts, `ILIKE` |
 | Hive | `ROW FORMAT`, `STORED AS`, `SERDEPROPERTIES`, `CLUSTERED BY` |
 | Flink | connector options, `WATERMARK FOR`, plan/job/model statements, procedure calls |
 | StarRocks | `CREATE TABLE ... DUPLICATE KEY`, `CREATE TABLE ... AGGREGATE KEY`, `CREATE TABLE ... DISTRIBUTED BY HASH`, replication properties, routine/load jobs, materialized-view refresh, `SHOW PROC`, `SHOW TABLET`, `ADMIN SHOW`, `SUBMIT TASK` |
@@ -201,7 +202,7 @@ Implemented PostgreSQL scenarios:
 | Quantified array comparisons | `actor_id = any(allowed_actor_ids)`, `denied_actor_id <> some(blocked_actor_ids)` | `any_array_predicate_usage`, `some_array_predicate_usage` |
 | Double-quoted non-ASCII identifiers | `select "用户ID" from "业务库"."用户表"` | `quoted_identifiers` |
 | INSERT VALUES without a target column list | A scalar subquery in VALUES preserves the input table while target names depend on the table schema. | `insert_values_subquery_without_target_columns` |
-| Tagged dollar-quoted strings | Case-sensitive delimiters preserve literal text and embedded semicolons in queries and DO blocks. | `select_tagged_dollar_quote`, `do_tagged_dollar_quote` |
+| Dollar-quoted strings | Case-sensitive delimiters preserve literal text and embedded semicolons in queries and DO blocks. Dialect detection skips literal bodies and recognizes dollar-quoted DO blocks as PostgreSQL. | `select_tagged_dollar_quote`, `do_tagged_dollar_quote` |
 | Nested block comments | Matching the outer closing delimiter hides embedded SQL and semicolons. Specify PostgreSQL when analyzing a script with nested comments. | `select_nested_block_comment` |
 
 Known PostgreSQL gaps:

@@ -90,7 +90,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 continue;
             }
             if (!sqlServer && quote == 0 && c == '$') {
-                int end = dollarQuotedEnd(script, i);
+                int end = dollarQuotedEnd(script, i, true);
                 if (end > i) {
                     current.append(script, i, end);
                     i = end - 1;
@@ -131,7 +131,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         return index == 0 || text.charAt(index - 1) == '\n' || text.charAt(index - 1) == '\r';
     }
 
-    private static int dollarQuotedEnd(String text, int start) {
+    static int dollarQuotedEnd(String text, int start, boolean allowUnterminated) {
         if (start > 0) {
             char previous = text.charAt(start - 1);
             if (isTagPart(previous) || previous == '$') {
@@ -149,7 +149,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         }
         String delimiter = text.substring(start, end + 1);
         int closing = text.indexOf(delimiter, end + 1);
-        return closing < 0 ? text.length() : closing + delimiter.length();
+        return closing < 0 ? (allowUnterminated ? text.length() : -1) : closing + delimiter.length();
     }
 
     private static boolean isTagStart(char c) {
@@ -213,7 +213,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 continue;
             }
             if (quote == 0 && c == '$') {
-                int end = dollarQuotedEnd(sql, i);
+                int end = dollarQuotedEnd(sql, i, true);
                 if (end > i) {
                     stripped.append(sql, i, end);
                     i = end - 1;

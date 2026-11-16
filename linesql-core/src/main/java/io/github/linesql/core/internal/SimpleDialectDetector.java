@@ -26,9 +26,12 @@ public class SimpleDialectDetector implements DialectDetector {
 
     @Override
     public List<DialectCandidate> detectCandidates(String sql) {
-        boolean mysqlExecutableComment = containsMySqlExecutableComment(sql);
-        String rawNormalized = unwrapMySqlExecutableComments(sql).toLowerCase(Locale.ROOT);
-        String normalized = stripComments(unwrapMySqlExecutableComments(sql)).toLowerCase(Locale.ROOT);
+        String maskedDollarQuotes = maskDollarQuotes(sql);
+        String outsideDollarQuotes = maskedDollarQuotes == null ? sql : maskedDollarQuotes;
+        boolean mysqlExecutableComment = containsMySqlExecutableComment(outsideDollarQuotes);
+        String unwrapped = unwrapMySqlExecutableComments(outsideDollarQuotes);
+        String rawNormalized = unwrapped.toLowerCase(Locale.ROOT);
+        String normalized = stripComments(unwrapped).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
         boolean sparkJsonTableSignal = hasSparkJsonTableSignal(normalized);
         boolean strongSparkSignal = hasStrongSparkSignal(normalized);
@@ -91,7 +94,9 @@ public class SimpleDialectDetector implements DialectDetector {
         if (normalized.contains("_ob_")) {
             candidates.add(candidate(SqlDialect.OCEANBASE, 0.45, "Weak OceanBase-style identifier anchor"));
         }
-        if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")
+        if (maskedDollarQuotes != null && normalized.matches("(?s)^\\s*do\\s+''.*")) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
+        } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")
                 || normalized.matches("(?s).*\\breturning\\b.*")
                 || normalized.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
                 || normalized.matches("(?s).*\\bilike\\b.*")) {
@@ -197,6 +202,9 @@ public class SimpleDialectDetector implements DialectDetector {
     }
 
     static boolean hasSharedConflictDoNothing(String sql) {
+        if (maskDollarQuotes(sql) != null) {
+            return false;
+        }
         String normalized = stripComments(sql).toLowerCase(Locale.ROOT);
         return normalized.matches("(?s)^\\s*(?:with|insert)\\b.*\\bon\\s+conflict\\s+do\\s+nothing\\s*;?\\s*$");
     }
@@ -309,55 +317,62 @@ public class SimpleDialectDetector implements DialectDetector {
     }
 
     private static String stripComments(String sql) {
-        StringBuilder stripped = new StringBuilder(sql.length());
-        boolean singleQuoted = false;
-        boolean doubleQuoted = false;
-        boolean backQuoted = false;
+        return rewriteLexicalText(sql, false);
+    }
+
+    // Null indicates that the input contains no dollar-quoted token outside other literals and comments.
+    private static String maskDollarQuotes(String sql) {
+        return sql.indexOf('$') < 0 ? null : rewriteLexicalText(sql, true);
+    }
+
+    private static String rewriteLexicalText(String sql, boolean maskDollarQuotes) {
+        StringBuilder rewritten = new StringBuilder(sql.length());
+        char quote = 0;
+        boolean masked = false;
         for (int i = 0; i < sql.length(); i++) {
             char current = sql.charAt(i);
             char next = i + 1 < sql.length() ? sql.charAt(i + 1) : '\0';
 
-            if (!doubleQuoted && !backQuoted && current == '\'' && !isEscaped(sql, i)) {
-                singleQuoted = !singleQuoted;
-                stripped.append(current);
-                continue;
-            }
-            if (!singleQuoted && !backQuoted && current == '"' && !isEscaped(sql, i)) {
-                doubleQuoted = !doubleQuoted;
-                stripped.append(current);
-                continue;
-            }
-            if (!singleQuoted && !doubleQuoted && current == '`') {
-                backQuoted = !backQuoted;
-                stripped.append(current);
-                continue;
-            }
-            if (!singleQuoted && !doubleQuoted && !backQuoted && current == '-' && next == '-') {
-                stripped.append(' ');
-                i += 2;
-                while (i < sql.length() && sql.charAt(i) != '\n' && sql.charAt(i) != '\r') {
-                    i++;
+            if (quote != 0) {
+                if (quote == current && (quote == '`' || !isEscaped(sql, i))) {
+                    quote = 0;
                 }
-                if (i < sql.length()) {
-                    stripped.append(sql.charAt(i));
+            } else if (current == '`' || ((current == '\'' || current == '"') && !isEscaped(sql, i))) {
+                quote = current;
+            } else if (current == '-' && next == '-') {
+                int end = i + 2;
+                while (end < sql.length() && sql.charAt(end) != '\n' && sql.charAt(end) != '\r') {
+                    end++;
                 }
+                if (maskDollarQuotes) {
+                    rewritten.append(sql, i, end);
+                } else {
+                    rewritten.append(' ');
+                }
+                i = end - 1;
                 continue;
-            }
-            if (!singleQuoted && !doubleQuoted && !backQuoted && current == '/' && next == '*') {
-                stripped.append(' ');
-                i += 2;
-                while (i + 1 < sql.length() && !(sql.charAt(i) == '*' && sql.charAt(i + 1) == '/')) {
-                    i++;
+            } else if (current == '/' && next == '*') {
+                int closing = sql.indexOf("*/", i + 2);
+                int end = closing < 0 ? sql.length() : closing + 2;
+                if (maskDollarQuotes) {
+                    rewritten.append(sql, i, end);
+                } else {
+                    rewritten.append("  ");
                 }
-                if (i + 1 < sql.length()) {
-                    i++;
-                }
-                stripped.append(' ');
+                i = end - 1;
                 continue;
+            } else if (maskDollarQuotes && current == '$') {
+                int end = SimpleStatementSplitter.dollarQuotedEnd(sql, i, false);
+                if (end > i) {
+                    rewritten.append("''");
+                    i = end - 1;
+                    masked = true;
+                    continue;
+                }
             }
-            stripped.append(current);
+            rewritten.append(current);
         }
-        return stripped.toString();
+        return maskDollarQuotes && !masked ? null : rewritten.toString();
     }
 
     private static boolean isEscaped(String sql, int index) {
