@@ -63,7 +63,10 @@ public class StarRocksDialectParserTest {
         for (JsonNode sqlCase : manifest.get("cases")) {
             String caseId = sqlCase.get("id").asText();
             String sql = resource("/sql/starrocks/" + sqlCase.get("file").asText());
-            LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
+            ParseContext context = new ParseContext();
+            context.setDefaultCatalog(sqlCase.path("defaultCatalog").asText(null));
+            context.setDefaultSchema(sqlCase.path("defaultSchema").asText(null));
+            LineageResult result = parser.parse(sql, ParseOptions.defaults(), context);
 
             assertEquals(caseId, SqlDialect.STARROCKS, result.getDialect());
             assertEquals(caseId, StatementType.valueOf(sqlCase.get("statementType").asText()), result.getStatementType());

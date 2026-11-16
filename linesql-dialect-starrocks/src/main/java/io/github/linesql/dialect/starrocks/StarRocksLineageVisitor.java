@@ -1015,10 +1015,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         }
 
         if (ctx.multipartIdentifier().size() > 1) {
-            TableRef source = tableRef(ctx.multipartIdentifier(1));
-            if (isCteReference(source)) {
-                addDerivedReference(source.getName(), ctx.tableAlias(1));
+            StarRocksParser.MultipartIdentifierContext sourceIdentifier = ctx.multipartIdentifier(1);
+            String cte = cteReference(sourceIdentifier);
+            if (cte != null) {
+                addDerivedReference(cte, ctx.tableAlias(1));
             } else {
+                TableRef source = tableRef(sourceIdentifier);
                 inputTables.add(source);
                 tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
                 String sourceAlias = tableAlias(ctx.tableAlias(1));
@@ -1517,12 +1519,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     public Void visitCtes(StarRocksParser.CtesContext ctx) {
         for (StarRocksParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
             String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
-            cteNames.add(cteName);
             List<String> aliases = cteColumnAliases(namedQuery);
             if (ctx.RECURSIVE() != null) {
+                cteNames.add(cteName);
                 seedRecursiveRelation(cteName, namedQuery.query(), aliases);
             }
             registerDerivedRelation(cteName, namedQuery.query(), aliases);
+            cteNames.add(cteName);
         }
         return null;
     }
@@ -1561,14 +1564,15 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableName(StarRocksParser.TableNameContext ctx) {
+        String cte = cteReference(ctx.multipartIdentifier());
+        if (cte != null) {
+            addDerivedReference(cte, ctx.tableAlias());
+            return null;
+        }
         TableRef table = tableRef(ctx.multipartIdentifier());
         String temporaryRelationName = temporaryRelationName(table);
         if (temporaryRelationName != null) {
             addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
-            return null;
-        }
-        if (isCteReference(table)) {
-            addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
         }
         addInputTable(table, ctx.tableAlias(), true);
@@ -2067,6 +2071,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private void registerDerivedRelation(String name, StarRocksParser.QueryContext query, List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
         StarRocksLineageVisitor relationVisitor = new StarRocksLineageVisitor(relationResult);
+        relationVisitor.setContext(context);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
@@ -2090,6 +2095,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private LineageResult lineageForQueryTerm(StarRocksParser.QueryTermContext queryTerm, boolean explicitOutput) {
         LineageResult queryResult = new LineageResult();
         StarRocksLineageVisitor queryVisitor = new StarRocksLineageVisitor(queryResult);
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -2888,10 +2894,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         return null;
     }
 
-    private boolean isCteReference(TableRef table) {
-        return table.getCatalog() == null
-                && table.getSchema() == null
-                && cteNames.contains(table.getName().toLowerCase(Locale.ROOT));
+    private String cteReference(StarRocksParser.MultipartIdentifierContext identifier) {
+        List<String> parts = identifierParts(identifier);
+        if (parts.size() != 1) {
+            return null;
+        }
+        String name = parts.get(0);
+        return cteNames.contains(name.toLowerCase(Locale.ROOT)) ? name : null;
     }
 
     private List<ColumnLineage> readGeneratedColumnLineage(StarRocksParser.TableElementListContext ctx, TableRef target) {
@@ -3097,6 +3106,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private StarRocksLineageVisitor analyzeSubquery(StarRocksParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         StarRocksLineageVisitor queryVisitor = new StarRocksLineageVisitor(queryResult);
+        queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);

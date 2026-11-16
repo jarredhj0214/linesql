@@ -1005,6 +1005,8 @@ Known Oracle gaps:
 
 ## StarRocks
 
+StarRocks applies a configured default catalog and schema to physical sources in nested and recursive queries. Query-local CTE names keep their scope in SELECT and MERGE. Cases include `select_context_qualified_cte_scalar`, `insert_context_qualified_recursive_set`, `select_context_qualified_cte_shadowing` and `merge_context_qualified_cte_source`.
+
 StarRocks preserves the deepest source column and every input table across named and unnamed scalar projections in `select_deep_scalar_projection_dependencies`.
 
 The recursive CTE join follows transitive output-column dependencies in `recursive_cte_transitive_join_sources`. The `recursive_cte_max_depth` setting in `set_recursive_cte_limit` and the `enable_recursive_cte` session setting provide dialect evidence for following queries.

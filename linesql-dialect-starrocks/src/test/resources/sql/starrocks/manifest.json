@@ -12030,6 +12030,158 @@
       ],
       "columnUsages": [],
       "description": "Nested named and unnamed scalar queries retain the deepest projected column and every input table"
+    },
+    {
+      "id": "select_context_qualified_cte_scalar",
+      "file": "cases/select_context_qualified_cte_scalar.sql",
+      "defaultCatalog": "iceberg",
+      "defaultSchema": "ods",
+      "statementType": "SELECT",
+      "inputTables": [
+        "iceberg.ods.events",
+        "iceberg.ods.snapshots"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "iceberg.ods.events.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "iceberg.ods.snapshots.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "iceberg.ods.snapshots.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "iceberg.ods.events.id"
+        }
+      ],
+      "description": "Default catalog and schema reach CTE and scalar sources rather than qualifying the CTE name as a physical table"
+    },
+    {
+      "id": "insert_context_qualified_recursive_set",
+      "file": "cases/insert_context_qualified_recursive_set.sql",
+      "defaultCatalog": "iceberg",
+      "defaultSchema": "ods",
+      "statementType": "INSERT",
+      "inputTables": [
+        "iceberg.ods.seed_nodes",
+        "iceberg.graph.edges"
+      ],
+      "outputTables": [
+        "iceberg.ods.paths"
+      ],
+      "columnLineage": [
+        {
+          "target": "iceberg.ods.paths.node_id",
+          "sources": [
+            "iceberg.ods.seed_nodes.id",
+            "iceberg.graph.edges.child_id"
+          ]
+        },
+        {
+          "target": "iceberg.ods.paths.root_node",
+          "sources": [
+            "iceberg.ods.seed_nodes.root_id",
+            "iceberg.ods.seed_nodes.id",
+            "iceberg.graph.edges.child_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "iceberg.graph.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "iceberg.ods.seed_nodes.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "iceberg.graph.edges.child_id"
+        }
+      ],
+      "description": "Default catalog and schema qualify both recursive set branches and positional write targets"
+    },
+    {
+      "id": "select_context_qualified_cte_shadowing",
+      "file": "cases/select_context_qualified_cte_shadowing.sql",
+      "defaultCatalog": "iceberg",
+      "defaultSchema": "ods",
+      "statementType": "SELECT",
+      "inputTables": [
+        "iceberg.ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "cte_id",
+          "sources": [
+            "iceberg.ods.events.event_number"
+          ]
+        },
+        {
+          "target": "physical_id",
+          "sources": [
+            "iceberg.ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "iceberg.ods.events.event_number"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "iceberg.ods.events.id"
+        }
+      ],
+      "description": "An ordinary CTE is visible after definition and schema-qualified same-name relations stay physical"
+    },
+    {
+      "id": "merge_context_qualified_cte_source",
+      "file": "cases/merge_context_qualified_cte_source.sql",
+      "defaultCatalog": "iceberg",
+      "defaultSchema": "ods",
+      "statementType": "MERGE",
+      "inputTables": [
+        "iceberg.ods.updates",
+        "iceberg.ods.aggregates"
+      ],
+      "outputTables": [
+        "iceberg.ods.aggregates"
+      ],
+      "columnLineage": [
+        {
+          "target": "iceberg.ods.aggregates.amount",
+          "sources": [
+            "iceberg.ods.updates.change_value"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "iceberg.ods.aggregates.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "iceberg.ods.updates.item_id"
+        }
+      ],
+      "description": "A configured default catalog does not make a MERGE CTE source into a physical table"
     }
   ]
 }
