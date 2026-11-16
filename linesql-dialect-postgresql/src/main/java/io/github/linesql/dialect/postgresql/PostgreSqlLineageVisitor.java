@@ -172,7 +172,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
             collectSubqueryInputs(ctx.whereClause());
         }
-        collectSubqueryInputs(ctx.assignmentList());
+        collectSubqueryDependencies(ctx.assignmentList(), true);
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), firstOutputTable());
         result.setColumnLineage(assignments);
         appendReturningLineage(ctx.returningClause(), firstOutputTable(), true, true);
@@ -412,6 +412,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 hasOldRow |= matched.UPDATE() != null || matched.DELETE() != null;
                 if (matched.assignmentList() != null) {
                     hasNewRow = true;
+                    collectSubqueryDependencies(matched.assignmentList(), true);
                     lineages.addAll(readAssignments(matched.assignmentList(), target));
                 }
             }
@@ -2409,9 +2410,6 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 lineages.addAll(readRowAssignments(assignment, defaultTarget));
                 continue;
             }
-            if (containsSubquery(assignment.expression())) {
-                continue;
-            }
             List<String> parts = identifierParts(assignment.multipartIdentifier());
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
@@ -2486,9 +2484,6 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         int count = Math.min(targets.size(), expressions.size());
         for (int i = 0; i < count; i++) {
             PostgreSqlParser.ExpressionContext expression = expressions.get(i);
-            if (containsSubquery(expression)) {
-                continue;
-            }
             List<ColumnRef> sources = resolveSources(sourceColumns(expression));
             if (sources == null) {
                 sources = new ArrayList<>();

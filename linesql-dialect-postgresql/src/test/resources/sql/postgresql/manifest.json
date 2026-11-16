@@ -2,6 +2,53 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "update_scalar_assignment",
+      "file": "cases/update_scalar_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.accounts", "sales.payments"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.balance", "sources": ["sales.payments.amount", "mart.accounts.balance"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.accounts.active"},
+        {"type": "WHERE", "column": "sales.payments.account_id"},
+        {"type": "WHERE", "column": "mart.accounts.id"}
+      ],
+      "description": "A scalar subquery inside an UPDATE expression keeps source and correlated predicate references"
+    },
+    {
+      "id": "update_row_with_scalar_assignment",
+      "file": "cases/update_row_with_scalar_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.accounts", "sales.payments"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.balance", "sources": ["sales.payments.amount"]},
+        {"target": "mart.accounts.status", "sources": ["mart.accounts.pending_status"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.payments.account_id"},
+        {"type": "WHERE", "column": "mart.accounts.id"}
+      ],
+      "description": "A row assignment preserves the position of scalar subquery expressions"
+    },
+    {
+      "id": "merge_scalar_update_assignment",
+      "file": "cases/merge_scalar_update_assignment.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.accounts", "staging.delta", "sales.payments"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [{"target": "mart.accounts.balance", "sources": ["sales.payments.amount"]}],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.accounts.id"},
+        {"type": "MERGE_ON", "column": "staging.delta.id"},
+        {"type": "WHERE", "column": "sales.payments.account_id"},
+        {"type": "WHERE", "column": "staging.delta.id"}
+      ],
+      "description": "A matched MERGE update follows a scalar subquery correlated to its source"
+    },
+    {
       "id": "select_array_correlated_query",
       "file": "cases/select_array_correlated_query.sql",
       "statementType": "SELECT",
