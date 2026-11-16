@@ -198,6 +198,27 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("footer", results.get(2).getInputTables().get(0).getName());
     }
 
+    @Test
+    public void keepsMySqlExecutableCommentsAsStatementsThroughPublicApi() {
+        List<LineageResult> results = LineSql.parseScript(
+                "/* ordinary note */; /*!40101 SET NAMES utf8mb4 */; "
+                        + "/*!80000 SELECT id FROM ods.users WHERE active = 1 */;");
+        assertEquals(2, results.size());
+        assertEquals(SqlDialect.MYSQL, results.get(0).getDialect());
+        assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
+        assertEquals(SqlDialect.MYSQL, results.get(1).getDialect());
+        assertEquals("users", results.get(1).getInputTables().get(0).getName());
+        assertEquals("id", results.get(1).getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("active", results.get(1).getColumnUsages().get(0).getColumn().getName());
+
+        LineageResult literal = LineSql.parse(
+                "SELECT CONCAT(payload, '/*!80000 leave this literal */') AS label FROM ods.users",
+                SqlDialect.MYSQL);
+        assertFalse(literal.getColumnLineage().isEmpty());
+        assertEquals("CONCAT(payload,'/*!80000 leave this literal */')",
+                literal.getColumnLineage().get(0).getExpression());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

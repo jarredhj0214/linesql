@@ -2,6 +2,16 @@
   "dialect": "MYSQL",
   "cases": [
     {
+      "id": "executable_comment_inline_preserve_literal",
+      "file": "cases/executable_comment_inline_preserve_literal.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "label", "sources": ["ods.events.payload"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.active"}],
+      "description": "An executable modifier keeps token boundaries and SQL-looking string data"
+    },
+    {
       "id": "union_unnamed_constant_order",
       "file": "cases/union_unnamed_constant_order.sql",
       "statementType": "SELECT",

@@ -2,6 +2,7 @@ package io.github.linesql.core.internal;
 
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.StatementSplitter;
+import io.github.linesql.core.util.MySqlExecutableComments;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,8 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean sqlServer = dialect == SqlDialect.SQLSERVER;
         boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
+        boolean executableComments = dialect == SqlDialect.MYSQL || dialect == SqlDialect.OCEANBASE
+                || dialect == SqlDialect.UNKNOWN;
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         char quote = 0;
@@ -72,7 +75,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     lineEnd++;
                 }
                 if (lineEnd > i && GO_LINE.matcher(script).region(i, lineEnd).matches()) {
-                    addIfNotBlank(statements, current, nestedComments);
+                    addIfNotBlank(statements, current, nestedComments, executableComments);
                     current.setLength(0);
                     routineBatch = false;
                     i = lineEnd - 1;
@@ -148,7 +151,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 statementSetPartStart = -1;
                 routineBatch = sqlServer && SQL_SERVER_ROUTINE.matcher(stripComments(current.toString(), true)).find();
                 if (!routineBatch) {
-                    addIfNotBlank(statements, current, nestedComments);
+                    addIfNotBlank(statements, current, nestedComments, executableComments);
                     current.setLength(0);
                     continue;
                 }
@@ -156,7 +159,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
             current.append(c);
         }
 
-        addIfNotBlank(statements, current, nestedComments);
+        addIfNotBlank(statements, current, nestedComments, executableComments);
         return statements;
     }
 
@@ -205,9 +208,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
         return backslashes % 2 == 1;
     }
 
-    private static void addIfNotBlank(List<String> statements, StringBuilder sql, boolean nestedComments) {
+    private static void addIfNotBlank(List<String> statements, StringBuilder sql,
+                                      boolean nestedComments, boolean executableComments) {
         String value = sql.toString().trim();
-        if (!value.isEmpty() && !stripComments(value, nestedComments).trim().isEmpty()) {
+        if (value.isEmpty()) {
+            return;
+        }
+        if (!stripComments(value, nestedComments).trim().isEmpty()
+                || (executableComments && !stripComments(MySqlExecutableComments.unwrap(value), false).trim().isEmpty())) {
             statements.add(value);
         }
     }

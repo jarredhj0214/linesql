@@ -91,4 +91,12 @@ public class SimpleStatementSplitterTest {
         assertEquals(incomplete, results.get(0));
         assertEquals("SELECT id FROM src", results.get(1));
     }
+    @Test
+    public void preservesStandaloneMySqlExecutableCommentsInMySqlAndDefaultScripts() {
+        String executable = "/*!80000 SELECT id FROM ods.t */";
+        String script = "/* ordinary note */; /*!80000 */; " + executable + ";";
+        assertEquals(1, splitter.split(script).size());
+        assertEquals(executable, splitter.split(script, SqlDialect.MYSQL).get(0));
+        assertEquals(0, splitter.split(script, SqlDialect.POSTGRESQL).size());
+    }
 }

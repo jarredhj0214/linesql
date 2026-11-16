@@ -3,18 +3,15 @@ package io.github.linesql.core.internal;
 import io.github.linesql.core.model.DialectCandidate;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.DialectDetector;
+import io.github.linesql.core.util.MySqlExecutableComments;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SimpleDialectDetector implements DialectDetector {
-    private static final Pattern MYSQL_EXECUTABLE_COMMENT =
-            Pattern.compile("/\\*!\\d*\\s*(.*?)\\*/", Pattern.DOTALL);
-
     private static final String TOP_COUNT = "\\(\\s*(?:[0-9]+(?:\\.[0-9]+)?|@[\\p{L}_$][\\p{L}\\p{N}_$]*)\\s*\\)";
     private static final Pattern TSQL_TOP_SELECT = Pattern.compile(
             "\\bselect\\s+(?:(?:all|distinct)\\s+)?top(?:\\s+\\d+\\b|\\s*" + TOP_COUNT
@@ -46,8 +43,8 @@ public class SimpleDialectDetector implements DialectDetector {
     public List<DialectCandidate> detectCandidates(String sql) {
         String maskedDollarQuotes = maskDollarQuotes(sql);
         String outsideDollarQuotes = maskedDollarQuotes == null ? sql : maskedDollarQuotes;
-        boolean mysqlExecutableComment = containsMySqlExecutableComment(outsideDollarQuotes);
-        String unwrapped = unwrapMySqlExecutableComments(outsideDollarQuotes);
+        String unwrapped = MySqlExecutableComments.unwrap(outsideDollarQuotes);
+        boolean mysqlExecutableComment = !unwrapped.equals(outsideDollarQuotes);
         String rawNormalized = unwrapped.toLowerCase(Locale.ROOT);
         String normalized = stripComments(unwrapped).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
@@ -312,20 +309,6 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static boolean hasSparkJsonTableSignal(String sql) {
         return sql.matches("(?s).*\\bjson_table\\s*\\([^;]*\\bcolumns\\s*\\([^;]*\\bstring\\s+path\\b.*");
-    }
-
-    private static boolean containsMySqlExecutableComment(String sql) {
-        return sql != null && MYSQL_EXECUTABLE_COMMENT.matcher(sql).find();
-    }
-
-    private static String unwrapMySqlExecutableComments(String sql) {
-        Matcher matcher = MYSQL_EXECUTABLE_COMMENT.matcher(sql);
-        StringBuffer normalized = new StringBuffer();
-        while (matcher.find()) {
-            matcher.appendReplacement(normalized, Matcher.quoteReplacement(matcher.group(1)));
-        }
-        matcher.appendTail(normalized);
-        return normalized.toString();
     }
 
     private static char previousAdjacentNonWhitespace(String sql, int index) {

@@ -178,6 +178,12 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void ignoresExecutableCommentMarkersInsideLiteralText() {
+        assertFalse(detector.detect("SELECT '/*!80000 SELECT id FROM t */'").contains(SqlDialect.MYSQL));
+        assertFirst(SqlDialect.MYSQL, "/*!80000 SELECT id FROM t */");
+    }
+
+    @Test
     public void detectsPostgreSqlAnchors() {
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1) on conflict (id) do nothing");
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1)\non conflict (id) do nothing");
