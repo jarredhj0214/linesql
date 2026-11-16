@@ -95,6 +95,7 @@ Implemented PostgreSQL scenarios:
 | COPY CSV column options | `FORCE_QUOTE (…)`, `FORCE_NULL (…)`, and `FORCE_NOT_NULL (…)` record the named columns. | `copy_to_csv_force_quote`, `copy_from_csv_force_null` |
 | COPY FROM row filtering | `COPY … FROM STDIN WITH (…) WHERE status <> …` records the incoming row column as a filter dependency. | `copy_from_where` |
 | Inline PostgreSQL COPY data | `COPY … FROM STDIN` identifies PostgreSQL. The script API records the COPY table and columns, skips inline data through the standalone `\.` marker, and resumes with the next SQL statement. | `copy_stdin_script.sql` |
+| PostgreSQL standard and escape strings | Explicit PostgreSQL parsing treats backslashes as literal in ordinary strings and as escapes in `E` strings. Script boundaries follow the quoted text, while predicates retain their real column references. | `select_standard_backslash_strings`, `select_escape_string_literal` |
 | psql copy commands and dump envelopes | Standalone `\copy` commands contribute the corresponding COPY table and column lineage. The script API recognizes pg_dump `\restrict` and `\unrestrict` envelopes and analyzes the SQL they surround. | `psql_copy_commands.sql`, `pg_dump_envelope.sql` |
 | COPY FROM target table and column list | `copy mart.t(c1, c2) from '/tmp/file.csv' with (...)`, `copy mart.t(c1, c2) from program 'cmd' with (...)`; explicit target columns are returned as `TABLE_MODEL` usages | `copy_from_csv`, `copy_from_program` |
 | COPY table TO keeps exported column lineage | `copy mart.t(c1, c2) to '/tmp/file.csv' with (...)`, `copy mart.t(c1, c2) to program 'cmd' with (...)`; explicit source columns are returned as `READ_METADATA` usages | `copy_table_to_file`, `copy_table_to_program` |
@@ -714,6 +715,9 @@ through parsing and script splitting. A complete literal also identifies Oracle 
 standalone PL/SQL blocks in automatic mode, and its contents cannot supply another dialect marker
 (`select_alternative_quoted_text`, `select_alternative_quote_sql_markers`,
 `anonymous_alternative_quoted_dynamic_sql`).
+Ordinary Oracle string literals and quoted identifiers also preserve literal backslashes, including
+a backslash immediately before the closing quote (`select_standard_backslash_strings`,
+`select_backslash_in_quoted_identifier`).
 
 Oracle is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Oracle query and write shapes.
 

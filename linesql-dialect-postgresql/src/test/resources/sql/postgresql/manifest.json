@@ -2,6 +2,26 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "select_standard_backslash_strings",
+      "file": "cases/select_standard_backslash_strings.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.files"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.files.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.files.archive_path"}, {"type": "WHERE", "column": "ods.files.owner"}],
+      "description": "Ordinary PostgreSQL strings preserve backslashes with standard-conforming strings"
+    },
+    {
+      "id": "select_escape_string_literal",
+      "file": "cases/select_escape_string_literal.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.files"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.files.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.files.owner"}, {"type": "WHERE", "column": "ods.files.note"}],
+      "description": "PostgreSQL E strings accept backslash escapes without exposing their text as columns"
+    },
+    {
       "id": "json_table_with_jsonb_cast",
       "file": "cases/json_table_with_jsonb_cast.sql",
       "statementType": "SELECT",

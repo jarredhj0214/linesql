@@ -2,6 +2,26 @@
   "dialect": "ORACLE",
   "cases": [
     {
+      "id": "select_standard_backslash_strings",
+      "file": "cases/select_standard_backslash_strings.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.files"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.files.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.files.archive_path"}, {"type": "WHERE", "column": "ods.files.owner"}],
+      "description": "Oracle string literals preserve trailing backslashes and doubled apostrophes"
+    },
+    {
+      "id": "select_backslash_in_quoted_identifier",
+      "file": "cases/select_backslash_in_quoted_identifier.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.files"],
+      "outputTables": [],
+      "columnLineage": [{"target": "storage_path", "sources": ["ods.files.Storage\\"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.files.Path\\"}],
+      "description": "A backslash at the end of an Oracle quoted identifier preserves the identifier boundary"
+    },
+    {
       "id": "select_dblink_global_name",
       "file": "cases/select_dblink_global_name.sql",
       "statementType": "SELECT",

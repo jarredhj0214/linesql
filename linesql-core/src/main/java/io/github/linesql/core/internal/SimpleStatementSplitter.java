@@ -115,6 +115,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         char quote = 0;
+        boolean quoteUsesBackslash = true;
         boolean lineComment = false;
         boolean routineBatch = false;
         boolean sawGo = false;
@@ -266,11 +267,13 @@ public class SimpleStatementSplitter implements StatementSplitter {
             if (c == '\'' || c == '"' || c == '`') {
                 if (quote == 0) {
                     quote = c;
+                    quoteUsesBackslash = !sqlServer && !oracle
+                            && (dialect != SqlDialect.POSTGRESQL || (c == '\'' && hasPostgresEscapePrefix(script, i)));
                 } else if (sqlServer && quote == c && next == c) {
                     current.append(c).append(next);
                     i++;
                     continue;
-                } else if (quote == c && (sqlServer || !isEscaped(script, i))) {
+                } else if (quote == c && (!quoteUsesBackslash || !isEscaped(script, i))) {
                     quote = 0;
                 }
                 current.append(c);
@@ -481,6 +484,13 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
     private static boolean isTagPart(char c) {
         return isTagStart(c) || (c >= '0' && c <= '9');
+    }
+
+    private static boolean hasPostgresEscapePrefix(String text, int quote) {
+        if (quote == 0 || (text.charAt(quote - 1) != 'e' && text.charAt(quote - 1) != 'E')) {
+            return false;
+        }
+        return quote == 1 || (!isTagPart(text.charAt(quote - 2)) && text.charAt(quote - 2) != '$');
     }
 
     private static boolean isEscaped(String text, int index) {

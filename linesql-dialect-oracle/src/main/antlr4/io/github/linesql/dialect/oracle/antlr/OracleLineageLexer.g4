@@ -283,8 +283,8 @@ IDENTIFIER: [a-zA-Z_$-￿] [a-zA-Z0-9_$-￿]*;
 BACKQUOTED_IDENTIFIER: '"' ('""' | ~'"')* '"';
 ALTERNATIVE_STRING_LITERAL: N? Q '\'' ~[ \t\r\n]
     {io.github.linesql.core.util.OracleQuotedLiterals.consumeBody(this);} -> type(STRING_LITERAL);
-STRING_LITERAL: N? '\'' ('\\' . | '\'\'' | ~['\\])* '\'';
-DOUBLE_QUOTED_STRING: '"' ('\\' . | '""' | ~["\\])* '"';
+STRING_LITERAL: N? '\'' ('\'\'' | ~['])* '\'';
+DOUBLE_QUOTED_STRING: '"' ('""' | ~["])* '"';
 NUMBER_LITERAL: [0-9]+ ('.' [0-9]+)?;
 
 DOT: '.';

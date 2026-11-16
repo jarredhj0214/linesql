@@ -562,6 +562,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void keepsOracleAndPostgreSqlStandardStringBoundaries() {
+        String standard = "SELECT id FROM ods.files WHERE archive_path = 'C:\\exports\\'; "
+                + "SELECT id FROM ods.next_file;";
+        for (SqlDialect dialect : new SqlDialect[]{SqlDialect.ORACLE, SqlDialect.POSTGRESQL}) {
+            List<LineageResult> results = LineSql.parseScript(standard, dialect);
+            assertEquals(2, results.size());
+            assertEquals("archive_path", results.get(0).getColumnUsages().get(0).getColumn().getName());
+            assertEquals("next_file", results.get(1).getInputTables().get(0).getName());
+        }
+
+        List<LineageResult> escaped = LineSql.parseScript(
+                "SELECT id FROM ods.files WHERE owner = E'O\\'Brien; saved'; SELECT id FROM ods.next_file;",
+                SqlDialect.POSTGRESQL);
+        assertEquals(2, escaped.size());
+        assertEquals("owner", escaped.get(0).getColumnUsages().get(0).getColumn().getName());
+        assertEquals("next_file", escaped.get(1).getInputTables().get(0).getName());
+    }
+
+    @Test
     public void keepsAlternativeOracleQuotesThroughScriptSplitting() {
         List<LineageResult> results = LineSql.parseScript(
                 "SELECT id FROM ods.orders WHERE note = q'[O'Brien;\n/\ninside]';"
