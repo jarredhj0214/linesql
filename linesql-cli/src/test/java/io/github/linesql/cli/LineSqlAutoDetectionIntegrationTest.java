@@ -152,6 +152,20 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals(StatementType.SELECT, results.get(1).getStatementType());
     }
 
+    @Test
+    public void splitsSqlServerStringsWithWindowsPathsBeforeGo() {
+        List<LineageResult> results = LineSql.parseScript(
+                "SELECT id FROM dbo.files WHERE path = N'C:\\temp\\'\n"
+                        + "GO\n"
+                        + "SELECT \"order id\" FROM dbo.\"order history\";",
+                SqlDialect.SQLSERVER);
+
+        assertEquals(2, results.size());
+        assertEquals("files", results.get(0).getInputTables().get(0).getName());
+        assertEquals("order history", results.get(1).getInputTables().get(0).getName());
+        assertEquals("order id", results.get(1).getColumnLineage().get(0).getTarget().getName());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

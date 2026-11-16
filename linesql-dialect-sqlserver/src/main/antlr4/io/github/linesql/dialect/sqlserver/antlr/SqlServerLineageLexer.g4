@@ -232,7 +232,8 @@ PERSISTED: P E R S I S T E D;
 VARIABLE_IDENTIFIER: '@'[a-zA-Z_$-￿] [a-zA-Z0-9_$-￿]*;
 IDENTIFIER: '#'? '#'?[a-zA-Z_$-￿] [a-zA-Z0-9_$-￿]*;
 BACKQUOTED_IDENTIFIER: '[' (']]' | ~']')* ']';
-STRING_LITERAL: N? '\'' ('\\' . | '\'\'' | ~['\\])* '\'';
+DOUBLE_QUOTED_IDENTIFIER: '"' ('""' | ~'"')* '"';
+STRING_LITERAL: N? '\'' ('\'\'' | ~['])* '\'';
 DOUBLE_QUOTED_STRING: '"' ('\\' . | '""' | ~["\\])* '"';
 NUMBER_LITERAL: [0-9]+ ('.' [0-9]+)?;
 

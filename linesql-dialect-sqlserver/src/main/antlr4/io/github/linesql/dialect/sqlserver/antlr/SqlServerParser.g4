@@ -983,6 +983,7 @@ identifier
     : IDENTIFIER
     | VARIABLE_IDENTIFIER
     | BACKQUOTED_IDENTIFIER
+    | DOUBLE_QUOTED_IDENTIFIER
     | nonReservedKeyword
     ;
 
@@ -990,6 +991,7 @@ strictIdentifier
     : IDENTIFIER
     | VARIABLE_IDENTIFIER
     | BACKQUOTED_IDENTIFIER
+    | DOUBLE_QUOTED_IDENTIFIER
     | nonReservedKeyword
     ;
 

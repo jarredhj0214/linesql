@@ -2,6 +2,40 @@
   "dialect": "SQLSERVER",
   "cases": [
     {
+      "id": "insert_quoted_identifiers",
+      "file": "cases/insert_quoted_identifiers.sql",
+      "statementType": "INSERT",
+      "inputTables": ["sales schema.order source"],
+      "outputTables": ["audit schema.order log"],
+      "columnLineage": [
+        {"target": "audit schema.order log.order \"id\"", "sources": ["sales schema.order source.order id"]}
+      ],
+      "columnUsages": [{"type": "WHERE", "column": "sales schema.order source.status flag"}],
+      "description": "Default quoted identifier semantics preserve spaces and doubled quotes in INSERT lineage"
+    },
+    {
+      "id": "select_tsql_string_backslash",
+      "file": "cases/select_tsql_string_backslash.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.customers"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["dbo.customers.id"]}],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.customers.path"},
+        {"type": "WHERE", "column": "dbo.customers.owner"}
+      ],
+      "description": "T-SQL single-quoted strings end after a backslash and escape quotes by doubling"
+    },
+    {
+      "id": "create_proc_quoted_static_objects",
+      "file": "cases/create_proc_quoted_static_objects.sql",
+      "statementType": "CREATE_ROUTINE",
+      "inputTables": ["src schema.orders.v2"],
+      "outputTables": ["mart schema.order.log"],
+      "columnLineage": [],
+      "description": "Routine scanning preserves quoted dots and ignores SQL keywords inside quoted identifiers"
+    },
+    {
       "id": "alter_proc_static_body",
       "file": "cases/alter_proc_static_body.sql",
       "statementType": "ALTER_ROUTINE",

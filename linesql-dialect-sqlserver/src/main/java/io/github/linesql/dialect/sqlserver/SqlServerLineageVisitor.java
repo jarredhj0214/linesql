@@ -32,17 +32,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
-    private static final String ROUTINE_IDENTIFIER = "(?:\\[[^\\]]+\\]|[A-Za-z_#@][A-Za-z0-9_@$#]*)(?:\\s*\\.\\s*(?:\\[[^\\]]+\\]|[A-Za-z_#@][A-Za-z0-9_@$#]*)){0,3}";
+    private static final String ROUTINE_QUOTED_IDENTIFIER = "(?:\\[(?:\\]\\]|[^\\]])+\\]|\"(?:\"\"|[^\"])+\")";
+    private static final String ROUTINE_IDENTIFIER_PART = "(?:" + ROUTINE_QUOTED_IDENTIFIER + "|[A-Za-z_#@][A-Za-z0-9_@$#]*)";
+    private static final Pattern ROUTINE_IDENTIFIER_PART_PATTERN = Pattern.compile(ROUTINE_IDENTIFIER_PART);
+    private static final String ROUTINE_IDENTIFIER = ROUTINE_IDENTIFIER_PART
+            + "(?:\\s*\\.\\s*" + ROUTINE_IDENTIFIER_PART + "){0,3}";
     private static final Pattern ROUTINE_INPUT_TABLE_PATTERN = Pattern.compile(
-            "(?i)\\b(?:FROM|JOIN|USING)\\s+(" + ROUTINE_IDENTIFIER + ")");
+            "(?i)" + ROUTINE_QUOTED_IDENTIFIER + "|\\b(?:FROM|JOIN|USING)\\s+(" + ROUTINE_IDENTIFIER + ")");
     private static final Pattern ROUTINE_INSERT_TARGET_PATTERN = Pattern.compile(
-            "(?i)\\bINSERT\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
+            "(?i)" + ROUTINE_QUOTED_IDENTIFIER + "|\\bINSERT\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
     private static final Pattern ROUTINE_UPDATE_TARGET_PATTERN = Pattern.compile(
-            "(?i)\\bUPDATE\\s+(" + ROUTINE_IDENTIFIER + ")");
+            "(?i)" + ROUTINE_QUOTED_IDENTIFIER + "|\\bUPDATE\\s+(" + ROUTINE_IDENTIFIER + ")");
     private static final Pattern ROUTINE_DELETE_TARGET_PATTERN = Pattern.compile(
-            "(?i)\\bDELETE\\s+FROM\\s+(" + ROUTINE_IDENTIFIER + ")");
+            "(?i)" + ROUTINE_QUOTED_IDENTIFIER + "|\\bDELETE\\s+FROM\\s+(" + ROUTINE_IDENTIFIER + ")");
     private static final Pattern ROUTINE_MERGE_TARGET_PATTERN = Pattern.compile(
-            "(?i)\\bMERGE\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
+            "(?i)" + ROUTINE_QUOTED_IDENTIFIER + "|\\bMERGE\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
     private static final Set<String> METADATA_EXEC_ROUTINES = new LinkedHashSet<>();
     private static final Pattern EXEC_STRING_ARGUMENT_PATTERN = Pattern.compile("'([^']+)'");
     private static final Pattern EXEC_TABLE_NAME_ARGUMENT_PATTERN = Pattern.compile(
@@ -2649,8 +2653,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             return null;
         }
         List<String> parts = new ArrayList<>();
-        for (String part : rawName.split("\\.")) {
-            String cleaned = cleanIdentifier(part);
+        Matcher identifiers = ROUTINE_IDENTIFIER_PART_PATTERN.matcher(rawName);
+        while (identifiers.find()) {
+            String cleaned = cleanIdentifier(identifiers.group());
             if (cleaned.isEmpty() || isIgnoredRoutineObjectName(cleaned)) {
                 return null;
             }
@@ -2832,6 +2837,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (value.length() >= 2 && value.startsWith("`") && value.endsWith("`")) {
             return value.substring(1, value.length() - 1).replace("``", "`");
         }
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            return value.substring(1, value.length() - 1).replace("\"\"", "\"");
+        }
         return value;
     }
 
@@ -2842,8 +2850,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         }
         if (value.length() >= 2 && value.startsWith("'") && value.endsWith("'")) {
             return value.substring(1, value.length() - 1)
-                    .replace("''", "'")
-                    .replace("\\\\'", "'");
+                    .replace("''", "'");
         }
         return null;
     }
