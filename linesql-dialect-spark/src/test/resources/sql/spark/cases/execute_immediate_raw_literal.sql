@@ -1,0 +1,1 @@
+EXECUTE IMMEDIATE r"SELECT id FROM ods.users WHERE state = 'ACTIVE'";

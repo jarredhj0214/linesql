@@ -843,7 +843,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         suppressMissingColumnLineageDiagnostic = true;
         result.getDiagnostics().add(Diagnostic.warning(
                 "DYNAMIC_SQL_NOT_EXPANDED",
-                "Spark EXECUTE IMMEDIATE dynamic SQL is not expanded; table and column lineage are degraded."));
+                "Spark EXECUTE IMMEDIATE could not resolve a single SQL string literal for lineage."));
         return null;
     }
 

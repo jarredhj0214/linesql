@@ -1,0 +1,1 @@
+EXECUTE IMMEDIATE sql_text;

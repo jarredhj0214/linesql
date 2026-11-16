@@ -2074,7 +2074,7 @@ Implemented Spark table-level lineage scenarios:
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
 | Temporary view drop lifecycle | `create temporary view v as ...; drop view v; select ... from v` | `script_drop_temp_view` |
-| Dynamic SQL graceful degradation | `execute immediate 'select ... from ods.s'` | `execute_immediate_dynamic_sql` |
+| EXECUTE IMMEDIATE with literal SQL | A direct Spark string literal identifies Spark and contributes the embedded statement's type, table references, column mappings, and clause usages. Variable SQL and `USING` bindings report `DYNAMIC_SQL_NOT_EXPANDED`. | `execute_immediate_dynamic_sql`, `execute_immediate_literal_insert`, `execute_immediate_raw_literal`, `execute_immediate_sql_variable` |
 | Non-lineage session statements classified as control/schema | `use db`, `set catalog c`, `reset key` | `use_database`, `set_catalog`, `reset_configuration` |
 | Namespace DDL classified as schema statements | `create namespace mart`, `drop namespace mart` | `create_namespace`, `drop_namespace` |
 | Table-free metadata reads | `show namespaces`, `show catalogs`, `analyze tables` | `show_namespaces`, `show_catalogs`, `analyze_tables` |
@@ -2288,7 +2288,7 @@ Current Spark diagnostics:
 | Code | Meaning |
 | --- | --- |
 | `SPARK_PARSE_ERROR` | Spark SQL could not be parsed by the current grammar entry point. |
-| `DYNAMIC_SQL_NOT_EXPANDED` | Dynamic SQL was parsed but intentionally not expanded for lineage extraction. |
+| `DYNAMIC_SQL_NOT_EXPANDED` | EXECUTE IMMEDIATE could not resolve a direct SQL string literal for lineage extraction. |
 | `CODE_LITERAL_NOT_EXPANDED` | Code literal SQL was parsed as a statement shape but not expanded for lineage extraction. |
 | `CDC_LINEAGE_DEGRADED` | AUTO CDC target/source tables were extracted, but CDC-specific column semantics were not expanded. |
 | `COLUMN_LINEAGE_NOT_IMPLEMENTED` | No column lineage was produced for a projection-capable statement shape. Table lineage may still be available. Table-only DDL and metadata statements do not emit this diagnostic. |
@@ -2303,7 +2303,7 @@ Implemented Spark tolerance scenarios:
 | Unquoted scheduler placeholders | `${bizdate}`, `{{ region }}` in expressions | `select_with_placeholders` |
 | Backquoted non-ASCII identifiers | Chinese table and column identifiers | `quoted_chinese_identifiers` |
 | Bad SQL isolation in scripts | one invalid statement does not block later statements | `script_bad_sql_recovery` |
-| Dynamic SQL degradation | `EXECUTE IMMEDIATE` returns diagnostics instead of guessing embedded SQL lineage | `execute_immediate_dynamic_sql` |
+| Dynamic SQL degradation | `EXECUTE IMMEDIATE` reports a diagnostic when its SQL depends on a variable. | `execute_immediate_sql_variable` |
 | Non-lineage session statements | `USE`, `SET CATALOG`, and `RESET` parse as schema/control statements without lineage diagnostics | `use_database`, `set_catalog`, `reset_configuration` |
 | Namespace and catalog statements | Namespace DDL and table-free metadata reads parse as schema/metadata statements without table/column diagnostics | `create_namespace`, `drop_namespace`, `alter_namespace_set_properties`, `alter_namespace_unset_properties`, `alter_namespace_set_location`, `show_namespaces`, `show_current_namespace`, `show_catalogs`, `analyze_tables` |
 | Function/procedure/variable/cursor statements | Function DDL, CALL, variable, and cursor control statements parse as routine/control statements without table/column diagnostics | `create_function`, `call_procedure`, `create_variable`, `declare_cursor` |
@@ -2326,7 +2326,7 @@ The following Spark lineage features are intentionally not complete yet:
 | PIVOT and complex UNPIVOT column lineage | PIVOT aggregate output columns, single-value UNPIVOT, and positional multi-value UNPIVOT columns are supported; richer PIVOT grouping/value naming and UNPIVOT alias/null semantics are not complete yet. |
 | TRANSFORM column lineage | Declared script output columns are mapped to the input expression column set; script internals are not interpreted. |
 | Pipe AGGREGATE complex grouping semantics | Simple standalone aggregate outputs and following SELECT propagation are supported; grouping analytics and complex grouping sets are not complete yet. |
-| Dynamic SQL expansion | `EXECUTE IMMEDIATE` is parsed and diagnosed, but embedded SQL text is not recursively parsed. |
+| Dynamic SQL expansion | `EXECUTE IMMEDIATE` analyzes one direct literal statement. Runtime SQL values and deeper nested execution remain opaque. |
 | Code literal expansion | Metric view code literals are parsed and diagnosed, but embedded code text is not recursively parsed. |
 | CDC column semantics | AUTO CDC source/target tables are extracted; CDC-specific field propagation is not complete yet. |
 | Multi-insert column lineage | Table-level lineage is supported; per-target column lineage is not emitted yet. |

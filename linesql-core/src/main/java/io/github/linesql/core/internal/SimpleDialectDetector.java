@@ -250,7 +250,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     : candidate(SqlDialect.SQLSERVER, 0.91,
                             "SQL Server TOP, bracketed identifier, table hint, OPENJSON/OPENXML, or external rowset syntax"));
         }
-        if (sparkSignal) {
+        if (normalized.matches("(?s)^\\s*execute\\s+immediate\\s+r?['\"].*")) {
+            candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark EXECUTE IMMEDIATE with a SQL literal"));
+        } else if (sparkSignal) {
             candidates.add(candidate(
                     SqlDialect.SPARK,
                     strongSparkSignal ? 0.96 : 0.93,

@@ -93,6 +93,28 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void analyzesSparkLiteralSqlWithoutUsingItsBodyForDialectDetection() {
+        LineageResult query = LineSql.parse("EXECUTE IMMEDIATE 'SELECT id FROM dual WHERE enabled = 1'");
+        assertEquals(SqlDialect.SPARK, query.getDialect());
+        assertEquals(StatementType.SELECT, query.getStatementType());
+        assertEquals("dual", query.getInputTables().get(0).getName());
+        assertEquals("id", query.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("enabled", query.getColumnUsages().get(0).getColumn().getName());
+
+        LineageResult bound = LineSql.parse(
+                "EXECUTE IMMEDIATE 'SELECT id FROM ods.events WHERE id = ?' USING 1",
+                SqlDialect.SPARK);
+        assertEquals(StatementType.UNKNOWN, bound.getStatementType());
+        assertEquals("DYNAMIC_SQL_NOT_EXPANDED", bound.getDiagnostics().get(0).getCode());
+
+        LineageResult templated = LineSql.parse(
+                "EXECUTE IMMEDIATE 'SELECT id FROM ${source_table}'", SqlDialect.SPARK);
+        assertEquals(StatementType.UNKNOWN, templated.getStatementType());
+        assertEquals("DYNAMIC_SQL_NOT_EXPANDED", templated.getDiagnostics().get(0).getCode());
+        assertEquals(0, templated.getInputTables().size());
+    }
+
+    @Test
     public void autoDetectedSqlServerDmlUsesRegisteredParser() {
         LineageResult result = LineSql.parse(
                 "update [ads].[user_summary] set [user_name] = u.[name] "

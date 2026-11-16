@@ -2942,13 +2942,40 @@
     {
       "id": "execute_immediate_dynamic_sql",
       "file": "cases/execute_immediate_dynamic_sql.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.users.id"]}],
+      "description": "A fixed SQL string exposes the source table and projected column"
+    },
+    {
+      "id": "execute_immediate_sql_variable",
+      "file": "cases/execute_immediate_sql_variable.sql",
       "statementType": "UNKNOWN",
       "inputTables": [],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "DYNAMIC_SQL_NOT_EXPANDED"
-      ],
-      "description": "EXECUTE IMMEDIATE dynamic SQL is parsed but not expanded for lineage"
+      "expectedDiagnostics": ["DYNAMIC_SQL_NOT_EXPANDED"],
+      "description": "A session variable can choose SQL at runtime and does not yield guessed lineage"
+    },
+    {
+      "id": "execute_immediate_literal_insert",
+      "file": "cases/execute_immediate_literal_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.users"],
+      "outputTables": ["mart.active_users"],
+      "columnLineage": [{"target": "mart.active_users.id", "sources": ["ods.users.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.users.state"}],
+      "description": "A literal INSERT preserves its static writes and quoted predicate"
+    },
+    {
+      "id": "execute_immediate_raw_literal",
+      "file": "cases/execute_immediate_raw_literal.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.users"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.users.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.users.state"}],
+      "description": "A Spark raw-string body supplies SQL without outer escape processing"
     },
     {
       "id": "use_database",
