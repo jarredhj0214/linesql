@@ -347,6 +347,17 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOracleRecursiveSubqueryFactoringOptions() {
+        assertDialect(SqlDialect.ORACLE, "WITH walk(n) AS (SELECT 1 FROM dual"
+                + " UNION ALL SELECT n + 1 FROM walk WHERE n < 4)"
+                + " SEARCH DEPTH FIRST BY n SET seq CYCLE n SET seen TO 'Y' DEFAULT 'N'"
+                + " SELECT n, seq, seen FROM walk");
+        assertDialect(SqlDialect.ORACLE, "WITH walk(n) AS (SELECT id FROM app.nodes"
+                + " UNION ALL SELECT n + 1 FROM walk WHERE n < 4)"
+                + " CYCLE n SET seen TO 'Y' DEFAULT 'N' SELECT n, seen FROM walk");
+    }
+
+    @Test
     public void detectsPostgresRecursiveCteSearchAndCycleOptions() {
         assertDialect(SqlDialect.POSTGRESQL, "WITH RECURSIVE walk(n) AS"
                 + " (SELECT 1 UNION ALL SELECT n + 1 FROM walk WHERE n < 4)"

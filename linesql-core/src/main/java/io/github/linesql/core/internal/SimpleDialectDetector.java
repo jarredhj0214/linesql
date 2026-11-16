@@ -83,6 +83,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern ORACLE_RECURSIVE_CTE_OPTIONS = Pattern.compile(
+            "\\bwith\\s+(?!recursive\\b)[^;]*?\\)\\s*(?:search\\s+(?:breadth|depth)\\s+first\\s+by\\b"
+                    + "|cycle\\s+[a-z_][\\w$#]*(?:\\s*,\\s*[a-z_][\\w$#]*)*\\s+set\\s+[a-z_][\\w$#]*\\s+to\\b)");
     private static final Pattern POSTGRES_RECURSIVE_CTE_OPTIONS = Pattern.compile(
             "\\bwith\\s+recursive\\b[^;]*?\\)\\s*(?:search\\s+(?:breadth|depth)\\s+first\\s+by\\b"
                     + "|cycle\\s+[a-z_][\\w$]*(?:\\s*,\\s*[a-z_][\\w$]*)*\\s+set\\b)");
@@ -415,6 +418,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 && ORACLE_PARTITIONED_JOIN.matcher(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle partitioned join"));
+        } else if (ORACLE_RECURSIVE_CTE_OPTIONS.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle recursive factoring search or cycle options"));
         } else if (ORACLE_JSON_AGGREGATE.matcher(unquotedSyntax).find()
                 && ORACLE_JSON_AGGREGATE_OPTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle SQL/JSON aggregate options"));

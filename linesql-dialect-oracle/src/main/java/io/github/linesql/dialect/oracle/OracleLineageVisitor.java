@@ -837,9 +837,73 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         for (OracleParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
             String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
             cteNames.add(cteName);
-            registerDerivedRelation(cteName, namedQuery.query(), cteColumnAliases(namedQuery));
+            List<String> aliases = cteColumnAliases(namedQuery);
+            seedRecursiveRelation(cteName, namedQuery.query(), aliases);
+            registerDerivedRelation(cteName, namedQuery.query(), aliases);
+            Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(cteName);
+            if (namedQuery.searchClause() != null) {
+                OracleParser.SearchClauseContext search = namedQuery.searchClause();
+                columns.put(cleanIdentifier(search.orderColumn.getText()), cteKeySources(columns, search.identifierList()));
+            }
+            if (namedQuery.cycleClause() != null) {
+                OracleParser.CycleClauseContext cycle = namedQuery.cycleClause();
+                columns.put(cleanIdentifier(cycle.markColumn.getText()), cteKeySources(columns, cycle.identifierList()));
+            }
         }
         return null;
+    }
+
+    private void seedRecursiveRelation(String name, OracleParser.QueryContext query, List<String> aliases) {
+        if (aliases.isEmpty() || query.ctes() != null
+                || !(query.queryTerm() instanceof OracleParser.SetOperationContext)) {
+            return;
+        }
+        OracleParser.SetOperationContext union = (OracleParser.SetOperationContext) query.queryTerm();
+        if (union.setOperator().UNION() == null || union.setOperator().ALL() == null
+                || !referencesRelation(union.right, name)) {
+            return;
+        }
+        List<ColumnLineage> anchor = lineageForQueryTerm(union.left).getColumnLineage();
+        if (aliases.size() != anchor.size() || LineageModelUtils.hasWildcardOutput(anchor)) {
+            return;
+        }
+
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int index = 0; index < aliases.size(); index++) {
+            columns.put(aliases.get(index),
+                    LineageModelUtils.mergeColumnRefs(Collections.emptyList(), anchor.get(index).getSources()));
+        }
+        Map<String, List<ColumnRef>> previous = derivedColumnLineage.put(name, columns);
+        if (!LineageModelUtils.expandRecursiveColumnSources(columns,
+                () -> lineageForQueryTerm(union.right).getColumnLineage())) {
+            if (previous == null) {
+                derivedColumnLineage.remove(name);
+            } else {
+                derivedColumnLineage.put(name, previous);
+            }
+        }
+    }
+
+    private static boolean referencesRelation(ParseTree tree, String name) {
+        if (tree instanceof OracleParser.TableNameContext) {
+            TableRef table = tableRef(((OracleParser.TableNameContext) tree).multipartIdentifier());
+            return table.getCatalog() == null && table.getSchema() == null && name.equalsIgnoreCase(table.getName());
+        }
+        for (int index = 0; index < tree.getChildCount(); index++) {
+            if (referencesRelation(tree.getChild(index), name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<ColumnRef> cteKeySources(Map<String, List<ColumnRef>> columns,
+                                                  OracleParser.IdentifierListContext keys) {
+        List<ColumnRef> sources = new ArrayList<>();
+        for (String key : identifierNames(keys)) {
+            sources.addAll(columns.getOrDefault(key, Collections.emptyList()));
+        }
+        return LineageModelUtils.mergeColumnRefs(Collections.emptyList(), sources);
     }
 
     @Override
@@ -1815,7 +1879,8 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
-        if (cteNames.contains(name) && !columnAliases.isEmpty()) {
+        if (cteNames.contains(name) && !columnAliases.isEmpty()
+                && !relationVisitor.derivedColumnLineage.containsKey(name)) {
             Map<String, List<ColumnRef>> recursiveColumns = new LinkedHashMap<>();
             for (String columnAlias : columnAliases) {
                 recursiveColumns.put(columnAlias, new ArrayList<>());

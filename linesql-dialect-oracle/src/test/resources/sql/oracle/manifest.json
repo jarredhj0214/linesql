@@ -2199,6 +2199,10 @@
         {
           "type": "JOIN_ON",
           "column": "app.org.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "app.org.id"
         }
       ],
       "description": "Oracle recursive subquery factoring direct column propagation keeps base-table lineage"
@@ -6022,6 +6026,126 @@
         }
       ],
       "description": "Oracle JSON object aggregates propagate key, value and filter columns to the destination"
+    },
+    {
+      "id": "recursive_cte_search_cycle_dependencies",
+      "file": "cases/recursive_cte_search_cycle_dependencies.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.roots",
+        "org.edges"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "node_id",
+          "sources": [
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "inherited_root",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "visit_order",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "is_loop",
+          "sources": [
+            "org.roots.root_id",
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.roots.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.child_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.roots.root_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.roots.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "org.edges.child_id"
+        }
+      ],
+      "description": "Oracle traversal order and cycle marks inherit all sources reaching their key through recursion"
+    },
+    {
+      "id": "recursive_cte_cross_column_provenance",
+      "file": "cases/recursive_cte_cross_column_provenance.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.nodes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "a",
+          "sources": [
+            "org.nodes.id",
+            "org.nodes.parent_id",
+            "org.nodes.root_id"
+          ]
+        },
+        {
+          "target": "b",
+          "sources": [
+            "org.nodes.parent_id",
+            "org.nodes.root_id",
+            "org.nodes.id"
+          ]
+        },
+        {
+          "target": "c",
+          "sources": [
+            "org.nodes.root_id",
+            "org.nodes.id",
+            "org.nodes.parent_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "org.nodes.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.parent_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.root_id"
+        }
+      ],
+      "description": "Oracle recursive references propagate across multiple positional output columns"
     }
   ]
 }
