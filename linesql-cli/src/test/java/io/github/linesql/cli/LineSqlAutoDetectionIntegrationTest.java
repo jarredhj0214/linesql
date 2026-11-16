@@ -347,6 +347,13 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPreparedSqlForms() {
+        assertDialect(SqlDialect.MYSQL, "PREPARE stmt FROM 'SELECT id FROM app.users WHERE status = ?'");
+        assertDialect(SqlDialect.MYSQL, "PREPARE stmt FROM @runtime_sql");
+        assertDialect(SqlDialect.STARROCKS, "PREPARE stmt FROM SELECT id FROM app.users WHERE status = ?");
+    }
+
+    @Test
     public void usesFlinkConnectorSyntaxWithoutClaimingStringData() {
         assertDialect(SqlDialect.POSTGRESQL, "INSERT INTO app.events(id, note) VALUES(1, 'connector')"
                 + " ON CONFLICT DO NOTHING");

@@ -5,7 +5,9 @@ import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
+import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.spi.DialectParser;
+import io.github.linesql.core.util.MySqlPreparedSql;
 import io.github.linesql.dialect.starrocks.antlr.StarRocksLineageLexer;
 import io.github.linesql.dialect.starrocks.antlr.StarRocksParser;
 import org.antlr.v4.runtime.BaseErrorListener;
@@ -23,6 +25,10 @@ public class StarRocksDialectParser implements DialectParser {
 
     @Override
     public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
+        return parse(sql, context, true);
+    }
+
+    private LineageResult parse(String sql, ParseContext context, boolean expandPreparedSql) {
         LineageResult result = new LineageResult();
         result.setDialect(SqlDialect.STARROCKS);
         result.setDialectConfidence(1.0d);
@@ -46,6 +52,18 @@ public class StarRocksDialectParser implements DialectParser {
         visitor.setContext(context);
         visitor.visit(statement);
         visitor.finalizeResult();
+        if (expandPreparedSql && statement.statement() instanceof StarRocksParser.PreparedStmtContext) {
+            StarRocksParser.StringContext sqlText = ((StarRocksParser.PreparedStmtContext) statement.statement()).preparedStatement().string();
+            if (sqlText != null) {
+                String preparedSql = MySqlPreparedSql.decodeLiteral(sqlText.getText());
+                if (preparedSql != null) {
+                    LineageResult prepared = parse(preparedSql, MySqlPreparedSql.snapshot(context), false);
+                    if (prepared.getStatementType() == StatementType.SELECT) {
+                        MySqlPreparedSql.recordLineage(result, prepared);
+                    }
+                }
+            }
+        }
         return result;
     }
 

@@ -2563,10 +2563,25 @@
       "id": "mysql_mode_prepare_statement",
       "file": "cases/mysql_mode_prepare_statement.sql",
       "statementType": "CONTROL",
-      "inputTables": [],
+      "inputTables": [
+        "app.users"
+      ],
       "outputTables": [],
-      "columnLineage": [],
-      "description": "OceanBase MySQL mode PREPARE statement is accepted as dynamic SQL control"
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "description": "A prepared SQL literal retains the projection and parameterized filter lineage",
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ]
     },
     {
       "id": "mysql_mode_execute_statement",

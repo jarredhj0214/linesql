@@ -209,6 +209,12 @@ public class SimpleDialectDetector implements DialectDetector {
             "(\\bvector_distance\\s*\\(\\s*n?'(?:cosine|dot|euclidean)'\\s*,)|"
                     + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
 
+    private static final String PREPARED_STATEMENT_NAME = "(?:[a-z_][\\w$]*|`(?:``|[^`])*`)";
+    private static final Pattern MYSQL_PREPARED_LITERAL = Pattern.compile(
+            "^\\s*prepare\\s+" + PREPARED_STATEMENT_NAME + "\\s+from\\s+(?:(?:n|_[a-z0-9]+)?"
+                    + SINGLE_QUOTED_STRING + "|\"|@[a-z_][\\w$]*)");
+    private static final Pattern STARROCKS_PREPARED_QUERY = Pattern.compile(
+            "^\\s*prepare\\s+" + PREPARED_STATEMENT_NAME + "\\s+from\\s+(?:select|with)\\b");
     private static final String FLINK_OPTION_LITERAL = "(?:" + SINGLE_QUOTED_STRING + "|\"(?:\"\"|[^\"\\\\]|\\\\.)*\")";
     private static final Pattern SQL_WITH_OPTIONS_OR_QUOTE = Pattern.compile(
             "(\\bwith\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
@@ -254,8 +260,11 @@ public class SimpleDialectDetector implements DialectDetector {
         boolean sqlServerTemporalQuery = unquotedSyntax.matches("(?s).*\\bfor\\s+system_time\\s+"
                 + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+" + TSQL_LOCAL_VARIABLE + ").*");
 
+        boolean mysqlPrepare = MYSQL_PREPARED_LITERAL.matcher(normalized).find();
         if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
+        } else if (mysqlPrepare) {
+            candidates.add(candidate(SqlDialect.MYSQL, 0.97, "MySQL-compatible PREPARE SQL source"));
         } else if (MYSQL_RECURSION_SETTING.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.98, "MySQL recursive CTE depth setting"));
         } else if (mysqlExecutableComment
@@ -420,7 +429,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }
-        if (STARROCKS_RECURSION_SETTINGS.matcher(unquotedSyntax).find()) {
+        if (STARROCKS_PREPARED_QUERY.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.98, "StarRocks direct PREPARE query"));
+        } else if (STARROCKS_RECURSION_SETTINGS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks recursive CTE settings"));
         } else if (unquotedSyntax.contains("temporary") && unquotedSyntax.contains("partition")
                 && STARROCKS_TEMPORARY_PARTITION.matcher(
@@ -516,7 +527,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || relationSyntax.matches("(?s).*\\b(?:cross|outer)\\s+apply\\s+[^\\s();]+\\s*\\.\\s*nodes\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\bfrom\\s+@[\\w$#]+\\s*\\.\\s*nodes\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server XML namespaces or nodes() method"));
-        } else if (TSQL_TABLE_VARIABLE.matcher(unquotedSyntax).find()) {
+        } else if (!mysqlPrepare && TSQL_TABLE_VARIABLE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server table variable"));
         } else if (TSQL_DML_OUTPUT.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server DML OUTPUT row images"));

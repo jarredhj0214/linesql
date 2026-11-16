@@ -7395,9 +7395,25 @@
       "id": "prepare_statement",
       "file": "cases/prepare_statement.sql",
       "statementType": "CONTROL",
-      "inputTables": [],
+      "inputTables": [
+        "app.users"
+      ],
       "outputTables": [],
-      "description": "MySQL PREPARE is accepted as dynamic SQL without inferred table lineage"
+      "description": "A prepared SQL literal retains the projection and parameterized filter lineage",
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "app.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.users.status"
+        }
+      ]
     },
     {
       "id": "execute_statement",
@@ -12509,6 +12525,52 @@
       ],
       "columnUsages": [],
       "description": "All nonrecursive anchors seed both sides of a recursive column dependency"
+    },
+    {
+      "id": "prepare_insert_select_escaped_literals",
+      "file": "cases/prepare_insert_select_escaped_literals.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.snapshot.id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "mart.snapshot.amount",
+          "sources": [
+            "ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.orders.id"
+        }
+      ],
+      "description": "Literal MySQL INSERT preparation captures writes and positional values while decoding doubled quotes"
+    },
+    {
+      "id": "prepare_query_variable_unresolved",
+      "file": "cases/prepare_query_variable_unresolved.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "A runtime SQL variable remains a prepared control statement"
     }
   ]
 }

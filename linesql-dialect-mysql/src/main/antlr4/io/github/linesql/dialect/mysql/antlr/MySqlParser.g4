@@ -1088,7 +1088,7 @@ cursorStatement
     ;
 
 prepareStatement
-    : PREPARE identifier FROM .+?
+    : PREPARE identifier FROM (literalSql=string | .+?)
     ;
 
 executeStatement

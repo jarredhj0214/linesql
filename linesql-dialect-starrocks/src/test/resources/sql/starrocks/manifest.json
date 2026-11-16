@@ -5712,10 +5712,11 @@
       "id": "prepare_select_statement",
       "file": "cases/prepare_select_statement.sql",
       "statementType": "CONTROL",
-      "inputTables": [],
+      "inputTables": ["users"],
       "outputTables": [],
-      "columnLineage": [],
-      "description": "StarRocks PREPARE SELECT statement"
+      "columnLineage": [{"target": "*", "sources": ["users.*"]}],
+      "columnUsages": [{"type": "WHERE", "column": "users.id"}],
+      "description": "StarRocks PREPARE SELECT tracks input and filter through a quoted wildcard query"
     },
     {
       "id": "execute_prepared_using",
@@ -12338,6 +12339,40 @@
         }
       ],
       "description": "StarRocks session USE and catalog switches qualify following reads and writes with the active namespace"
+    },
+    {
+      "id": "prepare_quoted_query_lineage",
+      "file": "cases/prepare_quoted_query_lineage.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "ods.sales"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.sales.user_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.sales.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.sales.bucket"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.sales.status"
+        }
+      ],
+      "description": "StarRocks reads source and predicate columns from a literal prepared SELECT with placeholders"
     }
   ]
 }
