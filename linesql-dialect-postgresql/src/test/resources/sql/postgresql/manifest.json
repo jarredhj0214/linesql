@@ -2,6 +2,24 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "select_tagged_dollar_quote",
+      "file": "cases/select_tagged_dollar_quote.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.a"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.a.id"]}, {"target": "label", "sources": []}],
+      "description": "PostgreSQL dollar-quoted bodies match an exact case-sensitive delimiter"
+    },
+    {
+      "id": "do_tagged_dollar_quote",
+      "file": "cases/do_tagged_dollar_quote.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "PostgreSQL dollar-quoted bodies match an exact case-sensitive delimiter"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",

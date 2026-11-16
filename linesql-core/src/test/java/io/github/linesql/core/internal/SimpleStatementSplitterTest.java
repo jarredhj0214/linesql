@@ -42,4 +42,20 @@ public class SimpleStatementSplitterTest {
         assertEquals(2, statements.size());
         assertEquals("select id from ods.users", statements.get(1));
     }
+    @Test
+    public void keepsTaggedDollarQuotesAndMatchesTheirCase() {
+        String block = "do $Body$ begin perform '$body$;'; perform '$$'; end; $Body$";
+        List<String> statements = splitter.split(block + "; select $1;");
+        assertEquals(2, statements.size());
+        assertEquals(block, statements.get(0));
+        assertEquals("select $1", statements.get(1));
+    }
+
+    @Test
+    public void distinguishesDollarQuotesFromIdentifierSuffixes() {
+        List<String> statements = splitter.split("select a$tag$ from ods.t; select $tag$x;y$tag$;");
+        assertEquals(2, statements.size());
+        assertEquals("select a$tag$ from ods.t", statements.get(0));
+        assertEquals("select $tag$x;y$tag$", statements.get(1));
+    }
 }

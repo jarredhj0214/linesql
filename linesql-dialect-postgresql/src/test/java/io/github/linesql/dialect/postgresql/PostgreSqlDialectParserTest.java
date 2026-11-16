@@ -46,6 +46,23 @@ public class PostgreSqlDialectParserTest {
     }
 
     @Test
+    public void splitsTaggedDoBlockBeforeFollowingQuery() {
+        String script = "DO $Body$ BEGIN PERFORM '$body$;'; END; $Body$; SELECT id FROM ods.a;";
+        List<LineageResult> results = io.github.linesql.core.LineSql.parseScript(script, SqlDialect.POSTGRESQL);
+        assertEquals(2, results.size());
+        assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
+        assertTrue(results.get(0).getDiagnostics().isEmpty());
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertEquals(java.util.Collections.singletonList("ods.a"), tableNames(results.get(1).getInputTables()));
+    }
+
+    @Test
+    public void rejectsUnterminatedTaggedDollarQuote() {
+        LineageResult result = parser.parse("SELECT $Tag$text$tag$", ParseOptions.defaults(), new ParseContext());
+        assertEquals("POSTGRESQL_PARSE_ERROR", result.getDiagnostics().get(0).getCode());
+    }
+
+    @Test
     public void manifestReferencesExistingSqlFiles() throws IOException {
         JsonNode manifest = new ObjectMapper().readTree(resource("/sql/postgresql/manifest.json"));
 

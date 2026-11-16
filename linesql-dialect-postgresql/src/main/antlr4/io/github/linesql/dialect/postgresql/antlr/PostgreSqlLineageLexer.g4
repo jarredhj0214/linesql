@@ -1,5 +1,30 @@
 lexer grammar PostgreSqlLineageLexer;
 
+@members {
+    private void consumeDollarQuotedString() {
+        int[] delimiter = getText().codePoints().toArray();
+        while (_input.LA(1) != IntStream.EOF) {
+            if (_input.LA(1) == '$' && matchesDollarDelimiter(delimiter)) {
+                for (int i = 0; i < delimiter.length; i++) {
+                    getInterpreter().consume(_input);
+                }
+                return;
+            }
+            getInterpreter().consume(_input);
+        }
+        notifyListeners(new LexerNoViableAltException(this, _input, _tokenStartCharIndex, null));
+    }
+
+    private boolean matchesDollarDelimiter(int[] delimiter) {
+        for (int i = 0; i < delimiter.length; i++) {
+            if (_input.LA(i + 1) != delimiter[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
 SELECT: S E L E C T;
 ARRAY: A R R A Y;
 EXTRACT: E X T R A C T;
@@ -333,11 +358,13 @@ ATTACH: A T T A C H;
 DETACH: D E T A C H;
 
 POSITIONAL_PARAMETER: '$' [0-9]+;
-IDENTIFIER: [a-zA-Z_$-￿] [a-zA-Z0-9_$-￿]*;
+IDENTIFIER: [a-zA-Z_-￿] [a-zA-Z0-9_$-￿]*;
 BACKQUOTED_IDENTIFIER: '`' ('``' | ~'`')* '`';
 STRING_LITERAL: '\'' ('\\' . | '\'\'' | ~['\\])* '\'';
 DOUBLE_QUOTED_STRING: '"' ('\\' . | '""' | ~["\\])* '"';
-DOLLAR_QUOTED_STRING: '$$' .*? '$$';
+DOLLAR_QUOTED_STRING: '$' (DOLLAR_TAG_START DOLLAR_TAG_PART*)? '$' {consumeDollarQuotedString();};
+fragment DOLLAR_TAG_START: [a-zA-Z_\u0080-\u{10FFFF}];
+fragment DOLLAR_TAG_PART: DOLLAR_TAG_START | [0-9];
 NUMBER_LITERAL: [0-9]+ ('.' [0-9]+)?;
 
 DOT: '.';
