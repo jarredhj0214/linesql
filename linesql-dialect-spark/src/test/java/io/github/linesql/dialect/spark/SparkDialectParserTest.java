@@ -24,6 +24,31 @@ import static org.junit.Assert.assertTrue;
 
 public class SparkDialectParserTest {
     @Test
+    public void expandsKnownLiteralSessionVariablesWithoutSharingDefaultContexts() {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_execute_immediate_literal_variable"));
+        assertEquals(4, results.size());
+        assertEquals(StatementType.SELECT, results.get(1).getStatementType());
+        assertEquals("events", results.get(1).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertEquals(StatementType.INSERT, results.get(3).getStatementType());
+        assertEquals("daily", results.get(3).getColumnLineage().get(0).getTarget().getTable().getName());
+        assertEquals("sales", results.get(3).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertDiagnostics("fresh context", singletonTextArray("DYNAMIC_SQL_NOT_EXPANDED"),
+                LineSql.parse("EXECUTE IMMEDIATE command_text"));
+    }
+
+    @Test
+    public void clearsStaticValuesAfterComputedAssignmentsIntoAndDrop() {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_execute_immediate_invalidated_variable"));
+        assertEquals(9, results.size());
+        for (int index : new int[]{2, 6, 8}) {
+            assertDiagnostics("unresolved variable at statement " + index,
+                    singletonTextArray("DYNAMIC_SQL_NOT_EXPANDED"), results.get(index));
+            assertTrue(results.get(index).getInputTables().isEmpty());
+        }
+        assertEquals("active", results.get(4).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+    }
+
+    @Test
     public void parsesSelectInputTable() {
         LineageResult result = LineSql.parse(sqlCase("select_basic"));
 

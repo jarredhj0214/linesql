@@ -4624,6 +4624,57 @@
         {"type": "WHERE", "column": "sales.refunds.region"}
       ],
       "description": "IN predicate set operations retain both branch projections and correlated filters"
+    },
+    {
+      "id": "script_execute_immediate_literal_variable",
+      "file": "cases/script_execute_immediate_literal_variable.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "ods.sales"
+      ],
+      "outputTables": [
+        "mart.daily"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.events.amount"
+          ]
+        },
+        {
+          "target": "mart.daily.id",
+          "sources": [
+            "ods.sales.id"
+          ]
+        }
+      ],
+      "description": "Spark string variable defaults and literal assignments resolve dynamic SQL in one script"
+    },
+    {
+      "id": "script_execute_immediate_invalidated_variable",
+      "file": "cases/script_execute_immediate_invalidated_variable.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.active"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.active.id"
+          ]
+        }
+      ],
+      "description": "Computed assignments and INTO results invalidate stale session values while later literals can restore provenance"
     }
   ]
 }

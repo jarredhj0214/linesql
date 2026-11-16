@@ -15,12 +15,19 @@ import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
 
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SparkDialectParser implements DialectParser {
     private static final Pattern STRING_ESCAPE = Pattern.compile(
             "\\\\(?:u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[01][0-7]{2}|[\\s\\S])");
+
+    private static final String VARIABLE_NAME_PART = "(?:[a-zA-Z_][\\w$]*|`(?:``|[^`])+`)";
+    private static final Pattern SESSION_VARIABLE_NAME = Pattern.compile(
+            VARIABLE_NAME_PART + "(?:\\." + VARIABLE_NAME_PART + "){0,2}");
 
     @Override
     public SqlDialect dialect() {
@@ -54,11 +61,14 @@ public class SparkDialectParser implements DialectParser {
             return result;
         }
 
-        if (expandLiteralSql && sql.equals(normalizedSql)
-                && statement.statement() instanceof SqlBaseParser.VisitExecuteImmediateContext) {
+        boolean originalLiterals = sql.equals(normalizedSql);
+        Map<String, String> variables = context == null ? null : context.getSessionStringVariables(SqlDialect.SPARK);
+        trackSessionVariables(statement, variables, originalLiterals);
+        if (statement.statement() instanceof SqlBaseParser.VisitExecuteImmediateContext) {
             SqlBaseParser.ExecuteImmediateContext execute =
                     ((SqlBaseParser.VisitExecuteImmediateContext) statement.statement()).executeImmediate();
-            String literalSql = staticExecuteSql(execute);
+            String literalSql = expandLiteralSql && originalLiterals ? staticExecuteSql(execute, variables) : null;
+            invalidateSessionVariables(execute.targetVariable, variables);
             if (literalSql != null) {
                 return parse(literalSql, context, false);
             }
@@ -77,10 +87,83 @@ public class SparkDialectParser implements DialectParser {
         return result;
     }
 
-    private static String staticExecuteSql(SqlBaseParser.ExecuteImmediateContext execute) {
-        Token token = execute.queryParam.getStart();
-        if (execute.executeImmediateUsing() != null || token != execute.queryParam.getStop()
-                || (token.getType() != SqlBaseLexer.STRING_LITERAL
+    private static void trackSessionVariables(SqlBaseParser.SingleStatementContext statement,
+                                              Map<String, String> variables, boolean originalLiterals) {
+        if (variables == null) {
+            return;
+        }
+        if (statement.statement() instanceof SqlBaseParser.CreateVariableContext) {
+            SqlBaseParser.CreateVariableContext declaration = (SqlBaseParser.CreateVariableContext) statement.statement();
+            SqlBaseParser.VariableDefaultExpressionContext defaultValue = declaration.variableDefaultExpression();
+            String literal = originalLiterals && defaultValue != null ? stringLiteral(defaultValue.expression()) : null;
+            boolean stringType = declaration.dataType() == null
+                    ? literal != null : "STRING".equalsIgnoreCase(declaration.dataType().getText());
+            for (SqlBaseParser.IdentifierReferenceContext target : declaration.identifierReferences) {
+                String name = sessionVariableName(target.getText());
+                if (name != null) {
+                    if (stringType) {
+                        variables.put(name, literal);
+                    } else {
+                        variables.remove(name);
+                    }
+                }
+            }
+        } else if (statement.statement() instanceof SqlBaseParser.DropVariableContext) {
+            SqlBaseParser.DropVariableContext drop = (SqlBaseParser.DropVariableContext) statement.statement();
+            variables.remove(sessionVariableName(drop.identifierReference().getText()));
+        } else if (statement.setResetStatement() instanceof SqlBaseParser.SetVariableContext) {
+            SqlBaseParser.SetVariableContext set = (SqlBaseParser.SetVariableContext) statement.setResetStatement();
+            if (set.assignmentList() == null) {
+                invalidateSessionVariables(set.multipartIdentifierList(), variables);
+            } else {
+                for (SqlBaseParser.AssignmentContext assignment : set.assignmentList().assignment()) {
+                    String name = sessionVariableName(assignment.key.getText());
+                    if (variables.containsKey(name)) {
+                        variables.put(name, originalLiterals ? stringLiteral(assignment.value) : null);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void invalidateSessionVariables(SqlBaseParser.MultipartIdentifierListContext targets,
+                                                   Map<String, String> variables) {
+        if (targets != null && variables != null) {
+            for (SqlBaseParser.MultipartIdentifierContext target : targets.multipartIdentifier()) {
+                String name = sessionVariableName(target.getText());
+                if (variables.containsKey(name)) {
+                    variables.put(name, null);
+                }
+            }
+        }
+    }
+
+    private static String sessionVariableName(String text) {
+        if (!SESSION_VARIABLE_NAME.matcher(text).matches()) {
+            return null;
+        }
+        List<String> parts = SparkLineageVisitor.splitIdentifier(text);
+        int size = parts.size();
+        if ((size > 1 && !"session".equalsIgnoreCase(parts.get(size - 2)))
+                || (size == 3 && !"system".equalsIgnoreCase(parts.get(0)))) {
+            return null;
+        }
+        return parts.get(size - 1).toLowerCase(Locale.ROOT);
+    }
+
+    private static String staticExecuteSql(SqlBaseParser.ExecuteImmediateContext execute,
+                                           Map<String, String> variables) {
+        if (execute.executeImmediateUsing() != null) {
+            return null;
+        }
+        String literal = stringLiteral(execute.queryParam);
+        return literal != null || variables == null
+                ? literal : variables.get(sessionVariableName(execute.queryParam.getText()));
+    }
+
+    private static String stringLiteral(SqlBaseParser.ExpressionContext expression) {
+        Token token = expression.getStart();
+        if (token != expression.getStop() || (token.getType() != SqlBaseLexer.STRING_LITERAL
                 && token.getType() != SqlBaseLexer.DOUBLEQUOTED_STRING)) {
             return null;
         }

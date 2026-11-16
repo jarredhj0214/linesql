@@ -3516,7 +3516,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return String.join(".", parts).toLowerCase(java.util.Locale.ROOT);
     }
 
-    private static List<String> splitIdentifier(String raw) {
+    static List<String> splitIdentifier(String raw) {
         List<String> parts = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean quoted = false;
