@@ -3139,6 +3139,33 @@
       "description": "PostgreSQL UPDATE ONLY ... FROM keeps target/source tables, assignment lineage, and predicate usage"
     },
     {
+      "id": "delete_aliased_target_using",
+      "file": "cases/delete_aliased_target_using.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.orders", "staging.expired"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.expired.order_id"},
+        {"type": "WHERE", "column": "staging.expired.prunable"}
+      ],
+      "description": "A quoted DELETE target alias scopes predicate references on the target and USING source"
+    },
+    {
+      "id": "delete_inherited_target_using",
+      "file": "cases/delete_inherited_target_using.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.orders", "staging.expired"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.expired.order_id"}
+      ],
+      "description": "A standalone inheritance star keeps the table and sources on a DELETE USING statement"
+    },
+    {
       "id": "delete_only_using",
       "file": "cases/delete_only_using.sql",
       "statementType": "DELETE",
@@ -3605,6 +3632,52 @@
         {"type": "WHERE", "column": "ods.orders.detail"}
       ],
       "description": "Typed ROWS FROM output columns trace to the arguments of their own function"
+    },
+    {
+      "id": "lateral_json_each_native_columns",
+      "file": "cases/lateral_json_each_native_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "key", "sources": ["ods.orders.attributes"]},
+        {"target": "value", "sources": ["ods.orders.attributes"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.attributes"},
+        {"type": "WHERE", "column": "ods.orders.attributes"}
+      ],
+      "description": "A JSON key/value function exposes both native output columns to projection and filtering"
+    },
+    {
+      "id": "lateral_json_array_partial_alias_with_ordinality",
+      "file": "cases/lateral_json_array_partial_alias_with_ordinality.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "item", "sources": ["ods.orders.payload"]},
+        {"target": "ordinality", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.payload"},
+        {"type": "WHERE", "column": "ods.orders.payload"}
+      ],
+      "description": "A partial alias names the JSON value and leaves the generated ordinality column available"
+    },
+    {
+      "id": "lateral_json_array_without_alias",
+      "file": "cases/lateral_json_array_without_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "value", "sources": ["ods.orders.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.payload"}
+      ],
+      "description": "The default table name and value output are visible for an unaliased JSON array function"
     },
     {
       "id": "rows_from_functions_with_ordinality",

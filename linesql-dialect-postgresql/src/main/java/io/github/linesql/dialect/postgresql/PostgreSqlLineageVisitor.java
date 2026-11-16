@@ -12,6 +12,7 @@ import io.github.linesql.dialect.postgresql.antlr.PostgreSqlParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1739,7 +1740,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 : sourceColumns(ctx.functionArguments());
         addColumnUsages(ColumnUsageType.JOIN_ON, sources);
         if (ctx.recordColumn().isEmpty()) {
-            if (!registerUnnestColumns(ctx)) {
+            if (!registerUnnestColumns(ctx) && !registerJsonFunctionColumns(ctx, sources)) {
                 registerGeneratedRelation(ctx.tableAlias(), sources, ctx.ORDINALITY() != null);
             }
         } else {
@@ -1755,10 +1756,28 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return null;
     }
 
+    private boolean registerJsonFunctionColumns(PostgreSqlParser.TableFunctionContext ctx,
+                                                List<SourceColumn> sources) {
+        String function = postgresBuiltinName(ctx.functionName());
+        List<String> names = jsonFunctionColumnNames(function);
+        boolean withOrdinality = ctx.ORDINALITY() != null;
+        if (names.isEmpty() || tableAliasColumnNames(ctx.tableAlias()).size() > names.size() + (withOrdinality ? 1 : 0)) {
+            return false;
+        }
+        List<ColumnRef> refs = columnUsageRefs(sources);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (String name : names) {
+            columns.put(name, refs == null ? Collections.emptyList() : refs);
+        }
+        if (withOrdinality) {
+            columns.put("ordinality", Collections.emptyList());
+        }
+        registerNamedFunctionColumns(ctx.tableAlias(), function, columns);
+        return true;
+    }
+
     private boolean registerUnnestColumns(PostgreSqlParser.TableFunctionContext ctx) {
-        String functionName = ctx.functionName().getText();
-        if (ctx.functionArguments() == null
-                || !(functionName.equalsIgnoreCase("unnest") || functionName.equalsIgnoreCase("pg_catalog.unnest"))) {
+        if (ctx.functionArguments() == null || !"unnest".equals(postgresBuiltinName(ctx.functionName()))) {
             return false;
         }
 
@@ -1835,31 +1854,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return names;
         }
 
-        String function = item.functionName().getText().toLowerCase(Locale.ROOT);
-        if (function.startsWith("pg_catalog.")) {
-            function = function.substring("pg_catalog.".length());
-        }
-        switch (function) {
-            case "json_array_elements":
-            case "json_array_elements_text":
-            case "jsonb_array_elements":
-            case "jsonb_array_elements_text":
-                names.add("value");
-                break;
-            case "json_each":
-            case "json_each_text":
-            case "jsonb_each":
-            case "jsonb_each_text":
-                names.add("key");
-                names.add("value");
-                break;
-            case "unnest":
-                if (item.functionArguments() != null && item.functionArguments().callArgument().size() == 1) {
-                    names.add(scalarAlias == null ? function : scalarAlias);
-                }
-                break;
-            default:
-                break;
+        String function = postgresBuiltinName(item.functionName());
+        names.addAll(jsonFunctionColumnNames(function));
+        if ("unnest".equals(function) && item.functionArguments() != null
+                && item.functionArguments().callArgument().size() == 1) {
+            names.add(scalarAlias == null ? function : scalarAlias);
         }
         if (item.identifierList() != null) {
             for (int i = 0; i < Math.min(names.size(), item.identifierList().identifier().size()); i++) {
@@ -1867,6 +1866,30 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         return names;
+    }
+
+    private static String postgresBuiltinName(PostgreSqlParser.FunctionNameContext ctx) {
+        String qualifiedName = ctx.getText().toLowerCase(Locale.ROOT);
+        return qualifiedName.startsWith("pg_catalog.")
+                ? qualifiedName.substring("pg_catalog.".length())
+                : qualifiedName;
+    }
+
+    private static List<String> jsonFunctionColumnNames(String function) {
+        switch (function) {
+            case "json_array_elements":
+            case "json_array_elements_text":
+            case "jsonb_array_elements":
+            case "jsonb_array_elements_text":
+                return Collections.singletonList("value");
+            case "json_each":
+            case "json_each_text":
+            case "jsonb_each":
+            case "jsonb_each_text":
+                return Arrays.asList("key", "value");
+            default:
+                return Collections.emptyList();
+        }
     }
 
     @Override

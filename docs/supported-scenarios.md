@@ -36,7 +36,7 @@ Known conflict guards:
 | MySQL `ON DUPLICATE KEY` is not classified as StarRocks | StarRocks key anchors are scoped to `CREATE TABLE` statements. |
 | MySQL executable version comments are not dropped as ordinary comments | `/*!80000 ... */` carries MySQL SQL and is treated as a MySQL dialect anchor. |
 
-Ambiguous DML such as bare `UPDATE ... FROM`, `DELETE ... USING`, or `DELETE ... JOIN` can be valid in more than one engine. Automatic detection should rely on additional anchors when available; callers can pass an explicit dialect hint when the execution engine is known.
+Ambiguous DML such as bare `UPDATE ... FROM`, `DELETE ... USING`, or `DELETE ... JOIN` can be valid in more than one engine. Automatic detection recognizes PostgreSQL when the DML target uses `ONLY` or an inheritance `*`. Callers can pass an explicit dialect hint when the execution engine is known.
 
 Implemented script-level public API scenarios:
 
@@ -130,9 +130,10 @@ Implemented PostgreSQL scenarios:
 | CREATE MATERIALIZED VIEW AS SELECT | `create materialized view mart.mv as select ... from mart.s`, `create materialized view mart.mv as select ... with [no] data` | `create_materialized_view`, `create_materialized_view_with_no_data`, `create_materialized_view_with_data` |
 | Named function arguments | Schema-qualified calls with `name => value` and `name := value` capture the value expressions as column sources. | `select_qualified_named_function` |
 | LATERAL VALUES lineage | Expressions in each VALUES position map to its explicit alias or default `columnN` name across all rows. | `select_lateral_values_column_lineage` |
-| ROWS FROM column lineage | Explicitly typed functions, JSON array expansion, JSON key/value expansion, and single-input `UNNEST` map outputs to each function’s own arguments. Full or partial aliases rename outputs by position. Ordinality has no source column. | `select_typed_rows_from_lineage`, `rows_from_functions_with_ordinality`, `rows_from_mixed_typed_and_builtin_partial_alias`, `rows_from_builtin_without_alias`, `rows_from_same_function_default_columns` |
+| ROWS FROM column lineage | Explicitly typed functions, JSON array expansion, JSON key/value expansion, and single-input `UNNEST` map outputs to each function’s own arguments. Full or partial aliases rename outputs by position. Ordinality has no source column. The relation syntax identifies PostgreSQL even without JSONB functions. | `select_typed_rows_from_lineage`, `rows_from_functions_with_ordinality`, `rows_from_mixed_typed_and_builtin_partial_alias`, `rows_from_builtin_without_alias`, `rows_from_same_function_default_columns` |
 | Typed lateral record functions | `LATERAL jsonb_to_record(payload) AS r(sku text, quantity integer)` resolves named outputs and filters to the function argument. | `select_lateral_jsonb_record` |
 | VALUES query output lineage | Default output names, scalar subqueries across rows, CTE aliases, and positional sort dependencies in a set query. | `values_query_scalar_subqueries`, `values_cte_alias`, `values_union_ordinal` |
+| JSON set-returning function output columns | JSON array expansion exposes `value`. JSON object expansion exposes `key` and `value`. Partial aliases rename the corresponding columns by position, and `WITH ORDINALITY` adds a generated column. | `lateral_json_each_native_columns`, `lateral_json_array_partial_alias_with_ordinality`, `lateral_json_array_without_alias` |
 | VALUES, LATERAL, and set-returning function relations | `values (...)`; `from (values (...)) as v(c)`; `cross join lateral (...) q`; `lateral (...) as q(c)`; `cross join lateral jsonb_array_elements_text(t.tags) as e(value)`; `unnest(t.arr) with ordinality as u(item, ord)`; `rows from (...) with ordinality as f(...)` | `values_query`, `derived_values_table`, `lateral_query_column_projection`, `lateral_query_column_alias_list_projection`, `lateral_jsonb_array_elements`, `lateral_unnest_with_ordinality`, `rows_from_functions_with_ordinality` |
 | UNNEST array values and ordinality | Built-in scalar-array `UNNEST` maps each output to its own argument. Partial column aliases preserve the default `ordinality` name, and an omitted table alias uses `unnest`. Ordinality is a generated value. | `unnest_with_partial_ordinality_alias`, `unnest_with_implicit_names`, `unnest_multiple_arrays_with_ordinality` |
 | NATURAL join variants | `natural join` and `natural left outer join`; both relations and qualified column lineage are preserved without guessing catalog-dependent implicit join keys | `natural_join_projection`, `natural_left_join_projection` |
@@ -188,7 +189,7 @@ Implemented PostgreSQL scenarios:
 | WITH before UPDATE FROM | `with q as (...) update mart.t set c = q.c from q where ...` | `with_update_from` |
 | UPDATE ONLY FROM | `update only mart.t set c = s.c from staging.s where ...` | `update_only_from` |
 | WITH before DELETE USING | `with q as (...) delete from mart.t using q where ...` | `with_delete_using` |
-| DELETE FROM ONLY USING | `delete from only mart.t using staging.s where ...` | `delete_only_using` |
+| DELETE USING target modifiers and aliases | `DELETE FROM ONLY t USING …`, `DELETE FROM t * USING …`, or `DELETE FROM t AS alias USING …` preserve the affected table and predicate sources. | `delete_only_using`, `delete_inherited_target_using`, `delete_aliased_target_using` |
 | MERGE target and source tables | `merge into mart.t using staging.s on ... when matched then update ...`, `when matched then delete`, `do nothing` | `merge_into`, `merge_delete_do_nothing` |
 | MERGE source subquery tables | `merge into mart.t using (select ... from staging.s) q on ...` | `merge_using_subquery` |
 | WITH before MERGE | `with q as (...) merge into mart.t using q on ...` | `with_merge` |

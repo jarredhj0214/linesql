@@ -38,9 +38,19 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
                     + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
 
+    private static final String POSTGRES_NAME = "[\\p{L}_][\\p{L}\\p{N}_$]*";
+    private static final String POSTGRES_RELATION =
+            POSTGRES_NAME + "(?:\\s*\\.\\s*" + POSTGRES_NAME + ")*";
+    private static final Pattern POSTGRES_DML_TARGET = Pattern.compile(
+            "\\b(?:delete\\s+from\\s+|update\\s+(?!set\\b))(?:only\\s+(?:\\(\\s*" + POSTGRES_RELATION + "\\s*\\)"
+                    + "|" + POSTGRES_RELATION + "(?=\\s+(?:as|using|where|set|returning)\\b|\\s*(?:;|$)))"
+                    + "|" + POSTGRES_RELATION + "\\s*\\*(?=\\s|;|$))");
+    private static final Pattern POSTGRES_ROWS_FROM = Pattern.compile(
+            "(?:\\b(?:from|join)\\b|,)\\s*(?:lateral\\s+)?rows\\s+from\\s*\\(");
+
     private static final Pattern POSTGRES_JSON_SYNTAX = Pattern.compile(
             "::\\s*(?:pg_catalog\\s*\\.\\s*)?jsonb\\b|#>>?|@\\?"
-                    + "|\\bjsonb_(?:array_elements(?:_text)?|path_(?:exists|match|query(?:_array|_first)?)(?:_tz)?)\\s*\\(");
+                    + "|\\bjsonb_(?:(?:array_elements|each)(?:_text)?|path_(?:exists|match|query(?:_array|_first)?)(?:_tz)?)\\s*\\(");
 
     private static final Pattern TSQL_DML_OUTPUT = Pattern.compile(
             "(?s)^\\s*(?:with\\b[^;]*?)?(?:insert|update|delete|merge)\\b[^;]*\\boutput\\s+"
@@ -89,7 +99,7 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
         } else if (mysqlExecutableComment
                 || normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
-                || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bdelete\\s+from\\b[^;]*\\busing\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\bfrom\\b.+\\bjoin\\b.*")
                 || normalized.matches("(?s)^\\s*replace\\s+into\\b.*")
                 || normalized.matches("(?s)^\\s*rename\\s+table\\b.*")
@@ -158,9 +168,15 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (unquotedSyntax.contains("copy") && SimpleStatementSplitter.containsPostgresCopyFromStdin(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier"))) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL COPY FROM STDIN"));
+        } else if ((unquotedSyntax.contains("delete") || unquotedSyntax.contains("update"))
+                && POSTGRES_DML_TARGET.matcher(
+                        QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL inherited DML target"));
         } else if (POSTGRES_JSON_SYNTAX.matcher(unquotedSyntax).find()
                 && !TSQL_OBJECT_SCOPE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL JSONB cast, function, or path operator"));
+        } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL ROWS FROM relation"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
         } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")

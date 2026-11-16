@@ -97,6 +97,33 @@ public class LineSqlAutoDetectionIntegrationTest {
         }
     }
 
+    @Test
+    public void distinguishesPostgresDmlTargetsFromSharedDeleteUsing() {
+        assertDialect(SqlDialect.POSTGRESQL, "DELETE FROM ONLY (mart.orders) USING staging.expired e"
+                + " WHERE orders.id = e.order_id");
+        assertDialect(SqlDialect.POSTGRESQL, "DELETE FROM mart.orders * USING staging.expired e"
+                + " WHERE orders.id = e.order_id");
+        assertDialect(SqlDialect.POSTGRESQL, "UPDATE ONLY mart.orders SET status = e.status"
+                + " FROM staging.expired AS e WHERE orders.id = e.order_id");
+        assertDialect(SqlDialect.MYSQL, "DELETE FROM o USING mart.orders AS o"
+                + " JOIN staging.expired AS e ON o.id = e.order_id");
+        assertDialect(SqlDialect.MYSQL, "DELETE FROM mart.orders USING staging.expired e"
+                + " WHERE orders.id = e.order_id");
+        assertDialect(SqlDialect.SPARK, "SELECT 'DELETE FROM ONLY orders USING expired' AS message");
+    }
+
+    @Test
+    public void detectsPostgresRowsFromWithoutJsonbSignals() {
+        String sql = "SELECT f.item, f.ordinality FROM ods.orders o"
+                + " CROSS JOIN LATERAL ROWS FROM (unnest(o.quantities)) WITH ORDINALITY AS f(item)";
+        LineageResult result = LineSql.parseScript(sql).get(0);
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertEquals("quantities", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals(0, result.getColumnLineage().get(1).getSources().size());
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
