@@ -23,7 +23,7 @@ Implemented detection anchors:
 | Flink | connector options, `WATERMARK FOR`, plan/job/model statements, procedure calls |
 | StarRocks | `CREATE TABLE ... DUPLICATE KEY`, `CREATE TABLE ... AGGREGATE KEY`, `CREATE TABLE ... DISTRIBUTED BY HASH`, replication properties, routine/load jobs, materialized-view refresh, `SHOW PROC`, `SHOW TABLET`, `ADMIN SHOW`, `SUBMIT TASK` |
 | Oracle | `FROM DUAL`, `CONNECT BY`, `START WITH`, `AS OF TIMESTAMP`, `AS OF SCN`, `CREATE SEQUENCE`, `CREATE SYNONYM`, `CREATE DATABASE LINK` |
-| SQL Server | `SELECT TOP n`, bracketed identifiers, `WITH (NOLOCK)`, `OPENJSON`, `OPENXML`, `OPENQUERY`, `OPENROWSET`, bracketed DML identifiers |
+| SQL Server | `SELECT TOP n`, parenthesized numeric and variable `TOP` in queries and writes, bracketed identifiers, `WITH (NOLOCK)`, `OPENJSON`, `OPENXML`, `OPENQUERY`, `OPENROWSET`, bracketed DML identifiers |
 | OceanBase | `ALTER PROXYCONFIG`, tenant/resource/tablegroup DDL, `ALTER SYSTEM ... SERVER/ZONE`, `ALTER SYSTEM FORCE STOP ZONE`, `SHOW TENANT`, `SHOW SERVERS`, `SHOW ZONE`, `SHOW PARAMETERS`, recyclebin/purge/flashback statements, OB hints |
 | Spark | `INSERT OVERWRITE`, `LATERAL VIEW`, `CREATE TEMPORARY VIEW`, `SET spark.sql.*`, higher-order lambda functions, map/array subscripts, `USING`, fallback |
 
@@ -602,7 +602,7 @@ Implemented SQL Server column-level lineage scenarios:
 | INTERSECT column sources merged by position | `select a as c1 from s1 intersect select b from s2` | `intersect_column_projection` |
 | EXCEPT column sources merged by position | `select a as c1 from s1 except select b from s2` | `except_column_projection` |
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
-| UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s`, `update top (...) ads.t set c = c + 1 where ...` | `update_expression_assignment`, `update_top` |
+| UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s`, `update top (...) ads.t set c = c + 1 where ...` | `update_expression_assignment`, `update_top`, `update_top_variable` |
 | UPDATE FROM derived query assignment dependencies | `update ads.t set c1 = q.c2 from (select c2 from ods.s) q where ...` | `update_from_derived_assignment` |
 | JSON aggregates | `JSON_ARRAYAGG` and `JSON_OBJECTAGG` capture keys, values, and local sort keys with null handling and `RETURNING JSON`. | `select_json_aggregate_lineage` |
 | Null-safe predicates | `IS DISTINCT FROM` and `IS NOT DISTINCT FROM` retain both operands in SQL Server filters and joins. | `update_null_safe_join` |

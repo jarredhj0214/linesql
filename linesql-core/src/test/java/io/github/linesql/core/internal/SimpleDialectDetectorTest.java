@@ -152,6 +152,25 @@ public class SimpleDialectDetectorTest {
     }
 
     @Test
+    public void detectsParenthesizedTopForSqlServerSelectAndWrites() {
+        assertFirst(SqlDialect.SQLSERVER, "SELECT DISTINCT TOP (10) u.id FROM dbo.users u");
+        assertFirst(SqlDialect.SQLSERVER, "SELECT TOP (2.5) PERCENT WITH TIES * FROM users ORDER BY score");
+        assertFirst(SqlDialect.SQLSERVER, "SELECT TOP(@count) * FROM users");
+        assertFirst(SqlDialect.SQLSERVER, "UPDATE TOP (@count) dbo.users SET active = 1");
+        assertFirst(SqlDialect.SQLSERVER, "INSERT TOP (10) INTO dbo.archive SELECT id FROM dbo.users");
+        assertFirst(SqlDialect.SQLSERVER, "DELETE TOP (10) FROM dbo.users");
+        assertFirst(SqlDialect.SQLSERVER, "MERGE TOP (10) dbo.users USING dbo.archive ON users.id = archive.id "
+                + "WHEN MATCHED THEN DELETE");
+    }
+
+    @Test
+    public void doesNotTreatFunctionCallsOrStringValuesAsSqlServerTopClauses() {
+        assertFirst(SqlDialect.SPARK, "SELECT top(5) AS value FROM ods.t");
+        assertFirst(SqlDialect.SPARK, "SELECT top(5) * quantity FROM ods.t");
+        assertFirst(SqlDialect.SPARK, "SELECT 'select top (5) u.id' AS message FROM ods.t");
+    }
+
+    @Test
     public void detectsPostgreSqlAnchors() {
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1) on conflict (id) do nothing");
         assertFirst(SqlDialect.POSTGRESQL, "insert into public.users(id) values (1)\non conflict (id) do nothing");

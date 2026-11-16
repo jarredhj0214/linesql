@@ -15,6 +15,16 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern MYSQL_EXECUTABLE_COMMENT =
             Pattern.compile("/\\*!\\d*\\s*(.*?)\\*/", Pattern.DOTALL);
 
+    private static final String TOP_COUNT = "\\(\\s*(?:[0-9]+(?:\\.[0-9]+)?|@[\\p{L}_$][\\p{L}\\p{N}_$]*)\\s*\\)";
+    private static final Pattern TSQL_TOP_SELECT = Pattern.compile(
+            "\\bselect\\s+(?:(?:all|distinct)\\s+)?top(?:\\s+\\d+\\b|\\s*" + TOP_COUNT
+                    + "\\s*(?:\\*\\s*(?=from\\b|[,);]|$)"
+                    + "|(?!(?:as|from|where|group|order|having|limit|offset|fetch|union|except|intersect"
+                    + "|over|filter|within|is|in|like|between|not|and|or)\\b)"
+                    + "[\\p{L}_@#\\[\"]))");
+    private static final Pattern TSQL_TOP_DML = Pattern.compile(
+            "\\b(?:insert|update|delete|merge)\\s+top\\s*" + TOP_COUNT + "\\s*[\\p{L}_@#\\[\"]");
+
     @Override
     public List<SqlDialect> detect(String sql) {
         List<SqlDialect> dialects = new ArrayList<SqlDialect>();
@@ -182,7 +192,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || relationSyntax.matches("(?s).*\\b(?:cross|outer)\\s+apply\\s+[^\\s();]+\\s*\\.\\s*nodes\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\bfrom\\s+@[\\w$#]+\\s*\\.\\s*nodes\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server XML namespaces or nodes() method"));
-        } else if (normalized.matches("(?s).*\\bselect\\s+top\\s+\\d+\\b.*")
+        } else if (TSQL_TOP_DML.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server TOP in a write statement"));
+        } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()
                 || containsSqlServerBracketIdentifier(normalized)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")
                 || normalized.matches("(?s).*\\b(openjson|openxml|openquery|openrowset)\\s*\\(.*")) {

@@ -2146,6 +2146,16 @@
       "description": "SQLSERVER UPDATE SET expression assignment column lineage"
     },
     {
+      "id": "update_top_variable",
+      "file": "cases/update_top_variable.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["dbo.users"],
+      "outputTables": ["dbo.users"],
+      "columnLineage": [{"target": "dbo.users.retries", "sources": ["dbo.users.retries"]}],
+      "columnUsages": [{"type": "WHERE", "column": "dbo.users.active"}],
+      "description": "A TOP variable bounds UPDATE without becoming a table column dependency"
+    },
+    {
       "id": "update_top",
       "file": "cases/update_top.sql",
       "statementType": "UPDATE",

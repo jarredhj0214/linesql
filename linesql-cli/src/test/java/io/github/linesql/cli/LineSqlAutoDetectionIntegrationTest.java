@@ -100,6 +100,21 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals(SqlDialect.FLINK, results.get(2).getDialect());
     }
 
+    @Test
+    public void detectsSqlServerTopWithoutTableHints() {
+        LineageResult query = LineSql.parse("SELECT TOP (10) u.id AS user_id FROM dbo.users u ORDER BY u.id");
+        assertEquals(SqlDialect.SQLSERVER, query.getDialect());
+        assertEquals("users", query.getInputTables().get(0).getName());
+        assertEquals("user_id", query.getColumnLineage().get(0).getTarget().getName());
+
+        LineageResult write = LineSql.parse(
+                "UPDATE TOP (@count) dbo.users SET retries = retries + 1 WHERE active = 1");
+        assertEquals(SqlDialect.SQLSERVER, write.getDialect());
+        assertEquals("users", write.getOutputTables().get(0).getName());
+        assertEquals("retries", write.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("active", write.getColumnUsages().get(0).getColumn().getName());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 
