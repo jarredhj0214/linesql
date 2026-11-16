@@ -319,6 +319,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkMaterializedTableLifecycleStatements() {
+        LineageResult alter = LineSql.parse("ALTER MATERIALIZED TABLE mart.sales "
+                + "AS SELECT product_id FROM staging.orders");
+        assertEquals(SqlDialect.FLINK, alter.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, alter.getStatementType());
+        assertEquals("orders", alter.getInputTables().get(0).getName());
+        assertDialect(SqlDialect.FLINK, "SHOW CREATE OR ALTER MATERIALIZED TABLE mart.sales");
+        assertDialect(SqlDialect.FLINK, "SHOW MATERIALIZED TABLES IN mart");
+        assertDialect(SqlDialect.FLINK, "DROP MATERIALIZED TABLE IF EXISTS mart.sales");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER MATERIALIZED TABLE mart.sales SUSPEND' AS message");
+    }
+
+    @Test
     public void detectsPostgresUnicodePredicateOutsideQuotedText() {
         LineageResult result = LineSql.parse("SELECT NORMALIZE(name, NFKC) AS clean_name "
                 + "FROM ods.contacts WHERE name IS NOT NFKC NORMALIZED");

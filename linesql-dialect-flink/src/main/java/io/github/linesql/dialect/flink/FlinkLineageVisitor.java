@@ -695,9 +695,20 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitAlterMaterializedTableStatement(FlinkParser.AlterMaterializedTableStatementContext ctx) {
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
-        addTableElementSemantics(target, ctx.materializedTableAction().tableElement());
-        if (ctx.materializedTableAction().query() != null) {
-            visit(ctx.materializedTableAction().query());
+        FlinkParser.MaterializedTableActionContext action = ctx.materializedTableAction();
+        addTableElementSemantics(target, action.tableElement());
+        addTableElementSemantics(target, action.alterTableElementList());
+        addDistributionUsages(target, action.distributionClause());
+        addIdentifierListUsages(target, firstIdentifierList(action.alterDistributionClause()));
+        if (action.partitionSpec() != null) {
+            List<ColumnRef> columns = new ArrayList<>();
+            for (FlinkParser.PartitionSpecItemContext item : action.partitionSpec().partitionSpecItem()) {
+                columns.add(new ColumnRef(target, cleanIdentifier(item.identifier())));
+            }
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, columns);
+        }
+        if (action.query() != null) {
+            visit(action.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
         }

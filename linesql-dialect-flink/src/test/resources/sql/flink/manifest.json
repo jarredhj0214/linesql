@@ -4895,7 +4895,8 @@
         "ads.mt_order_daily"
       ],
       "columnLineage": [],
-      "description": "Flink ALTER MATERIALIZED TABLE REFRESH PARTITION affected table"
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "ads.mt_order_daily.dt"}],
+      "description": "A materialized table refresh records its partition key"
     },
     {
       "id": "drop_materialized_table",
@@ -7308,6 +7309,97 @@
       "columnUsages": [
       ],
       "description": "Nested scalar projections keep the deepest column and all input tables"
+    },
+    {
+      "id": "alter_materialized_table_add_model_group",
+      "file": "cases/alter_materialized_table_add_model_group.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.signals"],
+      "columnLineage": [
+        {"target": "mart.signals.event_time", "sources": ["mart.signals.raw_time"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.signals.id"},
+        {"type": "TABLE_MODEL", "column": "mart.signals.event_time"}
+      ],
+      "description": "An ADD group retains a computed dependency, primary key and watermark usage"
+    },
+    {
+      "id": "alter_materialized_table_modify_model_group",
+      "file": "cases/alter_materialized_table_modify_model_group.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.signals"],
+      "columnLineage": [
+        {"target": "mart.signals.event_time", "sources": ["mart.signals.raw_time"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.signals.event_time"}
+      ],
+      "description": "A MODIFY group retains computed column and watermark dependencies"
+    },
+    {
+      "id": "alter_materialized_table_add_distribution",
+      "file": "cases/alter_materialized_table_add_distribution.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.signals"],
+      "columnLineage": [
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.signals.id"},
+        {"type": "TABLE_MODEL", "column": "mart.signals.category"}
+      ],
+      "description": "New materialized table distribution records both keys"
+    },
+    {
+      "id": "alter_materialized_table_drop_columns",
+      "file": "cases/alter_materialized_table_drop_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.signals"],
+      "columnLineage": [
+      ],
+      "columnUsages": [
+      ],
+      "description": "Drops materialized table columns as a table alteration"
+    },
+    {
+      "id": "alter_materialized_table_drop_watermark",
+      "file": "cases/alter_materialized_table_drop_watermark.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.signals"],
+      "columnLineage": [
+      ],
+      "columnUsages": [
+      ],
+      "description": "Drops the watermark from the named materialized table"
+    },
+    {
+      "id": "alter_materialized_table_drop_primary_key",
+      "file": "cases/alter_materialized_table_drop_primary_key.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.signals"],
+      "columnLineage": [
+      ],
+      "columnUsages": [
+      ],
+      "description": "Drops the primary key from the named materialized table"
+    },
+    {
+      "id": "alter_materialized_table_drop_distribution",
+      "file": "cases/alter_materialized_table_drop_distribution.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.signals"],
+      "columnLineage": [
+      ],
+      "columnUsages": [
+      ],
+      "description": "Drops the distribution from the named materialized table"
     }
   ]
 }

@@ -57,6 +57,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final String POSTGRES_NAME = "[\\p{L}_][\\p{L}\\p{N}_$]*";
     private static final String POSTGRES_RELATION =
             POSTGRES_NAME + "(?:\\s*\\.\\s*" + POSTGRES_NAME + ")*";
+    private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
+            "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
+                    + "|^\\s*show\\s+materialized\\s+tables\\b");
     private static final Pattern POSTGRES_DML_TARGET = Pattern.compile(
             "\\b(?:delete\\s+from\\s+|update\\s+(?!set\\b))(?:only\\s+(?:\\(\\s*" + POSTGRES_RELATION + "\\s*\\)"
                     + "|" + POSTGRES_RELATION + "(?=\\s+(?:as|using|where|set|returning)\\b|\\s*(?:;|$)))"
@@ -299,7 +302,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*stop\\s+job\\b.*")
                 || normalized.matches("(?s)^\\s*call\\s+`[^`]+`\\s*\\..*")
                 || normalized.matches("(?s)^\\s*create\\s+(temporary\\s+)?model\\b.*")
-                || normalized.matches("(?s)^\\s*create\\s+(or\\s+alter\\s+)?materialized\\s+table\\b.*")
+                || FLINK_MATERIALIZED_TABLE.matcher(unquotedSyntax).find()
                 || normalized.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }

@@ -724,8 +724,15 @@ alterMaterializedTableStatement
 
 materializedTableAction
     : ADD COLUMN? tableElement columnPosition?
+    | ADD LPAREN alterTableElementList RPAREN
+    | ADD (distributionClause | alterDistributionClause)
     | MODIFY COLUMN? tableElement columnPosition?
+    | MODIFY LPAREN alterTableElementList RPAREN
     | DROP COLUMN? identifier
+    | DROP LPAREN identifierList RPAREN
+    | DROP PRIMARY KEY
+    | DROP WATERMARK
+    | DROP DISTRIBUTION
     | SUSPEND
     | RESUME (WITH LPAREN propertyList RPAREN)?
     | REFRESH (PARTITION partitionSpec)?
