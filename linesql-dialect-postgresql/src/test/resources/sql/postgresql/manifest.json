@@ -3689,6 +3689,72 @@
       "description": "PostgreSQL ALTER TABLE NO FORCE ROW LEVEL SECURITY records the affected table"
     },
     {
+      "id": "create_publication_column_lists_and_filters",
+      "file": "cases/create_publication_column_lists_and_filters.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["ods.events", "ods.audit"],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "ods.events.id"},
+        {"type": "READ_METADATA", "column": "ods.events.account_id"},
+        {"type": "WHERE", "column": "ods.events.active"},
+        {"type": "WHERE", "column": "ods.events.tenant_id"},
+        {"type": "READ_METADATA", "column": "ods.audit.id"},
+        {"type": "WHERE", "column": "ods.audit.tenant_id"}
+      ],
+      "description": "Explicit publication columns and row filters resolve to their own published table"
+    },
+    {
+      "id": "create_publication_mixed_objects",
+      "file": "cases/create_publication_mixed_objects.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["ods.events", "ods.audit"],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.active"},
+        {"type": "WHERE", "column": "ods.audit.created_at"}
+      ],
+      "description": "An explicitly named table remains visible alongside schema-wide publication objects"
+    },
+    {
+      "id": "create_publication_without_tables",
+      "file": "cases/create_publication_without_tables.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "A publication can start without any objects and accept a bare boolean option"
+    },
+    {
+      "id": "alter_publication_set_options",
+      "file": "cases/alter_publication_set_options.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Publication option changes are table-free metadata controls"
+    },
+    {
+      "id": "alter_publication_rename",
+      "file": "cases/alter_publication_rename.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Publication renaming is a table-free control"
+    },
+    {
+      "id": "alter_publication_owner",
+      "file": "cases/alter_publication_owner.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Publication ownership accepts a PostgreSQL role specification"
+    },
+    {
       "id": "create_publication_for_tables",
       "file": "cases/create_publication_for_tables.sql",
       "statementType": "READ_METADATA",

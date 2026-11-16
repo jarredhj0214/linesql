@@ -36,6 +36,27 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void autoDetectsPostgreSqlPolicyAndReplicationStatements() {
+        LineageResult policy = LineSql.parse("CREATE POLICY tenant_view ON mart.events USING (tenant_id = 42)");
+        assertEquals(SqlDialect.POSTGRESQL, policy.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, policy.getStatementType());
+        assertEquals("tenant_id", policy.getColumnUsages().get(0).getColumn().getName());
+
+        LineageResult publication = LineSql.parse(
+                "CREATE PUBLICATION events FOR TABLE mart.events (id) WHERE (active)");
+        assertEquals(SqlDialect.POSTGRESQL, publication.getDialect());
+        assertEquals(StatementType.READ_METADATA, publication.getStatementType());
+        assertEquals("events", publication.getInputTables().get(0).getName());
+        assertEquals("id", publication.getColumnUsages().get(0).getColumn().getName());
+        assertEquals("active", publication.getColumnUsages().get(1).getColumn().getName());
+
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER TABLE mart.events FORCE ROW LEVEL SECURITY");
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER SUBSCRIPTION events DISABLE");
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO analyst");
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE PUBLICATION ignored' FROM mart.events");
+    }
+
+    @Test
     public void autoDetectedSqlServerDmlUsesRegisteredParser() {
         LineageResult result = LineSql.parse(
                 "update [ads].[user_summary] set [user_name] = u.[name] "

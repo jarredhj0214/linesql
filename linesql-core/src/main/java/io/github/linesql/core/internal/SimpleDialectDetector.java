@@ -58,6 +58,8 @@ public class SimpleDialectDetector implements DialectDetector {
 
         String relationSyntax = normalized.replaceAll("'(?:''|\\\\.|[^'\\\\])*'", " ");
 
+        String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
+
         if (mysqlExecutableComment
                 || normalized.matches("(?s).*\\bupdate\\b.+\\bjoin\\b.+\\bset\\b.*")
                 || normalized.matches("(?s).*\\bdelete\\b.+\\busing\\b.*")
@@ -110,7 +112,13 @@ public class SimpleDialectDetector implements DialectDetector {
         if (normalized.contains("_ob_")) {
             candidates.add(candidate(SqlDialect.OCEANBASE, 0.45, "Weak OceanBase-style identifier anchor"));
         }
-        if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
+        if (unquotedSyntax.matches("(?s)^\\s*(?:create|alter|drop)\\s+(?:policy|publication|subscription)\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*alter\\s+default\\s+privileges\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\b(?:enable|disable|force|no\\s+force)"
+                        + "\\s+row\\s+level\\s+security\\b.*")) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98,
+                    "PostgreSQL row-level security, logical replication, or default privileges syntax"));
+        } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
         } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")
                 || normalized.matches("(?s).*\\breturning\\b.*")
@@ -125,7 +133,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bclustered\\s+by\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.90, "Hive storage or table layout syntax"));
         }
-        if (SimpleStatementSplitter.containsFlinkStatementSet(QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" "))
+        if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)
                 || rawNormalized.matches("(?s).*?/\\*\\+\\s*options\\s*\\(.*")
                 || normalized.contains("'connector'")
                 || normalized.contains("'connector.type'")

@@ -782,27 +782,40 @@ policyPredicate
     ;
 
 publicationStatement
-    : CREATE PUBLICATION identifier FOR publicationTarget publicationOptions?
+    : CREATE PUBLICATION identifier (FOR publicationTarget)? publicationOptions?
     | ALTER PUBLICATION identifier (ADD | SET | DROP) publicationTarget publicationOptions?
+    | ALTER PUBLICATION identifier SET publicationOptionList
+    | ALTER PUBLICATION identifier RENAME TO identifier
+    | ALTER PUBLICATION identifier OWNER TO identifier
     | DROP PUBLICATION (IF EXISTS)? identifierList (CASCADE | RESTRICT)?
     ;
 
 publicationTarget
-    : TABLE publicationTableList
-    | TABLES IN SCHEMA identifierList
-    | ALL TABLES
+    : ALL TABLES
+    | publicationObject (COMMA publicationObject)*
     ;
 
-publicationTableList
-    : ONLY? multipartIdentifier (COMMA ONLY? multipartIdentifier)*
+publicationObject
+    : TABLE publicationTable (COMMA publicationTable)*
+    | TABLES IN SCHEMA identifierList
+    ;
+
+publicationTable
+    : (multipartIdentifier STAR? | ONLY (multipartIdentifier | LPAREN multipartIdentifier RPAREN))
+      (LPAREN identifierList RPAREN)?
+      (WHERE LPAREN expression RPAREN)?
     ;
 
 publicationOptions
-    : WITH LPAREN publicationOption (COMMA publicationOption)* RPAREN
+    : WITH publicationOptionList
+    ;
+
+publicationOptionList
+    : LPAREN publicationOption (COMMA publicationOption)* RPAREN
     ;
 
 publicationOption
-    : identifier EQ (identifier | string | number | TRUE | FALSE)
+    : identifier (EQ (identifier | string | number | TRUE | FALSE))?
     ;
 
 subscriptionStatement
