@@ -6220,6 +6220,52 @@
         }
       ],
       "description": "A constant recursive anchor inherits both positional INSERT target sources from the step"
+    },
+    {
+      "id": "select_deep_scalar_projection_dependencies",
+      "file": "cases/select_deep_scalar_projection_dependencies.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "perf.level_27",
+        "perf.level_26",
+        "perf.level_25",
+        "perf.level_24",
+        "perf.level_23",
+        "perf.level_22",
+        "perf.level_21",
+        "perf.level_20",
+        "perf.level_19",
+        "perf.level_18",
+        "perf.level_17",
+        "perf.level_16",
+        "perf.level_15",
+        "perf.level_14",
+        "perf.level_13",
+        "perf.level_12",
+        "perf.level_11",
+        "perf.level_10",
+        "perf.level_9",
+        "perf.level_8",
+        "perf.level_7",
+        "perf.level_6",
+        "perf.level_5",
+        "perf.level_4",
+        "perf.level_3",
+        "perf.level_2",
+        "perf.level_1",
+        "perf.level_0"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "payload",
+          "sources": [
+            "perf.level_27.payload"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Nested named and unnamed scalar queries retain the deepest projected column and every input table"
     }
   ]
 }

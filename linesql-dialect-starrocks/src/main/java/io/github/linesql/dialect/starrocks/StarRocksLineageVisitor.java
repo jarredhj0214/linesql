@@ -37,6 +37,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     private Map<String, List<ColumnRef>> usingJoinColumns = Collections.emptyMap();
     private final Map<String, List<ColumnRef>> pivotColumnLineage = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Map<StarRocksParser.QueryContext, StarRocksLineageVisitor> analyzedSubqueries = new IdentityHashMap<>();
     private final Deque<Set<String>> lambdaParameterScopes = new ArrayDeque<>();
     private final List<Projection> projections = new ArrayList<>();
     private StarRocksParser.SelectClauseContext setBranchSelect;
@@ -3086,6 +3087,14 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     private LineageResult lineageForQuery(StarRocksParser.QueryContext query) {
+        return subqueryVisitor(query).result;
+    }
+
+    private StarRocksLineageVisitor subqueryVisitor(StarRocksParser.QueryContext query) {
+        return analyzedSubqueries.computeIfAbsent(query, this::analyzeSubquery);
+    }
+
+    private StarRocksLineageVisitor analyzeSubquery(StarRocksParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         StarRocksLineageVisitor queryVisitor = new StarRocksLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
@@ -3096,7 +3105,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
         queryVisitor.finalizeResult();
-        return queryResult;
+        return queryVisitor;
     }
 
     private void collectTopLevelQueryProjections(StarRocksParser.QueryContext query) {
@@ -3339,13 +3348,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(StarRocksParser.QueryContext query) {
-        StarRocksLineageVisitor queryVisitor = new StarRocksLineageVisitor(new LineageResult());
-        queryVisitor.cteNames.addAll(cteNames);
-        queryVisitor.tableAliases.putAll(tableAliases);
-        queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
-        queryVisitor.derivedAliases.putAll(derivedAliases);
-        queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.visit(query);
+        StarRocksLineageVisitor queryVisitor = subqueryVisitor(query);
         StarRocksParser.QuerySpecificationContext specification = topLevelQuerySpecification(query);
         if (specification == null || specification.selectClause() == null) {
             return new ArrayList<>();

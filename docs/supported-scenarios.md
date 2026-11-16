@@ -61,6 +61,8 @@ SQL Server XML detection recognizes WITH XMLNAMESPACES, APPLY with an XML nodes(
 
 ## PostgreSQL
 
+PostgreSQL preserves the deepest source column and every input table across named and unnamed scalar projections in `select_deep_scalar_projection_dependencies`.
+
 PostgreSQL is a baseline parser dialect path. The current implementation uses a dedicated lightweight ANTLR grammar for common PostgreSQL lineage SQL.
 
 Current PostgreSQL SQL case assets:
@@ -738,6 +740,8 @@ Known SQL Server gaps:
 
 ## Oracle
 
+Oracle preserves the deepest source column and every input table across named and unnamed scalar projections in `select_deep_scalar_projection_dependencies`.
+
 SQL*Plus slash separators identify Oracle scripts in automatic mode. A slash on its own
 line closes a PL/SQL block or a SQL buffer before the next statement or the end of the script.
 Internal semicolons remain inside anonymous blocks and supported routine, package, and trigger
@@ -997,6 +1001,8 @@ Known Oracle gaps:
 | Complex CTEs and subqueries | Single CTE, chained CTE direct projection, CTE column aliases, basic recursive subquery factoring direct projection, and single derived subquery direct projection propagation are covered. Complex recursive expansions and rich nested subqueries are still conservative. |
 
 ## StarRocks
+
+StarRocks preserves the deepest source column and every input table across named and unnamed scalar projections in `select_deep_scalar_projection_dependencies`.
 
 The recursive CTE join follows transitive output-column dependencies in `recursive_cte_transitive_join_sources`. The `recursive_cte_max_depth` setting in `set_recursive_cte_limit` and the `enable_recursive_cte` session setting provide dialect evidence for following queries.
 

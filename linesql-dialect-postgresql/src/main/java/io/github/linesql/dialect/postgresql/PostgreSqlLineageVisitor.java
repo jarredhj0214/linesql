@@ -34,6 +34,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Map<PostgreSqlParser.QueryContext, PostgreSqlLineageVisitor> analyzedSubqueries = new IdentityHashMap<>();
     private final Set<String> knownColumnRelations = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
@@ -3417,6 +3418,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private LineageResult lineageForQuery(PostgreSqlParser.QueryContext query) {
+        return subqueryVisitor(query).result;
+    }
+
+    private PostgreSqlLineageVisitor subqueryVisitor(PostgreSqlParser.QueryContext query) {
+        return analyzedSubqueries.computeIfAbsent(query, this::analyzeSubquery);
+    }
+
+    private PostgreSqlLineageVisitor analyzeSubquery(PostgreSqlParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
@@ -3427,7 +3436,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
         queryVisitor.finalizeResult();
-        return queryResult;
+        return queryVisitor;
     }
 
     private void applyInsertQueryLineage(PostgreSqlParser.QueryContext query, TableRef target) {
@@ -3614,13 +3623,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(PostgreSqlParser.QueryContext query) {
-        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(new LineageResult());
-        queryVisitor.cteNames.addAll(cteNames);
-        queryVisitor.tableAliases.putAll(tableAliases);
-        queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
-        queryVisitor.derivedAliases.putAll(derivedAliases);
-        queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.visit(query);
+        PostgreSqlLineageVisitor queryVisitor = subqueryVisitor(query);
         PostgreSqlParser.QuerySpecificationContext specification = topLevelQuerySpecification(query);
         if (specification == null || specification.selectClause() == null) {
             return new ArrayList<>();

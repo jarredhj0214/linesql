@@ -49,6 +49,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Map<OracleParser.QueryContext, OracleLineageVisitor> analyzedSubqueries = new IdentityHashMap<>();
     private final Set<String> matchPatternVariables = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
     private final List<String> insertTargetColumns = new ArrayList<>();
@@ -2399,6 +2400,14 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private LineageResult lineageForQuery(OracleParser.QueryContext query) {
+        return subqueryVisitor(query).result;
+    }
+
+    private OracleLineageVisitor subqueryVisitor(OracleParser.QueryContext query) {
+        return analyzedSubqueries.computeIfAbsent(query, this::analyzeSubquery);
+    }
+
+    private OracleLineageVisitor analyzeSubquery(OracleParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         OracleLineageVisitor queryVisitor = new OracleLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
@@ -2409,7 +2418,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
         queryVisitor.finalizeResult();
-        return queryResult;
+        return queryVisitor;
     }
 
     private void collectTopLevelQueryProjections(OracleParser.QueryContext query) {
@@ -2507,13 +2516,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(OracleParser.QueryContext query) {
-        OracleLineageVisitor queryVisitor = new OracleLineageVisitor(new LineageResult());
-        queryVisitor.cteNames.addAll(cteNames);
-        queryVisitor.tableAliases.putAll(tableAliases);
-        queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
-        queryVisitor.derivedAliases.putAll(derivedAliases);
-        queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.visit(query);
+        OracleLineageVisitor queryVisitor = subqueryVisitor(query);
         OracleParser.QuerySpecificationContext specification = topLevelQuerySpecification(query);
         if (specification == null || specification.selectClause() == null) {
             return new ArrayList<>();
