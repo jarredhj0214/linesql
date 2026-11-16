@@ -443,7 +443,8 @@ deleteStatement
     ;
 
 outputClause
-    : OUTPUT outputItemList (INTO multipartIdentifier (LPAREN identifierList RPAREN)?)?
+    : OUTPUT primaryOutput=outputItemList
+      (INTO multipartIdentifier (LPAREN identifierList RPAREN)? (OUTPUT returnedOutput=outputItemList)?)?
     ;
 
 outputItemList

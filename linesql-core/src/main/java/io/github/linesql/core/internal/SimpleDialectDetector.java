@@ -29,6 +29,10 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|deny\\b[^;]*\\bon\\b"
                     + "|alter\\s+schema\\b[^;]*\\btransfer\\s+object\\s*::)");
 
+    private static final Pattern TSQL_DML_OUTPUT = Pattern.compile(
+            "(?s)^\\s*(?:with\\b[^;]*?)?(?:insert|update|delete|merge)\\b[^;]*\\boutput\\s+"
+                    + "(?:\\(\\s*)*(?:(?:inserted|deleted)\\s*\\.|\\$action\\b)");
+
     private static final Pattern TSQL_BATCH_ROUTINE = Pattern.compile(
             "(?m)^\\s*(?:create\\s+or\\s+alter\\s+(?:proc(?:edure)?|function|trigger)"
                     + "|(?:create|alter)\\s+proc)\\b");
@@ -231,6 +235,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || relationSyntax.matches("(?s).*\\b(?:cross|outer)\\s+apply\\s+[^\\s();]+\\s*\\.\\s*nodes\\s*\\(.*")
                 || relationSyntax.matches("(?s).*\\bfrom\\s+@[\\w$#]+\\s*\\.\\s*nodes\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server XML namespaces or nodes() method"));
+        } else if (TSQL_DML_OUTPUT.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server DML OUTPUT row images"));
         } else if (TSQL_OBJECT_SCOPE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server scoped permission or object transfer"));
         } else if (TSQL_TOP_DML.matcher(relationSyntax).find()) {

@@ -73,6 +73,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void autoDetectsSqlServerUpdateWithCaptureAndReturnedOutput() {
+        LineageResult result = LineSql.parse(
+                "UPDATE dbo.orders SET amount = a.amount "
+                        + "OUTPUT deleted.amount INTO audit.changes(old_amount) OUTPUT inserted.amount AS new_amount "
+                        + "FROM staging.adjustments a WHERE dbo.orders.id = a.order_id");
+        assertEquals(SqlDialect.SQLSERVER, result.getDialect());
+        assertEquals(StatementType.UPDATE, result.getStatementType());
+        assertEquals(2, result.getOutputTables().size());
+        assertEquals("changes", result.getOutputTables().get(1).getName());
+        assertEquals(3, result.getColumnLineage().size());
+        assertEquals("old_amount", result.getColumnLineage().get(1).getTarget().getName());
+        assertEquals("new_amount", result.getColumnLineage().get(2).getTarget().getName());
+        assertEquals("adjustments", result.getColumnLineage().get(2).getSources().get(0).getTable().getName());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+
+        assertDialect(SqlDialect.POSTGRESQL,
+                "UPDATE ods.events SET output = inserted.value::int FROM dim.changes inserted");
+    }
+
+    @Test
     public void autoDetectedSqlServerDmlUsesRegisteredParser() {
         LineageResult result = LineSql.parse(
                 "update [ads].[user_summary] set [user_name] = u.[name] "

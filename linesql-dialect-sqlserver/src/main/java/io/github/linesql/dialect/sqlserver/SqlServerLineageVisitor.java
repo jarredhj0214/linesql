@@ -470,7 +470,21 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                 writtenSources.put(lineage.getTarget().getName().toLowerCase(Locale.ROOT), lineage.getSources());
             }
         }
-        List<SqlServerParser.OutputItemContext> outputItems = outputClause.outputItemList().outputItem();
+        appendOutputItems(outputClause.primaryOutput, target, outputTarget, outputColumns, writtenSources, lineages);
+        if (outputClause.returnedOutput != null) {
+            appendOutputItems(outputClause.returnedOutput, target, null, java.util.Collections.emptyList(),
+                    writtenSources, lineages);
+        }
+        suppressColumnLineage = true;
+    }
+
+    private void appendOutputItems(SqlServerParser.OutputItemListContext output,
+                                   TableRef target,
+                                   TableRef outputTarget,
+                                   List<String> outputColumns,
+                                   Map<String, List<ColumnRef>> writtenSources,
+                                   List<ColumnLineage> lineages) {
+        List<SqlServerParser.OutputItemContext> outputItems = output.outputItem();
         for (int i = 0; i < outputItems.size(); i++) {
             SqlServerParser.OutputItemContext item = outputItems.get(i);
             if (item.expression() == null) {
@@ -506,7 +520,6 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             lineages.add(LineageModelUtils.columnLineage(
                     outputTarget, outputName, sources, item.expression().getText()));
         }
-        suppressColumnLineage = true;
     }
 
     private void visitRelationPrimaryForDml(SqlServerParser.RelationPrimaryContext primary) {

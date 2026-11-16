@@ -3437,6 +3437,40 @@
       "description": "SQL Server INSERT TOP SELECT keeps limited insert source-to-target column lineage"
     },
     {
+      "id": "update_output_into_and_returned_rows",
+      "file": "cases/update_output_into_and_returned_rows.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["dbo.orders", "staging.adjustments"],
+      "outputTables": ["dbo.orders", "audit.changes"],
+      "columnLineage": [
+        {"target": "dbo.orders.amount", "sources": ["staging.adjustments.amount"]},
+        {"target": "audit.changes.old_amount", "sources": ["dbo.orders.amount"]},
+        {"target": "new_amount", "sources": ["staging.adjustments.amount"]},
+        {"target": "order_id", "sources": ["dbo.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.orders.id"},
+        {"type": "WHERE", "column": "staging.adjustments.order_id"}
+      ],
+      "description": "Separate capture and returned projections both resolve from the same updated row images"
+    },
+    {
+      "id": "insert_output_into_and_returned_rows",
+      "file": "cases/insert_output_into_and_returned_rows.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.orders"],
+      "outputTables": ["dbo.orders", "audit.insertions"],
+      "columnLineage": [
+        {"target": "dbo.orders.id", "sources": ["staging.orders.id"]},
+        {"target": "audit.insertions.order_id", "sources": ["staging.orders.id"]},
+        {"target": "inserted_id", "sources": ["staging.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.orders.active"}
+      ],
+      "description": "Capturing an insert output does not replace the returned output result set"
+    },
+    {
       "id": "insert_output_into",
       "file": "cases/insert_output_into.sql",
       "statementType": "INSERT",
