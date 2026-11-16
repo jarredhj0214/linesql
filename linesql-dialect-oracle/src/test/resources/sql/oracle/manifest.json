@@ -6234,6 +6234,16 @@
         }
       ],
       "description": "Oracle vector serialization and cosine shorthand retain input text and vector sources"
+    },
+    {
+      "id": "drop_usecase_domain_native_prefix",
+      "file": "cases/drop_usecase_domain_native_prefix.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Native Oracle DROP USECASE DOMAIN recognizes the prefix and quoted domain identifiers"
     }
   ]
 }

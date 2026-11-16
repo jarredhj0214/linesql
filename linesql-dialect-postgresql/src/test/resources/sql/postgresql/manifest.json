@@ -6585,6 +6585,16 @@
       ],
       "columnUsages": [],
       "description": "An explicitly projected CTE exposes a known wildcard width and positional write sources"
+    },
+    {
+      "id": "drop_domain_identifier_force",
+      "file": "cases/drop_domain_identifier_force.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "PostgreSQL FORCE and USECASE identifier names remain ordinary DROP DOMAIN targets"
     }
   ]
 }

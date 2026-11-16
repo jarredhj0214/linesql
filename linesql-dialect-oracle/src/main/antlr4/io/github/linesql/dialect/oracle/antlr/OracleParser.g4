@@ -865,7 +865,7 @@ domainControlStatement
       (DISPLAY expression)? (ORDER expression)? domainAnnotations?
     | ALTER USECASE? DOMAIN (IF EXISTS)? multipartIdentifier
       ((ADD | MODIFY) (DISPLAY | ORDER) expression | DROP (DISPLAY | ORDER) | domainAnnotations)
-    | DROP DOMAIN USECASE? (IF EXISTS)? multipartIdentifier (FORCE PRESERVE?)?
+    | DROP (USECASE DOMAIN | DOMAIN USECASE?) (IF EXISTS)? multipartIdentifier (FORCE PRESERVE?)?
     ;
 
 domainDefinition

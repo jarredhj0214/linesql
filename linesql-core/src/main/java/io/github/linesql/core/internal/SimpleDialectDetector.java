@@ -136,12 +136,17 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern ORACLE_PARTITIONED_JOIN = Pattern.compile(
             "\\b(?:from|join)\\s+[a-z_][\\w$#]*(?:\\s*\\.\\s*[a-z_][\\w$#]*)*\\s+"
                     + "(?:(?:as\\s+)?[a-z_][\\w$#]*\\s+)?partition\\s+by\\s*\\(");
+    private static final String ORACLE_DOMAIN_NAME = "[a-z_][\\w$#]*(?:\\s*\\.\\s*[a-z_][\\w$#]*)?";
+    private static final Pattern POSTGRES_DROP_DOMAIN = Pattern.compile("^\\s*drop\\s+domain\\b");
     private static final Pattern ORACLE_DOMAIN_DDL = Pattern.compile(
-            "^\\s*(?:create|alter)\\s+usecase\\s+domain\\b"
+            "^\\s*(?:create|alter|drop)\\s+usecase\\s+domain\\b"
                     + "|^\\s*create\\s+domain\\s+(?:if\\s+not\\s+exists\\b|[^;]*\\bas\\s+(?:enum\\s*)?\\()"
                     + "|^\\s*alter\\s+domain\\s+(?:if\\s+exists\\b|[^;]*\\b(?:(?:add|modify|drop)\\s+"
                     + "(?:display|order)\\b|annotations\\s*\\())"
-                    + "|^\\s*drop\\s+domain\\s+(?:usecase\\b|[^;]*\\bforce\\b)");
+                    + "|^\\s*drop\\s+domain\\s+usecase\\s+(?:if\\s+exists\\s+)?" + ORACLE_DOMAIN_NAME
+                    + "\\s*(?=force\\b|;|$)"
+                    + "|^\\s*drop\\s+domain\\s+(?:if\\s+exists\\s+)?" + ORACLE_DOMAIN_NAME
+                    + "\\s+force(?:\\s+preserve)?\\s*(?=;|$)");
     private static final Pattern ORACLE_XML_SEQUENCE = Pattern.compile("\\breturning\\s+sequence\\s+by\\s+ref\\b");
     private static final Pattern POSTGRES_UNICODE_PREDICATE = Pattern.compile(
             "\\bis\\s+(?:not\\s+)?(?:nfc\\s+|nfd\\s+|nfkc\\s+|nfkd\\s+)?normalized\\b");
@@ -303,6 +308,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL PL/pgSQL routine language"));
         } else if (SimpleStatementSplitter.containsPostgresAtomicRoutine(unquotedSyntax)) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL SQL-standard routine body"));
+        } else if (POSTGRES_DROP_DOMAIN.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.95, "PostgreSQL-compatible DROP DOMAIN"));
         } else if (POSTGRES_SCHEMA_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL event trigger, enum, range, or domain DDL"));
         } else if (unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\balter\\b[^;]*"
@@ -450,7 +457,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || ((SHARED_VECTOR_OPERATOR.matcher(unquotedSyntax).find() || unquotedSyntax.contains("<=>"))
                     && ORACLE_VECTOR_CONSTRUCTOR.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle vector search options or constructor"));
-        } else if (ORACLE_DOMAIN_DDL.matcher(unquotedSyntax).find()) {
+        } else if (unquotedSyntax.contains("domain") && ORACLE_DOMAIN_DDL.matcher(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle data use case domain DDL"));
         } else if (ORACLE_RETURNING_TARGET.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle RETURNING bind or bulk collection"));

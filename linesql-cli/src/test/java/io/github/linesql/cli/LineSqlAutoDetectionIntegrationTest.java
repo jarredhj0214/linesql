@@ -347,6 +347,16 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void distinguishesOracleUsecaseDomainDropFromPostgresIdentifiers() {
+        assertDialect(SqlDialect.ORACLE, "DROP USECASE DOMAIN IF EXISTS workflow.ticket_status");
+        assertDialect(SqlDialect.ORACLE, "DROP DOMAIN \"workflow\".\"force\" FORCE PRESERVE");
+        assertDialect(SqlDialect.ORACLE, "DROP DOMAIN USECASE IF EXISTS workflow.ticket_status FORCE PRESERVE");
+        assertDialect(SqlDialect.POSTGRESQL, "DROP DOMAIN force");
+        assertDialect(SqlDialect.POSTGRESQL, "DROP DOMAIN IF EXISTS workflow.force RESTRICT");
+        assertDialect(SqlDialect.POSTGRESQL, "DROP DOMAIN usecase");
+    }
+
+    @Test
     public void inheritsNativeRecursiveCteSettingsAcrossScripts() {
         String recursive = "WITH RECURSIVE walk(n) AS"
                 + " (SELECT 1 UNION ALL SELECT n + 1 FROM walk WHERE n < 3) SELECT n FROM walk";
