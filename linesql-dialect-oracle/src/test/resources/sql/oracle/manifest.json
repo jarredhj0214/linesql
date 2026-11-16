@@ -458,6 +458,55 @@
       "description": "Oracle INSERT VALUES RETURNING INTO maps inserted target columns and returned local variables"
     },
     {
+      "id": "update_from_direct_join",
+      "file": "cases/update_from_direct_join.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "staging.status_updates", "staging.active_regions"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.status", "sources": ["staging.status_updates.next_status"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "staging.status_updates.region_id"},
+        {"type": "JOIN_ON", "column": "staging.active_regions.id"},
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.status_updates.order_id"},
+        {"type": "WHERE", "column": "staging.active_regions.active"}
+      ],
+      "description": "An Oracle direct-join UPDATE reads columns from the FROM relations and retains join and filter dependencies"
+    },
+    {
+      "id": "delete_using_with_returning_bind",
+      "file": "cases/delete_using_with_returning_bind.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.orders", "staging.expired"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": ":deleted_id", "sources": ["mart.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.expired.order_id"},
+        {"type": "WHERE", "column": "staging.expired.prunable"}
+      ],
+      "description": "A USING relation filters direct-join deletion while the bind value traces to the target row"
+    },
+    {
+      "id": "delete_from_with_bulk_collect",
+      "file": "cases/delete_from_with_bulk_collect.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.orders", "staging.expired"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "deleted_ids", "sources": ["mart.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.expired.order_id"}
+      ],
+      "description": "Oracle double-FROM deletion can return target columns to a collection"
+    },
+    {
       "id": "update_returning_into",
       "file": "cases/update_returning_into.sql",
       "statementType": "UPDATE",

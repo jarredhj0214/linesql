@@ -542,15 +542,24 @@ valuesClause
     ;
 
 updateStatement
-    : UPDATE multipartIdentifier partitionExtensionClause? tableAlias SET assignmentList whereClause? returningClause?
+    : UPDATE multipartIdentifier partitionExtensionClause? tableAlias SET assignmentList fromUsingClause? whereClause? returningClause?
     ;
 
 deleteStatement
-    : DELETE FROM multipartIdentifier partitionExtensionClause? tableAlias whereClause? returningClause?
+    : DELETE FROM multipartIdentifier partitionExtensionClause? tableAlias fromUsingClause? whereClause? returningClause?
+    ;
+
+fromUsingClause
+    : (FROM | USING) relationList
     ;
 
 returningClause
-    : RETURNING expressionList INTO identifierList
+    : (RETURN | RETURNING) expressionList (BULK COLLECT)? INTO returningTarget (COMMA returningTarget)*
+    ;
+
+returningTarget
+    : COLON? identifier
+    | COLON number
     ;
 
 mergeStatement

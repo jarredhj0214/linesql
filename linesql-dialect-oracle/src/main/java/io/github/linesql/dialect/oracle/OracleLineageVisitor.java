@@ -154,6 +154,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
         }
+        if (ctx.fromUsingClause() != null) {
+            visit(ctx.fromUsingClause());
+        }
         // Collect subquery inputs from assignments and where clause
         collectSubqueryInputs(ctx.assignmentList());
         if (ctx.whereClause() != null) {
@@ -185,6 +188,9 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
         }
+        if (ctx.fromUsingClause() != null) {
+            visit(ctx.fromUsingClause());
+        }
         // Collect subquery inputs from where clause
         if (ctx.whereClause() != null) {
             collectSubqueryInputs(ctx.whereClause());
@@ -212,7 +218,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             }
         }
         List<OracleParser.ExpressionContext> expressions = returning.expressionList().expression();
-        List<OracleParser.IdentifierContext> variables = returning.identifierList().identifier();
+        List<OracleParser.ReturningTargetContext> variables = returning.returningTarget();
         int count = Math.min(expressions.size(), variables.size());
         for (int i = 0; i < count; i++) {
             OracleParser.ExpressionContext expression = expressions.get(i);
@@ -227,9 +233,13 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                         ? java.util.Collections.singletonList(source)
                         : written);
             }
+            OracleParser.ReturningTargetContext variable = variables.get(i);
+            String name = variable.identifier() == null
+                    ? variable.getText()
+                    : (variable.COLON() == null ? "" : ":") + cleanIdentifier(variable.identifier());
             lineages.add(LineageModelUtils.columnLineage(
                     null,
-                    cleanIdentifier(variables.get(i)),
+                    name,
                     propagated,
                     expression.getText()));
         }

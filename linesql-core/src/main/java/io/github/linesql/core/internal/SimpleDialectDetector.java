@@ -41,6 +41,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern MYSQL_DUPLICATE_KEY_UPDATE = Pattern.compile(
             "\\bon\\s+duplicate\\s+key\\s+update\\b");
 
+    private static final Pattern ORACLE_RETURNING_TARGET = Pattern.compile(
+            "\\breturn(?:ing)?\\b[^;]*\\b(?:bulk\\s+collect\\s+into\\b|into\\s*:[\\p{L}_][\\p{L}\\p{N}_$#]*)");
+
     private static final String POSTGRES_NAME = "[\\p{L}_][\\p{L}\\p{N}_$]*";
     private static final String POSTGRES_RELATION =
             POSTGRES_NAME + "(?:\\s*\\.\\s*" + POSTGRES_NAME + ")*";
@@ -283,6 +286,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle SQL*Plus slash separator"));
         } else if (literals.oracleQuoted) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle alternative-quoted string literal"));
+        } else if (ORACLE_RETURNING_TARGET.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle RETURNING bind or bulk collection"));
         } else if (relationSyntax.indexOf('@') >= 0 && ORACLE_REMOTE_RELATION
                 .matcher(QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle database link on a relation"));

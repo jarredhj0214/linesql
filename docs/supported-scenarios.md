@@ -738,6 +738,12 @@ filters. Window references can inherit a prior definition. `QUALIFY` resolves an
 output aliases and reports their dependencies as `WHERE` usages
 (`select_qualify_named_window`, `select_qualify_inline_window_fetch`).
 
+Direct-join `UPDATE` and `DELETE` accept `FROM` and `USING` source relations.
+Assignments, join conditions, and statement filters resolve against the target and source
+aliases. `RETURNING … INTO :bind` and `RETURN … BULK COLLECT INTO` identify Oracle
+and report the returned values (`update_from_direct_join`, `delete_using_with_returning_bind`,
+`delete_from_with_bulk_collect`).
+
 Implemented Oracle table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |

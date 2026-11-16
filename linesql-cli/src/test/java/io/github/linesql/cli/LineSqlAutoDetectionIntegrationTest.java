@@ -283,6 +283,21 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
     }
 
+    @Test
+    public void detectsOracleDirectJoinDmlWithReturningTargets() {
+        String sql = "DELETE FROM mart.orders o USING staging.expired e"
+                + " WHERE o.id = e.order_id RETURNING o.id INTO :deleted_id;";
+        LineageResult delete = LineSql.parse(sql);
+        assertEquals(SqlDialect.ORACLE, delete.getDialect());
+        assertEquals(StatementType.DELETE, delete.getStatementType());
+        assertEquals("orders", delete.getOutputTables().get(0).getName());
+        assertEquals("expired", delete.getInputTables().get(1).getName());
+        assertEquals("orders", delete.getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertFalse(delete.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertDialect(SqlDialect.ORACLE, "DELETE FROM mart.orders o FROM staging.expired e"
+                + " WHERE o.id = e.order_id RETURN o.id BULK COLLECT INTO deleted_ids");
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());
