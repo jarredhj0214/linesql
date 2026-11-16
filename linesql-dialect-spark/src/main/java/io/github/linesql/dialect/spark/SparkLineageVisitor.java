@@ -14,6 +14,8 @@ import io.github.linesql.dialect.spark.antlr.SqlBaseParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,6 +39,9 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
+    private final Map<SqlBaseParser.RelationContext, Map<String, List<ColumnRef>>> relationJoinKeys =
+            new IdentityHashMap<>();
+    private Map<String, List<ColumnRef>> usingJoinKeys = Collections.emptyMap();
     private TableRef firstVisibleInputTable;
     private int visibleRelationCount;
     private int selectExpressionCount;
@@ -127,6 +132,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         branch.generatedColumns.putAll(generatedColumns);
         branch.qualifiedColumnHints.putAll(qualifiedColumnHints);
         branch.visibleRelations.addAll(visibleRelations);
+        branch.usingJoinKeys = usingJoinKeys;
         branch.visibleRelationCount = visibleRelationCount;
         branch.firstVisibleInputTable = firstVisibleInputTable;
         return branch;
@@ -1603,23 +1609,102 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitFromClause(SqlBaseParser.FromClauseContext ctx) {
+        visitChildren(ctx);
+        usingJoinKeys = ctx.relation().size() == 1 && ctx.pivotClause() == null && ctx.unpivotClause() == null
+                ? relationJoinKeys.getOrDefault(ctx.relation(0), Collections.emptyMap())
+                : Collections.emptyMap();
+        return null;
+    }
+
+    @Override
     public Void visitRelation(SqlBaseParser.RelationContext ctx) {
         int relationStart = visibleRelations.size();
         visit(ctx.relationPrimary());
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>(nestedJoinKeys(ctx.relationPrimary()));
         for (SqlBaseParser.RelationExtensionContext extension : ctx.relationExtension()) {
             if (extension.joinRelation() == null) {
                 visit(extension);
+                if (extension.pivotClause() != null || extension.unpivotClause() != null) {
+                    keys.clear();
+                }
                 continue;
             }
             SqlBaseParser.JoinRelationContext join = extension.joinRelation();
+            int rightStart = visibleRelations.size();
             visit(join.right);
-            if (join.joinPostfix() != null && join.joinPostfix().joinCriteria() != null) {
-                collectJoinColumnUsages(join.joinPostfix().joinCriteria(), relationStart);
-            } else if (join.asofJoinCriteria() != null) {
-                collectAsofJoinColumnUsages(join.asofJoinCriteria(), relationStart);
+            Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(join.right);
+            SqlBaseParser.JoinCriteriaContext criteria =
+                    join.joinPostfix() == null ? null : join.joinPostfix().joinCriteria();
+            if (criteria != null && criteria.identifierList() != null) {
+                Map<String, List<ColumnRef>> merged = mergedUsingKeys(join, criteria, keys, rightKeys,
+                        relationStart, rightStart);
+                keys.putAll(rightKeys);
+                keys.putAll(merged);
+            } else {
+                keys.putAll(rightKeys);
+                Map<String, List<ColumnRef>> enclosingKeys = usingJoinKeys;
+                usingJoinKeys = keys;
+                try {
+                    if (criteria != null) {
+                        collectJoinColumnUsages(criteria, relationStart);
+                    } else if (join.asofJoinCriteria() != null) {
+                        collectAsofJoinColumnUsages(join.asofJoinCriteria(), relationStart);
+                    }
+                } finally {
+                    usingJoinKeys = enclosingKeys;
+                }
             }
         }
+        if (!keys.isEmpty()) {
+            relationJoinKeys.put(ctx, keys);
+        }
         return null;
+    }
+
+    private Map<String, List<ColumnRef>> nestedJoinKeys(SqlBaseParser.RelationPrimaryContext primary) {
+        if (primary instanceof SqlBaseParser.AliasedRelationContext) {
+            return relationJoinKeys.getOrDefault(
+                    ((SqlBaseParser.AliasedRelationContext) primary).relation(), Collections.emptyMap());
+        }
+        return Collections.emptyMap();
+    }
+
+    private Map<String, List<ColumnRef>> mergedUsingKeys(SqlBaseParser.JoinRelationContext join,
+                                                         SqlBaseParser.JoinCriteriaContext criteria,
+                                                         Map<String, List<ColumnRef>> leftKeys,
+                                                         Map<String, List<ColumnRef>> rightKeys,
+                                                         int leftStart, int rightStart) {
+        Map<String, List<ColumnRef>> keys = new LinkedHashMap<>();
+        SqlBaseParser.JoinTypeContext type = join.joinType();
+        for (String name : identifierNames(criteria.identifierList())) {
+            String key = name.toLowerCase(Locale.ROOT);
+            List<ColumnRef> left = usingKeySources(leftKeys, leftStart, rightStart, name, key);
+            List<ColumnRef> right = usingKeySources(rightKeys, rightStart, visibleRelations.size(), name, key);
+            List<ColumnRef> both = LineageModelUtils.mergeColumnRefs(left, right);
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, both);
+            List<ColumnRef> sources = left;
+            if (type != null && type.RIGHT() != null) {
+                sources = right;
+            } else if (type != null && type.FULL() != null) {
+                sources = both;
+            }
+            keys.put(key, sources);
+        }
+        return keys;
+    }
+
+    private List<ColumnRef> usingKeySources(Map<String, List<ColumnRef>> keys, int start, int end,
+                                           String column, String key) {
+        List<ColumnRef> refs = keys.get(key);
+        if (refs != null) {
+            return refs;
+        }
+        refs = new ArrayList<>();
+        for (int i = start; i < end; i++) {
+            refs.addAll(usingColumnRefs(visibleRelations.get(i), column));
+        }
+        return refs;
     }
 
     @Override
@@ -1678,7 +1763,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             if (setQuery) {
                 LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
             } else {
-                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+                addColumnUsages(ColumnUsageType.ORDER_BY, orderBySources(sortItem.expression()));
             }
         }
         return visitChildren(ctx);
@@ -2769,6 +2854,27 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return new ArrayList<>();
     }
 
+    private List<SourceColumn> orderBySources(ParseTree expression) {
+        List<SourceColumn> sources = sourceColumns(expression);
+        if (usingJoinKeys.isEmpty()) {
+            return sources;
+        }
+        List<SourceColumn> resolved = new ArrayList<>();
+        for (SourceColumn source : sources) {
+            List<ColumnRef> projection = source.qualifier == null
+                    && usingJoinKeys.containsKey(source.name.toLowerCase(Locale.ROOT))
+                    ? columnRefsFromProjection(source) : null;
+            if (projection == null) {
+                resolved.add(source);
+            } else {
+                for (ColumnRef column : projection) {
+                    resolved.add(SourceColumn.resolved(column));
+                }
+            }
+        }
+        return resolved;
+    }
+
     private List<ColumnRef> partialColumnRefs(List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sourceColumn : sourceColumns) {
@@ -2817,7 +2923,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private void addVisibleSingleTableClauseRef(List<ColumnRef> refs, SourceColumn sourceColumn) {
-        if (sourceColumn.qualifier != null || firstVisibleInputTable == null || sourceColumn.name.contains(".")) {
+        if (sourceColumn.qualifier != null || firstVisibleInputTable == null || sourceColumn.name.contains(".")
+                || usingJoinKeys.containsKey(sourceColumn.name.toLowerCase(Locale.ROOT))) {
             return;
         }
         ColumnRef fallback = new ColumnRef(firstVisibleInputTable, sourceColumn.name);
@@ -2865,6 +2972,12 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            List<ColumnRef> usingRefs = sourceColumn.qualifier == null
+                    ? usingJoinKeys.get(sourceColumn.name.toLowerCase(Locale.ROOT)) : null;
+            if (usingRefs != null) {
+                refs.addAll(usingRefs);
+                continue;
+            }
             List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);

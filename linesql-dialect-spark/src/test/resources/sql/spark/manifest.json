@@ -836,6 +836,65 @@
       "description": "INSERT REPLACE USING target table and BY NAME column lineage"
     },
     {
+      "id": "select_full_using_key_followed_by_on",
+      "file": "cases/select_full_using_key_followed_by_on.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.shipments", "ods.lookup"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.orders.order_id", "ods.shipments.order_id"]},
+        {"target": "label", "sources": ["ods.lookup.label"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"},
+        {"type": "JOIN_ON", "column": "ods.lookup.source_key"},
+        {"type": "WHERE", "column": "ods.orders.order_id"},
+        {"type": "WHERE", "column": "ods.shipments.order_id"}
+      ],
+      "description": "A full join key survives a later ON join and feeds both projection and filter"
+    },
+    {
+      "id": "select_right_using_cte_key",
+      "file": "cases/select_right_using_cte_key.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.shipments", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_id", "sources": ["ods.orders.order_id"]},
+        {"target": "merged_id", "sources": ["ods.shipments.external_id"]},
+        {"target": "carrier", "sources": ["ods.shipments.carrier"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.external_id"},
+        {"type": "WHERE", "column": "ods.shipments.external_id"},
+        {"type": "ORDER_BY", "column": "ods.orders.order_id"}
+      ],
+      "description": "A right join resolves its key through a CTE projection"
+    },
+    {
+      "id": "multi_insert_using_join_keys",
+      "file": "cases/multi_insert_using_join_keys.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.shipments"],
+      "outputTables": ["mart.order_status", "mart.shipping_cost"],
+      "columnLineage": [
+        {"target": "mart.order_status.joined_id", "sources": ["ods.orders.order_id", "ods.shipments.order_id"]},
+        {"target": "mart.order_status.status", "sources": ["ods.orders.status"]},
+        {"target": "mart.shipping_cost.joined_id", "sources": ["ods.orders.order_id", "ods.shipments.order_id"]},
+        {"target": "mart.shipping_cost.cost", "sources": ["ods.shipments.cost"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ods.shipments.order_id"},
+        {"type": "WHERE", "column": "ods.orders.order_id"},
+        {"type": "WHERE", "column": "ods.shipments.order_id"},
+        {"type": "WHERE", "column": "ods.shipments.cost"}
+      ],
+      "description": "FROM-first inserts inherit merged keys and preserve independent branch targets and filters"
+    },
+    {
       "id": "multi_insert_cte_positional_branches",
       "file": "cases/multi_insert_cte_positional_branches.sql",
       "statementType": "INSERT",
