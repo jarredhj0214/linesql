@@ -4378,6 +4378,136 @@
       "inputTables": [],
       "outputTables": [],
       "description": "Spark LIST FILE resource command is parsed as a non-lineage statement"
+    },
+    {
+      "id": "recursive_cte_tree_lineage",
+      "file": "cases/recursive_cte_tree_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.roots",
+        "org.edges"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "node_id",
+          "sources": [
+            "org.roots.id",
+            "org.edges.child_id"
+          ]
+        },
+        {
+          "target": "root_id",
+          "sources": [
+            "org.roots.id"
+          ]
+        },
+        {
+          "target": "depth",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.parent_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.roots.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.child_id"
+        }
+      ],
+      "description": "Spark recursion retains anchor and step values and resolves the recursive join key"
+    },
+    {
+      "id": "recursive_cte_cross_column_dependencies",
+      "file": "cases/recursive_cte_cross_column_dependencies.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "org.nodes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "a",
+          "sources": [
+            "org.nodes.id",
+            "org.nodes.parent",
+            "org.nodes.root"
+          ]
+        },
+        {
+          "target": "b",
+          "sources": [
+            "org.nodes.parent",
+            "org.nodes.root",
+            "org.nodes.id"
+          ]
+        },
+        {
+          "target": "c",
+          "sources": [
+            "org.nodes.root",
+            "org.nodes.id",
+            "org.nodes.parent"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "org.nodes.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.parent"
+        },
+        {
+          "type": "WHERE",
+          "column": "org.nodes.root"
+        }
+      ],
+      "description": "Recursive column lineage reaches transitive dependencies across cycle edges"
+    },
+    {
+      "id": "recursive_cte_insert_positional_values",
+      "file": "cases/recursive_cte_insert_positional_values.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "org.edges"
+      ],
+      "outputTables": [
+        "mart.reachability"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.reachability.origin",
+          "sources": [
+            "org.edges.next_id"
+          ]
+        },
+        {
+          "target": "mart.reachability.endpoint",
+          "sources": [
+            "org.edges.next_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.next_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "org.edges.prior_id"
+        }
+      ],
+      "description": "Recursive value anchors and unnamed step expressions preserve positional insert dependencies"
     }
   ]
 }

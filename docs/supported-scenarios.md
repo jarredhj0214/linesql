@@ -2178,6 +2178,7 @@ Implemented Spark table-level lineage scenarios:
 | Additional metadata reads | `show tables`, `show views`, `show collations`, `describe namespace`, `describe query` | `show_tables`, `show_views`, `show_collations`, `describe_namespace`, `describe_query` |
 | Resource and cache control statements | `refresh 'path'`, `clear cache`, `add jar ...`, `add file ...`, `list jar`, `list file`, `show procedures` | `refresh_resource`, `clear_cache`, `add_jar_resource`, `add_file_resource`, `list_jar_resource`, `list_file_resource`, `show_procedures` |
 | Function and procedure statements classified as routine/control | `create function`, `drop function`, `call proc`, `show/describe function`, `show procedures`, `describe procedure` | `create_function`, `create_udf_return_query`, `drop_function`, `call_procedure`, `show_functions`, `describe_function`, `show_procedures`, `describe_procedure` |
+| Recursive CTE column lineage | Spark recursive `UNION ALL` resolves anchor and step columns by position, follows transitive dependencies across recursive columns and preserves JOIN and filter usages. Includes `MAX RECURSION LEVEL`. | `recursive_cte_tree_lineage`, `recursive_cte_cross_column_dependencies`, `recursive_cte_insert_positional_values` |
 | Spark grouping analytics | `group by rollup(...)`, `group by cube(...)`, `group by ... with rollup`, `grouping sets (...)` | `group_by_rollup`, `group_by_cube`, `group_by_with_rollup`, `grouping_sets_bitwise_xor` |
 | Spark named-window usage | `WINDOW w AS (PARTITION BY ... ORDER BY ...)` emits usage columns only for referenced definitions | `named_window_column_usage` |
 | Spark table physical model | Partition transforms, liquid `CLUSTER BY`, Hive bucket/sort, and skew columns are emitted as `TABLE_MODEL` usages | `create_table_partition_cluster_model`, `create_table_bucket_skew_model` |
@@ -2418,7 +2419,7 @@ The following Spark lineage features are intentionally not complete yet:
 | Gap | Current behavior |
 | --- | --- |
 | `select *` expansion | Schema-free table stars are represented as wildcard lineage. Known derived columns are preserved and expanded when they are available beside wildcard inputs. |
-| Complex CTE column propagation | Chained direct CTE projection and CTE column aliases are supported; recursive CTEs and complex CTE joins are not complete yet. |
+| Complex CTE column propagation | Chained CTEs, aliases and direct recursive UNION ALL branches with known output positions are supported. Recursive branches with a schema-free wildcard remain limited. |
 | Complex subquery column propagation | Single-level aliased direct subquery projection is supported; nested subquery chains and complex subquery joins are not complete yet. |
 | Temporary view scope | Temporary view lineage is maintained inside one `parseScript` call only; persistent catalog view expansion is not implemented yet. |
 | Unqualified columns in multi-table queries | Not guessed when they cannot be safely mapped to one table. |

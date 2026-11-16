@@ -347,6 +347,12 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsSparkRecursiveCteLevelLimit() {
+        assertDialect(SqlDialect.SPARK, "WITH RECURSIVE walk(n) MAX RECURSION LEVEL 8 AS"
+                + " (SELECT 1 UNION ALL SELECT n + 1 FROM walk WHERE n < 4) SELECT n FROM walk");
+    }
+
+    @Test
     public void detectsSqlServerExternalModelsAndEmbeddingSyntax() {
         assertDialect(SqlDialect.SQLSERVER, "SELECT AI_GENERATE_EMBEDDINGS(body USE MODEL encode_text"
                 + " PARAMETERS @settings) AS embedding FROM dbo.documents");

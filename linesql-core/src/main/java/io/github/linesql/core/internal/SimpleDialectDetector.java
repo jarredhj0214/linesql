@@ -83,6 +83,8 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern SPARK_RECURSION_LEVEL = Pattern.compile(
+            "(?s)\\bwith\\s+recursive\\b[^;]*?\\bmax\\s+recursion\\s+level\\s+[0-9]+\\s+as\\b");
     private static final Pattern SQL_SERVER_AI_MODEL = Pattern.compile(
             "^\\s*(?:create|alter|drop)\\s+external\\s+model\\b"
                     + "|\\bai_generate_chunks\\s*\\(\\s*source\\s*="
@@ -336,6 +338,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\bserdeproperties\\b.*")
                 || normalized.matches("(?s).*\\bclustered\\s+by\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.90, "Hive storage or table layout syntax"));
+        }
+        if (SPARK_RECURSION_LEVEL.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark recursive CTE level limit"));
         }
         if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)
                 || rawNormalized.matches("(?s).*?/\\*\\+\\s*options\\s*\\(.*")
