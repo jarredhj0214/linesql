@@ -2,6 +2,19 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "json_table_with_jsonb_cast",
+      "file": "cases/json_table_with_jsonb_cast.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "customer", "sources": ["ods.orders.payload"]}],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.payload"},
+        {"type": "WHERE", "column": "ods.orders.payload"}
+      ],
+      "description": "A JSONB cast identifies PostgreSQL JSON_TABLE and preserves generated-field dependencies"
+    },
+    {
       "id": "merge_returning_star_both_rows",
       "file": "cases/merge_returning_star_both_rows.sql",
       "statementType": "MERGE",

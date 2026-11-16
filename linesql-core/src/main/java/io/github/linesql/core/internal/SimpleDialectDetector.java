@@ -38,6 +38,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
                     + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
 
+    private static final Pattern POSTGRES_JSON_SYNTAX = Pattern.compile(
+            "::\\s*(?:pg_catalog\\s*\\.\\s*)?jsonb\\b|#>>?|@\\?"
+                    + "|\\bjsonb_(?:array_elements(?:_text)?|path_(?:exists|match|query(?:_array|_first)?)(?:_tz)?)\\s*\\(");
+
     private static final Pattern TSQL_DML_OUTPUT = Pattern.compile(
             "(?s)^\\s*(?:with\\b[^;]*?)?(?:insert|update|delete|merge)\\b[^;]*\\boutput\\s+"
                     + "(?:\\(\\s*)*(?:(?:inserted|deleted)\\s*\\.|\\$action\\b)");
@@ -145,6 +149,9 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL PL/pgSQL routine language"));
         } else if (SimpleStatementSplitter.containsPostgresAtomicRoutine(unquotedSyntax)) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL SQL-standard routine body"));
+        } else if (POSTGRES_JSON_SYNTAX.matcher(unquotedSyntax).find()
+                && !TSQL_OBJECT_SCOPE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL JSONB cast, function, or path operator"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
         } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")

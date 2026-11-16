@@ -32,7 +32,7 @@ Known conflict guards:
 | Guard | Reason |
 | --- | --- |
 | Spark `MERGE INTO` is not classified as Oracle | `MERGE INTO` is shared across engines and is not a safe Oracle-only anchor. |
-| JSON path array wildcard `[*]` is not classified as SQL Server | Brackets inside strings are not SQL Server identifiers; `JSON_TABLE(...)` is treated as a MySQL anchor. |
+| JSON path array wildcard `[*]` is not classified as SQL Server | The detector checks the relation syntax outside strings. JSON_TABLE without stronger dialect evidence supplies a MySQL anchor. |
 | MySQL `ON DUPLICATE KEY` is not classified as StarRocks | StarRocks key anchors are scoped to `CREATE TABLE` statements. |
 | MySQL executable version comments are not dropped as ordinary comments | `/*!80000 ... */` carries MySQL SQL and is treated as a MySQL dialect anchor. |
 
@@ -204,6 +204,7 @@ Implemented PostgreSQL scenarios:
 | Named WINDOW clause | `select sum(v) over w from t window w as (...)`, `window w2 as (w1 order by ts)` | `named_window_clause`, `named_window_inheritance` |
 | JSON operators, JSON path functions, and array subscripts | `payload ->> 'name'`, `payload ? 'name'`, `attrs @> ...`, `jsonb_path_query_first(payload, ...)`, `jsonb_path_exists(payload, ...)`, `tags[1]`, `metrics[1:2]` | `json_array_operator_projection`, `json_path_function_projection` |
 | SQL/JSON table functions | `JSON_TABLE` tracks JSON input through typed and nested path columns, including filters on generated fields. | `sql_json_table_nested_lineage`, `merge_json_table_source` |
+| Automatic PostgreSQL JSON detection | JSONB casts and functions and the `#>`, `#>>`, and `@?` operators identify PostgreSQL. JSON_TABLE with a JSONB input cast keeps its generated-field lineage. | `json_table_with_jsonb_cast` |
 | SQL/JSON query functions | `JSON_VALUE … RETURNING … DEFAULT … ON EMPTY` and `JSON_EXISTS … PASSING … ON ERROR` preserve context, default, and path-variable dependencies. `JSON_QUERY` supports array wrappers and default values. | `sql_json_value_exists_lineage`, `sql_json_query_wrapper` |
 | SQL/JSON predicates and constructors | `IS JSON` filters and checks, `JSON_OBJECT` keys and values, variadic `JSON_ARRAY`, and `JSON`/`JSON_SERIALIZE` retain column dependencies through formatting and return-type clauses. | `select_sql_json_predicate`, `create_table_json_check`, `insert_json_object_constructor`, `select_json_array_serialize`, `union_json_constructor_order` |
 | Array constructors from queries | `ARRAY(SELECT …)` and `JSON_ARRAY(SELECT … RETURNING …)` use the inner projection as the array value. Inner filters and sorting preserve their own column references, including correlations to the outer query. | `select_array_correlated_query`, `select_json_array_query`, `update_json_array_query` |

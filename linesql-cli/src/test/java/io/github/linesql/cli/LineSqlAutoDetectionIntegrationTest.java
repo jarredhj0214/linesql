@@ -37,6 +37,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgreSqlJsonbEvenWhenJsonTableIsSharedSyntax() {
+        LineageResult result = LineSql.parse(
+                "SELECT jt.customer FROM ods.orders o CROSS JOIN "
+                        + "JSON_TABLE(o.payload::jsonb, '$' COLUMNS (customer text PATH '$.customer')) jt");
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals("payload", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT payload #>> '{customer}' AS customer FROM ods.orders");
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT payload::jsonb->>'$.literal_key' AS value FROM ods.orders");
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT jsonb_path_exists(payload, '$.id') AS present FROM ods.orders");
+        assertDialect(SqlDialect.MYSQL,
+                "SELECT jt.customer FROM ods.orders o CROSS JOIN "
+                        + "JSON_TABLE(o.payload, '$' COLUMNS (customer varchar(100) PATH '$.cast::jsonb')) jt");
+        assertDialect(SqlDialect.SQLSERVER, "GRANT SELECT ON OBJECT::jsonb TO reader");
+    }
+
+    @Test
     public void autoDetectsPostgreSqlPolicyAndReplicationStatements() {
         LineageResult policy = LineSql.parse("CREATE POLICY tenant_view ON mart.events USING (tenant_id = 42)");
         assertEquals(SqlDialect.POSTGRESQL, policy.getDialect());
