@@ -37,6 +37,32 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void recognizesPostgresClientCopyAndDumpEnvelopes() {
+        List<LineageResult> dump = LineSql.parseScript(scriptFixture("/sql/postgresql/pg_dump_envelope.sql"));
+        assertEquals(2, dump.size());
+        assertEquals(StatementType.CONTROL, dump.get(0).getStatementType());
+        assertEquals(StatementType.CREATE_TABLE, dump.get(1).getStatementType());
+        assertEquals(SqlDialect.POSTGRESQL, dump.get(1).getDialect());
+        assertEquals("events", dump.get(1).getOutputTables().get(0).getName());
+
+        List<LineageResult> copy = LineSql.parseScript(scriptFixture("/sql/postgresql/psql_copy_commands.sql"));
+        assertEquals(3, copy.size());
+        assertEquals(StatementType.LOAD_DATA, copy.get(0).getStatementType());
+        assertEquals(StatementType.LOAD_DATA, copy.get(1).getStatementType());
+        assertEquals(StatementType.SELECT, copy.get(2).getStatementType());
+        assertEquals("notes", copy.get(0).getOutputTables().get(0).getName());
+        assertEquals(0, copy.get(0).getInputTables().size());
+        assertEquals("events", copy.get(1).getOutputTables().get(0).getName());
+        assertEquals("events", copy.get(2).getInputTables().get(0).getName());
+        for (LineageResult result : copy) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+
+        assertDialect(SqlDialect.SPARK, "SELECT 'string\n\\restrict key\n' FROM ods.events");
+    }
+
+    @Test
     public void keepsPostgresCopyDataOutOfScriptLineage() {
         String script = scriptFixture("/sql/postgresql/copy_stdin_script.sql");
         assertPostgresCopyScript(LineSql.parseScript(script));

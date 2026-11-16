@@ -49,6 +49,12 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     + "(?:\\s*,\\s*" + POSTGRES_COPY_IDENTIFIER + ")*\\s*\\)\\s*|\\s+)FROM\\s+STDIN\\b",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern POSTGRES_COPY_END = Pattern.compile("(?<=\\n)\\\\\\.(?=\\r?\\n|\\z)");
+    private static final Pattern POSTGRES_CLIENT_COMMAND = Pattern.compile(
+            "[ \\t]*\\\\(copy|restrict|unrestrict)[ \\t]+(.+)");
+    private static final Pattern POSTGRES_CLIENT_SCRIPT = Pattern.compile(
+            "^" + POSTGRES_CLIENT_COMMAND.pattern() + "$", Pattern.MULTILINE);
+    private static final Pattern POSTGRES_RESTRICT_KEY = Pattern.compile("[a-zA-Z0-9]+");
+
     private static final Pattern POSTGRES_ATOMIC = Pattern.compile(
             "\\bBEGIN" + SQL_TRIVIA + "++ATOMIC\\b(?!" + SQL_TRIVIA + "++WITH" + SQL_TRIVIA + "*+\\()",
             Pattern.CASE_INSENSITIVE);
@@ -98,6 +104,8 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean flinkStatementSets = dialect == SqlDialect.FLINK || dialect == SqlDialect.UNKNOWN;
         boolean postgresAtomic = dialect == SqlDialect.POSTGRESQL || dialect == SqlDialect.UNKNOWN;
         boolean postgresCopyData = postgresAtomic && script.contains("\\.");
+        boolean checkPostgresClient = postgresAtomic && POSTGRES_CLIENT_SCRIPT.matcher(script).find();
+        Matcher postgresCommand = POSTGRES_CLIENT_COMMAND.matcher(script);
         boolean nestedComments = sqlServer || dialect == SqlDialect.POSTGRESQL;
         boolean mysql = dialect == SqlDialect.MYSQL;
         boolean checkMySqlDelimiters = (mysql || dialect == SqlDialect.UNKNOWN || dialect == SqlDialect.OCEANBASE)
@@ -111,6 +119,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean routineBatch = false;
         boolean sawGo = false;
         boolean sawMySqlDelimiter = false;
+        boolean sawPostgresCommand = false;
         int statementSetPartStart = -1;
         int compoundPartStart = -1;
         int mysqlCompoundDepth = 0;
@@ -142,7 +151,8 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 }
                 continue;
             }
-            if ((sqlServer || oracle || checkMySqlDelimiters) && quote == 0 && isLineStart(script, i)) {
+            if ((sqlServer || oracle || checkMySqlDelimiters || checkPostgresClient)
+                    && quote == 0 && isLineStart(script, i)) {
                 int lineEnd = i;
                 while (lineEnd < script.length()
                         && script.charAt(lineEnd) != '\r' && script.charAt(lineEnd) != '\n') {
@@ -157,6 +167,25 @@ public class SimpleStatementSplitter implements StatementSplitter {
                         dialect = SqlDialect.MYSQL;
                         mysqlDelimiter = newDelimiter;
                         sawMySqlDelimiter = true;
+                        current.setLength(0);
+                        i = lineEnd - 1;
+                        continue;
+                    }
+                }
+                if (checkPostgresClient && !mysql && postgresCommand.region(i, lineEnd).matches()
+                        && !hasSqlContent(current.toString(), SqlDialect.POSTGRESQL, true)) {
+                    String command = postgresCommand.group(1);
+                    String arguments = postgresCommand.group(2).trim();
+                    if (!arguments.isEmpty() && ("copy".equals(command)
+                            || POSTGRES_RESTRICT_KEY.matcher(arguments).matches())) {
+                        if ("copy".equals(command)) {
+                            String copy = "COPY " + arguments;
+                            statements.add(copy);
+                            if (postgresCopyData && POSTGRES_COPY_STDIN.matcher(copy).lookingAt()) {
+                                lineEnd = Math.max(lineEnd, endOfPostgresCopyData(script, lineEnd - 1));
+                            }
+                        }
+                        sawPostgresCommand = true;
                         current.setLength(0);
                         i = lineEnd - 1;
                         continue;
@@ -306,7 +335,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         }
 
         addIfNotBlank(statements, current, dialect, nestedComments);
-        return new ScriptStatements(statements, sawGo, sawMySqlDelimiter);
+        return new ScriptStatements(statements, sawGo, sawMySqlDelimiter, sawPostgresCommand);
     }
 
     static boolean containsMySqlDelimiterDirective(String sql) {
@@ -366,11 +395,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
         private final List<String> statements;
         private final boolean sqlServerGo;
         private final boolean mySqlDelimiterDirective;
+        private final boolean postgresClientCommand;
 
-        private ScriptStatements(List<String> statements, boolean sqlServerGo, boolean mySqlDelimiterDirective) {
+        private ScriptStatements(List<String> statements, boolean sqlServerGo,
+                                 boolean mySqlDelimiterDirective, boolean postgresClientCommand) {
             this.statements = statements;
             this.sqlServerGo = sqlServerGo;
             this.mySqlDelimiterDirective = mySqlDelimiterDirective;
+            this.postgresClientCommand = postgresClientCommand;
         }
     }
 
@@ -378,13 +410,18 @@ public class SimpleStatementSplitter implements StatementSplitter {
         return GO_SCRIPT_LINE.matcher(sql).find();
     }
 
+    static boolean containsPostgresClientCommand(String script) {
+        return POSTGRES_CLIENT_SCRIPT.matcher(script).find()
+                && splitWithDelimiters(script, SqlDialect.UNKNOWN).postgresClientCommand;
+    }
+
     static boolean containsPostgresCopyFromStdin(String sql) {
         return POSTGRES_COPY_STDIN.matcher(sql).find();
     }
 
-    private static int endOfPostgresCopyData(String script, int semicolon) {
-        int lineEnd = script.indexOf('\n', semicolon + 1);
-        if (lineEnd < 0 || !stripComments(script.substring(semicolon + 1, lineEnd), true).trim().isEmpty()) {
+    private static int endOfPostgresCopyData(String script, int commandEnd) {
+        int lineEnd = script.indexOf('\n', commandEnd + 1);
+        if (lineEnd < 0 || !stripComments(script.substring(commandEnd + 1, lineEnd), true).trim().isEmpty()) {
             return -1;
         }
         Matcher endMarker = POSTGRES_COPY_END.matcher(script).useTransparentBounds(true)
