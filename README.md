@@ -145,7 +145,7 @@ LineSQL 1.0 is the first stable release line for the public API and lineage resu
 Current development version:
 
 ```text
-1.2.0
+1.3.0-SNAPSHOT
 ```
 
 Java compatibility:
@@ -396,14 +396,14 @@ Build the CLI:
 Run with auto detection:
 
 ```bash
-java -jar linesql-cli/target/linesql-cli-1.2.0.jar \
+java -jar linesql-cli/target/linesql-cli-1.3.0-SNAPSHOT.jar \
   "insert overwrite table ads.user_summary select id from ods.users"
 ```
 
 Run with explicit dialect:
 
 ```bash
-java -jar linesql-cli/target/linesql-cli-1.2.0.jar \
+java -jar linesql-cli/target/linesql-cli-1.3.0-SNAPSHOT.jar \
   --dialect HIVE \
   "select id from ods.users"
 ```
