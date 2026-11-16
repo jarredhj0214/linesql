@@ -1690,6 +1690,38 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitXmlTableRelation(PostgreSqlParser.XmlTableRelationContext ctx) {
+        collectSubqueryDependencies(ctx, true);
+        List<SourceColumn> rowSources = sourceColumns(ctx.rowPath);
+        rowSources.addAll(sourceColumns(ctx.document));
+        if (ctx.xmlNamespaces() != null) {
+            for (PostgreSqlParser.XmlNamespaceContext namespace : ctx.xmlNamespaces().xmlNamespace()) {
+                rowSources.addAll(sourceColumns(namespace.expression()));
+            }
+        }
+        addColumnUsages(ColumnUsageType.JOIN_ON, rowSources);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (PostgreSqlParser.XmlTableColumnContext column : ctx.xmlTableColumn()) {
+            List<ColumnRef> refs = Collections.emptyList();
+            if (column.ORDINALITY() == null) {
+                List<SourceColumn> sources = new ArrayList<>(rowSources);
+                for (PostgreSqlParser.XmlTableColumnOptionContext option : column.xmlTableColumnOption()) {
+                    if (option.expression() != null) {
+                        sources.addAll(sourceColumns(option.expression()));
+                    }
+                }
+                List<ColumnRef> resolved = columnUsageRefs(sources);
+                if (resolved != null) {
+                    refs = LineageModelUtils.mergeColumnRefs(Collections.emptyList(), resolved);
+                }
+            }
+            columns.put(cleanIdentifier(column.name), refs);
+        }
+        registerNamedFunctionColumns(ctx.tableAlias(), "xmltable", columns);
+        return null;
+    }
+
     private void registerNamedFunctionColumns(PostgreSqlParser.TableAliasContext aliasContext,
                                               String defaultName, Map<String, List<ColumnRef>> columns) {
         List<String> aliasColumns = tableAliasColumnNames(aliasContext);
@@ -3413,7 +3445,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                         || primary instanceof PostgreSqlParser.JsonArrayExpressionContext
                         || primary instanceof PostgreSqlParser.JsonArrayQueryExpressionContext
                         || primary instanceof PostgreSqlParser.JsonConstructorExpressionContext
-                        || primary instanceof PostgreSqlParser.JsonSerializeExpressionContext) {
+                        || primary instanceof PostgreSqlParser.JsonSerializeExpressionContext
+                        || primary instanceof PostgreSqlParser.XmlParseExpressionContext
+                        || primary instanceof PostgreSqlParser.XmlSerializeExpressionContext
+                        || primary instanceof PostgreSqlParser.XmlExistsExpressionContext
+                        || primary instanceof PostgreSqlParser.XmlElementExpressionContext
+                        || primary instanceof PostgreSqlParser.XmlForestExpressionContext) {
                     return primary.getStart().getText().toLowerCase(Locale.ROOT);
                 }
             }

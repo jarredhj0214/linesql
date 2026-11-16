@@ -792,6 +792,105 @@
       "description": "Set operation ordering uses all branch sources and retains aggregate filters"
     },
     {
+      "id": "select_xml_parse_serialize_document",
+      "file": "cases/select_xml_parse_serialize_document.sql",
+      "statementType": "SELECT",
+      "inputTables": ["raw.docs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "pretty", "sources": ["raw.docs.body"]},
+        {"target": "is_full_document", "sources": ["raw.docs.payload"]},
+        {"target": "marker", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "raw.docs.payload"}
+      ],
+      "description": "XML parse, serialize, typed literals and document predicates retain semantic operands"
+    },
+    {
+      "id": "update_xml_exists_from_source",
+      "file": "cases/update_xml_exists_from_source.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.docs", "staging.documents"],
+      "outputTables": ["mart.docs"],
+      "columnLineage": [
+        {"target": "mart.docs.has_items", "sources": ["staging.documents.row_xpath", "staging.documents.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.docs.id"},
+        {"type": "WHERE", "column": "staging.documents.doc_id"},
+        {"type": "WHERE", "column": "staging.documents.payload"}
+      ],
+      "description": "XML existence predicates trace to the XPath and document in a joined update"
+    },
+    {
+      "id": "insert_xml_element_forest_positions",
+      "file": "cases/insert_xml_element_forest_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": ["raw.docs"],
+      "outputTables": ["audit.xml_docs"],
+      "columnLineage": [
+        {"target": "audit.xml_docs.document_text", "sources": ["raw.docs.id", "raw.docs.category", "raw.docs.title", "raw.docs.summary", "raw.docs.notes"]},
+        {"target": "audit.xml_docs.doc_id", "sources": ["raw.docs.id"]}
+      ],
+      "columnUsages": [
+
+      ],
+      "description": "Nested XML constructors follow expressions without treating tag and attribute names as source columns"
+    },
+    {
+      "id": "select_xmltable_namespaces_lineage",
+      "file": "cases/select_xmltable_namespaces_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["raw.docs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "order_number", "sources": ["raw.docs.row_xpath", "raw.docs.payload", "raw.docs.namespace_uri", "raw.docs.id_xpath", "raw.docs.default_id"]},
+        {"target": "position", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "raw.docs.row_xpath"},
+        {"type": "JOIN_ON", "column": "raw.docs.payload"},
+        {"type": "JOIN_ON", "column": "raw.docs.namespace_uri"},
+        {"type": "WHERE", "column": "raw.docs.row_xpath"},
+        {"type": "WHERE", "column": "raw.docs.payload"},
+        {"type": "WHERE", "column": "raw.docs.namespace_uri"},
+        {"type": "WHERE", "column": "raw.docs.id_xpath"},
+        {"type": "WHERE", "column": "raw.docs.default_id"}
+      ],
+      "description": "Namespace URI, row path, document, column path, and fallback expressions trace to the extracted column"
+    },
+    {
+      "id": "insert_xmltable_wildcard_positions",
+      "file": "cases/insert_xmltable_wildcard_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": ["raw.docs"],
+      "outputTables": ["audit.doc_items"],
+      "columnLineage": [
+        {"target": "audit.doc_items.item_code", "sources": ["raw.docs.payload"]},
+        {"target": "audit.doc_items.doc_id", "sources": ["raw.docs.id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "raw.docs.payload"}
+      ],
+      "description": "A typed XMLTABLE wildcard advances through ordinality and preserves the following insert position"
+    },
+    {
+      "id": "select_xmltable_subquery_document",
+      "file": "cases/select_xmltable_subquery_document.sql",
+      "statementType": "SELECT",
+      "inputTables": ["raw.docs"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "code", "sources": ["raw.docs.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "raw.docs.id"},
+        {"type": "JOIN_ON", "column": "raw.docs.payload"}
+      ],
+      "description": "A scalar XMLTABLE document keeps its source query and native relation name"
+    },
+    {
       "id": "select_join_using_alias_wildcard",
       "file": "cases/select_join_using_alias_wildcard.sql",
       "statementType": "SELECT",

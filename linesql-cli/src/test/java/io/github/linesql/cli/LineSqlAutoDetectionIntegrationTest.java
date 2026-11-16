@@ -319,6 +319,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresXmlTableWithDialectSpecificSyntax() {
+        LineageResult exists = LineSql.parse("SELECT XMLEXISTS('/row' PASSING d.payload BY REF) "
+                + "AS has_row FROM raw.docs d");
+        assertEquals(SqlDialect.POSTGRESQL, exists.getDialect());
+        assertEquals(StatementType.SELECT, exists.getStatementType());
+        assertEquals("payload", exists.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT xt.code FROM raw.docs d CROSS JOIN "
+                + "XMLTABLE('/row' PASSING BY REF d.payload COLUMNS code text) xt");
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT xt.code FROM raw.docs d CROSS JOIN "
+                + "XMLTABLE('/row' PASSING d.payload::xml COLUMNS code text) xt");
+        assertDialect(SqlDialect.ORACLE, "SELECT xt.code FROM raw.docs d CROSS JOIN "
+                + "XMLTABLE('/row' PASSING BY VALUE d.payload COLUMNS code VARCHAR2(32) "
+                + "PATH 'literal ::xml BY REF COLUMNS') xt");
+        assertDialect(SqlDialect.ORACLE, "SELECT xt.code FROM raw.docs d CROSS JOIN "
+                + "XMLTABLE('/row' PASSING d.payload RETURNING SEQUENCE BY REF "
+                + "COLUMNS code VARCHAR2(32)) xt");
+    }
+
+    @Test
     public void detectsPostgresJsonbAndTextSearchFunctions() {
         String update = "UPDATE mart.events e SET payload = pg_catalog.jsonb_set_lax(e.payload,"
                 + " ARRAY['value'], to_jsonb(s.new_value)) FROM staging.event_changes s WHERE e.id = s.event_id";

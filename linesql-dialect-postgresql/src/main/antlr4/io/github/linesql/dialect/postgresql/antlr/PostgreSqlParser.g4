@@ -162,6 +162,9 @@ relationPrimary
     : inheritanceRelation (tableSampleClause tableAlias | tableAlias tableSampleClause?) #tableName
     | LATERAL? JSON_TABLE LPAREN expression COMMA expression (AS identifier)?
       jsonPassingClause? jsonTableColumns ((ERROR | EMPTY ARRAY?) ON ERROR)? RPAREN tableAlias #jsonTableRelation
+    | LATERAL? XMLTABLE LPAREN (xmlNamespaces COMMA)? rowPath=expression
+      PASSING xmlPassingMode? document=expression xmlPassingMode?
+      COLUMNS xmlTableColumn (COMMA xmlTableColumn)* RPAREN tableAlias #xmlTableRelation
     | LATERAL? functionName LPAREN functionArguments? RPAREN
       (AS recordAlias=strictIdentifier? LPAREN recordColumn (COMMA recordColumn)* RPAREN
       | (WITH ORDINALITY)? tableAlias)                               #tableFunction
@@ -170,6 +173,40 @@ relationPrimary
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
+    ;
+
+xmlDocumentMode
+    : DOCUMENT | CONTENT
+    ;
+
+xmlAttributes
+    : XMLATTRIBUTES LPAREN xmlNamedExpression (COMMA xmlNamedExpression)* RPAREN
+    ;
+
+xmlNamedExpression
+    : expression (AS identifier)?
+    ;
+
+xmlNamespaces
+    : XMLNAMESPACES LPAREN xmlNamespace (COMMA xmlNamespace)* RPAREN
+    ;
+
+xmlNamespace
+    : expression AS identifier
+    ;
+
+xmlPassingMode
+    : BY (REF | VALUE)
+    ;
+
+xmlTableColumn
+    : name=identifier (FOR ORDINALITY | dataType xmlTableColumnOption*)
+    ;
+
+xmlTableColumnOption
+    : PATH expression
+    | DEFAULT expression
+    | NOT? NULL
     ;
 
 jsonTableColumns
@@ -316,6 +353,7 @@ predicate
     | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
     | IS NOT? DISTINCT FROM valueExpression
     | IS NOT? JSON (VALUE | SCALAR | ARRAY | OBJECT)? jsonUniqueKeys?
+    | IS NOT? DOCUMENT
     ;
 
 valueExpression
@@ -348,6 +386,11 @@ primaryExpression
     | SUBSTRING LPAREN expression FROM expression (FOR expression)? RPAREN #substringExpression
     | TRIM LPAREN ((BOTH | LEADING | TRAILING) expression? FROM)? expression RPAREN #trimExpression
     | OVERLAY LPAREN expression PLACING expression FROM expression (FOR expression)? RPAREN #overlayExpression
+    | XMLPARSE LPAREN xmlDocumentMode expression RPAREN             #xmlParseExpression
+    | XMLSERIALIZE LPAREN xmlDocumentMode expression AS dataType (NO? INDENT)? RPAREN #xmlSerializeExpression
+    | XMLEXISTS LPAREN expression PASSING xmlPassingMode? expression xmlPassingMode? RPAREN #xmlExistsExpression
+    | XMLELEMENT LPAREN NAME identifier (COMMA xmlAttributes)? (COMMA expressionList)? RPAREN #xmlElementExpression
+    | XMLFOREST LPAREN xmlNamedExpression (COMMA xmlNamedExpression)* RPAREN #xmlForestExpression
     | JSON_OBJECT LPAREN (jsonObjectPair (COMMA jsonObjectPair)*)?
       jsonNullClause? jsonUniqueKeys? jsonReturningClause? RPAREN    #jsonObjectExpression
     | JSON_ARRAY LPAREN arrayConstructorQuery jsonReturningClause? RPAREN #jsonArrayQueryExpression
@@ -377,6 +420,7 @@ primaryExpression
     | TRUE                                                           #booleanTrue
     | FALSE                                                          #booleanFalse
     | (DATE | TIME | TIMESTAMP) string                               #dateTimeLiteral
+    | XML string                                                    #xmlLiteral
     | INTERVAL string identifier?                                    #intervalLiteral
     | DEFAULT                                                        #defaultLiteral
     ;
@@ -1390,7 +1434,7 @@ nonReservedKeyword
     | ANALYZE | ANY | BINARY | COLUMN | COMMENT | CONNECTION | CONSTRAINT | COPY | CSV | CURSOR | DATABASE | DEALLOCATE | DECLARE | DEFAULT | DELIMITER | DESCRIBE | DESC | DOMAIN | END
     | ATTACH | BACKWARD | CHECK | CLOSE | CUBE | DETACH | ENGINE | ENUM | EVENT | EXCLUDING | EXECUTE | EXISTS | EXPLAIN | EXTENSION | EXTERNAL | EXTRACT | FALSE | FETCH | FILTER | FIRST | FOLLOWING | FOR | FORWARD | FOREIGN | FORMAT | FUNCTION | FUNCTIONS | GENERATED | GRANT | GROUPING | GROUPS | HEADER | HOLD | IF | ILIKE | IDENTITY | IMPORT | INCLUDE | INCLUDING | INDEX | INHERITS | INSENSITIVE | INTERVAL | KEY | LANGUAGE | LAST | LATERAL | LEADING | LIMIT | MAPPING | MATCHED | MATERIALIZED | MOVE | NEXT | NULL | NULLS
     | DATE | LABEL | LISTEN | LOCK | LOCKED | LOGGED | MODE | NOTIFY | NOWAIT | OF | OFFSET | ONLY | OPTIONS | ORDINALITY | OVERLAY | OVERRIDING | OVER | PARTITION | PERMISSIVE | PLACING | POLICY | OWNER | VALID | VALIDATE | POSITION | PRECEDING | PRIVILEGES | PUBLICATION | RANGE | RECURSIVE | REPLACE | RENAME | RESTRICT | RESTRICTIVE | REVOKE | ROLE | ROW | ROWS | RULE | SECURITY | SEPARATOR | SERVER | SHARE | SIMILAR | SKIP_ | SUBSTRING | TIME | TIMESTAMP | TRAILING | TRIM
-    | ENABLE | DISABLE | FORCE | SOME | SOURCE | TARGET | OPERATOR | TABLESPACE | PRESERVE | CASCADED | LOCAL | OPTION | EXCLUDE | OTHERS | ESCAPE | JSON_VALUE | JSON_EXISTS | JSON_QUERY | JSON_TABLE | JSON_OBJECT | JSON_ARRAY | JSON_SERIALIZE | ABSENT | KEYS | COLUMNS | PATH | NESTED | JSON | ENCODING | UTF8 | CONDITIONAL | UNCONDITIONAL | QUOTES | OMIT | KEEP | OBJECT | SCALAR | STRING_KEYWORD | PASSING | ERROR | EMPTY | FINALIZE | MODULUS | REMAINDER | CHAIN | DEFERRABLE | SEARCH | CYCLE | BREADTH | DEPTH | RESTART | CONTINUE | VARYING | DOUBLE | PRECISION
+    | ENABLE | DISABLE | FORCE | SOME | SOURCE | TARGET | OPERATOR | TABLESPACE | PRESERVE | CASCADED | LOCAL | OPTION | EXCLUDE | OTHERS | ESCAPE | JSON_VALUE | JSON_EXISTS | JSON_QUERY | JSON_TABLE | JSON_OBJECT | JSON_ARRAY | JSON_SERIALIZE | ABSENT | KEYS | COLUMNS | PATH | NESTED | JSON | ENCODING | UTF8 | CONDITIONAL | UNCONDITIONAL | QUOTES | OMIT | KEEP | OBJECT | SCALAR | STRING_KEYWORD | PASSING | XMLTABLE | XMLNAMESPACES | XML | XMLPARSE | XMLSERIALIZE | XMLEXISTS | XMLELEMENT | XMLATTRIBUTES | XMLFOREST | DOCUMENT | CONTENT | INDENT | NAME | REF | ERROR | EMPTY | FINALIZE | MODULUS | REMAINDER | CHAIN | DEFERRABLE | SEARCH | CYCLE | BREADTH | DEPTH | RESTART | CONTINUE | VARYING | DOUBLE | PRECISION
     | OLD | NEW | ABSOLUTE | EXCLUSIVE | FREEZE | INSTEAD | PREPARE | PRIMARY | PRIOR | PROCEDURE | PROGRAM | REFERENCES | REFRESH | REINDEX | RELATIVE | RESET | RETURNS | ROLLUP | SCHEMA | SCHEMAS | SCROLL | SEARCH_PATH | SEQUENCE | SEQUENCES | SET | SETS | SETTINGS | BEGIN | START | STATISTICS | STORED | SUMMARY | TIMING | TRANSACTION | COMMIT | ROLLBACK | SAVEPOINT | RELEASE | WORK | ISOLATION | LEVEL | READ | WRITE | REPEATABLE | BERNOULLI | COMMITTED | UNCOMMITTED | SERIALIZABLE | SHOW | STDIN | STDOUT | SUBSCRIPTION | SYSTEM | TABLE | TABLES | TABLESAMPLE | TEMP | TEMPORARY | TO | TRIGGER | TRUE | TRUNCATE | TYPE | UNBOUNDED | UNLISTEN | UNLOGGED | UNIQUE | USER | VACUUM | VALUE | VALUES | VERBOSE | VIEW | WAL | WINDOW | WITHIN | WITHOUT | WRAPPER | ZONE | DISCARD | PLANS
     | CALLED | COST | DEFINER | IMMUTABLE | INOUT | INPUT | INVOKER | LEAKPROOF | OUT | PARALLEL | RESTRICTED | SAFE | SETOF | STABLE | STRICT | SUPPORT | TRANSFORM | UNSAFE | VARIADIC | VOLATILE
     | ATOMIC | RETURN

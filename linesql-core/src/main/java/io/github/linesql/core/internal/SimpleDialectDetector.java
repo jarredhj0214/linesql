@@ -70,6 +70,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|build_(?:array|object)|agg(?:_strict)?|object_agg(?:_strict|_unique(?:_strict)?)?"
                     + "|strip_nulls|populate_record(?:set|_valid)?|to_record(?:set)?|insert|set(?:_lax)?|pretty|typeof"
                     + "|path_(?:exists|match|query(?:_array|_first)?)(?:_tz)?))\\s*\\(");
+    private static final Pattern XML_PASSING_EXPRESSION = Pattern.compile("\\b(?:xmltable|xmlexists)\\s*\\(");
+    private static final Pattern POSTGRES_XML_PASSING_OPTION = Pattern.compile(
+            "\\bpassing\\s+by\\s+ref\\b|\\bby\\s+(?:ref|value)(?:\\s+columns\\b|\\s*\\))"
+                    + "|::\\s*(?:pg_catalog\\s*\\.\\s*)?xml\\b");
+    private static final Pattern ORACLE_XML_SEQUENCE = Pattern.compile("\\breturning\\s+sequence\\s+by\\s+ref\\b");
     private static final Pattern POSTGRES_TEXT_SEARCH = Pattern.compile(
             "::\\s*(?:pg_catalog\\s*\\.\\s*)?(?:tsvector|tsquery|regconfig)\\b"
                     + "|\\b(?:to_tsvector|(?:plain|phrase|websearch_)?to_tsquery|ts_rank(?:_cd)?|ts_headline)\\s*\\(");
@@ -230,6 +235,10 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (POSTGRES_JSON_SYNTAX.matcher(unquotedSyntax).find()
                 && !TSQL_OBJECT_SCOPE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL JSONB cast, function, or path operator"));
+        } else if (XML_PASSING_EXPRESSION.matcher(unquotedSyntax).find()
+                && POSTGRES_XML_PASSING_OPTION.matcher(unquotedSyntax).find()
+                && !ORACLE_XML_SEQUENCE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL XML passing mode or cast"));
         } else if (POSTGRES_TEXT_SEARCH.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL text-search function or type"));
         } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
