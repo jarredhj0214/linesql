@@ -224,6 +224,30 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.SPARK, "SELECT 'log: on duplicate key update ignored' AS msg");
     }
 
+    @Test
+    public void splitsPlainSqlBuffersInSqlPlusScripts() {
+        String script = scriptFixture("/sql/oracle/sqlplus_slash_statements.sql");
+        assertSqlPlusSlashStatements(LineSql.parseScript(script));
+        assertSqlPlusSlashStatements(LineSql.parseScript(script.replace("\n", "\r\n"), SqlDialect.ORACLE));
+        assertDialect(SqlDialect.SPARK, "SELECT 10\n/\n2 AS ratio FROM ods.values_table");
+        assertDialect(SqlDialect.SPARK, "SELECT 'before\n/\nSELECT inside a literal' AS text");
+    }
+
+    private void assertSqlPlusSlashStatements(List<LineageResult> results) {
+        assertEquals(3, results.size());
+        assertEquals(StatementType.SELECT, results.get(0).getStatementType());
+        assertEquals(2, results.get(0).getColumnLineage().get(0).getSources().size());
+        assertEquals(StatementType.INSERT, results.get(1).getStatementType());
+        assertEquals("audit", results.get(1).getOutputTables().get(0).getName());
+        assertEquals("events", results.get(1).getInputTables().get(0).getName());
+        assertEquals(StatementType.SELECT, results.get(2).getStatementType());
+        assertEquals("audit", results.get(2).getInputTables().get(0).getName());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.ORACLE, result.getDialect());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

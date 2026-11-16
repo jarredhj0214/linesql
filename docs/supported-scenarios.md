@@ -708,11 +708,11 @@ Known SQL Server gaps:
 
 ## Oracle
 
-For SQL*Plus scripts, specify `SqlDialect.ORACLE` or select OceanBase's Oracle compatibility
-mode explicitly. A slash on its own line closes a recognized PL/SQL block. Internal
-semicolons remain inside anonymous blocks and supported routine, package, and trigger
-definitions. A single block can end at the end of the script. Division inside a regular
-SQL expression preserves its slash.
+SQL*Plus slash separators identify Oracle scripts in automatic mode. A slash on its own
+line closes a PL/SQL block or a SQL buffer before the next statement or the end of the script.
+Internal semicolons remain inside anonymous blocks and supported routine, package, and trigger
+definitions. A slash followed by a division operand remains part of the expression.
+The script corpus covers ordinary queries, DML, and division in `sqlplus_slash_statements.sql`.
 Alternative `Q` and `NQ` literals preserve their delimiters and embedded SQL text
 through parsing and script splitting. A complete literal also identifies Oracle queries and
 standalone PL/SQL blocks in automatic mode, and its contents cannot supply another dialect marker

@@ -274,7 +274,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.contains(" properties (\"replication_num\"")) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.93, "StarRocks key, load, materialized view, metadata, task, or admin syntax"));
         }
-        if (literals.oracleQuoted) {
+        if (SimpleStatementSplitter.containsOracleScriptSeparator(sql)) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle SQL*Plus slash separator"));
+        } else if (literals.oracleQuoted) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle alternative-quoted string literal"));
         } else if (relationSyntax.indexOf('@') >= 0 && ORACLE_REMOTE_RELATION
                 .matcher(QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {

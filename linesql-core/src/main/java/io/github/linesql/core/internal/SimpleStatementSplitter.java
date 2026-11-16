@@ -69,6 +69,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     + "|READ\\s+(?:ONLY|WRITE)|(?:NOT\\s+)?DEFERRABLE)\\b)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ORACLE_SLASH = Pattern.compile("[ \\t]*/[ \\t]*");
 
+    private static final Pattern ORACLE_SLASH_LINE = Pattern.compile(
+            "^" + ORACLE_SLASH.pattern() + "$", Pattern.MULTILINE);
+    private static final Pattern ORACLE_AFTER_SLASH = Pattern.compile(
+            SQL_TRIVIA + "*(?:\\z|/(?=[ \\t]*(?:\\r?\\n|\\z))|(?:SELECT|WITH|INSERT\\s+INTO|UPDATE"
+                    + "|DELETE\\s+FROM|MERGE\\s+INTO|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE"
+                    + "|BEGIN|DECLARE|COMMIT|ROLLBACK|SAVEPOINT|EXPLAIN|LOCK\\s+TABLE|CALL)\\b)",
+            Pattern.CASE_INSENSITIVE);
+
     private static final Pattern FLINK_STATEMENT_SET = Pattern.compile(
             "(?:^|;)\\s*(?:(?:EXPLAIN(?:\\s+(?:PLAN\\s+FOR|\\w+(?:\\s*,\\s*\\w+)*))?"
                     + "|COMPILE\\s+PLAN(?:\\s+IF\\s+NOT\\s+EXISTS)?"
@@ -133,6 +141,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         boolean lineComment = false;
         boolean routineBatch = false;
         boolean sawGo = false;
+        boolean sawOracleSlash = false;
         boolean sawMySqlDelimiter = false;
         boolean sawPostgresCommand = false;
         int statementSetPartStart = -1;
@@ -214,7 +223,9 @@ public class SimpleStatementSplitter implements StatementSplitter {
                 boolean delimiter = sqlServer && GO_LINE.matcher(script).region(i, lineEnd).matches();
                 if (oracle && ORACLE_SLASH.matcher(script).region(i, lineEnd).matches()) {
                     String preceding = stripComments(current.toString(), false);
-                    delimiter = routineBatch || preceding.trim().isEmpty() || ORACLE_BLOCK.matcher(preceding).find();
+                    delimiter = routineBatch || preceding.trim().isEmpty() || ORACLE_BLOCK.matcher(preceding).find()
+                            || ORACLE_AFTER_SLASH.matcher(script).region(lineEnd, script.length()).lookingAt();
+                    sawOracleSlash |= delimiter;
                 }
                 if (delimiter) {
                     sawGo |= sqlServer;
@@ -361,7 +372,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
         if (sqlWithoutCopyData != null && previousCopyEnd > 0) {
             sqlWithoutCopyData.append(script, previousCopyEnd, script.length());
         }
-        return new ScriptStatements(statements, sawGo, sawMySqlDelimiter, sawPostgresCommand);
+        return new ScriptStatements(statements, sawGo, sawOracleSlash, sawMySqlDelimiter, sawPostgresCommand);
     }
 
     static boolean containsMySqlDelimiterDirective(String sql) {
@@ -420,16 +431,26 @@ public class SimpleStatementSplitter implements StatementSplitter {
     private static final class ScriptStatements {
         private final List<String> statements;
         private final boolean sqlServerGo;
+        private final boolean oracleSlash;
         private final boolean mySqlDelimiterDirective;
         private final boolean postgresClientCommand;
 
-        private ScriptStatements(List<String> statements, boolean sqlServerGo,
+        private ScriptStatements(List<String> statements, boolean sqlServerGo, boolean oracleSlash,
                                  boolean mySqlDelimiterDirective, boolean postgresClientCommand) {
             this.statements = statements;
             this.sqlServerGo = sqlServerGo;
+            this.oracleSlash = oracleSlash;
             this.mySqlDelimiterDirective = mySqlDelimiterDirective;
             this.postgresClientCommand = postgresClientCommand;
         }
+    }
+
+    static boolean containsOracleSlashLine(String sql) {
+        return sql.indexOf('/') >= 0 && ORACLE_SLASH_LINE.matcher(sql).find();
+    }
+
+    static boolean containsOracleScriptSeparator(String sql) {
+        return containsOracleSlashLine(sql) && splitWithDelimiters(sql, SqlDialect.ORACLE).oracleSlash;
     }
 
     static boolean containsSqlServerGo(String sql) {
