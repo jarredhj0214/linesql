@@ -248,6 +248,19 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("audit", results.get(1).getInputTables().get(0).getName());
     }
 
+    @Test
+    public void keepsAlternativeOracleQuotesThroughScriptSplitting() {
+        List<LineageResult> results = LineSql.parseScript(
+                "SELECT id FROM ods.orders WHERE note = q'[O'Brien;\n/\ninside]';"
+                        + "SELECT id FROM ods.refunds WHERE note = nq'!it's paid;!';",
+                SqlDialect.ORACLE);
+        assertEquals(2, results.size());
+        assertEquals("orders", results.get(0).getInputTables().get(0).getName());
+        assertEquals("refunds", results.get(1).getInputTables().get(0).getName());
+        assertEquals("note", results.get(0).getColumnUsages().get(0).getColumn().getName());
+        assertEquals("note", results.get(1).getColumnUsages().get(0).getColumn().getName());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

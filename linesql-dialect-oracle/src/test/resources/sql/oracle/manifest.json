@@ -2,6 +2,25 @@
   "dialect": "ORACLE",
   "cases": [
     {
+      "id": "select_alternative_quoted_text",
+      "file": "cases/select_alternative_quoted_text.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.orders.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.orders.note"}],
+      "description": "Oracle Q and NQ literals allow paired and Unicode delimiters without creating source columns"
+    },
+    {
+      "id": "anonymous_alternative_quoted_dynamic_sql",
+      "file": "cases/anonymous_alternative_quoted_dynamic_sql.sql",
+      "statementType": "CONTROL",
+      "inputTables": ["ods.orders"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [],
+      "description": "SQL-looking content inside a Q literal does not become a static table dependency"
+    },
+    {
       "id": "anonymous_nested_block_insert",
       "file": "cases/anonymous_nested_block_insert.sql",
       "statementType": "CONTROL",

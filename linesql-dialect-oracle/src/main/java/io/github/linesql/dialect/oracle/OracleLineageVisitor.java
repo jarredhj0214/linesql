@@ -7,6 +7,7 @@ import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
+import io.github.linesql.core.util.OracleQuotedLiterals;
 import io.github.linesql.dialect.oracle.antlr.OracleParser;
 import io.github.linesql.dialect.oracle.antlr.OracleParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -2393,18 +2394,22 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private boolean collectStaticAnonymousBlockLineage(String text) {
-        boolean dbmsStatsMetadata = collectDbmsStatsMetadataTables(text);
-        String normalized = stripStringLiterals(text).replaceAll("\\s+", " ");
+        String visibleSql = stripStringLiterals(text);
+        boolean dbmsStatsMetadata = collectDbmsStatsMetadataTables(text, visibleSql);
+        String normalized = visibleSql.replaceAll("\\s+", " ");
         collectAnonymousOutputTables(normalized, ANONYMOUS_INSERT_TARGET_PATTERN);
         collectAnonymousOutputTables(normalized, ANONYMOUS_DELETE_TARGET_PATTERN);
         collectAnonymousInputTables(normalized, ANONYMOUS_INPUT_TABLE_PATTERN);
         return dbmsStatsMetadata;
     }
 
-    private boolean collectDbmsStatsMetadataTables(String text) {
+    private boolean collectDbmsStatsMetadataTables(String text, String visibleSql) {
         boolean found = false;
         Matcher call = DBMS_STATS_TABLE_CALL_PATTERN.matcher(text);
         while (call.find()) {
+            if (visibleSql.charAt(call.start()) == ' ') {
+                continue;
+            }
             TableRef table = dbmsStatsTableRef(call.group(1));
             if (table != null && !isDualTable(table)) {
                 inputTables.add(table);
@@ -2484,8 +2489,29 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private static String stripStringLiterals(String text) {
         StringBuilder builder = new StringBuilder(text.length());
         boolean inString = false;
+        boolean inIdentifier = false;
         for (int i = 0; i < text.length(); i++) {
             char ch = text.charAt(i);
+            if (!inString && ch == '"') {
+                inIdentifier = !inIdentifier;
+                builder.append(ch);
+                continue;
+            }
+            if (inIdentifier) {
+                builder.append(ch);
+                continue;
+            }
+            if (!inString && (ch == 'q' || ch == 'Q' || ch == 'n' || ch == 'N')) {
+                int end = OracleQuotedLiterals.endOfLiteral(text, i);
+                if (end > i) {
+                    while (i < end) {
+                        builder.append(' ');
+                        i++;
+                    }
+                    i--;
+                    continue;
+                }
+            }
             if (ch == '\'') {
                 builder.append(' ');
                 if (inString && i + 1 < text.length() && text.charAt(i + 1) == '\'') {

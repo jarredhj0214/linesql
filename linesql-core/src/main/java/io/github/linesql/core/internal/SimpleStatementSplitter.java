@@ -3,6 +3,7 @@ package io.github.linesql.core.internal;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.spi.StatementSplitter;
 import io.github.linesql.core.util.MySqlExecutableComments;
+import io.github.linesql.core.util.OracleQuotedLiterals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -107,6 +108,14 @@ public class SimpleStatementSplitter implements StatementSplitter {
                     quote = 0;
                 }
                 continue;
+            }
+            if (oracle && quote == 0 && (c == 'q' || c == 'Q' || c == 'n' || c == 'N')) {
+                int end = OracleQuotedLiterals.endOfLiteral(script, i);
+                if (end > i) {
+                    current.append(script, i, end);
+                    i = end - 1;
+                    continue;
+                }
             }
             if (quote == 0 && c == '-' && next == '-') {
                 current.append(c).append(next);

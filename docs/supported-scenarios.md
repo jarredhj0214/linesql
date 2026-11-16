@@ -689,6 +689,9 @@ mode explicitly. A slash on its own line closes a recognized PL/SQL block. Inter
 semicolons remain inside anonymous blocks and supported routine, package, and trigger
 definitions. A single block can end at the end of the script. Division inside a regular
 SQL expression preserves its slash.
+Alternative `Q` and `NQ` literals preserve their delimiters and embedded SQL text
+through parsing and script splitting (`select_alternative_quoted_text`,
+`anonymous_alternative_quoted_dynamic_sql`).
 
 Oracle is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common Oracle query and write shapes.
 
