@@ -83,6 +83,12 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_XML_PASSING_OPTION = Pattern.compile(
             "\\bpassing\\s+by\\s+ref\\b|\\bby\\s+(?:ref|value)(?:\\s+columns\\b|\\s*\\))"
                     + "|::\\s*(?:pg_catalog\\s*\\.\\s*)?xml\\b");
+    private static final Pattern ORACLE_DOMAIN_DDL = Pattern.compile(
+            "^\\s*(?:create|alter)\\s+usecase\\s+domain\\b"
+                    + "|^\\s*create\\s+domain\\s+(?:if\\s+not\\s+exists\\b|[^;]*\\bas\\s+(?:enum\\s*)?\\()"
+                    + "|^\\s*alter\\s+domain\\s+(?:if\\s+exists\\b|[^;]*\\b(?:(?:add|modify|drop)\\s+"
+                    + "(?:display|order)\\b|annotations\\s*\\())"
+                    + "|^\\s*drop\\s+domain\\s+(?:usecase\\b|[^;]*\\bforce\\b)");
     private static final Pattern ORACLE_XML_SEQUENCE = Pattern.compile("\\breturning\\s+sequence\\s+by\\s+ref\\b");
     private static final Pattern POSTGRES_UNICODE_PREDICATE = Pattern.compile(
             "\\bis\\s+(?:not\\s+)?(?:nfc\\s+|nfd\\s+|nfkc\\s+|nfkd\\s+)?normalized\\b");
@@ -347,6 +353,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle SQL*Plus slash separator"));
         } else if (literals.oracleQuoted) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle alternative-quoted string literal"));
+        } else if (ORACLE_DOMAIN_DDL.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle data use case domain DDL"));
         } else if (ORACLE_RETURNING_TARGET.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle RETURNING bind or bulk collection"));
         } else if (relationSyntax.indexOf('@') >= 0 && ORACLE_REMOTE_RELATION

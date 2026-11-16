@@ -1,0 +1,1 @@
+DROP DOMAIN USECASE IF EXISTS workflow.ticket_status FORCE PRESERVE;

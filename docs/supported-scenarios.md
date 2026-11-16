@@ -772,6 +772,7 @@ Implemented Oracle table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
+| Oracle data use case domain lifecycle | CREATE covers enums and named multi-column domains. ALTER accepts display, ordering and annotations. DROP supports FORCE PRESERVE. Native domain forms identify Oracle. | `create_usecase_enum_domain`, `create_multi_column_domain`, `alter_domain_display`, `alter_domain_annotations`, `drop_domain_force_preserve` |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | SELECT wildcard EXCLUDE | `select * exclude (...) from t`, `select alias.* exclude (...) from t alias` | `select_star_exclude`, `select_qualified_star_exclude` |

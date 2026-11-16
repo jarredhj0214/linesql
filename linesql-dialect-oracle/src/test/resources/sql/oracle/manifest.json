@@ -5667,6 +5667,51 @@
         {"type": "WHERE", "column": "ods.flags.active"}
       ],
       "description": "A projected IN query keeps the tested values and its own clause usage"
+    },
+    {
+      "id": "create_usecase_enum_domain",
+      "file": "cases/create_usecase_enum_domain.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Enum values and aliases are metadata in the domain declaration"
+    },
+    {
+      "id": "create_multi_column_domain",
+      "file": "cases/create_multi_column_domain.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Named component columns and display/order expressions are scoped to the Oracle domain"
+    },
+    {
+      "id": "alter_domain_display",
+      "file": "cases/alter_domain_display.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Changing the display expression is a domain control operation"
+    },
+    {
+      "id": "alter_domain_annotations",
+      "file": "cases/alter_domain_annotations.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Domain annotations accept replace and conditional drop instructions"
+    },
+    {
+      "id": "drop_domain_force_preserve",
+      "file": "cases/drop_domain_force_preserve.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "FORCE PRESERVE drops a domain without guessing dependent tables"
     }
   ]
 }

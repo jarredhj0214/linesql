@@ -775,6 +775,44 @@ oracleSchemaObjectControlStatement
     | DROP AUDIT POLICY multipartIdentifier
     | AUDIT .+?
     | NOAUDIT .+?
+    | domainControlStatement
+    ;
+
+domainControlStatement
+    : CREATE USECASE? DOMAIN (IF NOT EXISTS)? multipartIdentifier AS domainDefinition
+      (DISPLAY expression)? (ORDER expression)? domainAnnotations?
+    | ALTER USECASE? DOMAIN (IF EXISTS)? multipartIdentifier
+      ((ADD | MODIFY) (DISPLAY | ORDER) expression | DROP (DISPLAY | ORDER) | domainAnnotations)
+    | DROP DOMAIN USECASE? (IF EXISTS)? multipartIdentifier (FORCE PRESERVE?)?
+    ;
+
+domainDefinition
+    : (dataType | ENUM LPAREN domainEnumItem (COMMA domainEnumItem)* RPAREN) domainColumnOption*
+    | LPAREN domainColumn (COMMA domainColumn)* RPAREN domainColumnOption*
+    ;
+
+domainColumn
+    : identifier AS dataType STRICT? domainColumnOption*
+    ;
+
+domainEnumItem
+    : identifier (EQ identifier)* (EQ expression)?
+    ;
+
+domainColumnOption
+    : DEFAULT (ON NULL)? expression
+    | (CONSTRAINT identifier)? (NOT? NULL | CHECK LPAREN expression RPAREN)
+      (ENABLE | DISABLE)?
+    | VALIDATE USING string
+    | COLLATE identifier
+    ;
+
+domainAnnotations
+    : ANNOTATIONS LPAREN domainAnnotation (COMMA domainAnnotation)* RPAREN
+    ;
+
+domainAnnotation
+    : (ADD (IF NOT EXISTS | OR REPLACE)? | DROP (IF EXISTS)? | REPLACE)? identifier string?
     ;
 
 flashbackTableStatement
@@ -1003,7 +1041,7 @@ nonReservedKeyword
     : ADD | ANALYZE | APPLY | ASC | AUDIT | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | CONTEXT | DEFAULT
     | BEFORE | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFERRABLE | DEFINER | DEMAND | DESCRIBE | DESC | DISABLE | DUAL | ENABLE | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
     | BULK | CHECK | COLLECT | COMPLETE | CONSTRAINT | EXCHANGE | EXCLUDING | FAST | FETCH | FIRST | FLASHBACK | FOR | FORCE | FOREIGN | FUNCTION | GRANT | IF | IMMEDIATE | INCLUDING | INDEX | INDEXES | INITIALLY | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NORELY | NOVALIDATE | NULL
-    | WINDOW | QUALIFY | OLD | NEW
+    | WINDOW | QUALIFY | OLD | NEW | DOMAIN | USECASE | ENUM | DISPLAY | MODIFY | STRICT | ANNOTATIONS | COLLATE
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
     | KEY | NOAUDIT | NOCYCLE | NULLS | OBJECT | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | POLICY | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PROFILE | PUBLIC | PURGE | READ | REFERENCES | ROLE | USER | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS
     | CURRENT | UNBOUNDED | PRECEDING | FOLLOWING

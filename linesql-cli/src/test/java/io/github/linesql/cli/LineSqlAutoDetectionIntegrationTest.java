@@ -319,6 +319,17 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOracleDataUseCaseDomainSyntax() {
+        LineageResult domain = LineSql.parse("CREATE DOMAIN workflow.state AS ENUM (queued = 1, done = 2)");
+        assertEquals(SqlDialect.ORACLE, domain.getDialect());
+        assertEquals(StatementType.CONTROL, domain.getStatementType());
+        assertDialect(SqlDialect.ORACLE, "ALTER DOMAIN workflow.state MODIFY DISPLAY LOWER(state)");
+        assertDialect(SqlDialect.ORACLE, "DROP DOMAIN workflow.state FORCE PRESERVE");
+        assertDialect(SqlDialect.POSTGRESQL, "ALTER DOMAIN workflow.state VALIDATE CONSTRAINT state_check");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER DOMAIN workflow.state DROP DISPLAY' AS message");
+    }
+
+    @Test
     public void detectsPostgresSchemaDdlWithoutGenericObjectNames() {
         assertEquals(StatementType.CONTROL, LineSql.parse("CREATE EVENT TRIGGER audit_ddl "
                 + "ON ddl_command_end WHEN TAG IN ('CREATE VIEW') EXECUTE FUNCTION audit.log_ddl()")
