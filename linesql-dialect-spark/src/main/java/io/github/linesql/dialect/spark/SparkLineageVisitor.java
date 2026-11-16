@@ -32,6 +32,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
+    private final Map<SqlBaseParser.QueryContext, LineageResult> correlatedQueries = new IdentityHashMap<>();
     private final Map<String, List<SourceColumn>> generatedColumns = new LinkedHashMap<>();
     private final Map<String, List<ColumnRef>> qualifiedColumnHints = new LinkedHashMap<>();
     private final List<Projection> projections = new ArrayList<>();
@@ -48,6 +49,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private int skippedProjectionCount;
     private int queryDepth;
     private boolean preserveProjectionPositions;
+    private boolean correlatedScope;
     private SqlBaseParser.SelectClauseContext positionalInsertSelect;
     private int pipeOutputProjectionStart = -1;
     private boolean suppressColumnLineage;
@@ -2138,7 +2140,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         tableAliases.put(relationKey(table), table);
         String alias = tableAlias(aliasContext);
         if (alias != null) {
-            tableAliases.put(alias.toLowerCase(java.util.Locale.ROOT), table);
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        }
+        if (visibleRelation && correlatedScope) {
+            derivedAliases.remove(table.getName().toLowerCase(Locale.ROOT));
+            derivedAliases.remove(relationKey(table));
+            if (alias != null) {
+                derivedAliases.remove(alias.toLowerCase(Locale.ROOT));
+            }
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
@@ -2155,6 +2164,12 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             derivedAliases.put(alias.toLowerCase(java.util.Locale.ROOT), derivedName);
         }
         addDerivedInputTables(derivedName);
+        if (correlatedScope) {
+            tableAliases.remove(derivedName);
+            if (alias != null) {
+                tableAliases.remove(alias.toLowerCase(Locale.ROOT));
+            }
+        }
         refreshColumnLineage();
     }
 
@@ -2277,6 +2292,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         LineageResult queryResult = new LineageResult();
         SparkLineageVisitor queryVisitor = new SparkLineageVisitor(queryResult);
         queryVisitor.preserveProjectionPositions = preservePositions;
+        queryVisitor.correlatedScope = correlatedScope;
+        if (correlatedScope) {
+            queryVisitor.tableAliases.putAll(tableAliases);
+        }
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
@@ -2290,6 +2309,11 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private LineageResult lineageForQueryPrimary(SqlBaseParser.QueryPrimaryContext queryPrimary) {
         LineageResult queryResult = new LineageResult();
         SparkLineageVisitor queryVisitor = new SparkLineageVisitor(queryResult);
+        queryVisitor.preserveProjectionPositions = preserveProjectionPositions;
+        queryVisitor.correlatedScope = correlatedScope;
+        if (correlatedScope) {
+            queryVisitor.tableAliases.putAll(tableAliases);
+        }
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
@@ -2303,13 +2327,16 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private LineageResult lineageForQuery(SqlBaseParser.QueryContext query, boolean correlated) {
         LineageResult queryResult = new LineageResult();
         SparkLineageVisitor queryVisitor = new SparkLineageVisitor(queryResult);
+        queryVisitor.correlatedScope = correlated;
+        queryVisitor.preserveProjectionPositions = correlated;
         if (correlated) {
             queryVisitor.tableAliases.putAll(tableAliases);
+        } else {
+            queryVisitor.derivedReferences.addAll(derivedReferences);
         }
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
-        queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.setContext(context);
         queryVisitor.visit(query);
         queryVisitor.finalizeResult();
@@ -2337,28 +2364,15 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> queryProjectionRefs(SqlBaseParser.QueryContext query) {
-        SparkLineageVisitor queryVisitor = new SparkLineageVisitor(new LineageResult());
-        queryVisitor.cteNames.addAll(cteNames);
-        queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
-        queryVisitor.derivedAliases.putAll(derivedAliases);
-        queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.setContext(context);
-        queryVisitor.visit(query);
-        SqlBaseParser.RegularQuerySpecificationContext specification = topLevelQuerySpecification(query);
-        if (specification == null || specification.fromClause() == null) {
-            return new ArrayList<>();
-        }
         List<ColumnRef> refs = new ArrayList<>();
-        for (SqlBaseParser.NamedExpressionContext expression
-                : specification.selectClause().namedExpressionSeq().namedExpression()) {
-            List<ColumnRef> expressionRefs = queryVisitor.columnRefs(
-                    sourceColumns(expression.expression()),
-                    new LinkedHashSet<String>());
-            if (expressionRefs != null) {
-                refs.addAll(expressionRefs);
-            }
+        for (ColumnLineage column : correlatedQueryLineage(query).getColumnLineage()) {
+            refs.addAll(column.getSources());
         }
         return refs;
+    }
+
+    private LineageResult correlatedQueryLineage(SqlBaseParser.QueryContext query) {
+        return correlatedQueries.computeIfAbsent(query, nested -> lineageForQuery(nested, true));
     }
 
     private static SqlBaseParser.RegularQuerySpecificationContext topLevelQuerySpecification(SqlBaseParser.QueryContext query) {
@@ -2743,7 +2757,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     private void collectSubqueryInputs(ParseTree tree) {
         if (tree instanceof SqlBaseParser.QueryContext) {
-            LineageResult queryResult = lineageForQuery((SqlBaseParser.QueryContext) tree, true);
+            LineageResult queryResult = correlatedQueryLineage((SqlBaseParser.QueryContext) tree);
             inputTables.addAll(queryResult.getInputTables());
             result.setInputTables(new ArrayList<>(inputTables));
             LineageModelUtils.mergeColumnUsages(result, queryResult);

@@ -4508,6 +4508,122 @@
         }
       ],
       "description": "Recursive value anchors and unnamed step expressions preserve positional insert dependencies"
+    },
+    {
+      "id": "correlated_scalar_projection_outer_dependency",
+      "file": "cases/correlated_scalar_projection_outer_dependency.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.items",
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "sales.orders.id"
+          ]
+        },
+        {
+          "target": "total",
+          "sources": [
+            "sales.items.amount",
+            "sales.orders.adjustment"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "sales.items.order_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "sales.orders.id"
+        }
+      ],
+      "description": "Correlated aggregate projections bind outer columns in their own lexical scope"
+    },
+    {
+      "id": "correlated_scalar_local_alias_shadows_cte",
+      "file": "cases/correlated_scalar_local_alias_shadows_cte.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.adjustments",
+        "sales.items"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "sales.adjustments.order_id"
+          ]
+        },
+        {
+          "target": "item_adjustment",
+          "sources": [
+            "sales.items.adjustment"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A scalar subquery physical alias shadows the enclosing derived relation alias"
+    },
+    {
+      "id": "correlated_scalar_without_from",
+      "file": "cases/correlated_scalar_without_from.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "sales.orders.id"
+          ]
+        },
+        {
+          "target": "total",
+          "sources": [
+            "sales.orders.adjustment",
+            "sales.orders.tax"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A scalar projection with no FROM keeps the enclosing qualified sources"
+    },
+    {
+      "id": "correlated_in_subquery_set_projection",
+      "file": "cases/correlated_in_subquery_set_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.orders",
+        "sales.items",
+        "sales.refunds"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "sales.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.id"},
+        {"type": "WHERE", "column": "sales.items.order_id"},
+        {"type": "WHERE", "column": "sales.refunds.order_id"},
+        {"type": "WHERE", "column": "sales.items.region"},
+        {"type": "WHERE", "column": "sales.orders.region"},
+        {"type": "WHERE", "column": "sales.refunds.region"}
+      ],
+      "description": "IN predicate set operations retain both branch projections and correlated filters"
     }
   ]
 }
