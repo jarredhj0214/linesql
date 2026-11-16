@@ -86,6 +86,14 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:(?:sys|\\[sys\\]|\"sys\")\\s*\\.\\s*)?"
                     + "(?:sp_executesql|\\[sp_executesql\\]|\"sp_executesql\")(?=\\s|;|$)");
 
+    private static final Pattern JSON_AGGREGATION = Pattern.compile("\\bjson_(?:array|object)agg\\s*\\(");
+    private static final Pattern TSQL_JSON_AGGREGATION_CONTEXT = Pattern.compile(
+            "\\bselect\\s+(?:(?:all|distinct)\\s+)?top(?:\\s+\\d+\\b|\\s*" + TOP_COUNT
+                    + "\\s*(?:" + TSQL_NAME + "\\s*[.(]|\\*\\s*(?=from\\b|[,);]|$)))"
+                    + "|\\b(?:from|join|apply)\\s+openjson\\s*\\(");
+    private static final Pattern TSQL_FOR_SERIALIZATION = Pattern.compile(
+            "\\bfor\\s+(?:json\\s+(?:auto|path)|xml\\s+(?:raw|auto|explicit|path))\\b");
+
     private static final Pattern TSQL_BATCH_ROUTINE = Pattern.compile(
             "(?m)^\\s*(?:create\\s+or\\s+alter\\s+(?:proc(?:edure)?|function|trigger)"
                     + "|(?:create|alter)\\s+proc)\\b");
@@ -336,6 +344,11 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server partition truncation"));
         } else if (TSQL_SP_EXECUTESQL.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server sp_executesql"));
+        } else if (JSON_AGGREGATION.matcher(unquotedSyntax).find()
+                && TSQL_JSON_AGGREGATION_CONTEXT.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server TOP or OPENJSON with JSON aggregation"));
+        } else if (TSQL_FOR_SERIALIZATION.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server FOR JSON or FOR XML output"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()
                 || containsSqlServerBracketIdentifier(normalized)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")

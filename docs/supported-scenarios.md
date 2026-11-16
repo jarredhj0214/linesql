@@ -641,7 +641,7 @@ Implemented SQL Server column-level lineage scenarios:
 | UPDATE assignment mapping | `update ads.t set c = s.c from ods.s s` | `update_from` |
 | UPDATE SET expression dependencies | `update ads.t set c1 = upper(s.c2), c3 = s.c4 + t.c5 from ods.s s`, `update top (...) ads.t set c = c + 1 where ...` | `update_expression_assignment`, `update_top`, `update_top_variable` |
 | UPDATE FROM derived query assignment dependencies | `update ads.t set c1 = q.c2 from (select c2 from ods.s) q where ...` | `update_from_derived_assignment` |
-| JSON aggregates | `JSON_ARRAYAGG` and `JSON_OBJECTAGG` capture keys, values, and local sort keys with null handling and `RETURNING JSON`. | `select_json_aggregate_lineage` |
+| JSON aggregates | `JSON_ARRAYAGG` and `JSON_OBJECTAGG` capture keys, values, and local sort keys with null handling and `RETURNING JSON`. Distinctive `TOP` forms and an `OPENJSON` relation identify SQL Server when these functions are shared with other dialects. | `select_json_aggregate_lineage`, `select_top_json_arrayagg`, `select_openjson_json_objectagg` |
 | Null-safe predicates | `IS DISTINCT FROM` and `IS NOT DISTINCT FROM` retain both operands in SQL Server filters and joins. | `update_null_safe_join` |
 | Join hints in DML | `UPDATE … FROM … INNER HASH JOIN … ON …` preserves join predicates and assignment dependencies. | `update_from_hash_join` |
 | Cursor-positioned UPDATE and DELETE | `WHERE CURRENT OF GLOBAL cursor` and cursor variables preserve target and OUTPUT lineage. | `delete_positioned_cursor`, `update_positioned_cursor` |

@@ -2124,7 +2124,10 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> columnRefs(Projection projection) {
-        return columnRefs(projection.sourceColumns);
+        List<ColumnRef> refs = columnRefs(projection.sourceColumns);
+        return refs == null || refs.size() < 2
+                ? refs
+                : LineageModelUtils.mergeColumnRefs(Collections.emptyList(), refs);
     }
 
     private static String columnKey(ColumnRef column) {

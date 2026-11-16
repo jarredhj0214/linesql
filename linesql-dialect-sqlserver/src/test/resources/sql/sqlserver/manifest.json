@@ -5239,6 +5239,36 @@
       "description": "SQL Server window function projection column lineage and window clause usages"
     },
     {
+      "id": "select_top_json_arrayagg",
+      "file": "cases/select_top_json_arrayagg.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "segment", "sources": ["dbo.events.segment"]},
+        {"target": "items", "sources": ["dbo.events.payload", "dbo.events.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "GROUP_BY", "column": "dbo.events.segment"},
+        {"type": "ORDER_BY", "column": "dbo.events.created_at"}
+      ],
+      "description": "SQL Server TOP followed by a qualified projection identifies JSON_ARRAYAGG with ordering"
+    },
+    {
+      "id": "select_openjson_json_objectagg",
+      "file": "cases/select_openjson_json_objectagg.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "items", "sources": ["dbo.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "dbo.events.payload"}
+      ],
+      "description": "An OPENJSON source identifies SQL Server JSON aggregation and carries key and value lineage"
+    },
+    {
       "id": "select_json_aggregate_lineage",
       "file": "cases/select_json_aggregate_lineage.sql",
       "statementType": "SELECT",

@@ -298,6 +298,26 @@ public class LineSqlAutoDetectionIntegrationTest {
                 + " WHERE o.id = e.order_id RETURN o.id BULK COLLECT INTO deleted_ids");
     }
 
+    @Test
+    public void detectsSqlServerJsonAggregationWithDialectSpecificSyntax() {
+        String top = "SELECT TOP (5) e.segment, JSON_ARRAYAGG(e.payload ORDER BY e.created_at RETURNING JSON)"
+                + " AS items FROM dbo.events e GROUP BY e.segment";
+        String object = "SELECT JSON_OBJECTAGG(j.[key]:j.value RETURNING JSON) AS items"
+                + " FROM dbo.events e CROSS APPLY OPENJSON(e.payload) j";
+        for (String sql : new String[] {top, object}) {
+            LineageResult result = LineSql.parse(sql);
+            assertEquals(SqlDialect.SQLSERVER, result.getDialect());
+            assertEquals(StatementType.SELECT, result.getStatementType());
+            assertEquals("events", result.getInputTables().get(0).getName());
+            assertFalse(result.getColumnLineage().isEmpty());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+        assertDialect(SqlDialect.SQLSERVER, "SELECT id FROM dbo.events FOR JSON PATH");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT id FROM dbo.events FOR XML PATH('event')");
+        assertDialect(SqlDialect.FLINK, "SELECT JSON_ARRAYAGG(payload) AS items FROM ods.events");
+        assertDialect(SqlDialect.FLINK, "SELECT top(5) AS cap, JSON_ARRAYAGG(payload) AS items FROM ods.events");
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

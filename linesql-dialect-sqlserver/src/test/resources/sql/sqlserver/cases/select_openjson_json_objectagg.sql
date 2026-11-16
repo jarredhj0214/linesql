@@ -1,0 +1,3 @@
+SELECT JSON_OBJECTAGG(j.[key]:j.value ABSENT ON NULL RETURNING JSON) AS items
+FROM dbo.events e
+CROSS APPLY OPENJSON(e.payload) j;
