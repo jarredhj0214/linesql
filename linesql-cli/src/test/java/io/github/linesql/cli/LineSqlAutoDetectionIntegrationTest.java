@@ -319,6 +319,15 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresJsonbReturningWithoutClaimingOtherJsonAggregates() {
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT json_arrayagg(e.payload ORDER BY e.seq"
+                + " ABSENT ON NULL RETURNING jsonb) FROM events e");
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT json_objectagg(e.key VALUE e.payload"
+                + " WITH UNIQUE KEYS RETURNING pg_catalog.jsonb) FROM events e");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT TOP (5) JSON_ARRAYAGG(payload) FROM events");
+    }
+
+    @Test
     public void usesOracleVectorSearchOptionsWithSharedDistanceOperators() {
         LineageResult nearest = LineSql.parse("SELECT id FROM search.items ORDER BY embedding <-> "
                 + "TO_VECTOR('[1,2,3]', 3, FLOAT32) FETCH APPROX FIRST 5 ROWS ONLY WITH TARGET ACCURACY 90");

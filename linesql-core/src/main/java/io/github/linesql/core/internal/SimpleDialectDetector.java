@@ -96,6 +96,7 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "[<>=!~+*/%?#@&|^-]+\\s*\\)");
     private static final Pattern POSTGRES_JSON_SYNTAX = Pattern.compile(
             "::\\s*(?:pg_catalog\\s*\\.\\s*)?jsonb\\b|#>>?|@\\?"
+                    + "|\\breturning\\s+(?:pg_catalog\\s*\\.\\s*)?jsonb\\b"
                     + "|\\b(?:to_jsonb|jsonb_(?:array_elements(?:_text)?|array_length|each(?:_text)?|object_keys"
                     + "|build_(?:array|object)|agg(?:_strict)?|object_agg(?:_strict|_unique(?:_strict)?)?"
                     + "|strip_nulls|populate_record(?:set|_valid)?|to_record(?:set)?|insert|set(?:_lax)?|pretty|typeof"

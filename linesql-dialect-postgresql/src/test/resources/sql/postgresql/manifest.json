@@ -5949,6 +5949,111 @@
         {"type": "JOIN_ON", "column": "mart.lookup.lookup_key"}
       ],
       "description": "A later ON condition uses the exposed key of the preceding USING join"
+    },
+    {
+      "id": "select_sql_json_arrayagg_order_filter",
+      "file": "cases/select_sql_json_arrayagg_order_filter.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "channel",
+          "sources": [
+            "app.events.channel"
+          ]
+        },
+        {
+          "target": "events",
+          "sources": [
+            "app.events.payload",
+            "app.events.seq",
+            "app.events.visible"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "app.events.channel"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "app.events.seq"
+        },
+        {
+          "type": "WHERE",
+          "column": "app.events.visible"
+        }
+      ],
+      "description": "SQL/JSON array aggregate retains payload, ordering and filter dependencies"
+    },
+    {
+      "id": "insert_sql_json_objectagg_unique_keys",
+      "file": "cases/insert_sql_json_objectagg_unique_keys.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [
+        "archive.documents"
+      ],
+      "columnLineage": [
+        {
+          "target": "archive.documents.snapshot",
+          "sources": [
+            "app.events.event_key",
+            "app.events.payload"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "SQL/JSON object aggregate maps colon syntax keys and formatted values into the destination"
+    },
+    {
+      "id": "select_sql_json_aggregate_window",
+      "file": "cases/select_sql_json_aggregate_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "app.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "events",
+          "sources": [
+            "app.events.payload",
+            "app.events.visible",
+            "app.events.channel",
+            "app.events.seq"
+          ]
+        },
+        {
+          "target": "event_map",
+          "sources": [
+            "app.events.event_key",
+            "app.events.payload",
+            "app.events.channel"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "app.events.visible"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "app.events.channel"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "app.events.seq"
+        }
+      ],
+      "description": "Windowed SQL/JSON aggregates retain named and inline window dependencies"
     }
   ]
 }
