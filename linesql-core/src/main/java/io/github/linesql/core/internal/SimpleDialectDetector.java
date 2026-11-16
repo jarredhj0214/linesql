@@ -56,6 +56,25 @@ public class SimpleDialectDetector implements DialectDetector {
             "(?s)^\\s*(?:with\\b[^;]*?)?(?:insert|update|delete|merge)\\b[^;]*\\boutput\\s+"
                     + "(?:\\(\\s*)*(?:(?:inserted|deleted)\\s*\\.|\\$action\\b)");
 
+    private static final String TSQL_NAME = "[\\p{L}_#][\\p{L}\\p{N}_$#]*";
+    private static final Pattern TSQL_TABLE_HINT = Pattern.compile(
+            "\\b(?:from|join|update|merge(?:\\s+into)?|insert\\s+into)\\s+"
+                    + TSQL_NAME + "(?:\\s*\\.\\s*" + TSQL_NAME + ")*"
+                    + "(?:\\s+(?:as\\s+)?" + TSQL_NAME + ")?\\s+with\\s*\\(\\s*"
+                    + "(?:(?:holdlock|updlock|tablockx?|rowlock|paglock|xlock|readpast|readuncommitted|readcommittedlock"
+                    + "|readcommitted|repeatableread|serializable|nowait|noexpand|forceseek|forcescan)\\b"
+                    + "|index\\s*(?:\\(|=))");
+    private static final Pattern TSQL_QUERY_HINT = Pattern.compile(
+            "\\b(?:from|insert|update|delete|merge)\\b[^;]*?"
+                    + "(?:\\b(?!(?:from|join|on|where|having|and|or|not|by)\\b)" + TSQL_NAME + "|[^\\s\\w$#;,])"
+                    + "\\s+option\\s*\\(\\s*"
+                    + "(?:(?:recompile|force\\s+order|(?:loop|merge|hash)\\s+join)\\s*(?=[,)])"
+                    + "|(?:maxdop|maxrecursion|fast|querytraceon)\\s+\\d+\\b"
+                    + "|use\\s+hint\\s*\\()[^;]*\\)\\s*(?=;|$)");
+
+    private static final Pattern TSQL_TRUNCATE_PARTITIONS = Pattern.compile(
+            "\\btruncate\\s+table\\b[^;]*?\\bwith\\s*\\(\\s*partitions\\s*\\(");
+
     private static final Pattern TSQL_BATCH_ROUTINE = Pattern.compile(
             "(?m)^\\s*(?:create\\s+or\\s+alter\\s+(?:proc(?:edure)?|function|trigger)"
                     + "|(?:create|alter)\\s+proc)\\b");
@@ -294,6 +313,12 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server scoped permission or object transfer"));
         } else if (TSQL_TOP_DML.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server TOP in a write statement"));
+        } else if ((unquotedSyntax.contains("with") && TSQL_TABLE_HINT.matcher(
+                    QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find())
+                || (unquotedSyntax.contains("option") && TSQL_QUERY_HINT.matcher(unquotedSyntax).find())) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server table or query hint"));
+        } else if (TSQL_TRUNCATE_PARTITIONS.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server partition truncation"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()
                 || containsSqlServerBracketIdentifier(normalized)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")

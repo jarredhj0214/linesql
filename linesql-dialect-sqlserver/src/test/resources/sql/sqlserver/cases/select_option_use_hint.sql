@@ -1,0 +1,3 @@
+SELECT o.id FROM dbo.orders AS o
+WHERE o.status = 1
+OPTION (USE HINT ('DISABLE_OPTIMIZER_ROWGOAL'));

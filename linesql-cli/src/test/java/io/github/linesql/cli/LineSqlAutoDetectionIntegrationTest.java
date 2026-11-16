@@ -180,6 +180,35 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.events EXECUTE CHERRY_PICK 3369973735913135680");
     }
 
+    @Test
+    public void detectsSqlServerTableAndQueryHints() {
+        String script = "SELECT o.id FROM dbo.orders AS o WITH (UPDLOCK, READPAST, ROWLOCK) WHERE o.status = 1;"
+                + " SELECT o.id FROM dbo.orders AS o WHERE o.status = 1 OPTION (RECOMPILE, MAXDOP 2);";
+        List<LineageResult> results = LineSql.parseScript(script);
+        assertEquals(2, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.SQLSERVER, result.getDialect());
+            assertEquals(StatementType.SELECT, result.getStatementType());
+            assertEquals("orders", result.getInputTables().get(0).getName());
+            assertEquals("id", result.getColumnLineage().get(0).getSources().get(0).getName());
+            assertEquals("status", result.getColumnUsages().get(0).getColumn().getName());
+            assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        }
+        LineageResult merge = LineSql.parse("MERGE dbo.orders WITH (HOLDLOCK) AS t USING dbo.changes AS s"
+                + " ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.status = s.status;");
+        assertEquals(SqlDialect.SQLSERVER, merge.getDialect());
+        assertEquals(StatementType.MERGE, merge.getStatementType());
+        assertEquals("orders", merge.getOutputTables().get(0).getName());
+        assertEquals("changes", merge.getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        LineageResult truncate = LineSql.parse("TRUNCATE TABLE dbo.events WITH (PARTITIONS (1, 3 TO 5))");
+        assertEquals(SqlDialect.SQLSERVER, truncate.getDialect());
+        assertEquals(StatementType.TRUNCATE_TABLE, truncate.getStatementType());
+        assertEquals("events", truncate.getOutputTables().get(0).getName());
+        assertFalse(truncate.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertDialect(SqlDialect.SPARK, "SELECT 'FROM t WITH (HOLDLOCK)' AS text");
+        assertDialect(SqlDialect.SPARK, "SELECT id FROM ods.t WHERE option(recompile)");
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

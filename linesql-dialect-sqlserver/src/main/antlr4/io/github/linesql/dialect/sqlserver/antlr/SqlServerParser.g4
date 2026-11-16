@@ -787,7 +787,11 @@ truncateTableStatement
     ;
 
 truncateTableOption
-    : WITH LPAREN PARTITIONS LPAREN expressionList RPAREN RPAREN
+    : WITH LPAREN PARTITIONS LPAREN truncatePartition (COMMA truncatePartition)* RPAREN RPAREN
+    ;
+
+truncatePartition
+    : expression (TO expression)?
     ;
 
 alterTableStatement

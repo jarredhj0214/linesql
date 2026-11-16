@@ -2886,6 +2886,34 @@
       "description": "SQL Server MERGE WHEN MATCHED THEN DELETE keeps target/source lineage and matched predicate usage"
     },
     {
+      "id": "select_index_and_readpast_table_hints",
+      "file": "cases/select_index_and_readpast_table_hints.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["dbo.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.orders.status"}
+      ],
+      "description": "A SQL Server index and lock hint do not introduce fictitious column dependencies"
+    },
+    {
+      "id": "select_option_use_hint",
+      "file": "cases/select_option_use_hint.sql",
+      "statementType": "SELECT",
+      "inputTables": ["dbo.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["dbo.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dbo.orders.status"}
+      ],
+      "description": "A named SQL Server optimizer hint preserves the source table, projection, and filter"
+    },
+    {
       "id": "merge_target_holdlock",
       "file": "cases/merge_target_holdlock.sql",
       "statementType": "MERGE",
@@ -4057,6 +4085,15 @@
       ],
       "columnLineage": [],
       "description": "SQL Server TRUNCATE TABLE affected table lineage"
+    },
+    {
+      "id": "truncate_table_partition_ranges",
+      "file": "cases/truncate_table_partition_ranges.sql",
+      "statementType": "TRUNCATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["dbo.events"],
+      "columnLineage": [],
+      "description": "SQL Server partition truncation can mix individual partitions and ranges"
     },
     {
       "id": "truncate_table_partitions",

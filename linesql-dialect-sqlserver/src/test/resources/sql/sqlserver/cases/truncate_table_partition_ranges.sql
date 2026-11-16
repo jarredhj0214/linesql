@@ -1,0 +1,1 @@
+TRUNCATE TABLE dbo.events WITH (PARTITIONS (1, 3 TO 5, 8 TO 12));
