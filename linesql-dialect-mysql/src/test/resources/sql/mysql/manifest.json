@@ -12261,6 +12261,37 @@
         {"type": "WHERE", "column": "staging.stock.order_id"}
       ],
       "description": "A joined UPDATE uses the retained source key for assignments and filters"
+    },
+    {
+      "id": "select_correlated_scalar_keeps_projection_scope",
+      "file": "cases/select_correlated_scalar_keeps_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["live.accounts", "archive.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["live.accounts.id"]},
+        {"target": "selected_flag", "sources": ["archive.orders.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "archive.orders.account_id"},
+        {"type": "WHERE", "column": "live.accounts.id"}
+      ],
+      "description": "A scalar query keeps inner projection aliases local and binds the outer alias despite a matching physical name"
+    },
+    {
+      "id": "select_in_predicate_keeps_projection_scope",
+      "file": "cases/select_in_predicate_keeps_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["live.accounts", "archive.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["live.accounts.id"]},
+        {"target": "has_active_order", "sources": ["live.accounts.id", "archive.orders.valid", "archive.orders.account_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "archive.orders.valid"}
+      ],
+      "description": "An IN predicate uses the inner source columns and does not expose the inner projection"
     }
   ]
 }

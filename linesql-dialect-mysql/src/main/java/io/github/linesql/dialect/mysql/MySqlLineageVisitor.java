@@ -47,7 +47,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private boolean suppressColumnLineage;
     private MySqlParser.SelectClauseContext setBranchSelect;
     private MySqlParser.SelectClauseContext positionalWriteSelect;
-    private boolean visitingPositionalSelectChildren;
+    private Map<MySqlParser.QueryContext, LineageResult> projectionSubqueries;
     private final Set<String> routineParameters;
     private ParseContext context;
 
@@ -1462,16 +1462,48 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(MySqlParser.ScalarSubqueryContext ctx) {
-        return setBranchSelect == null ? visitChildren(ctx) : null;
+        mergeProjectedSubquery(ctx.query());
+        return null;
     }
 
     @Override
-    public Void visitQuery(MySqlParser.QueryContext ctx) {
-        return visitingPositionalSelectChildren ? null : visitChildren(ctx);
+    public Void visitExistsExpr(MySqlParser.ExistsExprContext ctx) {
+        mergeProjectedSubquery(ctx.query());
+        return null;
+    }
+
+    @Override
+    public Void visitPredicate(MySqlParser.PredicateContext ctx) {
+        if (ctx.query() == null) {
+            return visitChildren(ctx);
+        }
+        mergeProjectedSubquery(ctx.query());
+        return null;
+    }
+
+    private void mergeProjectedSubquery(MySqlParser.QueryContext query) {
+        LineageResult inner = lineageForQuery(query);
+        mergeInputTables(inner);
+        LineageModelUtils.mergeColumnUsages(result, inner);
     }
 
     @Override
     public Void visitSelectClause(MySqlParser.SelectClauseContext ctx) {
+        if (!containsSubquery(ctx)) {
+            collectSelectClauseProjections(ctx);
+            return visitChildren(ctx);
+        }
+        Map<MySqlParser.QueryContext, LineageResult> enclosingSubqueries = projectionSubqueries;
+        projectionSubqueries = new IdentityHashMap<>();
+        try {
+            collectSelectClauseProjections(ctx);
+            return visitChildren(ctx);
+        } finally {
+            projectionSubqueries = enclosingSubqueries;
+        }
+    }
+
+    private void collectSelectClauseProjections(MySqlParser.SelectClauseContext ctx) {
         List<MySqlParser.SelectItemContext> items = ctx.selectItemList().selectItem();
         for (int i = 0; i < items.size(); i++) {
             MySqlParser.SelectItemContext item = items.get(i);
@@ -1493,16 +1525,6 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                 projections.add(starProjection(qualifiedNameText(star.qualifiedName()), item.getText(), i));
             }
         }
-        if (ctx == positionalWriteSelect) {
-            // Positional projections resolve subqueries in their own visitors.
-            visitingPositionalSelectChildren = true;
-            try {
-                return visitChildren(ctx);
-            } finally {
-                visitingPositionalSelectChildren = false;
-            }
-        }
-        return visitChildren(ctx);
     }
 
     @Override
@@ -1693,10 +1715,15 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             visibleRelations.add(VisibleRelation.table(table));
         }
         inputTables.add(table);
-        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+        String baseName = table.getName().toLowerCase(Locale.ROOT);
         String alias = tableAlias(aliasCtx);
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        if (alias != null || !visibleRelation) {
+            tableAliases.putIfAbsent(baseName, table);
+        }
+        if (visibleRelation) {
+            String binding = alias == null ? baseName : alias.toLowerCase(Locale.ROOT);
+            tableAliases.put(binding, table);
+            derivedAliases.remove(binding);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
@@ -2534,6 +2561,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     private LineageResult lineageForQuery(MySqlParser.QueryContext query) {
+        if (projectionSubqueries == null) {
+            return analyzeSubquery(query);
+        }
+        return projectionSubqueries.computeIfAbsent(query, this::analyzeSubquery);
+    }
+
+    private LineageResult analyzeSubquery(MySqlParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
         MySqlLineageVisitor queryVisitor = new MySqlLineageVisitor(queryResult, routineParameters);
         queryVisitor.setContext(context);
@@ -2544,7 +2578,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 
@@ -2820,8 +2854,8 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     }
 
     private void mergeInputTables(LineageResult subResult) {
-        for (TableRef table : subResult.getInputTables()) {
-            addInputTable(table, false);
+        if (inputTables.addAll(subResult.getInputTables())) {
+            result.setInputTables(new ArrayList<>(inputTables));
         }
     }
 

@@ -6227,6 +6227,23 @@
       ],
       "compatibilityMode": "mysql",
       "description": "OceanBase MySQL mode records both USING operands for joined UPDATE"
+    },
+    {
+      "id": "mysql_mode_correlated_scalar_projection_scope",
+      "file": "cases/mysql_mode_correlated_scalar_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["live.accounts", "archive.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["live.accounts.id"]},
+        {"target": "selected_flag", "sources": ["archive.orders.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "archive.orders.account_id"},
+        {"type": "WHERE", "column": "live.accounts.id"}
+      ],
+      "compatibilityMode": "mysql",
+      "description": "OceanBase MySQL mode retains both lexical scopes for a scalar projection"
     }
   ]
 }

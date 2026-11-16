@@ -276,6 +276,7 @@ Implemented OceanBase scenarios:
 | MySQL mode CREATE TABLE constraints | `primary key`, `unique key`, `constraint ... unique key`, table/column `foreign key ... references ... on delete/on update` | `mysql_mode_create_table_constraints`, `mysql_mode_create_table_named_unique_constraint`, `mysql_mode_create_table_foreign_key_reference`, `mysql_mode_create_table_foreign_key_actions`, `mysql_mode_create_table_named_foreign_key_index` |
 | MySQL mode UPDATE JOIN | `update mart.t join staging.s ... set ...` | `mysql_mode_update_join` |
 | MySQL mode UPDATE JOIN USING | Both source keys are captured as JOIN_ON, with assignment and filter sources linked separately. | `mysql_mode_update_join_using_scope` |
+| MySQL mode scalar projection scope | Projected scalar queries preserve inner output privacy and bind correlated outer aliases. | `mysql_mode_correlated_scalar_projection_scope` |
 | MySQL mode DELETE USING | `delete from mart.t using mart.t join staging.s ...` | `mysql_mode_delete_using` |
 | MySQL mode LOAD DATA | `load data local infile ... into table mart.t (...) set ...`, `low_priority ... replace into table ... partition (...) character set ...`, `concurrent local ... ignore`, `columns terminated by ...` | `mysql_mode_load_data`, `mysql_mode_load_data_replace_partition_charset`, `mysql_mode_load_data_concurrent_ignore`, `mysql_mode_load_data_columns_options` |
 | MySQL mode INSERT target partition | `insert into mart.t partition(p202601) (c1, c2) select ...` | `mysql_mode_insert_partition_select` |
@@ -1885,6 +1886,7 @@ Implemented MySQL column-level lineage scenarios:
 | --- | --- | --- |
 | DML JOIN USING scope | UPDATE and multi-table DELETE use the same source scopes as SELECT. Joined keys trace through derived column aliases and exclude unrelated comma-separated relations. | `update_join_using_derived_key`, `delete_join_using_comma_scope` |
 | Directional JOIN USING output keys | An unqualified output key follows the retained join side. This applies to projections, filters and UPDATE assignments, including chained nested joins. | `select_right_join_using_retained_key`, `select_chained_join_using_retained_key`, `update_using_join_assigns_merged_key` |
+| Scalar and IN projection scope | Projected subqueries retain their column dependencies and clause usages in the outer result. Inner projections do not become outer outputs, and local names preserve lexical alias scope. | `select_correlated_scalar_keeps_projection_scope`, `select_in_predicate_keeps_projection_scope` |
 | Direct single-table projection | `select id as user_id, name from app.users` | `select_basic` |
 | MySQL SELECT option projection | `select high_priority sql_calc_found_rows id as user_id from app.users` | `select_with_mysql_options` |
 | Alias-qualified JOIN projection | `select u.id, o.amount from users u join orders o` | `join_projection` |
