@@ -19,7 +19,7 @@ Implemented detection anchors:
 | --- | --- |
 | MySQL | `REPLACE INTO`, `ON DUPLICATE KEY`, `LIMIT offset, size`, `UPDATE ... JOIN ... SET`, `LOW_PRIORITY`/`QUICK` DML modifiers, `RENAME TABLE`, `LOCK TABLES`, `INTO OUTFILE`, `JSON_TABLE`, `LOAD XML`, JSON arrow operators |
 | PostgreSQL | Dollar-quoted `DO` blocks, `ON CONFLICT`, `RETURNING`, `::` casts, `ILIKE` |
-| Hive | `ROW FORMAT`, `STORED AS`, `SERDEPROPERTIES`, `CLUSTERED BY` |
+| Hive | `ROW FORMAT`, `STORED AS`, `STORED BY`, `SERDEPROPERTIES`, `CLUSTERED BY` |
 | Flink | connector options, `WATERMARK FOR`, plan/job/model statements, procedure calls |
 | StarRocks | `CREATE TABLE ... DUPLICATE KEY`, `CREATE TABLE ... AGGREGATE KEY`, `CREATE TABLE ... DISTRIBUTED BY HASH`, replication properties, routine/load jobs, materialized-view refresh, `SHOW PROC`, `SHOW TABLET`, `ADMIN SHOW`, `SUBMIT TASK` |
 | Oracle | `FROM DUAL`, `CONNECT BY`, `START WITH`, `AS OF TIMESTAMP`, `AS OF SCN`, `CREATE SEQUENCE`, `CREATE SYNONYM`, `CREATE DATABASE LINK` |
@@ -1435,6 +1435,9 @@ Implemented Hive table-level lineage scenarios:
 | CREATE TABLE AS SELECT | `create table ads.t as select ... from ods.s` | `create_table_as_select` |
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 | CREATE TABLE with storage format | `create table ods.t (...) stored as parquet`, `row format serde ... with serdeproperties (...)`, `stored as inputformat ... outputformat ...` | `create_table_stored_as`, `create_table_row_format_serde`, `create_table_input_output_format` |
+| Hive storage handlers | `STORED BY ICEBERG` and class-based handlers with `WITH SERDEPROPERTIES` preserve the affected table. | `create_external_storage_handler` |
+| Hive Iceberg write ordering | `WRITE [LOCALLY] ORDERED BY` in Hive 4.1 and `ZORDER(...)` in Hive 4.2 record the written table's ordering columns as model usages. | `create_iceberg_write_order`, `create_iceberg_write_zorder` |
+| Hive NULL ordering | Literal `NULLS FIRST` and `NULLS LAST` modifiers preserve the query sort column dependencies. | `select_order_with_nulls` |
 | Partitioned and bucketed table model | `PARTITIONED BY (...) CLUSTERED BY (...) SORTED BY (...) INTO n BUCKETS`; model columns are emitted as `TABLE_MODEL` usages | `create_table_partitioned_clustered` |
 | Skewed table model | `SKEWED BY (...) ON (...) STORED AS DIRECTORIES`; skew columns are emitted as `TABLE_MODEL` usages | `create_table_skewed` |
 | Nested complex table types | Nested `STRUCT<field:type>`, `ARRAY`, `MAP`, decimal, and `UNIONTYPE` definitions in Hive DDL | `create_table_nested_complex_types` |

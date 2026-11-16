@@ -2,6 +2,55 @@
   "dialect": "HIVE",
   "cases": [
     {
+      "id": "create_iceberg_write_order",
+      "file": "cases/create_iceberg_write_order.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.created_at"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.id"}
+      ],
+      "description": "Hive Iceberg write ordering contributes ordered table model columns"
+    },
+    {
+      "id": "create_iceberg_write_zorder",
+      "file": "cases/create_iceberg_write_zorder.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["mart.user_events"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.user_events.user_id"},
+        {"type": "TABLE_MODEL", "column": "mart.user_events.event_date"}
+      ],
+      "description": "Hive local Z-order records the clustering dimensions"
+    },
+    {
+      "id": "create_external_storage_handler",
+      "file": "cases/create_external_storage_handler.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": ["ods.shared_events"],
+      "columnLineage": [],
+      "description": "Class-based Hive storage handlers accept their SerDe properties"
+    },
+    {
+      "id": "select_order_with_nulls",
+      "file": "cases/select_order_with_nulls.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.events.id"]}],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.active"},
+        {"type": "ORDER_BY", "column": "ods.events.event_time"},
+        {"type": "ORDER_BY", "column": "ods.events.id"}
+      ],
+      "description": "Hive query null ordering keeps sort and filter references"
+    },
+    {
       "id": "select_basic",
       "file": "cases/select_basic.sql",
       "statementType": "SELECT",

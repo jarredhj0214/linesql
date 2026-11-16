@@ -397,6 +397,15 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
                 columns.add(cleanIdentifier(identifier));
             }
         }
+        if (ctx.writeOrderClause() != null) {
+            HiveParser.WriteOrderClauseContext ordering = ctx.writeOrderClause();
+            if (ordering.identifierList() != null) {
+                columns.addAll(identifierNames(ordering.identifierList()));
+            }
+            for (HiveParser.WriteOrderColumnContext column : ordering.writeOrderColumn()) {
+                columns.add(cleanIdentifier(column.identifier()));
+            }
+        }
         List<ColumnRef> refs = new ArrayList<>();
         for (String column : columns) {
             refs.add(new ColumnRef(target, column));

@@ -166,6 +166,17 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("order id", results.get(1).getColumnLineage().get(0).getTarget().getName());
     }
 
+    @Test
+    public void autoDetectsHiveWriteOrderingWithIcebergStorage() {
+        LineageResult result = LineSql.parse("CREATE TABLE mart.events (id BIGINT, ts TIMESTAMP) "
+                + "WRITE LOCALLY ORDERED BY ZORDER(id, ts) STORED BY ICEBERG");
+        assertEquals(SqlDialect.HIVE, result.getDialect());
+        assertEquals(StatementType.CREATE_TABLE, result.getStatementType());
+        assertEquals("events", result.getOutputTables().get(0).getName());
+        assertEquals("id", result.getColumnUsages().get(0).getColumn().getName());
+        assertEquals("ts", result.getColumnUsages().get(1).getColumn().getName());
+    }
+
     private static void assertDialect(SqlDialect expected, String sql) {
         LineageResult result = LineSql.parse(sql);
 

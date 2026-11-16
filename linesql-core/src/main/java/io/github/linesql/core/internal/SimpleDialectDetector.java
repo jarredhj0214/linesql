@@ -119,6 +119,7 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         if (normalized.matches("(?s).*\\brow\\s+format\\b.*")
                 || normalized.matches("(?s).*\\bstored\\s+as\\b.*")
+                || relationSyntax.matches("(?s)^\\s*create\\s+(?:(?:temporary|external)\\s+)*table\\b.*\\bstored\\s+by\\b.*")
                 || normalized.matches("(?s).*\\bserdeproperties\\b.*")
                 || normalized.matches("(?s).*\\bclustered\\s+by\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.90, "Hive storage or table layout syntax"));

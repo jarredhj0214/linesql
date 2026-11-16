@@ -84,6 +84,10 @@ ROLLUP: R O L L U P;
 CUBE: C U B E;
 HAVING: H A V I N G;
 ORDER: O R D E R;
+ORDERED: O R D E R E D;
+WRITE: W R I T E;
+LOCALLY: L O C A L L Y;
+ZORDER: Z O R D E R;
 SORT: S O R T;
 DISTRIBUTE: D I S T R I B U T E;
 DIV: D I V;
@@ -150,6 +154,8 @@ ADD: A D D;
 REPLACE: R E P L A C E;
 CHANGE: C H A N G E;
 FIRST: F I R S T;
+LAST: L A S T;
+NULLS: N U L L S;
 AFTER: A F T E R;
 
 // Hive-specific keywords
