@@ -2,6 +2,39 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "update_returning_scalar_subquery",
+      "file": "cases/update_returning_scalar_subquery.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.accounts", "dim.account_levels"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.active", "sources": []},
+        {"target": "account_level", "sources": ["dim.account_levels.level"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.accounts.state"},
+        {"type": "WHERE", "column": "dim.account_levels.account_id"},
+        {"type": "WHERE", "column": "mart.accounts.id"}
+      ],
+      "description": "A correlated scalar RETURNING subquery contributes its input table, value column, and predicate columns"
+    },
+    {
+      "id": "delete_returning_exists_subquery",
+      "file": "cases/delete_returning_exists_subquery.sql",
+      "statementType": "DELETE",
+      "inputTables": ["mart.accounts", "audit.events"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "has_audit", "sources": ["audit.events.account_id", "mart.accounts.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.accounts.inactive"},
+        {"type": "WHERE", "column": "audit.events.account_id"},
+        {"type": "WHERE", "column": "mart.accounts.id"}
+      ],
+      "description": "A RETURNING EXISTS subquery preserves its input and correlated predicate lineage"
+    },
+    {
       "id": "insert_conflict_returning_old_new",
       "file": "cases/insert_conflict_returning_old_new.sql",
       "statementType": "INSERT",

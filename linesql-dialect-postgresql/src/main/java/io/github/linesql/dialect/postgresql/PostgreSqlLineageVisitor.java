@@ -257,6 +257,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 }
                 continue;
             }
+            collectSubqueryDependencies(item.expression(), true);
             List<SourceColumn> sourceColumns = sourceColumns(item.expression());
             List<ColumnRef> sources = resolveReturningSources(sourceColumns, targetTable, rows, writtenSources);
             if (sources == null) {
@@ -2781,35 +2782,43 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private void collectSubqueryInputs(ParseTree tree) {
+        collectSubqueryDependencies(tree, false);
+    }
+
+    private void collectSubqueryDependencies(ParseTree tree, boolean includeColumnUsages) {
         if (tree instanceof PostgreSqlParser.ScalarSubqueryContext) {
-            PostgreSqlParser.ScalarSubqueryContext subquery = (PostgreSqlParser.ScalarSubqueryContext) tree;
-            LineageResult subResult = lineageForQuery(subquery.query());
-            inputTables.addAll(subResult.getInputTables());
+            addSubqueryDependencies(((PostgreSqlParser.ScalarSubqueryContext) tree).query(), includeColumnUsages);
             return;
         }
         if (tree instanceof PostgreSqlParser.ExistsExprContext) {
-            PostgreSqlParser.ExistsExprContext exists = (PostgreSqlParser.ExistsExprContext) tree;
-            LineageResult subResult = lineageForQuery(exists.query());
-            inputTables.addAll(subResult.getInputTables());
+            addSubqueryDependencies(((PostgreSqlParser.ExistsExprContext) tree).query(), includeColumnUsages);
             return;
         }
         if (tree instanceof PostgreSqlParser.QuantifiedComparisonContext) {
-            PostgreSqlParser.QueryContext query = ((PostgreSqlParser.QuantifiedComparisonContext) tree).query();
-            if (query != null) {
-                inputTables.addAll(lineageForQuery(query).getInputTables());
-                collectSubqueryInputs(((PostgreSqlParser.QuantifiedComparisonContext) tree).left);
+            PostgreSqlParser.QuantifiedComparisonContext comparison =
+                    (PostgreSqlParser.QuantifiedComparisonContext) tree;
+            if (comparison.query() != null) {
+                addSubqueryDependencies(comparison.query(), includeColumnUsages);
+                collectSubqueryDependencies(comparison.left, includeColumnUsages);
                 return;
             }
         }
         if (tree instanceof PostgreSqlParser.PredicateContext) {
-            PostgreSqlParser.PredicateContext predicate = (PostgreSqlParser.PredicateContext) tree;
-            if (predicate.query() != null) {
-                LineageResult subResult = lineageForQuery(predicate.query());
-                inputTables.addAll(subResult.getInputTables());
+            PostgreSqlParser.QueryContext query = ((PostgreSqlParser.PredicateContext) tree).query();
+            if (query != null) {
+                addSubqueryDependencies(query, includeColumnUsages);
             }
         }
         for (int i = 0; i < tree.getChildCount(); i++) {
-            collectSubqueryInputs(tree.getChild(i));
+            collectSubqueryDependencies(tree.getChild(i), includeColumnUsages);
+        }
+    }
+
+    private void addSubqueryDependencies(PostgreSqlParser.QueryContext query, boolean includeColumnUsages) {
+        LineageResult subquery = lineageForQuery(query);
+        inputTables.addAll(subquery.getInputTables());
+        if (includeColumnUsages) {
+            LineageModelUtils.mergeColumnUsages(result, subquery);
         }
     }
 
