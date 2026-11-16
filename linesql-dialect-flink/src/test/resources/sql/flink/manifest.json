@@ -2606,7 +2606,11 @@
           "sources": []
         }
       ],
-      "description": "Flink scalar subquery in SELECT adds input table with opaque column lineage"
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.user_id"},
+        {"type": "WHERE", "column": "ods.users.id"}
+      ],
+      "description": "Flink scalar COUNT has no source column and its correlated predicate resolves both tables"
     },
     {
       "id": "execute_statement_set",
@@ -7243,6 +7247,37 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Flink SQL Client CLEAR command is accepted as control"
+    },
+    {
+      "id": "select_correlated_scalar_projection_scope",
+      "file": "cases/select_correlated_scalar_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "selected_flag", "sources": ["ods.flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"}
+      ],
+      "description": "A correlated scalar subquery resolves the outer alias and keeps inner projections local"
+    },
+    {
+      "id": "select_in_subquery_projection_scope",
+      "file": "cases/select_in_subquery_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "flagged", "sources": ["ods.orders.id", "ods.flags.active", "ods.flags.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.active"}
+      ],
+      "description": "A projected IN predicate uses inner dependencies without exposing the inner result column"
     }
   ]
 }

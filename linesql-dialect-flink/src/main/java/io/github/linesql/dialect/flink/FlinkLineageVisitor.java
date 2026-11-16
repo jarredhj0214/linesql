@@ -1158,7 +1158,23 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
         }
         try {
-            return visitChildren(ctx);
+            if (ctx.fromClause() == null || !containsSubquery(ctx.selectClause())) {
+                return visitChildren(ctx);
+            }
+            // Expose outer bindings while keeping the existing projection-first input order.
+            Set<TableRef> previousInputs = new LinkedHashSet<>(inputTables);
+            visit(ctx.fromClause());
+            Set<TableRef> fromInputs = new LinkedHashSet<>(inputTables);
+            inputTables.retainAll(previousInputs);
+            for (ParseTree child : ctx.children) {
+                if (child != ctx.fromClause()) {
+                    visit(child);
+                } else {
+                    inputTables.addAll(fromInputs);
+                    result.setInputTables(new ArrayList<>(inputTables));
+                }
+            }
+            return null;
         } finally {
             namedWindowSources.clear();
             namedWindowSources.putAll(previousWindows);
@@ -1167,15 +1183,30 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(FlinkParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null && positionalInsertSelect == null) {
+        mergeSubqueryDependencies(ctx.query());
+        return null;
+    }
+
+    @Override
+    public Void visitExistsExpr(FlinkParser.ExistsExprContext ctx) {
+        mergeSubqueryDependencies(ctx.query());
+        return null;
+    }
+
+    @Override
+    public Void visitPredicate(FlinkParser.PredicateContext ctx) {
+        if (ctx.query() == null) {
             return visitChildren(ctx);
         }
-        LineageResult inner = lineageForQuery(ctx.query());
-        for (TableRef table : inner.getInputTables()) {
-            addInputTable(table, false);
-        }
-        LineageModelUtils.mergeColumnUsages(result, inner);
+        mergeSubqueryDependencies(ctx.query());
         return null;
+    }
+
+    private void mergeSubqueryDependencies(FlinkParser.QueryContext query) {
+        LineageResult inner = lineageForQuery(query);
+        inputTables.addAll(inner.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
+        LineageModelUtils.mergeColumnUsages(result, inner);
     }
 
     @Override
@@ -2342,7 +2373,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private boolean containsSubquery(ParseTree tree) {
-        if (tree instanceof FlinkParser.ScalarSubqueryContext) {
+        if (tree == null) {
+            return false;
+        }
+        if (tree instanceof FlinkParser.ScalarSubqueryContext || tree instanceof FlinkParser.ExistsExprContext) {
             return true;
         }
         if (tree instanceof FlinkParser.PredicateContext) {
@@ -2370,7 +2404,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 
