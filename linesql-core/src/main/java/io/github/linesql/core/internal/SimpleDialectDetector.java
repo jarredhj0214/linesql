@@ -80,6 +80,16 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_ROWS_FROM = Pattern.compile(
             "(?:\\b(?:from|join)\\b|,)\\s*(?:lateral\\s+)?rows\\s+from\\s*\\(");
 
+    private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
+            "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
+    private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern ORACLE_VECTOR_QUERY = Pattern.compile(
+            "\\bfetch\\s+(?:approx(?:imate)?|exact)\\s+(?:first|next)\\b"
+                    + "|\\bwith\\s+target\\s+accuracy\\b");
+    private static final Pattern ORACLE_VECTOR_CONSTRUCTOR = Pattern.compile("\\bto_vector\\s*\\(");
+    private static final Pattern POSTGRES_OPERATOR_SYNTAX = Pattern.compile(
+            "<[+~%]>|\\boperator\\s*\\(\\s*(?:[a-z_][\\w$]*\\s*\\.\\s*)?"
+                    + "[<>=!~+*/%?#@&|^-]+\\s*\\)");
     private static final Pattern POSTGRES_JSON_SYNTAX = Pattern.compile(
             "::\\s*(?:pg_catalog\\s*\\.\\s*)?jsonb\\b|#>>?|@\\?"
                     + "|\\b(?:to_jsonb|jsonb_(?:array_elements(?:_text)?|array_length|each(?:_text)?|object_keys"
@@ -275,8 +285,14 @@ public class SimpleDialectDetector implements DialectDetector {
                 && POSTGRES_XML_PASSING_OPTION.matcher(unquotedSyntax).find()
                 && !ORACLE_XML_SEQUENCE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL XML passing mode or cast"));
+        } else if (POSTGRES_VECTOR_INDEX.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL vector index method"));
+        } else if (POSTGRES_OPERATOR_SYNTAX.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL vector or qualified operator"));
         } else if (POSTGRES_TEXT_SEARCH.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL text-search function or type"));
+        } else if (SHARED_VECTOR_OPERATOR.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.90, "PostgreSQL-compatible vector distance operator"));
         } else if (POSTGRES_UNICODE_PREDICATE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL Unicode normalization predicate"));
         } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
@@ -374,6 +390,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 && ORACLE_PARTITIONED_JOIN.matcher(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle partitioned join"));
+        } else if (ORACLE_VECTOR_QUERY.matcher(unquotedSyntax).find()
+                || (SHARED_VECTOR_OPERATOR.matcher(unquotedSyntax).find()
+                    && ORACLE_VECTOR_CONSTRUCTOR.matcher(unquotedSyntax).find())) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle vector search options or constructor"));
         } else if (ORACLE_DOMAIN_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle data use case domain DDL"));
         } else if (ORACLE_RETURNING_TARGET.matcher(unquotedSyntax).find()) {

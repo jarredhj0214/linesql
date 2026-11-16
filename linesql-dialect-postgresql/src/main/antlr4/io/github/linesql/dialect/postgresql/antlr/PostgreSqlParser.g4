@@ -327,7 +327,22 @@ sortItem
 
 sortOperator
     : comparisonOperator
-    | OPERATOR LPAREN (identifier DOT)? comparisonOperator RPAREN
+    | qualifiedOperator
+    ;
+
+qualifiedOperator
+    : OPERATOR LPAREN (identifier DOT)? (comparisonOperator | vectorOperator | nativeOperator
+      | PLUS | MINUS | STAR | SLASH | PERCENT | CONCAT) RPAREN
+    ;
+
+vectorOperator
+    : VECTOR_L2 | VECTOR_INNER_PRODUCT | VECTOR_COSINE | VECTOR_L1 | VECTOR_HAMMING | VECTOR_JACCARD
+    ;
+
+nativeOperator
+    : ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | JSON_PATH_EXISTS | JSON_PATH_DELETE
+    | CONTAINS | CONTAINED_BY | TS_MATCH | ARRAY_OVERLAP | QUESTION | QUESTION_PIPE | QUESTION_AMP
+    | TILDE | TILDE_STAR | BANG_TILDE | BANG_TILDE_STAR
     ;
 
 // ============ Expressions ============
@@ -367,7 +382,12 @@ valueExpression
     | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
-    | left=valueExpression operator=(ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | JSON_PATH_EXISTS | JSON_PATH_DELETE | CONTAINS | CONTAINED_BY | TS_MATCH | ARRAY_OVERLAP | QUESTION | QUESTION_PIPE | QUESTION_AMP | TILDE | TILDE_STAR | BANG_TILDE | BANG_TILDE_STAR) right=valueExpression #postgresOperatorExpression
+    | left=valueExpression
+      (operator=(ARROW | ARROW_TEXT | HASH_ARROW | HASH_ARROW_TEXT | JSON_PATH_EXISTS | JSON_PATH_DELETE
+       | CONTAINS | CONTAINED_BY | TS_MATCH | ARRAY_OVERLAP | QUESTION | QUESTION_PIPE | QUESTION_AMP
+       | TILDE | TILDE_STAR | BANG_TILDE | BANG_TILDE_STAR) | vectorOperator | qualifiedOperator)
+      right=valueExpression
+      #postgresOperatorExpression
     | valueExpression COLON COLON dataType                            #postgresCast
     | valueExpression AT TIME ZONE valueExpression                   #atTimeZoneExpression
     | valueExpression COLLATE multipartIdentifier                    #collateExpression

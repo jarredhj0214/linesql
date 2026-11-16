@@ -162,6 +162,8 @@ Implemented PostgreSQL scenarios:
 | Named windows and frame exclusion | `OVER window_name` includes the window’s inherited partition and sort dependencies. Frames accept `EXCLUDE CURRENT ROW`, `GROUP`, `TIES`, and `NO OTHERS`. | `select_named_window_exclusion` |
 | Aggregate-local ORDER BY | `string_agg(sku, separator ORDER BY created_at)` captures the value and sort key dependencies of the aggregate result. | `select_aggregate_inline_order_by` |
 | Grouping sets and explicit sort operators | `GROUP BY DISTINCT GROUPING SETS (ROLLUP (…))` and `ORDER BY … USING OPERATOR(schema.>)` preserve grouping and sort dependencies. | `select_group_by_distinct_sort_operator` |
+| Vector distance and qualified operators | pgvector distance expressions and schema-qualified operators preserve their operands in projections, nearest-neighbor sorting, filters and assignments. The shared distance operators default to PostgreSQL when Oracle vector search syntax is absent. | `select_pgvector_nearest_order_by`, `select_pgvector_distance_families`, `update_qualified_distance_operator` |
+| Vector index methods | Native HNSW and IVFFlat syntax identifies PostgreSQL. Expression index inputs and partial filters retain their column usages. | `create_hnsw_expression_index` |
 | Pagination and locking order | `OFFSET … LIMIT`, `FETCH … OFFSET`, and locking clauses before pagination preserve projection, filtering, and ordering lineage. | `select_locking_before_pagination`, `select_fetch_before_offset` |
 | TABLE query shorthand | `TABLE ods.t`, `INSERT INTO mart.t TABLE ods.t`, and `WITH q AS (…) TABLE q`. A CTE’s known output columns preserve their sources. | `table_query`, `insert_table_query`, `table_cte_query` |
 | PostgreSQL result limiting and pagination | `limit all offset 25 rows`, `fetch first row only`, `offset 10 rows fetch next 5 rows with ties`, and `fetch first ... rows only` inside derived queries | `select_limit_all_offset_rows`, `select_fetch_first_row_only`, `select_fetch_next_with_ties`, `derived_query_fetch_first` |
@@ -876,6 +878,8 @@ Implemented Oracle table-level lineage scenarios:
 | Set output positions | UNION preserves constants, expressions and scalar subqueries by position for ORDER BY and INSERT. | `union_unnamed_constant_order`, `insert_union_unnamed_derivations`, `union_scalar_subquery_position` |
 
 Implemented Oracle column-level lineage scenarios:
+
+- Vector projections and nearest-neighbor ordering retain both operands while constructor formats, metrics and accuracy parameters are treated as syntax. Native approximate search and accuracy options identify Oracle. Cases include `select_oracle_vector_approx_accuracy`, `select_oracle_vector_metric_and_constructor` and `select_oracle_vector_accuracy_parameters`.
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |

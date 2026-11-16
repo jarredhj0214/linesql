@@ -886,6 +886,68 @@
       "description": "A locally declared table alias shadows the same outer derived alias"
     },
     {
+      "id": "create_hnsw_expression_index",
+      "file": "cases/create_hnsw_expression_index.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": ["search.items"],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "INDEX", "column": "search.items.embedding"},
+        {"type": "WHERE", "column": "search.items.active"}
+      ],
+      "description": "An HNSW expression index retains its key and partial filter usage"
+    },
+    {
+      "id": "select_pgvector_nearest_order_by",
+      "file": "cases/select_pgvector_nearest_order_by.sql",
+      "statementType": "SELECT",
+      "inputTables": ["search.items"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["search.items.id"]},
+        {"target": "distance", "sources": ["search.items.embedding"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "search.items.embedding"}
+      ],
+      "description": "Vector nearest-neighbor sort and projection both reference the embedding column"
+    },
+    {
+      "id": "select_pgvector_distance_families",
+      "file": "cases/select_pgvector_distance_families.sql",
+      "statementType": "SELECT",
+      "inputTables": ["search.items", "search.queries"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "cosine_distance", "sources": ["search.items.embedding", "search.queries.embedding"]},
+        {"target": "inner_product", "sources": ["search.items.embedding", "search.queries.embedding"]},
+        {"target": "l1_distance", "sources": ["search.items.embedding", "search.queries.embedding"]},
+        {"target": "hamming_distance", "sources": ["search.items.signature", "search.queries.signature"]},
+        {"target": "jaccard_distance", "sources": ["search.items.signature", "search.queries.signature"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "search.items.category"},
+        {"type": "JOIN_ON", "column": "search.queries.category"}
+      ],
+      "description": "Vector and bit distance operators carry both operands"
+    },
+    {
+      "id": "update_qualified_distance_operator",
+      "file": "cases/update_qualified_distance_operator.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["search.items", "search.queries"],
+      "outputTables": ["search.items"],
+      "columnLineage": [
+        {"target": "search.items.distance", "sources": ["search.items.embedding", "search.queries.embedding"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "search.items.category"},
+        {"type": "WHERE", "column": "search.queries.category"}
+      ],
+      "description": "Qualified operators preserve expression operands in UPDATE and WHERE"
+    },
+    {
       "id": "select_xml_parse_serialize_document",
       "file": "cases/select_xml_parse_serialize_document.sql",
       "statementType": "SELECT",

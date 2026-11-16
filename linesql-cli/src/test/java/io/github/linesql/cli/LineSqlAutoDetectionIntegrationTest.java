@@ -319,6 +319,35 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void usesOracleVectorSearchOptionsWithSharedDistanceOperators() {
+        LineageResult nearest = LineSql.parse("SELECT id FROM search.items ORDER BY embedding <-> "
+                + "TO_VECTOR('[1,2,3]', 3, FLOAT32) FETCH APPROX FIRST 5 ROWS ONLY WITH TARGET ACCURACY 90");
+        assertEquals(SqlDialect.ORACLE, nearest.getDialect());
+        assertEquals(StatementType.SELECT, nearest.getStatementType());
+        assertEquals("embedding", nearest.getColumnUsages().get(0).getColumn().getName());
+        assertDialect(SqlDialect.POSTGRESQL,
+                "SELECT id FROM search.items ORDER BY embedding <-> '[1,2,3]' LIMIT 5");
+    }
+
+    @Test
+    public void detectsPostgresVectorOperatorsWithoutStealingNullSafeEquality() {
+        LineageResult nearest = LineSql.parse("SELECT id FROM search.items "
+                + "ORDER BY embedding <-> '[1,2,3]' LIMIT 5");
+        assertEquals(SqlDialect.POSTGRESQL, nearest.getDialect());
+        assertEquals(StatementType.SELECT, nearest.getStatementType());
+        assertEquals("embedding", nearest.getColumnUsages().get(0).getColumn().getName());
+
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT a OPERATOR(pg_catalog.=) b AS same_value FROM ods.pairs");
+        assertDialect(SqlDialect.SPARK, "SELECT a <=> b AS same_value FROM ods.pairs");
+        assertDialect(SqlDialect.SPARK, "SELECT 'embedding <-> vector' AS note");
+        LineageResult index = LineSql.parse("CREATE INDEX ON search.items "
+                + "USING hnsw (embedding vector_cosine_ops)");
+        assertEquals(SqlDialect.POSTGRESQL, index.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, index.getStatementType());
+        assertEquals("embedding", index.getColumnUsages().get(0).getColumn().getName());
+    }
+
+    @Test
     public void detectsStarRocksTemporaryPartitionStatements() {
         LineageResult read = LineSql.parse("SELECT id FROM mart.events TEMPORARY PARTITION(tp1)");
         assertEquals(SqlDialect.STARROCKS, read.getDialect());

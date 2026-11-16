@@ -397,7 +397,13 @@ offsetClause
     ;
 
 fetchClause
-    : FETCH (FIRST | NEXT) expression PERCENT_KEYWORD? ROWS? (ONLY | WITH TIES)
+    : FETCH (APPROX | APPROXIMATE | EXACT)? (FIRST | NEXT) expression PERCENT_KEYWORD? (ROW | ROWS)?
+      (ONLY | WITH TIES) vectorAccuracyClause?
+    ;
+
+vectorAccuracyClause
+    : WITH TARGET ACCURACY (number | PARAMETERS LPAREN (EFSEARCH number
+      | NEIGHBOR PARTITION PROBES number) RPAREN)
     ;
 
 sortItem
@@ -431,7 +437,21 @@ valueExpression
     | left=valueExpression operator=(STAR | SLASH | PERCENT) right=valueExpression   #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS) right=valueExpression             #arithmeticBinaryPlusMinus
     | left=valueExpression CONCAT right=valueExpression              #concatExpression
+    | left=valueExpression (VECTOR_L2 | VECTOR_COSINE | VECTOR_INNER_PRODUCT) right=valueExpression
+                                                                      #vectorOperatorExpression
     | left=valueExpression comparisonOperator right=valueExpression  #comparison
+    ;
+
+vectorMetric
+    : COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED | MANHATTAN | HAMMING | JACCARD
+    ;
+
+vectorConstructorOptions
+    : COMMA (number | STAR) (COMMA vectorFormat (COMMA (DENSE | SPARSE | STAR))?)?
+    ;
+
+vectorFormat
+    : INT8 | FLOAT32 | FLOAT64 | BINARY | STAR
     ;
 
 comparisonOperator
@@ -442,6 +462,8 @@ primaryExpression
     : CASE whenClause+ (ELSE elseExpr=expression)? END              #searchedCase
     | CASE operand=expression whenClause+ (ELSE elseExpr=expression)? END  #simpleCase
     | CAST LPAREN expression AS dataType RPAREN                      #castExpr
+    | VECTOR_DISTANCE LPAREN expression COMMA expression (COMMA vectorMetric)? RPAREN #vectorDistanceExpression
+    | (TO_VECTOR | VECTOR) LPAREN expression vectorConstructorOptions? RPAREN          #vectorConstructorExpression
     | functionName LPAREN STAR RPAREN nullTreatmentClause? keepClause? withinGroupClause? (OVER windowSpec)? #functionCallStar
     | functionName LPAREN setQuantifier? expressionList listaggOverflowClause? RPAREN nullTreatmentClause? keepClause? withinGroupClause? (OVER windowSpec)?  #functionCall
     | functionName LPAREN RPAREN nullTreatmentClause? keepClause? withinGroupClause? (OVER windowSpec)?      #functionCallEmpty
@@ -1046,6 +1068,9 @@ nonReservedKeyword
     : ADD | ANALYZE | APPLY | ASC | AUDIT | BITMAP | CASCADE | CAST | COLUMN | COLUMNS | COMMENT | COMPUTE | CONNECT_BY_ROOT | CONSTRAINT | CONSTRAINTS | CONTEXT | DEFAULT
     | BEFORE | BEGIN | BEQUEATH | BODY | BUILD | CURRENT_USER | DATABASE | DECLARE | DEFERRED | DEFERRABLE | DEFINER | DEMAND | DESCRIBE | DESC | DISABLE | DUAL | ENABLE | END | ERROR | EXISTS | EXPLAIN | EXTERNAL | FALSE
     | BULK | CHECK | COLLECT | COMPLETE | CONSTRAINT | EXCHANGE | EXCLUDING | FAST | FETCH | FIRST | FLASHBACK | FOR | FORCE | FOREIGN | FUNCTION | GRANT | IF | IMMEDIATE | INCLUDING | INDEX | INDEXES | INITIALLY | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NORELY | NOVALIDATE | NULL
+    | VECTOR_DISTANCE | TO_VECTOR | VECTOR | COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED
+    | MANHATTAN | HAMMING | JACCARD | INT8 | FLOAT32 | FLOAT64 | BINARY | DENSE | SPARSE
+    | APPROX | APPROXIMATE | EXACT | TARGET | ACCURACY | PARAMETERS | EFSEARCH | NEIGHBOR | PROBES
     | WINDOW | QUALIFY | OLD | NEW | NATURAL | DOMAIN | USECASE | ENUM | DISPLAY | MODIFY | STRICT | ANNOTATIONS | COLLATE
     | PACKAGE | PASSING | PATH | PERCENT_KEYWORD | REFRESH
     | KEY | NOAUDIT | NOCYCLE | NULLS | OBJECT | OF | OFFSET | ONLY | OPTION | OVER | PARTITION | PLAN | POLICY | PRIMARY | PRIVATE | PRIOR | PROCEDURE | PROFILE | PUBLIC | PURGE | READ | REFERENCES | ROLE | USER | WRITE | ISOLATION | LEVEL | SERIALIZABLE | RENAME | REPLACE | REUSE | ROW | ROWS

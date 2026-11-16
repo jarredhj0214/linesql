@@ -5814,6 +5814,54 @@
       "columnUsages": [
       ],
       "description": "The natural outer join preserves source aliases and directly qualified non-key columns"
+    },
+    {
+      "id": "select_oracle_vector_approx_accuracy",
+      "file": "cases/select_oracle_vector_approx_accuracy.sql",
+      "statementType": "SELECT",
+      "inputTables": ["search.items"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["search.items.id"]},
+        {"target": "nearest_distance", "sources": ["search.items.embedding"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "search.items.embedding"}
+      ],
+      "description": "Approximate nearest-neighbor ranking retains its embedding dependency"
+    },
+    {
+      "id": "select_oracle_vector_metric_and_constructor",
+      "file": "cases/select_oracle_vector_metric_and_constructor.sql",
+      "statementType": "SELECT",
+      "inputTables": ["search.items", "search.queries"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["search.items.id"]},
+        {"target": "score", "sources": ["search.items.embedding", "search.queries.query_text"]},
+        {"target": "negative_dot", "sources": ["search.items.embedding", "search.queries.vector_value"]},
+        {"target": "cosine", "sources": ["search.items.embedding", "search.queries.vector_value"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "search.items.category_id"},
+        {"type": "JOIN_ON", "column": "search.queries.category_id"}
+      ],
+      "description": "Metrics and constructor options are syntax, while both vector operands retain lineage"
+    },
+    {
+      "id": "select_oracle_vector_accuracy_parameters",
+      "file": "cases/select_oracle_vector_accuracy_parameters.sql",
+      "statementType": "SELECT",
+      "inputTables": ["search.items"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["search.items.id"]},
+        {"target": "vec", "sources": ["search.items.embedding_text"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "search.items.embedding"}
+      ],
+      "description": "Vector accuracy parameters and the constructor alias do not introduce source fields"
     }
   ]
 }
