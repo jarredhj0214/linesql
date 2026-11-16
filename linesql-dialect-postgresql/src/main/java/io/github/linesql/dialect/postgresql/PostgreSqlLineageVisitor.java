@@ -2451,14 +2451,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             visibleRelations.add(VisibleRelation.table(table));
         }
         inputTables.add(table);
-        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+        String baseName = table.getName().toLowerCase(Locale.ROOT);
         String alias = tableAlias(aliasCtx);
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        if (alias != null || !visibleRelation) {
+            tableAliases.putIfAbsent(baseName, table);
         }
         if (visibleRelation) {
-            String visibleName = (alias == null ? table.getName() : alias).toLowerCase(Locale.ROOT);
-            derivedAliases.remove(visibleName, EXCLUDED_RELATION);
+            String binding = alias == null ? baseName : alias.toLowerCase(Locale.ROOT);
+            tableAliases.put(binding, table);
+            derivedAliases.remove(binding);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();

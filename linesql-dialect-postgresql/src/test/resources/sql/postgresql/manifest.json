@@ -839,6 +839,53 @@
       "description": "Unicode forms are syntax, with only actual text input recorded as source lineage"
     },
     {
+      "id": "select_scalar_subquery_preserves_enclosing_binding",
+      "file": "cases/select_scalar_subquery_preserves_enclosing_binding.sql",
+      "statementType": "SELECT",
+      "inputTables": ["archive.events", "live.accounts"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["live.accounts.id"]},
+        {"target": "flag", "sources": ["archive.events.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "archive.events.user_id"},
+        {"type": "WHERE", "column": "live.accounts.id"}
+      ],
+      "description": "An explicitly aliased inner table keeps the outer alias of the same physical name visible"
+    },
+    {
+      "id": "select_lateral_preserves_enclosing_binding",
+      "file": "cases/select_lateral_preserves_enclosing_binding.sql",
+      "statementType": "SELECT",
+      "inputTables": ["live.accounts", "archive.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["live.accounts.id"]},
+        {"target": "last_flag", "sources": ["archive.events.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "archive.events.user_id"},
+        {"type": "WHERE", "column": "live.accounts.id"}
+      ],
+      "description": "A lateral input does not rebind the enclosing table alias used inside and after the subquery"
+    },
+    {
+      "id": "select_local_table_shadows_outer_derived_alias",
+      "file": "cases/select_local_table_shadows_outer_derived_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["live.accounts", "archive.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["live.accounts.id"]},
+        {"target": "flag", "sources": ["archive.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "archive.events.id"}
+      ],
+      "description": "A locally declared table alias shadows the same outer derived alias"
+    },
+    {
       "id": "select_xml_parse_serialize_document",
       "file": "cases/select_xml_parse_serialize_document.sql",
       "statementType": "SELECT",
