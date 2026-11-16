@@ -784,6 +784,46 @@
       "description": "SQL Server CROSS APPLY OPENXML WITH schema exposes XML rowset columns and correlated XML document handle usage"
     },
     {
+      "id": "cross_apply_xml_nodes_chained",
+      "file": "cases/cross_apply_xml_nodes_chained.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.orders.id"]}, {"target": "location_id", "sources": ["ods.orders.payload"]}, {"target": "step_xml", "sources": ["ods.orders.payload"]}],
+      "columnUsages": [{"type": "JOIN_ON", "column": "ods.orders.payload"}, {"type": "WHERE", "column": "ods.orders.payload"}],
+      "description": "SQL Server XML nodes() preserves the XML receiver through named rowsets"
+    },
+    {
+      "id": "cross_apply_xml_nodes_derived_alias",
+      "file": "cases/cross_apply_xml_nodes_derived_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.documents"],
+      "outputTables": [],
+      "columnLineage": [{"target": "node_xml", "sources": ["ods.documents.document"]}],
+      "columnUsages": [{"type": "JOIN_ON", "column": "ods.documents.document"}],
+      "description": "SQL Server XML nodes() preserves the XML receiver through named rowsets"
+    },
+    {
+      "id": "xml_variable_nodes",
+      "file": "cases/xml_variable_nodes.sql",
+      "statementType": "SELECT",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [{"target": "node_xml", "sources": []}],
+      "columnUsages": [],
+      "description": "SQL Server XML nodes() preserves the XML receiver through named rowsets"
+    },
+    {
+      "id": "xml_namespaces_cte_nodes",
+      "file": "cases/xml_namespaces_cte_nodes.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "sku", "sources": ["ods.orders.order_xml"]}],
+      "columnUsages": [{"type": "JOIN_ON", "column": "ods.orders.order_xml"}],
+      "description": "SQL Server WITH XMLNAMESPACES and common table expressions preserve XML input lineage"
+    },
+    {
       "id": "cross_apply_xml_nodes",
       "file": "cases/cross_apply_xml_nodes.sql",
       "statementType": "SELECT",
@@ -797,7 +837,8 @@
           "sources": [
             "ods.orders.id"
           ]
-        }
+        },
+        {"target": "sku", "sources": ["ods.orders.payload"]}
       ],
       "columnUsages": [
         {

@@ -69,6 +69,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
     private final Set<String> cteNames = new LinkedHashSet<>();
+    private final Set<String> xmlNodeRelations = new LinkedHashSet<>();
     private final Set<String> documentTableRelations = new LinkedHashSet<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
@@ -1373,17 +1374,25 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     private boolean tryVisitXmlNodesFunction(SqlServerParser.TableValuedFunctionContext ctx) {
         List<String> parts = identifierParts(ctx.multipartIdentifier());
-        if (parts.size() != 3 || !"nodes".equalsIgnoreCase(parts.get(2))) {
+        List<String> aliases = tableColumnAliases(ctx.tableAlias());
+        String alias = tableAlias(ctx.tableAlias());
+        int size = parts.size();
+        if (size < 2 || !"nodes".equalsIgnoreCase(parts.get(size - 1)) || alias == null || aliases.size() != 1) {
             return false;
         }
-        TableRef table = tableAliases.get(parts.get(0).toLowerCase(Locale.ROOT));
-        if (table == null) {
+        String receiver = parts.get(size - 2);
+        String qualifier = size >= 3 ? parts.get(size - 3) : null;
+        List<ColumnRef> sources = receiver.startsWith("@")
+                ? Collections.emptyList()
+                : columnRefs(Collections.singletonList(new SourceColumn(qualifier, receiver)));
+        if (sources == null) {
             return false;
         }
-        LineageModelUtils.addColumnUsages(
-                result,
-                ColumnUsageType.JOIN_ON,
-                Collections.singletonList(new ColumnRef(table, parts.get(1))));
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, sources);
+        String relationName = alias.toLowerCase(Locale.ROOT);
+        xmlNodeRelations.add(relationName);
+        derivedColumnLineage.put(relationName, Collections.singletonMap(aliases.get(0), sources));
+        addDerivedReference(relationName, ctx.tableAlias());
         return true;
     }
 
@@ -1401,7 +1410,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     public Void visitAliasedQuery(SqlServerParser.AliasedQueryContext ctx) {
         String alias = tableAlias(ctx.tableAlias());
         String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
-        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), new ArrayList<>());
+        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), tableColumnAliases(ctx.tableAlias()));
         addDerivedReference(relationName, ctx.tableAlias());
         return null;
     }
@@ -1916,7 +1925,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {
-        TableRef defaultTable = visibleRelationCount <= 1 && inputTables.size() == 1
+        TableRef defaultTable = inputTables.size() == 1
+                && (visibleRelationCount <= 1 || hasSingleTableWithXmlNodes())
                 ? inputTables.iterator().next()
                 : null;
         List<ColumnRef> refs = new ArrayList<>();
@@ -1960,12 +1970,32 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return sourceColumn;
     }
 
+    private boolean hasSingleTableWithXmlNodes() {
+        return !xmlNodeRelations.isEmpty()
+                && visibleRelations.stream().filter(relation -> relation.table != null).count() == 1
+                && visibleRelations.stream().allMatch(
+                    relation -> relation.table != null || xmlNodeRelations.contains(relation.derivedName));
+    }
+
     private List<ColumnRef> derivedColumnRefs(SourceColumn sourceColumn) {
         String derivedName = null;
         if (sourceColumn.qualifier != null) {
             derivedName = derivedAliases.get(sourceColumn.qualifier.toLowerCase(Locale.ROOT));
         } else if (visibleRelationCount == 1 && derivedReferences.size() == 1) {
             derivedName = derivedReferences.iterator().next();
+        }
+        if (sourceColumn.qualifier == null && derivedName == null) {
+            List<ColumnRef> match = null;
+            for (String relation : xmlNodeRelations) {
+                List<ColumnRef> refs = derivedColumnLineage.get(relation).get(sourceColumn.name);
+                if (refs != null) {
+                    if (match != null) {
+                        return Collections.emptyList();
+                    }
+                    match = refs;
+                }
+            }
+            return match;
         }
         if (derivedName == null) {
             return null;

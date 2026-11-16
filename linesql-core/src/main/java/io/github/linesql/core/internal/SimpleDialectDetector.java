@@ -173,7 +173,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*(create|drop)\\s+(public\\s+)?database\\s+link\\b.*")) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.95, "Oracle DUAL, hierarchical, flashback, sequence, synonym, or DBLink syntax"));
         }
-        if (normalized.matches("(?s).*\\bselect\\s+top\\s+\\d+\\b.*")
+        if (relationSyntax.matches("(?s)^\\s*with\\s+xmlnamespaces\\s*\\(.*")) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.97, "SQL Server WITH XMLNAMESPACES syntax"));
+        } else if (normalized.matches("(?s).*\\bselect\\s+top\\s+\\d+\\b.*")
                 || containsSqlServerBracketIdentifier(normalized)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")
                 || normalized.matches("(?s).*\\b(openjson|openxml|openquery|openrowset)\\s*\\(.*")) {

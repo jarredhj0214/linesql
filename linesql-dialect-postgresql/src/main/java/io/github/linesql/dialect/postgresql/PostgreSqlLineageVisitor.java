@@ -38,6 +38,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
+    private PostgreSqlParser.SelectClauseContext setBranchSelect;
 
     PostgreSqlLineageVisitor(LineageResult result) {
         this.result = result;
@@ -1636,12 +1637,31 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitScalarSubquery(PostgreSqlParser.ScalarSubqueryContext ctx) {
+        if (setBranchSelect == null) {
+            return visitChildren(ctx);
+        }
+        LineageResult inner = lineageForQuery(ctx.query());
+        for (TableRef table : inner.getInputTables()) {
+            addInputTable(table, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, inner);
+        return null;
+    }
+
+    @Override
     public Void visitSelectClause(PostgreSqlParser.SelectClauseContext ctx) {
         List<PostgreSqlParser.SelectItemContext> items = ctx.selectItemList().selectItem();
         for (int i = 0; i < items.size(); i++) {
             PostgreSqlParser.SelectItemContext item = items.get(i);
             if (item instanceof PostgreSqlParser.SelectExpressionContext) {
                 Projection projection = projection((PostgreSqlParser.SelectExpressionContext) item, i);
+                if (projection == null && ctx == setBranchSelect) {
+                    PostgreSqlParser.ExpressionContext expression =
+                            ((PostgreSqlParser.SelectExpressionContext) item).expression();
+                    projection = new Projection(sourceColumns(expression), defaultSetColumnName(expression),
+                            expression.getText(), i);
+                }
                 if (projection != null) {
                     projections.add(projection);
                 }
@@ -1983,9 +2003,25 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
+        queryVisitor.setBranchSelect = explicitSetBranchSelect(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryResult;
+    }
+
+    private static PostgreSqlParser.SelectClauseContext explicitSetBranchSelect(PostgreSqlParser.QueryTermContext term) {
+        if (!(term instanceof PostgreSqlParser.QueryTermDefaultContext)) {
+            return null;
+        }
+        PostgreSqlParser.QueryPrimaryContext primary =
+                ((PostgreSqlParser.QueryTermDefaultContext) term).queryPrimary();
+        if (primary instanceof PostgreSqlParser.SubqueryPrimaryContext) {
+            return explicitSetBranchSelect(((PostgreSqlParser.SubqueryPrimaryContext) primary).query().queryTerm());
+        }
+        if (!(primary instanceof PostgreSqlParser.QueryPrimaryDefaultContext) || setOutputWidth(term) < 0) {
+            return null;
+        }
+        return ((PostgreSqlParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
@@ -2108,8 +2144,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         for (int i = 0; i < projections.size(); i++) {
             Projection projection = projections.get(i);
             List<ColumnRef> sources = columnRefs(projection);
-            if (sources == null) {
+            if (sources == null && setBranchSelect == null) {
                 continue;
+            }
+            if (sources == null) {
+                sources = Collections.emptyList();
             }
             String targetColumn = targetColumn(projection, projection.ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
@@ -2810,6 +2849,28 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return null;
         }
         return new Projection(sourceColumns, targetColumn, expression, ordinal);
+    }
+
+    private static String defaultSetColumnName(PostgreSqlParser.ExpressionContext expression) {
+        if (expression.booleanExpression() instanceof PostgreSqlParser.PredicatedExprContext) {
+            PostgreSqlParser.PredicatedExprContext value =
+                    (PostgreSqlParser.PredicatedExprContext) expression.booleanExpression();
+            if (value.predicate() == null
+                    && value.valueExpression() instanceof PostgreSqlParser.ValueExpressionDefaultContext) {
+                PostgreSqlParser.PrimaryExpressionContext primary =
+                        ((PostgreSqlParser.ValueExpressionDefaultContext) value.valueExpression()).primaryExpression();
+                if (primary instanceof PostgreSqlParser.FunctionCallContext) {
+                    return unqualifiedName(((PostgreSqlParser.FunctionCallContext) primary).functionName().getText());
+                }
+                if (primary instanceof PostgreSqlParser.FunctionCallStarContext) {
+                    return unqualifiedName(((PostgreSqlParser.FunctionCallStarContext) primary).functionName().getText());
+                }
+                if (primary instanceof PostgreSqlParser.FunctionCallEmptyContext) {
+                    return unqualifiedName(((PostgreSqlParser.FunctionCallEmptyContext) primary).functionName().getText());
+                }
+            }
+        }
+        return "?column?";
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {

@@ -77,6 +77,19 @@ public class LineSqlAllSmokeTest {
         assertTrue(results.get(2).getDiagnostics().toString(), results.get(2).getDiagnostics().isEmpty());
     }
 
+    @Test
+    public void preservesPostgreSqlSyntaxInFlinkScriptContext() {
+        List<LineageResult> results = LineSql.parseScript(
+                "create table src (id bigint, ts timestamp(3), watermark for ts as ts);"
+                        + "insert into pg_sink (id) overriding system value values (1) on conflict do nothing;");
+
+        assertEquals(2, results.size());
+        LineageResult insert = results.get(1);
+        assertEquals(SqlDialect.POSTGRESQL, insert.getDialect());
+        assertEquals(StatementType.INSERT, insert.getStatementType());
+        assertTrue(insert.getDiagnostics().toString(), insert.getDiagnostics().isEmpty());
+    }
+
     private static void assertAutomaticSelect(SqlDialect dialect, String sql) {
         LineageResult result = LineSql.parse(sql);
         assertEquals(dialect, result.getDialect());

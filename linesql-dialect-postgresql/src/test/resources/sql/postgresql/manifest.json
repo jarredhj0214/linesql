@@ -82,6 +82,46 @@
       "description": "PostgreSQL TABLESAMPLE BERNOULLI preserves sampled table and projection lineage"
     },
     {
+      "id": "union_scalar_subquery_projection",
+      "file": "cases/union_scalar_subquery_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.payments", "ods.orders", "ods.archive"],
+      "outputTables": [],
+      "columnLineage": [{"target": "amount", "sources": ["ods.payments.amount"]}, {"target": "id", "sources": ["ods.orders.id", "ods.archive.id"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.orders.id"}, {"type": "ORDER_BY", "column": "ods.archive.id"}],
+      "description": "PostgreSQL UNION keeps a scalar subquery in its outer output position"
+    },
+    {
+      "id": "union_constant_output_order",
+      "file": "cases/union_constant_output_order.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.archive"],
+      "outputTables": [],
+      "columnLineage": [{"target": "?column?", "sources": []}, {"target": "amount", "sources": ["ods.orders.amount", "ods.archive.amount"]}],
+      "columnUsages": [{"type": "ORDER_BY", "column": "ods.orders.amount"}, {"type": "ORDER_BY", "column": "ods.archive.amount"}],
+      "description": "PostgreSQL set lineage preserves output positions across constants and unnamed expressions"
+    },
+    {
+      "id": "insert_union_sparse_output",
+      "file": "cases/insert_union_sparse_output.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.archive"],
+      "outputTables": ["mart.order_rollup"],
+      "columnLineage": [{"target": "mart.order_rollup.amount", "sources": ["ods.orders.amount", "ods.archive.amount", "ods.archive.adjustment"]}, {"target": "mart.order_rollup.status", "sources": ["ods.orders.status"]}],
+      "columnUsages": [],
+      "description": "PostgreSQL set lineage preserves output positions across constants and unnamed expressions"
+    },
+    {
+      "id": "union_unnamed_aggregate_output",
+      "file": "cases/union_unnamed_aggregate_output.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.archive"],
+      "outputTables": [],
+      "columnLineage": [{"target": "max", "sources": ["ods.orders.amount", "ods.archive.amount"]}, {"target": "region", "sources": ["ods.orders.region", "ods.archive.region"]}],
+      "columnUsages": [{"type": "GROUP_BY", "column": "ods.orders.region"}, {"type": "GROUP_BY", "column": "ods.archive.region"}, {"type": "ORDER_BY", "column": "ods.orders.amount"}, {"type": "ORDER_BY", "column": "ods.archive.amount"}],
+      "description": "PostgreSQL set lineage preserves output positions across constants and unnamed expressions"
+    },
+    {
       "id": "select_union_order_by_position",
       "file": "cases/select_union_order_by_position.sql",
       "statementType": "SELECT",

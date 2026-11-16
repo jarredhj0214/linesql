@@ -1,6 +1,7 @@
 package io.github.linesql.core.internal;
 
 import io.github.linesql.core.facade.SqlLineageParser;
+import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.DialectCandidate;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
@@ -45,8 +46,25 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         List<LineageResult> results = new ArrayList<>();
         DialectCandidate scriptCandidate = selectScriptDialect(script, options);
         for (String statement : statementSplitter.split(script)) {
-            DialectCandidate candidate = selectDialect(statement, options, scriptCandidate);
+            DialectCandidate statementCandidate = selectStatementDialect(statement, options);
+            DialectCandidate candidate = statementCandidate;
+            if (shouldUseScriptDialect(scriptCandidate, statementCandidate, statement)) {
+                candidate = new DialectCandidate(
+                        scriptCandidate.getDialect(),
+                        scriptCandidate.getConfidence(),
+                        scriptCandidate.getReason() + "; inherited from script context");
+            }
             LineageResult result = parseStatement(statement, candidate.getDialect(), options, context);
+            if (candidate != statementCandidate
+                    && statementCandidate.getDialect() == SqlDialect.POSTGRESQL
+                    && parsers.containsKey(SqlDialect.POSTGRESQL)
+                    && result.getDiagnostics().stream().anyMatch(d -> "FLINK_PARSE_ERROR".equals(d.getCode()))) {
+                LineageResult fallback = parseStatement(statement, SqlDialect.POSTGRESQL, options, context);
+                if (fallback.getDiagnostics().stream().noneMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR)) {
+                    result = fallback;
+                    candidate = statementCandidate;
+                }
+            }
             applyDetection(result, candidate);
             results.add(result);
         }
@@ -62,7 +80,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         return parser.parse(sql, options, context);
     }
 
-    private DialectCandidate selectDialect(String statement, ParseOptions options, DialectCandidate scriptCandidate) {
+    private DialectCandidate selectStatementDialect(String statement, ParseOptions options) {
         if (!options.getDialectHints().isEmpty()) {
             return new DialectCandidate(options.getDialectHints().get(0), 1.0, "Dialect selected from parse options hint");
         }
@@ -70,16 +88,9 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             return new DialectCandidate(SqlDialect.UNKNOWN, 0.0, "Dialect detection is disabled");
         }
         List<DialectCandidate> candidates = dialectDetector.detectCandidates(statement);
-        DialectCandidate statementCandidate = candidates.isEmpty()
+        return candidates.isEmpty()
                 ? new DialectCandidate(SqlDialect.UNKNOWN, 0.0, "No dialect candidate detected")
                 : candidates.get(0);
-        if (shouldUseScriptDialect(scriptCandidate, statementCandidate, statement)) {
-            return new DialectCandidate(
-                    scriptCandidate.getDialect(),
-                    scriptCandidate.getConfidence(),
-                    scriptCandidate.getReason() + "; inherited from script context");
-        }
-        return statementCandidate;
     }
 
     private DialectCandidate selectScriptDialect(String script, ParseOptions options) {
