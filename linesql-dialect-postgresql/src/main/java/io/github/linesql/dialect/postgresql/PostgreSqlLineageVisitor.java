@@ -247,6 +247,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             TableRef targetTable,
             boolean hasOldRow,
             boolean hasNewRow) {
+        appendReturningLineage(returning, targetTable, hasOldRow, hasNewRow, Collections.emptyList());
+    }
+
+    private void appendReturningLineage(
+            PostgreSqlParser.ReturningClauseContext returning,
+            TableRef targetTable,
+            boolean hasOldRow,
+            boolean hasNewRow,
+            List<ColumnRef> sourceWildcard) {
         if (returning == null || targetTable == null) {
             return;
         }
@@ -265,7 +274,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (item.STAR() != null) {
                 List<ColumnRef> sources;
                 if (item.qualifiedName() == null) {
-                    sources = Collections.singletonList(new ColumnRef(targetTable, "*"));
+                    sources = new ArrayList<>(sourceWildcard);
+                    sources.add(new ColumnRef(targetTable, "*"));
                 } else {
                     List<PostgreSqlParser.IdentifierContext> qualifiers = item.qualifiedName().identifier();
                     SourceColumn wildcard = new SourceColumn(cleanIdentifier(qualifiers.get(qualifiers.size() - 1)), "*");
@@ -345,9 +355,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 resultSources.add(new ColumnRef(targetTable, name));
                 continue;
             }
-            List<ColumnRef> sources = row == ReturningRow.AFTER_WRITE
-                    ? Collections.singletonList(new ColumnRef(targetTable, name))
-                    : resolveSources(Collections.singletonList(column));
+            String derivedName = qualifier == null ? null : derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
+            List<ColumnRef> sources;
+            if (row == ReturningRow.AFTER_WRITE) {
+                sources = Collections.singletonList(new ColumnRef(targetTable, name));
+            } else if ("*".equals(name) && derivedName != null) {
+                sources = derivedWildcardSources(derivedName);
+            } else {
+                sources = resolveSources(Collections.singletonList(column));
+            }
             if (sources == null) {
                 return null;
             }
@@ -414,6 +430,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             tableAliases.put(targetAlias.toLowerCase(Locale.ROOT), target);
         }
 
+        int sourceStart = visibleRelations.size();
         visit(ctx.relationPrimary());
 
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
@@ -446,10 +463,32 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         result.setColumnLineage(lineages);
-        appendReturningLineage(ctx.returningClause(), target, hasOldRow, hasNewRow);
+        List<ColumnRef> sourceWildcard = new ArrayList<>();
+        if (ctx.returningClause() != null) {
+            for (VisibleRelation source : visibleRelationsSince(sourceStart)) {
+                if (source.table != null) {
+                    sourceWildcard.add(new ColumnRef(source.table, "*"));
+                } else {
+                    sourceWildcard.addAll(derivedWildcardSources(source.derivedName));
+                }
+            }
+        }
+        appendReturningLineage(ctx.returningClause(), target, hasOldRow, hasNewRow, sourceWildcard);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private List<ColumnRef> derivedWildcardSources(String derivedName) {
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
+        if (columns == null) {
+            return Collections.emptyList();
+        }
+        List<ColumnRef> sources = new ArrayList<>();
+        for (List<ColumnRef> columnSources : columns.values()) {
+            sources.addAll(columnSources);
+        }
+        return LineageModelUtils.mergeColumnRefs(Collections.emptyList(), sources);
     }
 
     private void visitRelationListForInputs(PostgreSqlParser.RelationListContext ctx) {

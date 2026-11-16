@@ -2,6 +2,48 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "merge_returning_star_both_rows",
+      "file": "cases/merge_returning_star_both_rows.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.accounts", "staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.amount"]},
+        {"target": "*", "sources": ["staging.delta.*", "mart.accounts.*"]}
+      ],
+      "description": "Unqualified MERGE RETURNING star includes the source row before the target row"
+    },
+    {
+      "id": "merge_returning_derived_wildcard",
+      "file": "cases/merge_returning_derived_wildcard.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.accounts", "staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.amount"]},
+        {"target": "*", "sources": ["staging.delta.id", "staging.delta.amount"]},
+        {"target": "*", "sources": ["mart.accounts.*"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.delta.active"},
+        {"type": "MERGE_ON", "column": "mart.accounts.id"},
+        {"type": "MERGE_ON", "column": "staging.delta.id"}
+      ],
+      "description": "Qualified source wildcards expand only the derived source's projected columns"
+    },
+    {
+      "id": "merge_returning_star_derived_source",
+      "file": "cases/merge_returning_star_derived_source.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.accounts", "staging.delta"],
+      "outputTables": ["mart.accounts"],
+      "columnLineage": [
+        {"target": "mart.accounts.balance", "sources": ["staging.delta.amount"]},
+        {"target": "*", "sources": ["staging.delta.id", "staging.delta.amount", "mart.accounts.*"]}
+      ],
+      "description": "MERGE RETURNING star follows known source projections without assuming target column metadata"
+    },
+    {
       "id": "merge_cte_multiple_writes",
       "file": "cases/merge_cte_multiple_writes.sql",
       "statementType": "SELECT",
