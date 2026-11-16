@@ -1682,26 +1682,51 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitScalarSubquery(StarRocksParser.ScalarSubqueryContext ctx) {
-        if (setBranchSelect == null && positionalInsertSelect == null) {
-            return visitChildren(ctx);
-        }
-        LineageResult inner = lineageForQuery(ctx.query());
-        for (TableRef table : inner.getInputTables()) {
-            addInputTable(table, false);
-        }
-        LineageModelUtils.mergeColumnUsages(result, inner);
+        mergeSubqueryDependencies(ctx.query());
         return null;
     }
 
     @Override
-    public Void visitQuerySpecification(StarRocksParser.QuerySpecificationContext ctx) {
-        if (ctx.selectClause() != positionalInsertSelect || ctx.fromClause() == null) {
+    public Void visitExistsExpr(StarRocksParser.ExistsExprContext ctx) {
+        mergeSubqueryDependencies(ctx.query());
+        return null;
+    }
+
+    @Override
+    public Void visitPredicate(StarRocksParser.PredicateContext ctx) {
+        if (ctx.query() == null) {
             return visitChildren(ctx);
         }
+        mergeSubqueryDependencies(ctx.query());
+        return null;
+    }
+
+    private void mergeSubqueryDependencies(StarRocksParser.QueryContext query) {
+        LineageResult inner = lineageForQuery(query);
+        inputTables.addAll(inner.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
+        LineageModelUtils.mergeColumnUsages(result, inner);
+    }
+
+    @Override
+    public Void visitQuerySpecification(StarRocksParser.QuerySpecificationContext ctx) {
+        boolean positional = ctx.selectClause() == positionalInsertSelect;
+        if (ctx.fromClause() == null || (!positional && !containsSubquery(ctx.selectClause()))) {
+            return visitChildren(ctx);
+        }
+        // Resolve enclosing references while preserving the source order of ordinary projections.
+        Set<TableRef> previousInputs = new LinkedHashSet<>(inputTables);
         visit(ctx.fromClause());
-        for (int i = 0; i < ctx.getChildCount(); i++) {
-            if (ctx.getChild(i) != ctx.fromClause()) {
-                visit(ctx.getChild(i));
+        Set<TableRef> fromInputs = new LinkedHashSet<>(inputTables);
+        if (!positional) {
+            inputTables.retainAll(previousInputs);
+        }
+        for (ParseTree child : ctx.children) {
+            if (child != ctx.fromClause()) {
+                visit(child);
+            } else if (!positional) {
+                inputTables.addAll(fromInputs);
+                result.setInputTables(new ArrayList<>(inputTables));
             }
         }
         return null;
@@ -2927,7 +2952,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
         queryVisitor.collectTopLevelQueryProjections(query);
-        queryVisitor.refreshColumnLineage();
+        queryVisitor.finalizeResult();
         return queryResult;
     }
 

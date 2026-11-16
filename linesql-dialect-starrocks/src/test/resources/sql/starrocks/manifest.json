@@ -10648,6 +10648,37 @@
       "description": "StarRocks ALTER TABLE DROP INDEX affected table"
     },
     {
+      "id": "select_correlated_scalar_projection_scope",
+      "file": "cases/select_correlated_scalar_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "selected_flag", "sources": ["ods.flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"}
+      ],
+      "description": "A correlated scalar subquery keeps its own result alias and resolves the outer predicate against orders"
+    },
+    {
+      "id": "select_in_subquery_projection_scope",
+      "file": "cases/select_in_subquery_projection_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]},
+        {"target": "flagged", "sources": ["ods.orders.id", "ods.flags.active", "ods.flags.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.active"}
+      ],
+      "description": "A projected IN predicate depends on the tested and inner columns without exposing the inner projection"
+    },
+    {
       "id": "insert_asof_left_join",
       "file": "cases/insert_asof_left_join.sql",
       "statementType": "INSERT",

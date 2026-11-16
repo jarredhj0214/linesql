@@ -961,6 +961,10 @@ Known Oracle gaps:
 
 ## StarRocks
 
+Scalar and `IN` subqueries inside a projection keep their own output scope. The outer
+projection retains its value dependencies, and correlated filters identify the enclosing
+relation (`select_correlated_scalar_projection_scope`, `select_in_subquery_projection_scope`).
+
 StarRocks is an active parser dialect path. The current implementation uses an ANTLR4 lexer with a lightweight lineage walker for common StarRocks query and write shapes.
 
 Current StarRocks SQL case assets:
