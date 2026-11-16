@@ -1419,8 +1419,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitTableValuedFunction(SqlBaseParser.TableValuedFunctionContext ctx) {
         SqlBaseParser.TableFunctionCallWithTrailingClausesContext callWithClauses =
                 ctx.tableFunctionCallWithTrailingClauses();
-        String functionName = callWithClauses.tableFunctionCall().funcName.getText();
-        if ("range".equalsIgnoreCase(functionName)) {
+        String functionName = callWithClauses.tableFunctionCall().funcName.getText().toLowerCase(Locale.ROOT);
+        if ("range".equals(functionName)) {
             List<String> outputColumns = tableAliasColumnNames(callWithClauses.tableAlias());
             if (outputColumns.isEmpty()) {
                 outputColumns.add("id");
@@ -1430,8 +1430,92 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
                 addGeneratedColumn(alias, outputColumn, new ArrayList<SourceColumn>());
             }
             refreshColumnLineage();
+        } else if ("stack".equals(functionName) || "explode".equals(functionName) || "explode_outer".equals(functionName)
+                || "posexplode".equals(functionName) || "posexplode_outer".equals(functionName)) {
+            registerTableGenerator(callWithClauses, functionName);
         }
         return visitChildren(ctx);
+    }
+
+    private void registerTableGenerator(SqlBaseParser.TableFunctionCallWithTrailingClausesContext call,
+                                        String functionName) {
+        List<SqlBaseParser.ExpressionContext> arguments = new ArrayList<>();
+        for (SqlBaseParser.FunctionTableArgumentContext argument : call.tableFunctionCall().functionTableArgument()) {
+            SqlBaseParser.FunctionArgumentContext scalar = argument.functionArgument();
+            if (scalar == null) {
+                return;
+            }
+            arguments.add(scalar.expression() != null ? scalar.expression() : scalar.namedArgumentExpression().value);
+        }
+        boolean stack = "stack".equals(functionName);
+        if (stack ? arguments.size() < 2 : arguments.size() != 1) {
+            return;
+        }
+        List<SourceColumn> sources = new ArrayList<>();
+        for (SqlBaseParser.ExpressionContext argument : arguments) {
+            sources.addAll(sourceColumns(argument));
+        }
+        addColumnUsages(ColumnUsageType.JOIN_ON, sources);
+
+        List<String> names = tableAliasColumnNames(call.tableAlias());
+        if (names.isEmpty()) {
+            names = tableGeneratorDefaultColumns(arguments, functionName);
+        }
+        if (names.isEmpty()) {
+            return;
+        }
+        String alias = tableAlias(call.tableAlias());
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (int i = 0; i < names.size(); i++) {
+            List<SourceColumn> outputSources = stack ? stackOutputSources(arguments, i, names.size()) : sources;
+            List<ColumnRef> refs = columnRefs(outputSources, new LinkedHashSet<>());
+            if (refs != null) {
+                columns.put(names.get(i), refs);
+            }
+        }
+        if (columns.size() == names.size()) {
+            String relation = alias == null ? "$generator" + derivedColumnLineage.size() : alias;
+            derivedColumnLineage.put(relation.toLowerCase(Locale.ROOT), columns);
+            addDerivedReference(relation, null);
+        }
+    }
+
+    private static List<String> tableGeneratorDefaultColumns(List<SqlBaseParser.ExpressionContext> arguments,
+                                                              String functionName) {
+        List<String> names = new ArrayList<>();
+        if ("stack".equals(functionName)) {
+            try {
+                int rows = Integer.parseInt(arguments.get(0).getText());
+                if (rows > 0) {
+                    int width = 1 + (arguments.size() - 2) / rows;
+                    for (int i = 0; i < width; i++) {
+                        names.add("col" + i);
+                    }
+                }
+            } catch (NumberFormatException ignored) {
+                // A nonliteral row count has no statically known output width.
+            }
+            return names;
+        }
+
+        SqlBaseParser.ExpressionContext collection = arguments.get(0);
+        SqlBaseParser.FunctionCallContext constructor = directFunctionCall(collection);
+        if (constructor == null || !collection.getText().equals(constructor.getText())) {
+            return names;
+        }
+        String constructorName = constructor.functionName().getText().toLowerCase(Locale.ROOT);
+        if ("array".equals(constructorName) || "map".equals(constructorName)) {
+            if (functionName.startsWith("posexplode")) {
+                names.add("pos");
+            }
+            if ("array".equals(constructorName)) {
+                names.add("col");
+            } else {
+                names.add("key");
+                names.add("value");
+            }
+        }
+        return names;
     }
 
     @Override

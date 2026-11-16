@@ -3896,6 +3896,72 @@
       "description": "Spark stack positional lineage remains precise when arguments contain nested scalar functions"
     },
     {
+      "id": "lateral_table_explode_named_collection",
+      "file": "cases/lateral_table_explode_named_collection.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "pos", "sources": ["ods.events.items"]},
+        {"target": "value", "sources": ["ods.events.items"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.items"},
+        {"type": "WHERE", "column": "ods.events.items"}
+      ],
+      "description": "Named collection arguments and renamed position and value outputs retain lineage in LATERAL TVFs"
+    },
+    {
+      "id": "lateral_table_stack_columns",
+      "file": "cases/lateral_table_stack_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "code", "sources": ["ods.events.primary_code", "ods.events.backup_code"]},
+        {"target": "amount", "sources": ["ods.events.primary_value", "ods.events.backup_value"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.primary_code"},
+        {"type": "JOIN_ON", "column": "ods.events.primary_value"},
+        {"type": "JOIN_ON", "column": "ods.events.backup_code"},
+        {"type": "JOIN_ON", "column": "ods.events.backup_value"}
+      ],
+      "description": "A LATERAL stack wildcard preserves positional source sets for each generated column"
+    },
+    {
+      "id": "lateral_table_explode_default_column",
+      "file": "cases/lateral_table_explode_default_column.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "col", "sources": ["ods.events.primary_code", "ods.events.backup_code"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.primary_code"},
+        {"type": "JOIN_ON", "column": "ods.events.backup_code"}
+      ],
+      "description": "An explicit array constructor exposes the default generated column without an alias list"
+    },
+    {
+      "id": "lateral_table_stack_default_columns",
+      "file": "cases/lateral_table_stack_default_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "col0", "sources": ["ods.events.primary_code", "ods.events.backup_code"]},
+        {"target": "col1", "sources": ["ods.events.primary_value"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.events.primary_code"},
+        {"type": "JOIN_ON", "column": "ods.events.primary_value"},
+        {"type": "JOIN_ON", "column": "ods.events.backup_code"}
+      ],
+      "description": "A literal stack row count determines default output names and position when the final row is padded"
+    },
+    {
       "id": "lateral_view_stack_lineage",
       "file": "cases/lateral_view_stack_lineage.sql",
       "statementType": "SELECT",

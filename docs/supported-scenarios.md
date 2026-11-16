@@ -2160,6 +2160,7 @@ Implemented Spark table-level lineage scenarios:
 | CREATE TABLE LIKE structure lineage | `create table mart.t like ods.s` | `create_table_like` |
 | GROUPING SETS with bitwise expressions | `select lpad(bin(GROUPING__ID ^ 3), 2, 0) ... group by ... grouping sets (...)` | `grouping_sets_bitwise_xor` |
 | Bang logical NOT predicates | `where dt = '${yyyy-MM-dd}' and!(a is null and b is null)` | `bang_logical_not` |
+| Spark FROM-clause generator functions | Lateral `EXPLODE` and `POSEXPLODE` outputs trace to the collection, including named collection arguments. `STACK` tracks each output position independently. Qualified stars expand the known output schema. | `lateral_table_explode_named_collection`, `lateral_table_explode_default_column`, `lateral_table_stack_columns`, `lateral_table_stack_default_columns` |
 | UDTF-style function column aliases | `stack(...) AS (candidate, id)` maps direct or nested-expression arguments by position; `posexplode(collection) AS (seq, x)` propagates collection sources through derived queries and CTE expressions | `stack_function_aliases`, `stack_function_nested_expressions`, `posexplode_function_aliases` |
 | Null-safe equality predicates | `where not (a.c1 <=> b.c1)` | `null_safe_equal_operator` |
 | VALUES and inline table columns | Spark tracks default and explicit aliases in VALUES queries and inline tables and maps values to explicit INSERT targets by position. | `values_query_columns`, `values_inline_aliases`, `values_insert_target_columns`, `values_derived_aliases` |
