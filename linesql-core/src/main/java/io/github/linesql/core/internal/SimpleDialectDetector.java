@@ -38,6 +38,9 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
                     + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
 
+    private static final Pattern MYSQL_DUPLICATE_KEY_UPDATE = Pattern.compile(
+            "\\bon\\s+duplicate\\s+key\\s+update\\b");
+
     private static final String POSTGRES_NAME = "[\\p{L}_][\\p{L}\\p{N}_$]*";
     private static final String POSTGRES_RELATION =
             POSTGRES_NAME + "(?:\\s*\\.\\s*" + POSTGRES_NAME + ")*";
@@ -131,7 +134,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*alter\\s+algorithm\\b.*\\bview\\b.*")
                 || normalized.matches("(?s).*\\binto\\s+(out|dump)file\\b.*")
                 || (!sparkJsonTableSignal && normalized.matches("(?s).*\\bjson_table\\s*\\(.*"))
-                || normalized.contains(" on duplicate key ")
+                || MYSQL_DUPLICATE_KEY_UPDATE.matcher(unquotedSyntax).find()
                 || hasMySqlJsonArrowSignal(normalized)
                 || (!sparkSignal && weakMySqlExpressionSignal)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.97, "MySQL-specific write, DML, LOAD, JSON, or LIMIT syntax"));

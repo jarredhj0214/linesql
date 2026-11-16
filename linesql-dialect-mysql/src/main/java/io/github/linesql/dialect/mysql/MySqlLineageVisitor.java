@@ -168,60 +168,41 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         registerInsertRowAlias(ctx.insertRowAlias());
         if (ctx.query() != null) {
             visitWriteQuery(ctx.query(), target);
-            if (ctx.onDuplicateKeyUpdate() != null) {
-                TableRef previousDmlTarget = currentDmlTarget;
-                currentDmlTarget = target;
-                List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
-                lineages.addAll(readDuplicateKeyAssignments(
-                        ctx.onDuplicateKeyUpdate().assignmentList(),
-                        target,
-                        insertedSourcesByColumn()));
-                result.setColumnLineage(lineages);
-                currentDmlTarget = previousDmlTarget;
-                projections.clear();
-            }
         } else if (ctx.tableStatement() != null) {
             visit(ctx.tableStatement());
             result.setStatementType(StatementType.INSERT);
         } else if (ctx.assignmentList() != null) {
             collectSubqueryInputs(ctx.assignmentList());
-            List<ColumnLineage> lineages = readAssignments(ctx.assignmentList(), target);
-            if (ctx.onDuplicateKeyUpdate() != null) {
-                TableRef previousDmlTarget = currentDmlTarget;
-                currentDmlTarget = target;
-                lineages.addAll(readDuplicateKeyAssignments(
-                        ctx.onDuplicateKeyUpdate().assignmentList(),
-                        target,
-                        insertedSourcesByColumn(lineages)));
-                currentDmlTarget = previousDmlTarget;
-            }
-            result.setColumnLineage(lineages);
+            result.setColumnLineage(readAssignments(ctx.assignmentList(), target));
         } else if (ctx.VALUES() != null || ctx.VALUE() != null) {
-            List<ColumnLineage> lineages = readInsertedValueColumns(ctx.valuesClause(), target);
-            if (ctx.onDuplicateKeyUpdate() != null) {
-                TableRef previousDmlTarget = currentDmlTarget;
-                currentDmlTarget = target;
-                lineages.addAll(readDuplicateKeyAssignments(
-                        ctx.onDuplicateKeyUpdate().assignmentList(),
-                        target,
-                        insertedSourcesByColumn(lineages)));
-                currentDmlTarget = previousDmlTarget;
-            }
-            result.setColumnLineage(lineages);
-        } else if (ctx.onDuplicateKeyUpdate() != null) {
-            TableRef previousDmlTarget = currentDmlTarget;
-            currentDmlTarget = target;
-            result.setColumnLineage(readDuplicateKeyAssignments(
-                    ctx.onDuplicateKeyUpdate().assignmentList(),
-                    target,
-                    new LinkedHashMap<String, List<ColumnRef>>()));
-            currentDmlTarget = previousDmlTarget;
+            result.setColumnLineage(readInsertedValueColumns(ctx.valuesClause(), target));
         } else {
             suppressColumnLineage = true;
+        }
+        if (ctx.onDuplicateKeyUpdate() != null) {
+            appendDuplicateKeyLineage(ctx.onDuplicateKeyUpdate().assignmentList(), target);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void appendDuplicateKeyLineage(MySqlParser.AssignmentListContext assignments, TableRef target) {
+        TableRef previousDmlTarget = currentDmlTarget;
+        currentDmlTarget = target;
+        String targetQualifier = target.getName().toLowerCase(Locale.ROOT);
+        TableRef existingAlias = tableAliases.putIfAbsent(targetQualifier, target);
+        try {
+            List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
+            lineages.addAll(readDuplicateKeyAssignments(assignments, target, insertedSourcesByColumn(lineages)));
+            result.setColumnLineage(lineages);
+            projections.clear();
+        } finally {
+            currentDmlTarget = previousDmlTarget;
+            if (existingAlias == null) {
+                tableAliases.remove(targetQualifier, target);
+            }
+        }
     }
 
     private void registerInsertRowAlias(MySqlParser.InsertRowAliasContext ctx) {
@@ -2250,10 +2231,6 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         return lineages;
     }
 
-    private Map<String, List<ColumnRef>> insertedSourcesByColumn() {
-        return insertedSourcesByColumn(result.getColumnLineage());
-    }
-
     private Map<String, List<ColumnRef>> insertedSourcesByColumn(List<ColumnLineage> lineages) {
         Map<String, List<ColumnRef>> sourcesByColumn = new LinkedHashMap<>();
         for (ColumnLineage lineage : lineages) {
@@ -2269,9 +2246,6 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                                                             Map<String, List<ColumnRef>> insertedSourcesByColumn) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (MySqlParser.AssignmentContext assignment : ctx.assignment()) {
-            if (containsSubquery(assignment.expression())) {
-                continue;
-            }
             List<String> parts = identifierParts(assignment.multipartIdentifier());
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;

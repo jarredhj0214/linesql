@@ -209,6 +209,21 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.SPARK, "SELECT id FROM ods.t WHERE option(recompile)");
     }
 
+    @Test
+    public void detectsMultilineMySqlDuplicateKeyUpdates() {
+        String sql = "INSERT INTO mart.events TABLE ods.new_events ORDER BY event_id LIMIT 100"
+                + " ON\nDUPLICATE /* duplicate path */ KEY\nUPDATE touches = touches + 1;";
+        LineageResult result = LineSql.parse(sql);
+        assertEquals(SqlDialect.MYSQL, result.getDialect());
+        assertEquals(StatementType.INSERT, result.getStatementType());
+        assertEquals("new_events", result.getInputTables().get(0).getName());
+        assertEquals("events", result.getOutputTables().get(0).getName());
+        assertEquals("touches", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("event_id", result.getColumnUsages().get(0).getColumn().getName());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertDialect(SqlDialect.SPARK, "SELECT 'log: on duplicate key update ignored' AS msg");
+    }
+
     private void assertPostgresCopyScript(List<LineageResult> results) {
         assertEquals(4, results.size());
         assertEquals(StatementType.CONTROL, results.get(0).getStatementType());

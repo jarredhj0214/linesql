@@ -1148,6 +1148,38 @@
       "description": "MySQL INSERT target followed by WITH SELECT keeps CTE source table and column lineage"
     },
     {
+      "id": "insert_table_duplicate_key_update",
+      "file": "cases/insert_table_duplicate_key_update.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.new_events"],
+      "outputTables": ["mart.events"],
+      "columnLineage": [
+        {"target": "mart.events.touches", "sources": ["mart.events.touches"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.new_events.event_id"}
+      ],
+      "description": "INSERT TABLE preserves both source ordering and existing-row duplicate-key assignments"
+    },
+    {
+      "id": "insert_values_duplicate_key_scalar_subquery",
+      "file": "cases/insert_values_duplicate_key_scalar_subquery.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.bonuses"],
+      "outputTables": ["mart.events"],
+      "columnLineage": [
+        {"target": "mart.events.id", "sources": []},
+        {"target": "mart.events.score", "sources": []},
+        {"target": "mart.events.score", "sources": ["ods.bonuses.score"]},
+        {"target": "mart.events.touches", "sources": ["mart.events.touches"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.bonuses.event_id"},
+        {"type": "WHERE", "column": "mart.events.id"}
+      ],
+      "description": "Duplicate-key scalar assignments preserve the subquery value, predicate correlations, and sibling assignment"
+    },
+    {
       "id": "insert_table_statement",
       "file": "cases/insert_table_statement.sql",
       "statementType": "INSERT",
