@@ -18,6 +18,39 @@
       "description": "Spark binds unnamed calculations to explicit target positions without a partial-projection warning"
     },
     {
+      "id": "insert_scalar_subquery_correlated_predicate",
+      "file": "cases/insert_scalar_subquery_correlated_predicate.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.flags", "ods.orders"],
+      "outputTables": ["mart.audit"],
+      "columnLineage": [
+        {"target": "mart.audit.order_id", "sources": ["ods.orders.id"]},
+        {"target": "mart.audit.max_flag", "sources": ["ods.flags.flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.orders.id"},
+        {"type": "WHERE", "column": "ods.orders.active"}
+      ],
+      "description": "A scalar projection retains its value lineage and resolves the enclosing aliases in its predicate"
+    },
+    {
+      "id": "select_correlated_exists_shadowed_alias",
+      "file": "cases/select_correlated_exists_shadowed_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ods.accounts", "ods.flags"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.account_id"},
+        {"type": "WHERE", "column": "ods.accounts.id"},
+        {"type": "WHERE", "column": "ods.flags.active"}
+      ],
+      "description": "A local subquery alias shadows its enclosing alias and other enclosing aliases remain visible"
+    },
+    {
       "id": "insert_select_unnamed_scalar_value",
       "file": "cases/insert_select_unnamed_scalar_value.sql",
       "statementType": "INSERT",

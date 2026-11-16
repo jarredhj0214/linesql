@@ -2121,6 +2121,7 @@ Implemented Spark table-level lineage scenarios:
 | Cache table uncache lifecycle | `cache table c as ...; uncache table c; select ... from c` | `script_uncache_table` |
 | CTE source table, excluding CTE alias as table | `with base as (...) select ... from base` | `cte_basic` |
 | UNION input tables | `select ... from a union all select ... from b` | `union_basic` |
+| Correlated subquery predicates | Spark scalar projections and `EXISTS` bind predicate columns to the inner or enclosing table alias. A locally declared alias takes precedence when both scopes use the same name. | `insert_scalar_subquery_correlated_predicate`, `select_correlated_exists_shadowed_alias` |
 | Subquery input tables | `select ... from (select ... from ods.s)` | `subquery_basic` |
 | PIVOT source table lineage | `select * from (...) pivot (...)` | `pivot_table_lineage` |
 | PIVOT generated aggregate column lineage | `select small_total from (...) pivot (sum(amount) as total for category in ('small' as small))` | `pivot_column_lineage` |

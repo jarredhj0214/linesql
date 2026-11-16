@@ -1332,7 +1332,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             return null;
         }
         if (ctx.query() != null) {
-            LineageResult queryResult = lineageForQuery(ctx.query());
+            LineageResult queryResult = lineageForQuery(ctx.query(), false);
             for (TableRef table : queryResult.getInputTables()) {
                 addInputTable(table, false);
             }
@@ -1516,6 +1516,27 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             }
         }
         return names;
+    }
+
+    @Override
+    public Void visitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
+        if (ctx.fromClause() == null || !containsSubquery(ctx.selectClause())) {
+            return visitChildren(ctx);
+        }
+        // Make FROM aliases available to scalar subqueries while retaining the existing input order.
+        Set<TableRef> knownInputs = new LinkedHashSet<>(inputTables);
+        visit(ctx.fromClause());
+        Set<TableRef> fromInputs = new LinkedHashSet<>(inputTables);
+        inputTables.retainAll(knownInputs);
+        for (ParseTree child : ctx.children) {
+            if (child == ctx.fromClause()) {
+                inputTables.addAll(fromInputs);
+                result.setInputTables(new ArrayList<>(inputTables));
+            } else {
+                visit(child);
+            }
+        }
+        return null;
     }
 
     @Override
@@ -2119,9 +2140,12 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return queryResult;
     }
 
-    private LineageResult lineageForQuery(SqlBaseParser.QueryContext query) {
+    private LineageResult lineageForQuery(SqlBaseParser.QueryContext query, boolean correlated) {
         LineageResult queryResult = new LineageResult();
         SparkLineageVisitor queryVisitor = new SparkLineageVisitor(queryResult);
+        if (correlated) {
+            queryVisitor.tableAliases.putAll(tableAliases);
+        }
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
@@ -2559,10 +2583,9 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     private void collectSubqueryInputs(ParseTree tree) {
         if (tree instanceof SqlBaseParser.QueryContext) {
-            LineageResult queryResult = lineageForQuery((SqlBaseParser.QueryContext) tree);
-            for (TableRef table : queryResult.getInputTables()) {
-                addInputTable(table, false);
-            }
+            LineageResult queryResult = lineageForQuery((SqlBaseParser.QueryContext) tree, true);
+            inputTables.addAll(queryResult.getInputTables());
+            result.setInputTables(new ArrayList<>(inputTables));
             LineageModelUtils.mergeColumnUsages(result, queryResult);
             return;
         }
