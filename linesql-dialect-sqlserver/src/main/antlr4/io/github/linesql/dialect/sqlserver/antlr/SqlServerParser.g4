@@ -132,7 +132,7 @@ queryHintContent
     ;
 
 topClause
-    : TOP (LPAREN expression RPAREN | NUMBER_LITERAL) PERCENT_KEYWORD? (WITH TIES)?
+    : TOP (LPAREN expression RPAREN | NUMBER_LITERAL) PERCENT_KEYWORD? (WITH (TIES | APPROXIMATE))?
     ;
 
 setQuantifier
@@ -164,6 +164,10 @@ relation
 
 relationPrimary
     : multipartIdentifier FOR SYSTEM_TIME temporalTablePeriod tableHint? tableAlias tableSampleClause? tableHint? #temporalTableName
+    | VECTOR_SEARCH LPAREN TABLE EQ multipartIdentifier sourceAlias=tableAlias
+      COMMA COLUMN EQ identifier COMMA SIMILAR_TO EQ queryVector=expression
+      COMMA METRIC EQ string (COMMA TOP_N EQ number)? RPAREN resultAlias=tableAlias
+                                                                      #vectorSearchRelation
     | multipartIdentifier LPAREN expressionList? RPAREN tableFunctionSchema? tableAlias #tableValuedFunction
     | multipartIdentifier tableHint? tableAlias tableSampleClause? tableHint? #tableName
     | LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
@@ -499,6 +503,8 @@ createIndexStatement
       (INCLUDE LPAREN identifierList RPAREN)?
       whereClause?
       indexOptionClause?
+    | CREATE VECTOR INDEX multipartIdentifier ON multipartIdentifier LPAREN indexElementList RPAREN
+      (WITH LPAREN COMMA? indexOptionList RPAREN)? (ON (identifier | string))?
     ;
 
 createStatisticsStatement
@@ -1036,6 +1042,7 @@ nonReservedKeyword
     | DEALLOCATE | DYNAMIC | ENCRYPTION | FOREIGN | GLOBAL | IDENTITY | INCLUDE | INDEX | INTERVAL | JSON | JSON_ARRAYAGG | JSON_OBJECTAGG | RETURNING | ABSENT | KEY | KEYSET | LIKE | LIMIT | LOCAL | LOG | LOGIN | LOOP | HASH | REMOTE | MASTER | MAXDOP | MEMBER | NOLOCK | NONCLUSTERED | NULL | OFF | OPEN | OPTION | OPTIMIZE
     | ABSOLUTE | CLOSE | CURSOR | DENY | FAST_FORWARD | FETCH | FIRST | LAST | INSENSITIVE | OPTIMISTIC | SCROLL_LOCKS | TYPE_WARNING | FOR | FORWARD_ONLY | GRANT | GROUPING | NEXT | OBJECT | OF | OFFSET | ONLY | OUTPUT | OVER | PARTITION | PARTITIONS | PASSWORD | PERCENT_KEYWORD | POLICY | PREDICATE | PRIOR | READ_ONLY | RELATIVE | REPLACE | RENAME | REVOKE | ROOT | ROLLUP | ROW | ROWS
     | AFTER | CATCH | CONTAINSTABLE | CUBE | DELAY | FREETEXTTABLE | FUNCTION | KILL | PERSISTED | PRIMARY | PRINT | PROC | PROCEDURE | RAISERROR | REBUILD | RECOMPILE | REFERENCES | REORGANIZE | RESTORE | RETURN | ROLE | ROLLBACK | SAVE | SCHEMA | SCOPED | SECRET | SECURITY | SEQUENCE | SET | SETS | SHOW | SOURCE | STATE | STATISTICS | STATUSONLY | SYNONYM | SYSTEM_TIME | TABLE | TARGET | TEMPORARY | THROW | TIES | TIME | TO | TOP | TRAN | TRANSACTION | TRANSFER | TRIGGER | TRUE | TRY | TRY_CAST | TRY_CONVERT | TRUNCATE | TYPE | USE | USER | VALUE | VALUES | VIEW | WAITFOR
+    | VECTOR | VECTOR_SEARCH | SIMILAR_TO | METRIC | TOP_N | APPROXIMATE
     | CONVERT | SCROLL | STATIC | SYMMETRIC
     | UNIQUE | WITHIN | XML | XMLNAMESPACES
     | ALWAYS | DATA_CONSISTENCY_CHECK | GENERATED | HIDDEN_COLUMN | HISTORY_RETENTION_PERIOD | HISTORY_TABLE | INFINITE | PERIOD | START | SYSTEM_VERSIONING

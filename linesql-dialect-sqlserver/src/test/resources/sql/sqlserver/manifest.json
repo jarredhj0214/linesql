@@ -7108,6 +7108,145 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "SQL Server sp_who is accepted as table-free session metadata read"
+    },
+    {
+      "id": "select_vector_search_approximate",
+      "file": "cases/select_vector_search_approximate.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.documents"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "title",
+          "sources": [
+            "dbo.documents.title"
+          ]
+        },
+        {
+          "target": "category",
+          "sources": [
+            "dbo.documents.category"
+          ]
+        },
+        {
+          "target": "score",
+          "sources": [
+            "dbo.documents.embedding"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.documents.embedding"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.documents.is_active"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.documents.embedding"
+        }
+      ],
+      "description": "SQL Server approximate vector results expose physical columns and generated similarity distance"
+    },
+    {
+      "id": "select_vector_search_apply_correlated",
+      "file": "cases/select_vector_search_apply_correlated.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.requests",
+        "dbo.documents"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "query_id",
+          "sources": [
+            "dbo.requests.query_id"
+          ]
+        },
+        {
+          "target": "distance",
+          "sources": [
+            "dbo.documents.embedding",
+            "dbo.requests.query_vector"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.documents.embedding"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.requests.query_vector"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.documents.embedding"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.requests.query_vector"
+        }
+      ],
+      "description": "Correlated approximate vector search retains both operands through APPLY"
+    },
+    {
+      "id": "select_vector_search_legacy_top_n",
+      "file": "cases/select_vector_search_legacy_top_n.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dbo.documents"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "title",
+          "sources": [
+            "dbo.documents.title"
+          ]
+        },
+        {
+          "target": "distance",
+          "sources": [
+            "dbo.documents.embedding"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "dbo.documents.embedding"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "dbo.documents.embedding"
+        }
+      ],
+      "description": "Legacy TOP_N syntax exposes an unqualified generated distance without a result alias"
+    },
+    {
+      "id": "create_vector_index_diskann",
+      "file": "cases/create_vector_index_diskann.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "dbo.documents"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "INDEX",
+          "column": "dbo.documents.embedding"
+        }
+      ],
+      "description": "SQL Server DiskANN index captures its table and vector column"
     }
   ]
 }

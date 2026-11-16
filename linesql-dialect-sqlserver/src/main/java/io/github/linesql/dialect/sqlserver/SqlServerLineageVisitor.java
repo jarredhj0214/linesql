@@ -1299,6 +1299,28 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitVectorSearchRelation(SqlServerParser.VectorSearchRelationContext ctx) {
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        addInputTable(table, ctx.sourceAlias, false);
+        String alias = tableAlias(ctx.resultAlias);
+        String relation = (alias == null ? "vector_search" : alias).toLowerCase(Locale.ROOT);
+
+        List<ColumnRef> distanceSources = new ArrayList<>();
+        distanceSources.add(new ColumnRef(table, cleanIdentifier(ctx.identifier())));
+        List<ColumnRef> queryVectorSources = columnRefs(sourceColumns(ctx.queryVector));
+        if (queryVectorSources != null) {
+            distanceSources = LineageModelUtils.mergeColumnRefs(distanceSources, queryVectorSources);
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.JOIN_ON, distanceSources);
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        columns.put("distance", distanceSources);
+        tableAliases.put(relation, table);
+        derivedColumnLineage.put(relation, columns);
+        addDerivedReference(relation, ctx.resultAlias);
+        return null;
+    }
+
+    @Override
     public Void visitTableValuedFunction(SqlServerParser.TableValuedFunctionContext ctx) {
         if (tryVisitXmlNodesFunction(ctx)) {
             return null;

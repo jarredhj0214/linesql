@@ -83,8 +83,11 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_VECTOR_INDEX = Pattern.compile(
             "^\\s*create\\s+index\\b[^;]*\\bon\\b[^;]*\\busing\\s+(?:hnsw|ivfflat)\\b");
     private static final Pattern SHARED_VECTOR_OPERATOR = Pattern.compile("<[-#]>");
+    private static final Pattern SQL_SERVER_VECTOR_QUERY = Pattern.compile(
+            "\\bvector_search\\s*\\(\\s*table\\s*=|\\btop\\s*(?:\\([^)]*\\)|[0-9]+)\\s+with\\s+approximate\\b");
+    private static final Pattern CREATE_VECTOR_INDEX = Pattern.compile("^\\s*create\\s+vector\\s+index\\b");
     private static final Pattern ORACLE_VECTOR_SCHEMA = Pattern.compile(
-            "^\\s*create\\s+vector\\s+index\\b"
+            "(?s)^\\s*create\\s+vector\\s+index\\b.*?\\borganization\\s+(?:inmemory|neighbor|partitions)\\b"
                     + "|(?s)^\\s*(?:create|alter)\\s+table\\b.*?\\bvector\\s*\\(\\s*(?:\\*|[0-9]+)\\s*,"
                     + "\\s*(?:float32|float64|int8|binary|\\*\\s*,\\s*(?:dense|sparse))\\b");
     private static final Pattern ORACLE_JSON_AGGREGATE = Pattern.compile("\\bjson_(?:arrayagg|objectagg)\\s*\\(");
@@ -440,6 +443,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 + "(?:\\bperiod\\s+for\\s+system_time\\b|\\bsystem_versioning\\s*=).*")
                 || sqlServerTemporalQuery) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server system-versioned temporal syntax"));
+        } else if (SQL_SERVER_VECTOR_QUERY.matcher(unquotedSyntax).find()
+                || (CREATE_VECTOR_INDEX.matcher(unquotedSyntax).find()
+                    && !ORACLE_VECTOR_SCHEMA.matcher(unquotedSyntax).find())) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server vector search or index syntax"));
         } else if (sqlServerGo && TSQL_BATCH_ROUTINE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server routine and GO batch delimiter"));
         } else if (relationSyntax.matches("(?s)^\\s*with\\s+xmlnamespaces\\s*\\(.*")

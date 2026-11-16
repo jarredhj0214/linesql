@@ -347,6 +347,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void distinguishesSqlServerAndOracleVectorSyntax() {
+        assertDialect(SqlDialect.SQLSERVER, "CREATE VECTOR INDEX vec_idx ON dbo.docs (vec)"
+                + " WITH (METRIC = 'cosine', TYPE = 'DiskANN')");
+        assertDialect(SqlDialect.SQLSERVER, "CREATE VECTOR INDEX vec_idx ON dbo.docs (vec)");
+        assertDialect(SqlDialect.ORACLE, "CREATE VECTOR INDEX vec_idx ON app.docs (vec)"
+                + " ORGANIZATION INMEMORY NEIGHBOR GRAPH");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT search.distance FROM VECTOR_SEARCH(TABLE = dbo.docs,"
+                + " COLUMN = vec, SIMILAR_TO = @needle, METRIC = 'cosine', TOP_N = 3) search");
+        assertDialect(SqlDialect.SPARK, "SELECT 'VECTOR_SEARCH(TABLE = docs)' AS example");
+    }
+
+    @Test
     public void detectsOracleVectorSchemasWithoutClaimingOtherVectorFunctions() {
         assertDialect(SqlDialect.ORACLE, "CREATE VECTOR INDEX doc_ivf_idx ON docs (embedding)"
                 + " INCLUDE (category_id) ORGANIZATION NEIGHBOR PARTITIONS"
