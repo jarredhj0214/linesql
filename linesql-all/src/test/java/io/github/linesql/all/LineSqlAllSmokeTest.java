@@ -6,6 +6,8 @@ import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import org.junit.Test;
 
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -58,6 +60,21 @@ public class LineSqlAllSmokeTest {
         LineageResult result = LineSql.parse("insert into dwd.orders (id) values (1) on conflict do nothing");
         assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
         assertTrue(result.getDiagnostics().toString(), result.getDiagnostics().isEmpty());
+    }
+
+    @Test
+    public void resolvesSharedConflictActionFromFlinkScriptContext() {
+        List<LineageResult> results = LineSql.parseScript(
+                "create table src (id bigint, ts timestamp(3), watermark for ts as ts);"
+                        + "insert into sink select id from src on conflict do nothing;"
+                        + "insert into pg_sink (id) values (1) on conflict (id) do nothing;");
+
+        assertEquals(3, results.size());
+        assertEquals(SqlDialect.FLINK, results.get(1).getDialect());
+        assertEquals(StatementType.INSERT, results.get(1).getStatementType());
+        assertTrue(results.get(1).getDiagnostics().toString(), results.get(1).getDiagnostics().isEmpty());
+        assertEquals(SqlDialect.POSTGRESQL, results.get(2).getDialect());
+        assertTrue(results.get(2).getDiagnostics().toString(), results.get(2).getDiagnostics().isEmpty());
     }
 
     private static void assertAutomaticSelect(SqlDialect dialect, String sql) {

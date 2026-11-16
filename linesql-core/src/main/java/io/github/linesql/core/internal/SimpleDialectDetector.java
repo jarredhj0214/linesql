@@ -192,6 +192,11 @@ public class SimpleDialectDetector implements DialectDetector {
         return candidates;
     }
 
+    static boolean hasSharedConflictDoNothing(String sql) {
+        String normalized = stripComments(sql).toLowerCase(Locale.ROOT);
+        return normalized.matches("(?s)^\\s*(?:with|insert)\\b.*\\bon\\s+conflict\\s+do\\s+nothing\\s*;?\\s*$");
+    }
+
     private static boolean hasStrongSparkSignal(String sql) {
         return sql.contains("${")
                 || sql.contains("#day#")

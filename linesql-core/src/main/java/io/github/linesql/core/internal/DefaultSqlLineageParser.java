@@ -73,7 +73,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         DialectCandidate statementCandidate = candidates.isEmpty()
                 ? new DialectCandidate(SqlDialect.UNKNOWN, 0.0, "No dialect candidate detected")
                 : candidates.get(0);
-        if (shouldUseScriptDialect(scriptCandidate, statementCandidate)) {
+        if (shouldUseScriptDialect(scriptCandidate, statementCandidate, statement)) {
             return new DialectCandidate(
                     scriptCandidate.getDialect(),
                     scriptCandidate.getConfidence(),
@@ -90,16 +90,19 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         return candidates.isEmpty() ? null : candidates.get(0);
     }
 
-    private boolean shouldUseScriptDialect(DialectCandidate scriptCandidate, DialectCandidate statementCandidate) {
+    private boolean shouldUseScriptDialect(DialectCandidate scriptCandidate, DialectCandidate statementCandidate,
+                                           String statement) {
         if (scriptCandidate == null
                 || scriptCandidate.getDialect() == statementCandidate.getDialect()
                 || scriptCandidate.getConfidence() < 0.95
                 || scriptCandidate.getConfidence() <= statementCandidate.getConfidence()
-                || !isContextOverridable(statementCandidate.getDialect())
                 || !parsers.containsKey(scriptCandidate.getDialect())) {
             return false;
         }
-        return true;
+        return isContextOverridable(statementCandidate.getDialect())
+                || (scriptCandidate.getDialect() == SqlDialect.FLINK
+                    && statementCandidate.getDialect() == SqlDialect.POSTGRESQL
+                    && SimpleDialectDetector.hasSharedConflictDoNothing(statement));
     }
 
     private static boolean isContextOverridable(SqlDialect dialect) {

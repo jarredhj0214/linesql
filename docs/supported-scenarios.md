@@ -54,7 +54,7 @@ Implemented CLI scenarios:
 | STDIN with explicit dialect | `cat query.sql \| linesql --dialect ORACLE` | `MainTest.readsSqlFromStdinWhenNoSqlArgsProvided` |
 | Unsupported dialect rejection | `linesql --dialect db2 "select 1"` | `MainTest.rejectsUnknownDialect` |
 
-The default API detects Oracle `XMLTABLE` and Flink window functions with a `TABLE` argument, including bare `SESSION` calls with named arguments. String literals with these spellings are ignored for these signals. Flink `ON CONFLICT DO DEDUPLICATE` and `DO ERROR` select Flink automatically. Supply the Flink dialect explicitly for shared `ON CONFLICT DO NOTHING` syntax.
+The default API detects Oracle `XMLTABLE` and Flink window functions with a `TABLE` argument, including bare `SESSION` calls with named arguments. String literals with these spellings are ignored for these signals. Flink `ON CONFLICT DO DEDUPLICATE` and `DO ERROR` select Flink automatically. Shared `ON CONFLICT DO NOTHING` inherits Flink when the script contains a strong Flink signal, such as a watermark declaration. A standalone statement with no Flink signal defaults to PostgreSQL. Supply the Flink dialect explicitly for standalone Flink statements.
 
 ## PostgreSQL
 
