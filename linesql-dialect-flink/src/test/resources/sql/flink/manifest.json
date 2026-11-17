@@ -8700,6 +8700,118 @@
         }
       ],
       "description": "Parenthesized branches and VALUES contribute their known widths to positional set ordering"
+    },
+    {
+      "id": "script_alter_table_column_layout",
+      "file": "cases/script_alter_table_column_layout.sql",
+      "statementType": "MULTI",
+      "description": "Flink applies column additions, removals, and renames to a known script-declared table layout",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "ods.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "sequence_no",
+          "sources": [
+            "ods.events.sequence_no"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "source_tag",
+          "sources": [
+            "ods.events.source_tag"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "sequence_no",
+              "sources": [
+                "ods.events.sequence_no"
+              ]
+            },
+            {
+              "target": "event_id",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            },
+            {
+              "target": "source_tag",
+              "sources": [
+                "ods.events.source_tag"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "ods.events.event_id"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
