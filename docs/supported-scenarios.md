@@ -821,6 +821,7 @@ Implemented Oracle table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
+| Same-named Oracle tables in separate schemas | Schema-qualified columns distinguish projection and clause sources in joins and UPDATE FROM. Qualified stars keep each table identity. | `select_schema_qualified_same_name`, `select_schema_qualified_same_name_stars`, `update_schema_qualified_same_name` |
 | Oracle data use case domain lifecycle | CREATE covers enums and named multi-column domains. ALTER accepts display, ordering and annotations. DROP supports FORCE PRESERVE. Native domain forms identify Oracle. | `create_usecase_enum_domain`, `create_multi_column_domain`, `alter_domain_display`, `alter_domain_annotations`, `drop_domain_force_preserve` |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |

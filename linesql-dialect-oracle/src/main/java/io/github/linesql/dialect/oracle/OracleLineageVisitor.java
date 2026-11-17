@@ -14,6 +14,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.misc.Interval;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -121,7 +122,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
             if (ctx.returningClause() != null) {
                 currentDmlTarget = target;
-                tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+                bindTable(target, null);
                 appendReturningIntoLineage(ctx.returningClause(), target, lineages, StatementType.INSERT);
             }
             result.setColumnLineage(lineages);
@@ -129,7 +130,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             List<ColumnLineage> lineages = readInsertedValueColumns(ctx.valuesClause(), target);
             if (ctx.returningClause() != null) {
                 currentDmlTarget = target;
-                tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+                bindTable(target, null);
                 appendReturningIntoLineage(ctx.returningClause(), target, lineages, StatementType.INSERT);
             } else {
                 suppressColumnLineage = true;
@@ -155,11 +156,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         currentDmlTarget = table;
         inputTables.add(table);
         outputTables.add(table);
-        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
-        String alias = tableAlias(ctx.tableAlias());
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
-        }
+        bindTable(table, tableAlias(ctx.tableAlias()));
         if (ctx.fromUsingClause() != null) {
             visit(ctx.fromUsingClause());
         }
@@ -189,11 +186,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-        String alias = tableAlias(ctx.tableAlias());
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
-        }
+        bindTable(target, tableAlias(ctx.tableAlias()));
         if (ctx.fromUsingClause() != null) {
             visit(ctx.fromUsingClause());
         }
@@ -277,20 +270,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-        String targetAlias = tableAlias(ctx.tableAlias(0));
-        if (targetAlias != null) {
-            tableAliases.put(targetAlias.toLowerCase(Locale.ROOT), target);
-        }
+        bindTable(target, tableAlias(ctx.tableAlias(0)));
 
         if (ctx.multipartIdentifier().size() > 1) {
             TableRef source = tableRef(ctx.multipartIdentifier(1));
             inputTables.add(source);
-            tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
-            String sourceAlias = tableAlias(ctx.tableAlias(1));
-            if (sourceAlias != null) {
-                tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
-            }
+            bindTable(source, tableAlias(ctx.tableAlias(1)));
         }
         if (ctx.query() != null) {
             String alias = tableAlias(ctx.tableAlias(1));
@@ -1463,8 +1448,11 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
                 }
             } else if (item instanceof OracleParser.SelectQualifiedStarContext) {
                 OracleParser.SelectQualifiedStarContext star = (OracleParser.SelectQualifiedStarContext) item;
-                List<OracleParser.IdentifierContext> parts = star.qualifiedName().identifier();
-                String qualifier = cleanIdentifier(parts.get(parts.size() - 1));
+                List<String> parts = new ArrayList<>();
+                for (OracleParser.IdentifierContext part : star.qualifiedName().identifier()) {
+                    parts.add(cleanIdentifier(part));
+                }
+                String qualifier = qualifierKey(parts);
                 projections.add(new Projection(Collections.singletonList(new SourceColumn(qualifier, "*")),
                         "*", item.getText(), i));
             } else if (item instanceof OracleParser.SelectStarContext) {
@@ -1815,13 +1803,27 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             visibleRelations.add(VisibleRelation.table(table));
         }
         inputTables.add(table);
-        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
-        String alias = tableAlias(aliasCtx);
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        if (visibleRelation) {
+            bindTable(table, tableAlias(aliasCtx));
+        } else {
+            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
+    }
+
+    private void bindTable(TableRef table, String alias) {
+        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+        if (alias != null) {
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        } else if (table.getSchema() != null) {
+            String qualifier = qualifierKey(Arrays.asList(table.getSchema(), table.getName()));
+            tableAliases.put(qualifier.toLowerCase(Locale.ROOT), table);
+        }
+    }
+
+    private static String qualifierKey(List<String> parts) {
+        return parts.size() == 1 ? parts.get(0) : "\0" + String.join("\0", parts);
     }
 
     private void addDerivedReference(String rawName, OracleParser.TableAliasContext aliasCtx) {
@@ -2023,7 +2025,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         int expandedColumns = 0;
         for (Projection projection : projections) {
             if (projection.wildcard()) {
-                expandedColumns += expandDerivedWildcard(projection, targetTable, columnLineage, expandedColumns);
+                expandedColumns += expandWildcardProjection(projection, targetTable, columnLineage, expandedColumns);
                 continue;
             }
             List<ColumnRef> sources = columnRefs(projection);
@@ -2045,9 +2047,17 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         result.setColumnLineage(columnLineage);
     }
 
-    private int expandDerivedWildcard(Projection projection, TableRef targetTable, List<ColumnLineage> lineage,
-                                      int expandedColumns) {
+    private int expandWildcardProjection(Projection projection, TableRef targetTable, List<ColumnLineage> lineage,
+                                          int expandedColumns) {
         String qualifier = projection.sourceColumns.get(0).qualifier;
+        if (qualifier != null && qualifier.startsWith("\0") && insertTargetColumns.isEmpty()) {
+            TableRef table = tableAliases.get(qualifier.toLowerCase(Locale.ROOT));
+            if (table != null) {
+                lineage.add(LineageModelUtils.columnLineage(targetTable, "*",
+                        Collections.singletonList(new ColumnRef(table, "*")), projection.expression));
+                return 0;
+            }
+        }
         String relation = qualifier == null
                 ? visibleRelations.size() == 1 ? visibleRelations.get(0).derivedName : null
                 : derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
@@ -2151,6 +2161,11 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         if (sourceColumn.resolvedRef != null) {
             return sourceColumn;
         }
+        String qualifier = sourceColumn.qualifier;
+        if (qualifier != null && qualifier.startsWith("\0") && !tableAliases.containsKey(qualifier.toLowerCase(Locale.ROOT))) {
+            // Object attributes can also use multiple dereference components.
+            sourceColumn = new SourceColumn(null, qualifier.substring(1).replace('\0', '.') + "." + sourceColumn.name);
+        }
         if (sourceColumn.qualifier != null || !sourceColumn.name.contains(".")) {
             return sourceColumn;
         }
@@ -2211,7 +2226,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
             if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
+                String qualifier = qualifierKey(parts.subList(0, parts.size() - 1)).toLowerCase(Locale.ROOT);
                 TableRef resolved = tableAliases.get(qualifier);
                 if (resolved != null) {
                     table = resolved;
@@ -2556,7 +2571,12 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             OracleParser.DereferenceContext deref = (OracleParser.DereferenceContext) tree;
             List<String> parts = collectDereferenceParts(deref);
             if (!parts.isEmpty() && !isOracleGeneratedExpression(parts.get(parts.size() - 1))) {
-                columns.add(new SourceColumn(null, String.join(".", parts)));
+                if (parts.size() < 3) {
+                    columns.add(new SourceColumn(null, String.join(".", parts)));
+                } else {
+                    List<String> prefix = parts.subList(0, parts.size() - 1);
+                    columns.add(new SourceColumn(qualifierKey(prefix), parts.get(parts.size() - 1)));
+                }
             }
             return;
         }
