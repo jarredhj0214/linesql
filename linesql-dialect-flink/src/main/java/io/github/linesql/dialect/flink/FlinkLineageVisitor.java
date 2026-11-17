@@ -390,6 +390,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 insertTargetColumns.add(cleanIdentifier(id));
             }
         }
+        positionalProjectionSelect = explicitSelectClause(ctx.query().queryTerm());
         visit(ctx.query());
         refreshColumnLineage();
         retargetColumnLineage(target);
@@ -691,6 +692,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         result.setStatementType(StatementType.ALTER_VIEW);
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
+        positionalProjectionSelect = explicitSelectClause(ctx.query().queryTerm());
         visit(ctx.query());
         refreshColumnLineage();
         retargetColumnLineage(target);
@@ -1464,7 +1466,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(FlinkParser.QueryOrganizationContext ctx) {
-        FlinkParser.QueryTermContext term = ((FlinkParser.QueryContext) ctx.getParent()).queryTerm();
+        FlinkParser.QueryTermContext term = unwrappedQueryTerm(
+                ((FlinkParser.QueryContext) ctx.getParent()).queryTerm());
         boolean setQuery = term instanceof FlinkParser.SetOperationContext;
         for (FlinkParser.SortItemContext sortItem : ctx.sortItem()) {
             String key = sortItem.expression().getText();
@@ -1496,6 +1499,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             return;
         }
+        if (queryPrimary(term) instanceof FlinkParser.TableQueryContext) {
+            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcardProjection(null, "*", 0));
+            if (columns != null) {
+                addOrdinalWildcardUsage(columns, index);
+            }
+            return;
+        }
         for (FlinkParser.SelectItemContext item : selectItems(term)) {
             if (item instanceof FlinkParser.SelectExpressionContext) {
                 if (index-- == 0) {
@@ -1509,19 +1519,29 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             if (wildcard == null) {
                 return;
             }
-            Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(wildcard);
-            if (columns == null || columns.containsKey("*")) {
+            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcard);
+            if (columns == null) {
                 return;
             }
             if (index < columns.size()) {
-                for (List<ColumnRef> sources : columns.values()) {
-                    if (index-- == 0) {
-                        LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, sources);
-                        return;
-                    }
-                }
+                addOrdinalWildcardUsage(columns, index);
+                return;
             }
             index -= columns.size();
+        }
+    }
+
+    private Map<String, List<ColumnRef>> knownOrdinalWildcard(Projection wildcard) {
+        Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(wildcard);
+        return columns == null || columns.containsKey("*") ? null : columns;
+    }
+
+    private void addOrdinalWildcardUsage(Map<String, List<ColumnRef>> columns, int index) {
+        for (List<ColumnRef> sources : columns.values()) {
+            if (index-- == 0) {
+                LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, sources);
+                return;
+            }
         }
     }
 
@@ -1548,11 +1568,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private static List<FlinkParser.SelectItemContext> selectItems(FlinkParser.QueryTermContext term) {
-        FlinkParser.QuerySpecificationContext query = topLevelQuerySpecification(term);
-        if (query == null || query.selectClause().selectItemList() == null) {
+        FlinkParser.SelectClauseContext select = selectClause(term);
+        if (select == null || select.selectItemList() == null) {
             return Collections.emptyList();
         }
-        return query.selectClause().selectItemList().selectItem();
+        return select.selectItemList().selectItem();
     }
 
     @Override
@@ -1901,9 +1921,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
-        if (!columnAliases.isEmpty()) {
-            relationVisitor.positionalProjectionSelect = explicitSelectClause(query.queryTerm());
-        }
+        relationVisitor.positionalProjectionSelect = explicitSelectClause(query.queryTerm());
         relationVisitor.visit(query);
         relationVisitor.finalizeResult();
 
@@ -1946,17 +1964,26 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private static FlinkParser.SelectClauseContext selectClause(FlinkParser.QueryTermContext term) {
-        if (!(term instanceof FlinkParser.QueryTermDefaultContext)) {
-            return null;
+        FlinkParser.QueryPrimaryContext primary = queryPrimary(term);
+        return primary instanceof FlinkParser.QueryPrimaryDefaultContext
+                ? ((FlinkParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause() : null;
+    }
+
+    private static FlinkParser.QueryPrimaryContext queryPrimary(FlinkParser.QueryTermContext term) {
+        FlinkParser.QueryTermContext unwrapped = unwrappedQueryTerm(term);
+        return unwrapped instanceof FlinkParser.QueryTermDefaultContext
+                ? ((FlinkParser.QueryTermDefaultContext) unwrapped).queryPrimary() : null;
+    }
+
+    private static FlinkParser.QueryTermContext unwrappedQueryTerm(FlinkParser.QueryTermContext term) {
+        while (term instanceof FlinkParser.QueryTermDefaultContext) {
+            FlinkParser.QueryPrimaryContext primary = ((FlinkParser.QueryTermDefaultContext) term).queryPrimary();
+            if (!(primary instanceof FlinkParser.SubqueryPrimaryContext)) {
+                break;
+            }
+            term = ((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm();
         }
-        FlinkParser.QueryPrimaryContext primary = ((FlinkParser.QueryTermDefaultContext) term).queryPrimary();
-        if (primary instanceof FlinkParser.SubqueryPrimaryContext) {
-            return selectClause(((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm());
-        }
-        if (primary instanceof FlinkParser.QueryPrimaryDefaultContext) {
-            return ((FlinkParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
-        }
-        return null;
+        return term;
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {

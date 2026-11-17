@@ -9393,6 +9393,124 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "table_query_order_by_ordinal",
+      "file": "cases/table_query_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "Flink resolves positional ORDER BY with a known TABLE layout or a parenthesized SELECT"
+    },
+    {
+      "id": "wrapped_select_order_by_ordinal",
+      "file": "cases/wrapped_select_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "Flink resolves positional ORDER BY with a known TABLE layout or a parenthesized SELECT"
+    },
+    {
+      "id": "table_query_ordinal_after_constant",
+      "file": "cases/table_query_ordinal_after_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "EXPR$0",
+          "sources": []
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "An unnamed constant in a Flink CTE retains its output position in TABLE ordering"
+    },
+    {
+      "id": "wrapped_set_query_order_by_ordinal",
+      "file": "cases/wrapped_set_query_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.live.id",
+            "ods.history.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.live.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.history.id"
+        }
+      ],
+      "description": "Ordering the result of a parenthesized Flink set query retains both positional dependencies"
     }
   ]
 }
