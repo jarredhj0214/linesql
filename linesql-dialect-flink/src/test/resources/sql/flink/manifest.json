@@ -5764,6 +5764,12 @@
           ]
         }
       ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "dwd.order_payments.user_id"},
+        {"type": "WHERE", "column": "dwd.order_payments.amount"},
+        {"type": "WINDOW_PARTITION_BY", "column": "dwd.order_payments.user_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "dwd.order_payments.amount"}
+      ],
       "description": "Flink Top-N QUALIFY query column lineage"
     },
     {
@@ -5793,6 +5799,12 @@
             "ods.orders.product_id"
           ]
         }
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.order_id"},
+        {"type": "WHERE", "column": "ods.orders.proctime"},
+        {"type": "WINDOW_PARTITION_BY", "column": "ods.orders.order_id"},
+        {"type": "WINDOW_ORDER_BY", "column": "ods.orders.proctime"}
       ],
       "description": "Flink deduplication QUALIFY query column lineage"
     },
@@ -8069,6 +8081,92 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "qualify_after_named_window",
+      "file": "cases/qualify_after_named_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": [
+            "ods.events.user_id",
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.events.event_time"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "Named-window filter retains projection and window dependencies regardless of supported clause order"
+    },
+    {
+      "id": "qualify_before_named_window",
+      "file": "cases/qualify_before_named_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "rn",
+          "sources": [
+            "ods.events.user_id",
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.events.event_time"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "Named-window filter retains projection and window dependencies regardless of supported clause order"
     }
   ]
 }

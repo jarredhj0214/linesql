@@ -77,7 +77,8 @@ queryPrimary
     ;
 
 querySpecification
-    : selectClause fromClause? whereClause? groupByClause? havingClause? qualifyClause? windowClause?
+    : selectClause fromClause? whereClause? groupByClause? havingClause?
+      (windowClause qualifyClause? | qualifyClause windowClause?)?
     ;
 
 selectClause

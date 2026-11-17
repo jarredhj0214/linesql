@@ -1395,8 +1395,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitQualifyClause(FlinkParser.QualifyClauseContext ctx) {
         addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
-        collectSubqueryInputs(ctx.expression());
-        return null;
+        return visit(ctx.expression());
     }
 
     @Override
@@ -2147,7 +2146,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private void flushPendingColumnUsages() {
         for (PendingColumnUsage usage : pendingColumnUsages) {
-            addColumnUsages(usage.type, usage.sourceColumns);
+            addInputColumnUsages(usage.type, usage.sourceColumns);
         }
     }
 
