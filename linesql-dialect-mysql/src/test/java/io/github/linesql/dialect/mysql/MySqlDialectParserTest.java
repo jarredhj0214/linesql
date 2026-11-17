@@ -69,21 +69,32 @@ public class MySqlDialectParserTest {
                 List<LineageResult> results = LineSql.parseScript(sql, SqlDialect.MYSQL);
                 assertTables(caseId, sqlCase.get("inputTables"), collectInputTables(results));
                 assertTables(caseId, sqlCase.get("outputTables"), collectOutputTables(results));
+                if (sqlCase.has("statements")) {
+                    JsonNode statements = sqlCase.get("statements");
+                    assertEquals(caseId, statements.size(), results.size());
+                    for (int index = 0; index < results.size(); index++) {
+                        assertCaseLineage(caseId + "#" + (index + 1), statements.get(index), results.get(index));
+                    }
+                }
                 continue;
             }
 
             LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
 
-            assertEquals(caseId, SqlDialect.MYSQL, result.getDialect());
-            assertEquals(caseId, StatementType.valueOf(statementType), result.getStatementType());
-            assertTables(caseId, sqlCase.get("inputTables"), tableNames(result.getInputTables()));
-            assertTables(caseId, sqlCase.get("outputTables"), tableNames(result.getOutputTables()));
-            if (sqlCase.has("columnLineage")) {
-                assertColumnLineage(caseId, sqlCase.get("columnLineage"), result);
-            }
-            if (sqlCase.has("columnUsages")) {
-                assertColumnUsages(caseId, sqlCase.get("columnUsages"), result);
-            }
+            assertCaseLineage(caseId, sqlCase, result);
+        }
+    }
+
+    private static void assertCaseLineage(String caseId, JsonNode expected, LineageResult result) {
+        assertEquals(caseId, SqlDialect.MYSQL, result.getDialect());
+        assertEquals(caseId, StatementType.valueOf(expected.get("statementType").asText()), result.getStatementType());
+        assertTables(caseId, expected.get("inputTables"), tableNames(result.getInputTables()));
+        assertTables(caseId, expected.get("outputTables"), tableNames(result.getOutputTables()));
+        if (expected.has("columnLineage")) {
+            assertColumnLineage(caseId, expected.get("columnLineage"), result);
+        }
+        if (expected.has("columnUsages")) {
+            assertColumnUsages(caseId, expected.get("columnUsages"), result);
         }
     }
 

@@ -1001,6 +1001,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitUseStatement(MySqlParser.UseStatementContext ctx) {
+        if (context != null) {
+            context.setDefaultSchema(cleanIdentifier(ctx.identifier()));
+        }
         return null;
     }
 
@@ -1343,7 +1346,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     private static boolean referencesRelation(ParseTree tree, String name) {
         if (tree instanceof MySqlParser.TableNameContext) {
-            TableRef table = tableRef(((MySqlParser.TableNameContext) tree).multipartIdentifier());
+            TableRef table = rawTableRef(((MySqlParser.TableNameContext) tree).multipartIdentifier());
             return table.getCatalog() == null && table.getSchema() == null && name.equalsIgnoreCase(table.getName());
         }
         for (int index = 0; index < tree.getChildCount(); index++) {
@@ -1393,7 +1396,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableName(MySqlParser.TableNameContext ctx) {
-        TableRef table = tableRef(ctx.multipartIdentifier());
+        TableRef table = rawTableRef(ctx.multipartIdentifier());
         if (isDualPseudoTable(table)) {
             return null;
         }
@@ -1401,6 +1404,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
         }
+        table = qualifyTable(table);
         String temporaryRelationName = temporaryRelationName(table);
         if (temporaryRelationName != null) {
             addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
@@ -2966,12 +2970,24 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     // ============ Utility ============
 
-    private static TableRef tableRef(MySqlParser.MultipartIdentifierContext ctx) {
+    private TableRef tableRef(MySqlParser.MultipartIdentifierContext ctx) {
+        return qualifyTable(rawTableRef(ctx));
+    }
+
+    private TableRef qualifyTable(TableRef table) {
+        if (context == null || context.getDefaultSchema() == null || table.getSchema() != null
+                || table.getCatalog() != null) {
+            return table;
+        }
+        return new TableRef(null, context.getDefaultSchema(), table.getName());
+    }
+
+    private static TableRef rawTableRef(MySqlParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
         return LineageModelUtils.tableRefFromParts(parts);
     }
 
-    private static TableRef showTableRef(
+    private TableRef showTableRef(
             MySqlParser.MultipartIdentifierContext table,
             MySqlParser.ShowFromSchemaContext schema) {
         List<String> parts = identifierParts(table);
@@ -2981,7 +2997,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             qualified.add(parts.get(0));
             return LineageModelUtils.tableRefFromParts(qualified);
         }
-        return LineageModelUtils.tableRefFromParts(parts);
+        return tableRef(table);
     }
 
     private static String relationKey(TableRef table) {

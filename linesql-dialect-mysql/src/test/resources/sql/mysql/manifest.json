@@ -12571,6 +12571,163 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "A runtime SQL variable remains a prepared control statement"
+    },
+    {
+"id": "script_use_database_and_cte_scope",
+      "file": "cases/script_use_database_and_cte_scope.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.orders",
+        "ods.orders",
+        "mart.live",
+        "mart.stage",
+        "mart.orders"
+      ],
+      "outputTables": [
+        "ods.stage",
+        "mart.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.summary.id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "description": "MySQL USE qualifies physical relations while preserving CTE and temporary relation scopes",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.orders"
+          ],
+          "outputTables": [
+            "ods.stage"
+          ],
+          "columnLineage": [
+            {
+              "target": "ods.stage.id",
+              "sources": [
+                "ods.orders.id"
+              ]
+            },
+            {
+              "target": "ods.stage.status",
+              "sources": [
+                "ods.orders.status"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.orders.active"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "ods.orders"
+          ],
+          "outputTables": [
+            "mart.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.summary.id",
+              "sources": [
+                "ods.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.orders.active"
+            },
+            {
+              "type": "WHERE",
+              "column": "ods.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.live"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "mart.live.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.stage"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "mart.stage.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "mart.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "mart.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "mart.orders.id"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
