@@ -1907,15 +1907,36 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     @Override
     public Void visitQueryOrganization(SqlServerParser.QueryOrganizationContext ctx) {
         SqlServerParser.QueryContext query = (SqlServerParser.QueryContext) ctx.getParent();
-        boolean setQuery = query.queryTerm() instanceof SqlServerParser.SetOperationContext;
+        SqlServerParser.QueryTermContext term = unwrapSetBranch(query.queryTerm());
         for (SqlServerParser.SortItemContext sortItem : ctx.sortItem()) {
-            if (setQuery) {
-                addSetSortUsage(query.queryTerm(), sortItem.expression().getText());
+            String sortKey = sortItem.expression().getText();
+            if (term instanceof SqlServerParser.SetOperationContext) {
+                addSetSortUsage(term, sortKey);
+            } else if (sortKey.matches("[0-9]+")) {
+                addSelectSortPositionUsage(term, sortPosition(sortKey));
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
             }
         }
         return visitChildren(ctx);
+    }
+
+    private void addSelectSortPositionUsage(SqlServerParser.QueryTermContext term, int position) {
+        SqlServerParser.SelectClauseContext select = selectClause(term);
+        if (select == null || position <= 0) {
+            return;
+        }
+        List<SqlServerParser.SelectItemContext> items = select.selectItemList().selectItem();
+        if (position > items.size() || items.subList(0, position).stream()
+                .anyMatch(item -> !(item instanceof SqlServerParser.SelectExpressionContext))) {
+            return;
+        }
+        SqlServerParser.SelectExpressionContext selected =
+                (SqlServerParser.SelectExpressionContext) items.get(position - 1);
+        List<ColumnRef> refs = columnRefs(sourceColumns(selected.expression()));
+        if (refs != null) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, refs);
+        }
     }
 
     private void addSetSortUsage(SqlServerParser.QueryTermContext term, String sortKey) {
@@ -1927,15 +1948,18 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (columns.isEmpty() || columns.size() != explicitOutputWidth(term)) {
             return;
         }
-        int position;
-        try {
-            position = Integer.parseInt(sortKey);
-        } catch (NumberFormatException ignored) {
-            return;
-        }
+        int position = sortPosition(sortKey);
         if (position > 0 && position <= columns.size()) {
             LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY,
                     columns.get(position - 1).getSources());
+        }
+    }
+
+    private static int sortPosition(String sortKey) {
+        try {
+            return Integer.parseInt(sortKey);
+        } catch (NumberFormatException ignored) {
+            return 0;
         }
     }
 
@@ -1951,21 +1975,22 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private static SqlServerParser.SelectClauseContext explicitBranchSelect(SqlServerParser.QueryTermContext term) {
+        SqlServerParser.SelectClauseContext select = selectClause(term);
+        if (select != null && select.selectItemList().selectItem().stream()
+                .allMatch(item -> item instanceof SqlServerParser.SelectExpressionContext)) {
+            return select;
+        }
+        return null;
+    }
+
+    private static SqlServerParser.SelectClauseContext selectClause(SqlServerParser.QueryTermContext term) {
         term = unwrapSetBranch(term);
         if (!(term instanceof SqlServerParser.QueryTermDefaultContext)) {
             return null;
         }
-        SqlServerParser.QueryPrimaryContext primary =
-                ((SqlServerParser.QueryTermDefaultContext) term).queryPrimary();
-        if (primary instanceof SqlServerParser.QueryPrimaryDefaultContext) {
-            SqlServerParser.SelectClauseContext select =
-                    ((SqlServerParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
-            if (select.selectItemList().selectItem().stream()
-                    .allMatch(item -> item instanceof SqlServerParser.SelectExpressionContext)) {
-                return select;
-            }
-        }
-        return null;
+        SqlServerParser.QueryPrimaryContext primary = ((SqlServerParser.QueryTermDefaultContext) term).queryPrimary();
+        return primary instanceof SqlServerParser.QueryPrimaryDefaultContext
+                ? ((SqlServerParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause() : null;
     }
 
     private static SqlServerParser.QueryTermContext unwrapSetBranch(SqlServerParser.QueryTermContext term) {

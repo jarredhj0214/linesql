@@ -217,6 +217,33 @@
       "description": "SQL Server set query preserves the positions of explicit SELECT expressions"
     },
     {
+      "id": "select_order_by_unnamed_output_positions",
+      "file": "cases/select_order_by_unnamed_output_positions.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["sales.orders.customer_id"]}],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "sales.orders.amount"},
+        {"type": "ORDER_BY", "column": "sales.orders.tax"},
+        {"type": "ORDER_BY", "column": "sales.orders.customer_id"}
+      ],
+      "description": "SQL Server ORDER BY positions follow the SELECT list, including unnamed expressions and preceding constants"
+    },
+    {
+      "id": "select_order_by_position_before_unknown_star",
+      "file": "cases/select_order_by_position_before_unknown_star.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "first_id", "sources": ["sales.orders.id"]},
+        {"target": "trailing_status", "sources": ["sales.orders.status"]}
+      ],
+      "columnUsages": [{"type": "ORDER_BY", "column": "sales.orders.id"}],
+      "description": "SQL Server ORDER BY resolves positions before a wildcard whose width is unknown"
+    },
+    {
       "id": "union_order_by_output_position",
       "file": "cases/union_order_by_output_position.sql",
       "statementType": "SELECT",
