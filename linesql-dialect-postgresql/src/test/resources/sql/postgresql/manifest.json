@@ -1552,6 +1552,16 @@
       "description": "PostgreSQL INSERT SELECT preserves write mappings and RETURNING result-column lineage"
     },
     {
+      "id": "explain_format_json_lineage",
+      "file": "cases/explain_format_json_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "id", "sources": ["ods.events.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.active"}],
+      "description": "EXPLAIN FORMAT JSON identifies PostgreSQL and keeps wrapped query lineage"
+    },
+    {
       "id": "explain_analyze_insert_select",
       "file": "cases/explain_analyze_insert_select.sql",
       "statementType": "INSERT",

@@ -7504,6 +7504,16 @@
       "description": "Flink EXPLAIN PLAN FOR SELECT preserves explained query lineage"
     },
     {
+      "id": "explain_json_plan_query_lineage",
+      "file": "cases/explain_json_plan_query_lineage.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "event_id", "sources": ["ods.events.event_id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.is_valid"}],
+      "description": "Flink EXPLAIN JSON_EXECUTION_PLAN preserves the wrapped query and its predicates"
+    },
+    {
       "id": "explain_details_insert",
       "file": "cases/explain_details_insert.sql",
       "statementType": "READ_METADATA",

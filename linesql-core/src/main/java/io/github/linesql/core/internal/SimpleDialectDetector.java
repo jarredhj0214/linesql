@@ -85,6 +85,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern FLINK_CHANGELOG_FUNCTION = Pattern.compile(
             "(?:\\b(?:from|join)\\s+|,\\s*)(?:lateral\\s+)?(?:table\\s*\\(\\s*)?"
                     + "(?:from|to)_changelog\\s*\\(\\s*(?:input\\s*=>\\s*)?table\\b");
+    private static final Pattern FLINK_EXPLAIN_OR_JAR = Pattern.compile(
+            "^\\s*(?:explain\\s+(?:estimated_cost|changelog_mode|plan_advice|json_execution_plan)"
+                    + "|show\\s+jars|remove\\s+jar)\\b");
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
@@ -261,7 +264,9 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*prepare\\s+(?:[a-z_][\\w$]*|" + DOUBLE_QUOTED_IDENTIFIER + ")"
                     + "(?:\\s*\\([^;]*\\)\\s*|\\s+)as\\s+(?:select|values|table|with|insert|update|delete|merge)\\b");
     private static final Pattern POSTGRES_EXPLAIN_OPTIONS = Pattern.compile(
-            "^\\s*explain\\s*\\(\\s*(?:[^()]*,\\s*)?(?:generic_plan|serialize|memory)\\b");
+            "^\\s*explain\\s*\\(\\s*(?:(?:analyze|analyse|verbose|costs|settings|generic_plan|buffers"
+                    + "|serialize|wal|timing|summary|memory|format)\\b"
+                    + "|[^()]*,\\s*(?:generic_plan|serialize|memory)\\b)");
     private static final Pattern POSTGRES_EXPLAIN_CURSOR = Pattern.compile(
             "^\\s*explain\\s+(?:\\([^()]*\\)\\s*)?declare\\b");
     private static final Pattern POSTGRES_PREPARED_RESET = Pattern.compile(
@@ -496,6 +501,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
         } else if (FLINK_CHANGELOG_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink changelog table function syntax"));
+        } else if (FLINK_EXPLAIN_OR_JAR.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink explain details or JAR management"));
         } else if (FLINK_MODULE_OR_SYSTEM_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink module or temporary system function syntax"));
         } else if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)

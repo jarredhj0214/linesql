@@ -700,6 +700,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkExplainDetailsAndJarManagement() {
+        LineageResult plan = LineSql.parse("EXPLAIN CHANGELOG_MODE, JSON_EXECUTION_PLAN "
+                + "INSERT INTO mart.rollup SELECT id FROM ods.events WHERE active");
+        assertEquals(SqlDialect.FLINK, plan.getDialect());
+        assertEquals(StatementType.READ_METADATA, plan.getStatementType());
+        assertEquals("events", plan.getInputTables().get(0).getName());
+        assertEquals("rollup", plan.getOutputTables().get(0).getName());
+        assertEquals("active", plan.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(plan.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "EXPLAIN PLAN_ADVICE SELECT id FROM ods.events");
+        assertDialect(SqlDialect.FLINK, "SHOW JARS");
+        assertDialect(SqlDialect.FLINK, "REMOVE JAR 'file:///opt/flink/extensions/example.jar'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'EXPLAIN CHANGELOG_MODE SELECT id; SHOW JARS' AS notes");
+        assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (GENERIC_PLAN TRUE, FORMAT JSON) SELECT id FROM ods.events");
+    }
+
+    @Test
     public void detectsFlinkChangelogConversion() {
         assertDialect(SqlDialect.FLINK, "SELECT id FROM FROM_CHANGELOG(input => TABLE ods.events)");
         assertDialect(SqlDialect.FLINK, "SELECT id FROM TO_CHANGELOG(input => TABLE ods.events)");
@@ -791,6 +808,19 @@ public class LineSqlAutoDetectionIntegrationTest {
             assertTrue(result.getDiagnostics().isEmpty());
         }
         assertDialect(SqlDialect.SPARK, "SELECT 'CREATE EXTENSION pg_trgm' AS message");
+    }
+
+    @Test
+    public void detectsPostgresParenthesizedExplainOptions() {
+        LineageResult explain = LineSql.parse("EXPLAIN (FORMAT JSON) SELECT id FROM ods.events WHERE active");
+        assertEquals(SqlDialect.POSTGRESQL, explain.getDialect());
+        assertEquals(StatementType.SELECT, explain.getStatementType());
+        assertEquals("id", explain.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("active", explain.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(explain.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (ANALYZE FALSE, BUFFERS FALSE) SELECT id FROM ods.events");
+        assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (SETTINGS, WAL) SELECT id FROM ods.events");
+        assertDialect(SqlDialect.SPARK, "SELECT 'EXPLAIN (FORMAT JSON)' AS note");
     }
 
     @Test
