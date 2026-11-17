@@ -1404,7 +1404,7 @@ Implemented Flink table-level lineage scenarios:
 | INSERT ON CONFLICT policies | `insert into sink select ... on conflict do nothing/error/deduplicate` | `insert_on_conflict_do_nothing`, `insert_on_conflict_do_error`, `insert_on_conflict_do_deduplicate` |
 | UPDATE target table lineage | `update ads_t set c = c2 where ...`; `update ads_t set c = c * 2` | `update_set`, `update_without_where` |
 | DELETE target table lineage | `delete from ads_t where ...`; `delete from ads_t` | `delete_where`, `delete_without_where` |
-| UPDATE with subquery sources | `update ads_t set c = (select ... from ods_s1) where id in (select ... from ods_s2)` | `update_with_subquery` |
+| UPDATE with subquery sources | A scalar assignment follows the selected value and any outer expression inputs. Correlated predicates retain their table and column references. | `update_with_subquery`, `update_correlated_scalar_assignment` |
 | DELETE with subquery sources | `delete from ads_t where id in (select ... from ods_s)` | `delete_with_subquery` |
 | Statement set write lineage | `statement set begin insert into ...; end`, `execute statement set begin insert into ...; end`, mixed `insert into` and `insert overwrite` sinks; input/output tables and per-sink column mappings are merged | `statement_set`, `statement_set_mixed_overwrite`, `execute_statement_set`, `execute_statement_set_mixed_overwrite` |
 | Statement sets in scripts | The default splitter keeps internal INSERT delimiters, including legacy `BEGIN STATEMENT SET` and wrapped `EXPLAIN` or `COMPILE PLAN` forms. The block reports all sinks in one result. | `legacy_begin_statement_set`, `compile_plan_statement_set`, `LineSqlAutoDetectionIntegrationTest.keepsDefaultFlinkStatementSetAndTemporaryViewLineage` |

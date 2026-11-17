@@ -1401,7 +1401,9 @@
       "outputTables": [
         "ads_users"
       ],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "ads_users.latest_flag", "sources": ["ods_user_flags.flag"]}
+      ],
       "columnUsages": [
         {
           "type": "WHERE",
@@ -1412,7 +1414,23 @@
           "column": "ods_active_users.user_id"
         }
       ],
-      "description": "Flink UPDATE target table with SET and WHERE subquery source tables and predicate columns"
+      "description": "Flink UPDATE target table with SET value lineage and WHERE predicate columns"
+    },
+    {
+      "id": "update_correlated_scalar_assignment",
+      "file": "cases/update_correlated_scalar_assignment.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "ods.flags"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.latest_flag", "sources": ["ods.flags.change_flag", "mart.orders.current_flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.keep_flag"},
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "mart.orders.order_id"}
+      ],
+      "description": "A scalar UPDATE expression keeps the selected value, outer row fallback, and the correlated WHERE sources"
     },
     {
       "id": "delete_with_subquery",

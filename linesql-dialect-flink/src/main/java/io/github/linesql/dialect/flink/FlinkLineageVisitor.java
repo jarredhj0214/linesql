@@ -186,7 +186,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
         }
-        collectSubqueryInputs(ctx);
+        collectSubqueryDependencies(ctx, true);
 
         List<ColumnLineage> assignments = readAssignments(ctx.assignmentList(), target);
         result.setColumnLineage(assignments);
@@ -249,7 +249,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             if (clause.mergeMatchedAction() != null
                     && clause.mergeMatchedAction().assignmentList() != null) {
-                assignments.addAll(readAssignments(clause.mergeMatchedAction().assignmentList(), target));
+                FlinkParser.AssignmentListContext updates = clause.mergeMatchedAction().assignmentList();
+                collectSubqueryDependencies(updates, true);
+                assignments.addAll(readAssignments(updates, target));
             }
             if (notMatched != null) {
                 assignments.addAll(readMergeInsertValues(notMatched, target));
@@ -3189,9 +3191,6 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private List<ColumnLineage> readAssignments(FlinkParser.AssignmentListContext ctx, TableRef defaultTarget) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (FlinkParser.AssignmentContext assignment : ctx.assignment()) {
-            if (containsSubquery(assignment.expression())) {
-                continue;
-            }
             List<String> parts = identifierParts(assignment.multipartIdentifier());
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
@@ -3290,30 +3289,36 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private void collectSubqueryInputs(ParseTree tree) {
+        collectSubqueryDependencies(tree, false);
+    }
+
+    private void collectSubqueryDependencies(ParseTree tree, boolean includeColumnUsages) {
         if (tree instanceof FlinkParser.ScalarSubqueryContext) {
-            FlinkParser.ScalarSubqueryContext subquery = (FlinkParser.ScalarSubqueryContext) tree;
-            LineageResult subResult = lineageForQuery(subquery.query());
-            inputTables.addAll(subResult.getInputTables());
-            result.setInputTables(new ArrayList<>(inputTables));
+            addSubqueryDependencies(((FlinkParser.ScalarSubqueryContext) tree).query(), includeColumnUsages);
             return;
         }
         if (tree instanceof FlinkParser.ExistsExprContext) {
-            FlinkParser.ExistsExprContext exists = (FlinkParser.ExistsExprContext) tree;
-            LineageResult subResult = lineageForQuery(exists.query());
-            inputTables.addAll(subResult.getInputTables());
-            result.setInputTables(new ArrayList<>(inputTables));
+            addSubqueryDependencies(((FlinkParser.ExistsExprContext) tree).query(), includeColumnUsages);
             return;
         }
         if (tree instanceof FlinkParser.PredicateContext) {
-            FlinkParser.PredicateContext predicate = (FlinkParser.PredicateContext) tree;
-            if (predicate.query() != null) {
-                LineageResult subResult = lineageForQuery(predicate.query());
-                inputTables.addAll(subResult.getInputTables());
-                result.setInputTables(new ArrayList<>(inputTables));
+            FlinkParser.QueryContext query = ((FlinkParser.PredicateContext) tree).query();
+            if (query != null) {
+                addSubqueryDependencies(query, includeColumnUsages);
+                return;
             }
         }
         for (int i = 0; i < tree.getChildCount(); i++) {
-            collectSubqueryInputs(tree.getChild(i));
+            collectSubqueryDependencies(tree.getChild(i), includeColumnUsages);
+        }
+    }
+
+    private void addSubqueryDependencies(FlinkParser.QueryContext query, boolean includeColumnUsages) {
+        LineageResult subquery = lineageForQuery(query);
+        inputTables.addAll(subquery.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
+        if (includeColumnUsages) {
+            LineageModelUtils.mergeColumnUsages(result, subquery);
         }
     }
 
