@@ -10916,6 +10916,61 @@
         }
       ],
       "description": "The merged right join key maps to the first INSERT slot and keeps the right source"
+    },
+    {
+      "id": "insert_known_star_duplicate_output_names",
+      "file": "cases/insert_known_star_duplicate_output_names.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "crm.accounts",
+        "billing.invoices"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.account_id",
+          "sources": [
+            "crm.accounts.account_id"
+          ]
+        },
+        {
+          "target": "audit.summary.zone",
+          "sources": [
+            "crm.accounts.region"
+          ]
+        },
+        {
+          "target": "audit.summary.invoice_customer_id",
+          "sources": [
+            "billing.invoices.customer_id"
+          ]
+        },
+        {
+          "target": "audit.summary.invoice_amount",
+          "sources": [
+            "billing.invoices.amount"
+          ]
+        },
+        {
+          "target": "audit.summary.source_key",
+          "sources": [
+            "crm.accounts.account_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "crm.accounts.account_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "billing.invoices.customer_id"
+        }
+      ],
+      "description": "Explicit target names map positionally across a known wildcard with duplicate input names"
     }
   ]
 }

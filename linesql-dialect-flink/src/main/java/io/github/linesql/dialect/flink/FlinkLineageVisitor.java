@@ -2307,13 +2307,21 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             if (projection.wildcard) {
                 Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(projection);
                 if (columns != null && !columns.containsKey("*")) {
-                    addWildcardProjectionLineage(targetTable, projection, columns, ordinal, columnLineage);
+                    addWildcardProjectionLineage(targetTable, projection, columns.entrySet(), ordinal, columnLineage);
                     expandedColumns += columns.size() - 1;
                     continue;
                 }
+                if (columns == null && ordinal >= 0 && ordinal < insertTargetColumns.size()) {
+                    List<Map.Entry<String, List<ColumnRef>>> ordered = knownOrdinalWildcard(projection);
+                    if (ordered != null && ordered.size() <= insertTargetColumns.size() - ordinal) {
+                        addWildcardProjectionLineage(targetTable, projection, ordered, ordinal, columnLineage);
+                        expandedColumns += ordered.size() - 1;
+                        continue;
+                    }
+                }
                 knownPosition = false;
                 if (columns != null) {
-                    addWildcardProjectionLineage(targetTable, projection, columns, -1, columnLineage);
+                    addWildcardProjectionLineage(targetTable, projection, columns.entrySet(), -1, columnLineage);
                     continue;
                 }
             } else if (!knownPosition && !insertTargetColumns.isEmpty()) {
@@ -2336,11 +2344,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private void addWildcardProjectionLineage(
             TableRef targetTable,
             Projection projection,
-            Map<String, List<ColumnRef>> columns,
+            Iterable<Map.Entry<String, List<ColumnRef>>> columns,
             int firstOrdinal,
             List<ColumnLineage> columnLineage) {
         int ordinal = firstOrdinal;
-        for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
+        for (Map.Entry<String, List<ColumnRef>> entry : columns) {
             if ("*".equals(entry.getKey()) && entry.getValue().stream().noneMatch(ref -> "*".equals(ref.getName()))) {
                 continue;
             }
