@@ -52,6 +52,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private int setColumnCount = -1;
     private int selectedColumnCount = -1;
     private int firstUnknownStarOrdinal = Integer.MAX_VALUE;
+    private final List<ColumnRef> unresolvedStarSources = new ArrayList<>();
     private boolean suppressColumnLineage;
     private PostgreSqlParser.SelectClauseContext positionalSelect;
     private final PostgreSqlParser.QueryContext preparedTableQuery;
@@ -1815,8 +1816,40 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         LineageModelUtils.mergeColumnUsages(result, leftResult);
         LineageModelUtils.mergeColumnUsages(result, rightResult);
-        result.setColumnLineage(LineageModelUtils.mergeSetColumnLineage(leftResult, rightResult));
+        if (left.firstUnknownStarOrdinal < Integer.MAX_VALUE || right.firstUnknownStarOrdinal < Integer.MAX_VALUE) {
+            mergeUnresolvedSetLineage(left, right);
+        } else {
+            result.setColumnLineage(LineageModelUtils.mergeSetColumnLineage(leftResult, rightResult));
+        }
         return null;
+    }
+
+    private void mergeUnresolvedSetLineage(PostgreSqlLineageVisitor left, PostgreSqlLineageVisitor right) {
+        List<ColumnLineage> leftColumns = left.result.getColumnLineage();
+        List<ColumnLineage> rightColumns = right.result.getColumnLineage();
+        int prefix = Math.min(Math.min(left.firstUnknownStarOrdinal, right.firstUnknownStarOrdinal),
+                Math.min(leftColumns.size(), rightColumns.size()));
+        firstUnknownStarOrdinal = prefix;
+        List<ColumnLineage> merged = new ArrayList<>();
+        for (int index = 0; index < prefix; index++) {
+            ColumnLineage leftColumn = leftColumns.get(index);
+            List<ColumnRef> sources = LineageModelUtils.mergeColumnRefs(
+                    leftColumn.getSources(), rightColumns.get(index).getSources());
+            merged.add(LineageModelUtils.columnLineage(leftColumn.getTarget(), sources, leftColumn.getExpression()));
+        }
+        List<ColumnRef> sources = new ArrayList<>(left.unresolvedStarSources);
+        sources.addAll(right.unresolvedStarSources);
+        for (ColumnLineage column : leftColumns.subList(prefix, leftColumns.size())) {
+            sources.addAll(column.getSources());
+        }
+        for (ColumnLineage column : rightColumns.subList(prefix, rightColumns.size())) {
+            sources.addAll(column.getSources());
+        }
+        if (!sources.isEmpty()) {
+            merged.add(LineageModelUtils.columnLineage(null, "*",
+                    LineageModelUtils.mergeColumnRefs(Collections.emptyList(), sources), null));
+        }
+        result.setColumnLineage(merged);
     }
 
     @Override
@@ -2445,12 +2478,51 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 int width = addKnownStarProjections(item, ordinal);
                 if (width == 0) {
                     firstUnknownStarOrdinal = Math.min(firstUnknownStarOrdinal, ordinal);
+                    if (ctx == positionalSelect) {
+                        collectUnresolvedStarSources(item);
+                    }
                 }
                 ordinal += Math.max(1, width);
             }
         }
         selectedColumnCount = firstUnknownStarOrdinal == Integer.MAX_VALUE ? ordinal : -1;
         return visitChildren(ctx);
+    }
+
+    private void collectUnresolvedStarSources(PostgreSqlParser.SelectItemContext item) {
+        if (item instanceof PostgreSqlParser.SelectQualifiedStarContext) {
+            PostgreSqlParser.SelectQualifiedStarContext star = (PostgreSqlParser.SelectQualifiedStarContext) item;
+            List<PostgreSqlParser.IdentifierContext> parts = star.qualifiedName().identifier();
+            if (parts.size() == 1) {
+                String qualifier = cleanIdentifier(parts.get(0));
+                String derived = derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
+                if (derived != null) {
+                    unresolvedStarSources.addAll(derivedWildcardSources(derived));
+                    return;
+                }
+                addUnresolvedTableStar(tableForQualifier(qualifier));
+            } else {
+                List<String> path = new ArrayList<>();
+                for (PostgreSqlParser.IdentifierContext part : parts) {
+                    path.add(part.getText());
+                }
+                addUnresolvedTableStar(tableForQualifier(qualifiedTableKey(path)));
+            }
+            return;
+        }
+        for (VisibleRelation relation : visibleRelations) {
+            if (relation.derivedName != null) {
+                unresolvedStarSources.addAll(derivedWildcardSources(relation.derivedName));
+            } else {
+                addUnresolvedTableStar(relation.table);
+            }
+        }
+    }
+
+    private void addUnresolvedTableStar(TableRef table) {
+        if (table != null) {
+            unresolvedStarSources.add(new ColumnRef(table, "*"));
+        }
     }
 
     private int addKnownStarProjections(PostgreSqlParser.SelectItemContext item, int ordinal) {
@@ -2719,7 +2791,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             int ordinal = outputOrdinal(sortKey);
             if ((outputOrder || tableOrder) && ordinal >= 0) {
                 List<ColumnLineage> lineages = result.getColumnLineage();
-                if (ordinal < lineages.size() && lineages.size() == knownOutputWidth(term)) {
+                boolean exactPrefix = term instanceof PostgreSqlParser.SetOperationContext
+                        && firstUnknownStarOrdinal < Integer.MAX_VALUE && ordinal < firstUnknownStarOrdinal;
+                if (ordinal < lineages.size() && (lineages.size() == knownOutputWidth(term) || exactPrefix)) {
                     LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, lineages.get(ordinal).getSources());
                 }
             } else if (outputOrder) {
@@ -3058,20 +3132,22 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.knownColumnRelations.addAll(knownColumnRelations);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.positionalSelect = fullyExplicitSelect(queryTerm);
+        queryVisitor.positionalSelect = outputSelectClause(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryVisitor;
     }
 
     private static PostgreSqlParser.SelectClauseContext fullyExplicitSelect(PostgreSqlParser.QueryTermContext term) {
+        PostgreSqlParser.SelectClauseContext select = outputSelectClause(term);
+        return select == null || hasSelectStar(select) ? null : select;
+    }
+
+    private static PostgreSqlParser.SelectClauseContext outputSelectClause(PostgreSqlParser.QueryTermContext term) {
         PostgreSqlParser.QueryPrimaryContext primary = queryPrimary(unwrappedQueryTerm(term));
-        if (!(primary instanceof PostgreSqlParser.QueryPrimaryDefaultContext)) {
-            return null;
-        }
-        PostgreSqlParser.SelectClauseContext select =
-                ((PostgreSqlParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
-        return hasSelectStar(select) ? null : select;
+        return primary instanceof PostgreSqlParser.QueryPrimaryDefaultContext
+                ? ((PostgreSqlParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause()
+                : null;
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
@@ -3901,10 +3977,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return;
         }
         if (queryVisitor.projections.isEmpty()) {
+            int knownPositions = Math.min(queryVisitor.firstUnknownStarOrdinal, insertTargetColumns.size());
             result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
-                    queryResult.getColumnLineage(),
-                    target,
-                    insertTargetColumns));
+                    queryResult.getColumnLineage(), target, insertTargetColumns.subList(0, knownPositions)));
             return;
         }
         List<ColumnLineage> lineages = new ArrayList<>();

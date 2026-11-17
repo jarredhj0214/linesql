@@ -8323,6 +8323,168 @@
         }
       ],
       "description": "A qualified star uses the partial CTE reference alias list and leaves trailing names intact"
+    },
+    {
+      "id": "union_left_unknown_star_preserves_prefix",
+      "file": "cases/union_left_unknown_star_preserves_prefix.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.events",
+        "history.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "live.events.id",
+            "history.events.id"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "live.events.*",
+            "live.events.note",
+            "history.events.name",
+            "history.events.event_date",
+            "history.events.note"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "live.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "history.events.id"
+        }
+      ],
+      "description": "An unknown star on the left leaves only the shared prefix position exact"
+    },
+    {
+      "id": "union_right_unknown_star_preserves_prefix",
+      "file": "cases/union_right_unknown_star_preserves_prefix.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "history.events",
+        "live.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "history.events.id",
+            "live.events.id"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "live.events.*",
+            "history.events.name",
+            "history.events.event_date",
+            "history.events.note",
+            "live.events.note"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "history.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "live.events.id"
+        }
+      ],
+      "description": "An unknown star on the right does not align a trailing expression with a left column"
+    },
+    {
+      "id": "insert_union_unknown_star_preserves_prefix",
+      "file": "cases/insert_union_unknown_star_preserves_prefix.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "live.events",
+        "history.events"
+      ],
+      "outputTables": [
+        "audit.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.events.id",
+          "sources": [
+            "live.events.id",
+            "history.events.id"
+          ]
+        },
+        {
+          "target": "audit.events.*",
+          "sources": [
+            "live.events.*",
+            "live.events.note",
+            "history.events.name",
+            "history.events.event_date",
+            "history.events.note"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Unresolved set positions keep their wildcard target during an INSERT with explicit columns"
+    },
+    {
+      "id": "nested_union_unknown_star_preserves_prefix",
+      "file": "cases/nested_union_unknown_star_preserves_prefix.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.events",
+        "history.events",
+        "latest.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "live.events.id",
+            "history.events.id",
+            "latest.events.id"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "live.events.*",
+            "live.events.note",
+            "history.events.name",
+            "history.events.event_date",
+            "history.events.note",
+            "latest.events.name",
+            "latest.events.event_date",
+            "latest.events.note"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "live.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "history.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "latest.events.id"
+        }
+      ],
+      "description": "Nested sets retain the exact prefix and aggregate remaining references"
     }
   ]
 }
