@@ -83,6 +83,7 @@ Implemented PostgreSQL scenarios:
 | Basic SELECT source and columns | `select id as user_id, name from public.users` | `select_basic` |
 | EXPLAIN wrapper lineage passthrough | `explain select ...`, `explain (analyze, buffers, format json) insert ... select ...`, `explain verbose update ... from ...` | `explain_select`, `explain_analyze_insert_select`, `explain_verbose_update_from` |
 | EXPLAIN prepared statements and generic plans | `EXPLAIN EXECUTE` reports the bound statement’s lineage and type while its binding exists. `EXPLAIN (GENERIC_PLAN) SELECT ... WHERE id = $1` preserves query lineage and predicate references. | `script_explain_prepared_execution`, `explain_generic_plan_parameter` |
+| EXPLAIN cursor and runtime options | `EXPLAIN DECLARE ... CURSOR FOR SELECT ...` carries cursor query lineage; parenthesized `GENERIC_PLAN`, `SERIALIZE`, and `MEMORY` options signal PostgreSQL automatically. | `explain_declare_cursor`, `explain_serialize_memory` |
 | JOIN source tables and projections | `select u.id, o.amount from users u join orders o ...` | `join_projection` |
 | TABLESAMPLE source lineage | `from t tablesample system (...) repeatable (...)`, `from t tablesample bernoulli (...)` | `select_tablesample_system`, `select_tablesample_bernoulli`, `select_tablesample_alias` |
 | SELECT row locking clauses | `for update of t skip locked`, `for no key update nowait`, `for key share of alias skip locked` | `select_for_update_skip_locked`, `select_for_no_key_update_nowait`, `select_for_key_share_of_alias_skip_locked` |

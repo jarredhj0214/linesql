@@ -1,0 +1,2 @@
+EXPLAIN (COSTS OFF) DECLARE event_cursor NO SCROLL CURSOR WITH HOLD FOR
+SELECT e.id FROM ods.events e WHERE e.kind = 1;

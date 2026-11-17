@@ -90,6 +90,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             result.setStatementType(StatementType.MERGE);
             return visit(explained.mergeStatement());
         }
+        if (explained.declareCursorStatement() != null) {
+            result.setStatementType(StatementType.CONTROL);
+            return visit(explained.declareCursorStatement());
+        }
         if (explained.executePreparedStatement() != null) {
             result.setStatementType(StatementType.CONTROL);
         }
@@ -1485,17 +1489,27 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             visit(statement.preparedStatement);
             return null;
         }
-        PostgreSqlParser.QueryContext query = statement.cursorQuery != null
-                ? statement.cursorQuery
-                : statement.preparedStatement == null ? null : statement.preparedStatement.query();
-        if (query != null) {
-            LineageResult queryResult = lineageForQuery(query);
-            inputTables.addAll(queryResult.getInputTables());
-            result.setInputTables(new ArrayList<>(inputTables));
-            result.setColumnLineage(queryResult.getColumnLineage());
-            result.setColumnUsages(queryResult.getColumnUsages());
+        if (statement.declareCursorStatement() != null) {
+            return visit(statement.declareCursorStatement());
+        }
+        if (statement.preparedStatement != null) {
+            copyControlQueryLineage(statement.preparedStatement.query());
         }
         return null;
+    }
+
+    @Override
+    public Void visitDeclareCursorStatement(PostgreSqlParser.DeclareCursorStatementContext ctx) {
+        copyControlQueryLineage(ctx.query());
+        return null;
+    }
+
+    private void copyControlQueryLineage(PostgreSqlParser.QueryContext query) {
+        LineageResult queryResult = lineageForQuery(query);
+        inputTables.addAll(queryResult.getInputTables());
+        result.setInputTables(new ArrayList<>(inputTables));
+        result.setColumnLineage(queryResult.getColumnLineage());
+        result.setColumnUsages(queryResult.getColumnUsages());
     }
 
     @Override

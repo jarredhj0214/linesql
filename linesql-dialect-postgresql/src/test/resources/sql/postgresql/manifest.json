@@ -7199,6 +7199,54 @@
           "column": "ods.events.status"
         }
       ]
+    },
+    {
+      "id": "explain_serialize_memory",
+      "file": "cases/explain_serialize_memory.sql",
+      "description": "EXPLAIN preserves source and predicate lineage for serialize memory",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.kind"
+        }
+      ]
+    },
+    {
+      "id": "explain_declare_cursor",
+      "file": "cases/explain_declare_cursor.sql",
+      "description": "EXPLAIN preserves source and predicate lineage for declare cursor",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.kind"
+        }
+      ]
     }
   ]
 }

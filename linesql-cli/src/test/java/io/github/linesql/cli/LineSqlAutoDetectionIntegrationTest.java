@@ -367,6 +367,14 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgreSqlExplainOptions() {
+        assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (GENERIC_PLAN) SELECT id FROM public.events WHERE id = $1");
+        assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (ANALYZE, SERIALIZE BINARY) SELECT id FROM public.events");
+        assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (MEMORY ON) SELECT id FROM public.events");
+        assertDialect(SqlDialect.SPARK, "SELECT 'EXPLAIN (GENERIC_PLAN)' AS note");
+    }
+
+    @Test
     public void detectsPostgreSqlSearchPathCommands() {
         assertDialect(SqlDialect.POSTGRESQL, "SET SCHEMA 'reporting'");
         assertDialect(SqlDialect.POSTGRESQL, "SET LOCAL search_path TO app, public");
