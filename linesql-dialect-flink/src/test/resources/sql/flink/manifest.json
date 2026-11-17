@@ -5951,6 +5951,121 @@
       "description": "Flink VECTOR_SEARCH lateral table function input and generated column lineage"
     },
     {
+      "id": "insert_from_changelog_payload",
+      "file": "cases/insert_from_changelog_payload.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.raw_events"
+      ],
+      "outputTables": [
+        "mart.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.events.event_key",
+          "sources": [
+            "ods.raw_events.event_id"
+          ]
+        },
+        {
+          "target": "mart.events.event_amount",
+          "sources": [
+            "ods.raw_events.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.raw_events.is_valid"
+        }
+      ],
+      "description": "FROM_CHANGELOG removes the selected operation column from a CTE before mapping the payload into the sink"
+    },
+    {
+      "id": "select_to_changelog_payload",
+      "file": "cases/select_to_changelog_payload.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "ods.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "operation",
+          "sources": []
+        },
+        {
+          "target": "raw_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "raw_amount",
+          "sources": [
+            "ods.events.amount"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "operation",
+              "sources": []
+            },
+            {
+              "target": "raw_id",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            },
+            {
+              "target": "raw_amount",
+              "sources": [
+                "ods.events.amount"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.amount"
+            }
+          ]
+        }
+      ],
+      "description": "TO_CHANGELOG prepends an operation column from row metadata and keeps the declared payload order and aliases"
+    },
+    {
+      "id": "select_from_changelog_default_operation",
+      "file": "cases/select_from_changelog_default_operation.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.raw_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.raw_events.event_id"]},
+        {"target": "amount", "sources": ["ods.raw_events.amount"]}
+      ],
+      "description": "FROM_CHANGELOG removes its default op column from an unaliased result"
+    },
+    {
       "id": "from_changelog_ptf",
       "file": "cases/from_changelog_ptf.sql",
       "statementType": "SELECT",

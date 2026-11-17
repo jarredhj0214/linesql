@@ -2155,19 +2155,20 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                                                FlinkParser.TableFunctionArgListContext args,
                                                FlinkParser.TableAliasContext aliasContext) {
         return registerWindowTableFunction(functionName, args, aliasContext)
-                || registerModelPrediction(functionName, args, aliasContext);
+                || registerProjectionTableFunction(functionName, args, aliasContext);
     }
 
-    private boolean registerModelPrediction(FlinkParser.FunctionNameContext functionName,
-                                            FlinkParser.TableFunctionArgListContext args,
-                                            FlinkParser.TableAliasContext aliasContext) {
-        if (!"ML_PREDICT".equalsIgnoreCase(cleanIdentifier(functionName.getText()))) {
+    private boolean registerProjectionTableFunction(FlinkParser.FunctionNameContext functionName,
+                                                    FlinkParser.TableFunctionArgListContext args,
+                                                    FlinkParser.TableAliasContext aliasContext) {
+        String name = cleanIdentifier(functionName.getText()).toUpperCase(Locale.ROOT);
+        boolean model = "ML_PREDICT".equals(name);
+        boolean toChangelog = "TO_CHANGELOG".equals(name);
+        if (!model && !toChangelog && !"FROM_CHANGELOG".equals(name)) {
             return false;
         }
         FlinkParser.TvfTableArgContext table = firstTableFunctionArgument(args);
-        List<String> aliases = tableAliasColumnAliases(aliasContext);
-        List<String> descriptorColumns = tableFunctionDescriptors(args);
-        if (table == null || aliases.isEmpty() || descriptorColumns.isEmpty()) {
+        if (table == null) {
             return false;
         }
         TableRef input = tableRef(table.multipartIdentifier());
@@ -2180,12 +2181,38 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         } else {
             inputColumns = tableColumnNames(relation) == null ? null : temporaryRelationColumns(relation);
         }
-        if (inputColumns == null || inputColumns.isEmpty() || inputColumns.containsKey("*")
-                || aliases.size() <= inputColumns.size() || !inputColumns.keySet().containsAll(descriptorColumns)) {
+        if (inputColumns == null || inputColumns.isEmpty() || inputColumns.containsKey("*")) {
             return false;
         }
+        List<String> descriptors = tableFunctionDescriptors(args);
+        Map<String, List<ColumnRef>> outputs = model
+                ? modelPredictionColumns(inputColumns, descriptors, tableAliasColumnAliases(aliasContext))
+                : changelogColumns(inputColumns, descriptors, toChangelog);
+        if (outputs == null) {
+            return false;
+        }
+        if (cte) {
+            addDerivedInputTables(inputName);
+        } else {
+            for (TableRef source : relation.getInputTables()) {
+                addInputTable(source, false);
+            }
+            LineageModelUtils.mergeColumnUsages(result, relation);
+        }
+        String alias = tableAlias(aliasContext);
+        registerGeneratedRelation(alias == null ? "$changelog" + derivedColumnLineage.size() : alias,
+                model ? outputs : applyReferenceColumnAliases(outputs, aliasContext));
+        return true;
+    }
+
+    private static Map<String, List<ColumnRef>> modelPredictionColumns(Map<String, List<ColumnRef>> inputColumns,
+                                                                      List<String> descriptors, List<String> aliases) {
+        if (aliases.size() <= inputColumns.size() || descriptors.isEmpty()
+                || !inputColumns.keySet().containsAll(descriptors)) {
+            return null;
+        }
         List<ColumnRef> modelSources = new ArrayList<>();
-        for (String descriptor : descriptorColumns) {
+        for (String descriptor : descriptors) {
             modelSources.addAll(inputColumns.get(descriptor));
         }
         List<ColumnRef> prediction = distinctColumnRefs(modelSources);
@@ -2197,16 +2224,24 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         while (position < aliases.size()) {
             outputs.put(aliases.get(position++), prediction);
         }
-        if (cte) {
-            addDerivedInputTables(inputName);
-        } else {
-            for (TableRef source : relation.getInputTables()) {
-                addInputTable(source, false);
-            }
-            LineageModelUtils.mergeColumnUsages(result, relation);
+        return outputs;
+    }
+
+    private static Map<String, List<ColumnRef>> changelogColumns(Map<String, List<ColumnRef>> inputColumns,
+                                                                List<String> descriptors, boolean toChangelog) {
+        String operation = descriptors.isEmpty() ? "op" : descriptors.get(0);
+        if (descriptors.size() > 1 || inputColumns.containsKey(operation) == toChangelog) {
+            return null;
         }
-        registerGeneratedRelation(tableAlias(aliasContext), outputs);
-        return true;
+        Map<String, List<ColumnRef>> outputs = new LinkedHashMap<>();
+        if (toChangelog) {
+            outputs.put(operation, Collections.emptyList());
+        }
+        outputs.putAll(inputColumns);
+        if (!toChangelog) {
+            outputs.remove(operation);
+        }
+        return outputs;
     }
 
     private boolean registerWindowTableFunction(FlinkParser.FunctionNameContext functionName,

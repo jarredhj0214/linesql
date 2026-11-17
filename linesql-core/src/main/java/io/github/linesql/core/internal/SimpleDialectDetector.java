@@ -82,6 +82,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern FLINK_MODEL_INFERENCE = Pattern.compile(
             "(?:\\b(?:from|join)\\s+|,\\s*)(?:lateral\\s+)?(?:table\\s*\\(\\s*)?"
                     + "ml_predict\\s*\\(\\s*table\\s+[^,;()]+,\\s*model\\b");
+    private static final Pattern FLINK_CHANGELOG_FUNCTION = Pattern.compile(
+            "(?:\\b(?:from|join)\\s+|,\\s*)(?:lateral\\s+)?(?:table\\s*\\(\\s*)?"
+                    + "(?:from|to)_changelog\\s*\\(\\s*(?:input\\s*=>\\s*)?table\\b");
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
@@ -481,6 +484,8 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (FLINK_MODEL_DDL.matcher(unquotedSyntax).find()
                 || FLINK_MODEL_INFERENCE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
+        } else if (FLINK_CHANGELOG_FUNCTION.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink changelog table function syntax"));
         } else if (FLINK_MODULE_OR_SYSTEM_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink module or temporary system function syntax"));
         } else if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)

@@ -684,6 +684,14 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkChangelogConversion() {
+        assertDialect(SqlDialect.FLINK, "SELECT id FROM FROM_CHANGELOG(input => TABLE ods.events)");
+        assertDialect(SqlDialect.FLINK, "SELECT id FROM TO_CHANGELOG(input => TABLE ods.events)");
+        assertDialect(SqlDialect.SPARK, "SELECT to_changelog(value) FROM ods.events");
+        assertDialect(SqlDialect.SPARK, "SELECT 'FROM FROM_CHANGELOG(input => TABLE ods.events)' AS note");
+    }
+
+    @Test
     public void detectsFlinkModelManagementAndInference() {
         assertDialect(SqlDialect.FLINK, "ALTER MODEL ml.churn RENAME TO ml.churn_v2");
         assertDialect(SqlDialect.FLINK, "SHOW CREATE MODEL ml.churn_v2");
