@@ -8553,6 +8553,60 @@
       ],
       "columnUsages": [],
       "description": "INSERT from TABLE and SELECT preserves the unresolved wildcard target"
+    },
+    {
+      "id": "union_forwarded_cte_unknown_star",
+      "file": "cases/union_forwarded_cte_unknown_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.events",
+        "access.allowed",
+        "archive.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.events.*",
+            "archive.events.id",
+            "archive.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "access.allowed.event_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "live.events.id"
+        }
+      ],
+      "description": "Unknown star provenance follows multiple CTE references without mixing in filter-only tables"
+    },
+    {
+      "id": "union_table_cte_unknown_star",
+      "file": "cases/union_table_cte_unknown_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.events",
+        "archive.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.events.*",
+            "archive.events.id",
+            "archive.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "TABLE over a CTE forwards its unknown star source to the set result"
     }
   ]
 }

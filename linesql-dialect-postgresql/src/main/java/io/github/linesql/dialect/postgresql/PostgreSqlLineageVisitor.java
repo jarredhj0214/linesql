@@ -2484,9 +2484,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 int width = addKnownStarProjections(item, ordinal);
                 if (width == 0) {
                     firstUnknownStarOrdinal = Math.min(firstUnknownStarOrdinal, ordinal);
-                    if (ctx == positionalSelect) {
-                        collectUnresolvedStarSources(item);
-                    }
+                    collectUnresolvedStarSources(item);
                 }
                 ordinal += Math.max(1, width);
             }
@@ -3077,8 +3075,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         List<ColumnLineage> lineages = relationResult.getColumnLineage();
         for (int i = 0; i < lineages.size(); i++) {
             ColumnLineage lineage = lineages.get(i);
-            String columnName = i < columnAliases.size() ? columnAliases.get(i) : lineage.getTarget().getName();
+            boolean unknownWildcard = "*".equals(lineage.getTarget().getName()) && lineage.getExpression() == null;
+            String columnName = !unknownWildcard && i < columnAliases.size()
+                    ? columnAliases.get(i) : lineage.getTarget().getName();
             columns.put(columnName, lineage.getSources());
+        }
+        if (!relationVisitor.unresolvedStarSources.isEmpty()) {
+            List<ColumnRef> existing = columns.getOrDefault("*", Collections.emptyList());
+            columns.put("*", LineageModelUtils.mergeColumnRefs(existing, relationVisitor.unresolvedStarSources));
         }
         derivedColumnLineage.put(name, columns);
         int width = relationVisitor.knownOutputWidth(query.queryTerm());
