@@ -1496,9 +1496,20 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             int width = explicitSetOutputWidth(set.left);
             return width == explicitSetOutputWidth(set.right) ? width : -1;
         }
-        List<FlinkParser.SelectItemContext> items = selectItems(term);
-        return items.stream().allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)
-                ? items.size() : -1;
+        if (!(term instanceof FlinkParser.QueryTermDefaultContext)) {
+            return -1;
+        }
+        FlinkParser.QueryPrimaryContext primary = ((FlinkParser.QueryTermDefaultContext) term).queryPrimary();
+        if (primary instanceof FlinkParser.SubqueryPrimaryContext) {
+            return explicitSetOutputWidth(((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm());
+        }
+        if (primary instanceof FlinkParser.ValuesQueryContext) {
+            List<FlinkParser.ValuesClauseContext> rows = ((FlinkParser.ValuesQueryContext) primary).valuesClause();
+            int width = rows.get(0).expressionList().expression().size();
+            return rows.stream().allMatch(row -> row.expressionList().expression().size() == width) ? width : -1;
+        }
+        FlinkParser.SelectClauseContext select = explicitSelectClause(term);
+        return select == null ? -1 : select.selectItemList().selectItem().size();
     }
 
     private static List<FlinkParser.SelectItemContext> selectItems(FlinkParser.QueryTermContext term) {

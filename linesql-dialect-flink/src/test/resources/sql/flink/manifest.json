@@ -8636,6 +8636,70 @@
         }
       ],
       "description": "Flink resolves catalog and schema-qualified columns and wildcards to their explicit source relation"
+    },
+    {
+      "id": "union_values_order_by_output_ordinal",
+      "file": "cases/union_values_order_by_output_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "kind",
+          "sources": [
+            "ods.events.kind"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.kind"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        }
+      ],
+      "description": "Parenthesized branches and VALUES contribute their known widths to positional set ordering"
+    },
+    {
+      "id": "union_wrapped_order_by_output_ordinal",
+      "file": "cases/union_wrapped_order_by_output_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.live.id",
+            "ods.history.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.live.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.history.id"
+        }
+      ],
+      "description": "Parenthesized branches and VALUES contribute their known widths to positional set ordering"
     }
   ]
 }
