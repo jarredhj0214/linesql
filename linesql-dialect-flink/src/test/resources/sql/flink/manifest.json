@@ -10237,6 +10237,293 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "script_ctas_known_star_layout",
+      "file": "cases/script_ctas_known_star_layout.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "mart.day_events",
+        "ods.backup",
+        "mart.set_events"
+      ],
+      "outputTables": [
+        "ods.events",
+        "mart.day_events",
+        "mart.set_events"
+      ],
+      "description": "Known wildcard positions carry through ordinary CTAS and CTAS with set operations",
+      "columnLineage": [
+        {
+          "target": "mart.day_events.event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "mart.day_events.event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "mart.day_events.event_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "mart.day_events.event_time"
+          ]
+        },
+        {
+          "target": "mart.set_events.event_id",
+          "sources": [
+            "ods.events.event_id",
+            "ods.backup.event_id"
+          ]
+        },
+        {
+          "target": "mart.set_events.event_time",
+          "sources": [
+            "ods.events.event_time",
+            "ods.backup.event_time"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "mart.set_events.event_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "mart.set_events.event_time"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.day_events"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.day_events.event_id",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            },
+            {
+              "target": "mart.day_events.event_time",
+              "sources": [
+                "ods.events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.day_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "mart.day_events.event_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "mart.day_events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "mart.day_events.event_time"
+            }
+          ]
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.events",
+            "ods.backup"
+          ],
+          "outputTables": [
+            "mart.set_events"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.set_events.event_id",
+              "sources": [
+                "ods.events.event_id",
+                "ods.backup.event_id"
+              ]
+            },
+            {
+              "target": "mart.set_events.event_time",
+              "sources": [
+                "ods.events.event_time",
+                "ods.backup.event_time"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.set_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "mart.set_events.event_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "mart.set_events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "mart.set_events.event_time"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "script_materialized_table_known_star_layout",
+      "file": "cases/script_materialized_table_known_star_layout.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "mart.live_events"
+      ],
+      "outputTables": [
+        "ods.events",
+        "mart.live_events"
+      ],
+      "description": "A materialized table query expanding a known wildcard registers its output positions",
+      "columnLineage": [
+        {
+          "target": "mart.live_events.event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "mart.live_events.event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "mart.live_events.event_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "mart.live_events.event_time"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.live_events"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.live_events.event_id",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            },
+            {
+              "target": "mart.live_events.event_time",
+              "sources": [
+                "ods.events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.live_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "mart.live_events.event_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "mart.live_events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "mart.live_events.event_time"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

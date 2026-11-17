@@ -2433,8 +2433,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             suppressColumnLineage = true;
         }
 
-        int width = explicitSetOutputWidth(query.queryTerm());
-        if (width <= 0 || width != projectionsByName.size() || width != projectedColumns.size()) {
+        int width = knownQueryOutputWidth(query.queryTerm());
+        if (width <= 0 || width != projectionsByName.size() || width != projectedColumns.size()
+                || hasWildcardOutput(result)) {
             return Collections.emptyList();
         }
         List<String> layout = declarations == null ? new ArrayList<>() : declaredColumnNames(declarations);
