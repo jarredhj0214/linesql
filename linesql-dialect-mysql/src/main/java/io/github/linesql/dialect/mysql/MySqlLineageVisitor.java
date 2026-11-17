@@ -2091,10 +2091,17 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private List<ColumnRef> columnUsageRefs(ColumnUsageType type, List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sourceColumn : sourceColumns) {
-            if (type != ColumnUsageType.ORDER_BY && type != ColumnUsageType.HAVING) {
+            if (type != ColumnUsageType.ORDER_BY) {
                 List<ColumnRef> joinRefs = usingJoinRefs(sourceColumn);
                 if (joinRefs != null) {
                     refs.addAll(joinRefs);
+                    continue;
+                }
+            }
+            if (type == ColumnUsageType.GROUP_BY || type == ColumnUsageType.HAVING) {
+                List<ColumnRef> inputRefs = knownInputColumnRefs(sourceColumn);
+                if (inputRefs != null) {
+                    refs.addAll(inputRefs);
                     continue;
                 }
             }
@@ -2112,6 +2119,26 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             refs.addAll(resolved);
         }
         return refs;
+    }
+
+    private List<ColumnRef> knownInputColumnRefs(SourceColumn column) {
+        if (column.resolvedRef != null || column.qualifier != null) {
+            return null;
+        }
+        List<ColumnRef> match = null;
+        for (VisibleRelation relation : visibleRelations) {
+            if (!knownDerivedSchemas.contains(relation.derivedName)) {
+                return null;
+            }
+            List<ColumnRef> refs = caseInsensitiveColumnRefs(derivedColumnLineage.get(relation.derivedName), column.name);
+            if (refs != null) {
+                if (match != null) {
+                    return null;
+                }
+                match = refs;
+            }
+        }
+        return match;
     }
 
     private List<ColumnRef> projectionAliasColumnRefs(SourceColumn sourceColumn) {

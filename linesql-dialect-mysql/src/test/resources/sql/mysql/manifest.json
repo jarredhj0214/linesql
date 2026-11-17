@@ -13434,6 +13434,70 @@
         }
       ],
       "description": "A wrapper around UNION does not change its positional sort references"
+    },
+    {
+      "id": "select_group_having_input_before_alias",
+      "file": "cases/select_group_having_input_before_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "group_id",
+          "sources": [
+            "ods.events.source_key"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.group_id"
+        },
+        {
+          "type": "HAVING",
+          "column": "ods.events.group_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.source_key"
+        }
+      ],
+      "description": "A known input field takes precedence in GROUP BY and HAVING while ORDER BY uses the projection alias"
+    },
+    {
+      "id": "select_having_alias_when_input_absent",
+      "file": "cases/select_having_alias_when_input_absent.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "max_key",
+          "sources": [
+            "ods.events.source_key"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.group_id"
+        },
+        {
+          "type": "HAVING",
+          "column": "ods.events.source_key"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.source_key"
+        }
+      ],
+      "description": "HAVING resolves the output alias when no matching input field exists"
     }
   ]
 }
