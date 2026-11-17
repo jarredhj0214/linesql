@@ -7826,6 +7826,71 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "script_use_database_with_metadata_and_full_text",
+      "file": "cases/script_use_database_with_metadata_and_full_text.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "SearchDB.dbo.Documents"
+      ],
+      "outputTables": [
+        "SearchDB.dbo.summary"
+      ],
+      "columnLineage": [],
+      "description": "The SQL Server database context reaches metadata strings, full-text source columns and static routine bodies",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "SearchDB.dbo.Documents"
+          ],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "SearchDB.dbo.Documents.body"
+            }
+          ]
+        },
+        {
+          "statementType": "READ_METADATA",
+          "inputTables": [
+            "SearchDB.dbo.Documents"
+          ],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "READ_METADATA",
+          "inputTables": [
+            "SearchDB.dbo.Documents"
+          ],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_ROUTINE",
+          "inputTables": [
+            "SearchDB.dbo.Documents"
+          ],
+          "outputTables": [
+            "SearchDB.dbo.summary"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

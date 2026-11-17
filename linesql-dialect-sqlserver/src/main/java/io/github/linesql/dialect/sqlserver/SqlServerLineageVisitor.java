@@ -2842,7 +2842,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return LineageModelUtils.tableRefFromParts(parts);
     }
 
-    private static TableRef tableRefFromExpressionText(String text) {
+    private TableRef tableRefFromExpressionText(String text) {
         String trimmed = text == null ? "" : text.trim();
         if (trimmed.isEmpty() || trimmed.contains("(") || trimmed.contains(")") || trimmed.contains(",")) {
             return null;
@@ -2855,7 +2855,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
             parts.add(cleaned);
         }
-        return LineageModelUtils.tableRefFromParts(parts);
+        return qualifyTable(LineageModelUtils.tableRefFromParts(parts));
     }
 
     private void collectStaticRoutineBodyLineage(String text) {
@@ -2870,12 +2870,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         collectRoutineTables(sql, ROUTINE_MERGE_TARGET_PATTERN, outputTables);
     }
 
-    private static void collectRoutineTables(String text, Pattern pattern, Set<TableRef> tables) {
+    private void collectRoutineTables(String text, Pattern pattern, Set<TableRef> tables) {
         Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
             TableRef table = routineTableRef(matcher.group(1));
             if (table != null) {
-                tables.add(table);
+                tables.add(qualifyTable(table));
             }
         }
     }
@@ -2944,7 +2944,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return -1;
     }
 
-    private static TableRef metadataExecObject(String routine, String text) {
+    private TableRef metadataExecObject(String routine, String text) {
         if ("sp_tables".equals(routine)
                 || "sp_helpdb".equals(routine)
                 || "sp_helpserver".equals(routine)
@@ -2975,7 +2975,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return tableRefFromExpressionText(value);
     }
 
-    private static TableRef dbccMetadataObject(String text) {
+    private TableRef dbccMetadataObject(String text) {
         Matcher matcher = DBCC_TABLE_STRING_ARGUMENT_PATTERN.matcher(text);
         if (!matcher.find()) {
             return null;
