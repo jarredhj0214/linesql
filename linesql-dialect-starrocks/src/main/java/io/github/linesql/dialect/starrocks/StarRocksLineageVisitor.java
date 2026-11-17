@@ -1271,13 +1271,13 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
                 && ctx.alterMaterializedViewAction().multipartIdentifier() != null) {
             result.setStatementType(StatementType.RENAME_TABLE);
             inputTables.add(view);
-            outputTables.add(tableRef(ctx.alterMaterializedViewAction().multipartIdentifier()));
+            outputTables.add(tableInSourceNamespace(view, ctx.alterMaterializedViewAction().multipartIdentifier()));
             result.setInputTables(new ArrayList<>(inputTables));
         } else if (ctx.alterMaterializedViewAction() != null
                 && ctx.alterMaterializedViewAction().SWAP() != null
                 && ctx.alterMaterializedViewAction().multipartIdentifier() != null) {
             outputTables.add(view);
-            outputTables.add(tableRef(ctx.alterMaterializedViewAction().multipartIdentifier()));
+            outputTables.add(tableInSourceNamespace(view, ctx.alterMaterializedViewAction().multipartIdentifier()));
         } else {
             outputTables.add(view);
         }
@@ -1305,8 +1305,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     public Void visitAlterTableRename(StarRocksParser.AlterTableRenameContext ctx) {
         List<StarRocksParser.MultipartIdentifierContext> ids = ctx.multipartIdentifier();
         result.setStatementType(StatementType.RENAME_TABLE);
-        inputTables.add(tableRef(ids.get(0)));
-        outputTables.add(tableRef(ids.get(1)));
+        TableRef source = tableRef(ids.get(0));
+        inputTables.add(source);
+        outputTables.add(tableInSourceNamespace(source, ids.get(1)));
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -1315,8 +1316,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitAlterTableSwap(StarRocksParser.AlterTableSwapContext ctx) {
         List<StarRocksParser.MultipartIdentifierContext> ids = ctx.multipartIdentifier();
-        outputTables.add(tableRef(ids.get(0)));
-        outputTables.add(tableRef(ids.get(1)));
+        TableRef source = tableRef(ids.get(0));
+        outputTables.add(source);
+        outputTables.add(tableInSourceNamespace(source, ids.get(1)));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -3572,6 +3574,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     }
 
     // ============ Utility ============
+
+    private TableRef tableInSourceNamespace(TableRef source, StarRocksParser.MultipartIdentifierContext name) {
+        return name.identifier().size() == 1
+                ? new TableRef(source.getCatalog(), source.getSchema(), cleanIdentifier(name.identifier(0)))
+                : tableRef(name);
+    }
 
     private TableRef tableRef(StarRocksParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);

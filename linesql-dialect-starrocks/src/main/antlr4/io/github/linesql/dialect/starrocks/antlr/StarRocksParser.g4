@@ -978,7 +978,7 @@ alterMaterializedViewAction
 
 alterTableStatement
     : ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier     #alterTableRename
-    | ALTER TABLE multipartIdentifier SWAP WITH TABLE multipartIdentifier        #alterTableSwap
+    | ALTER TABLE multipartIdentifier SWAP WITH TABLE? multipartIdentifier        #alterTableSwap
     | ALTER TABLE multipartIdentifier alterTableAction (COMMA alterTableAction)* #alterTableOther
     ;
 

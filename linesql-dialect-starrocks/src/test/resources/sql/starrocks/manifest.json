@@ -12526,6 +12526,75 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "script_rename_swap_source_namespace",
+      "file": "cases/script_rename_swap_source_namespace.sql",
+      "statementType": "MULTI",
+      "description": "Native StarRocks table and materialized view rename and swap use the source namespace for the other name",
+      "inputTables": [
+        "ods.orders",
+        "mart.sales_mv"
+      ],
+      "outputTables": [
+        "ods.orders_archived",
+        "ods.live_orders",
+        "ods.incoming_orders",
+        "mart.sales_daily",
+        "mart.active_mv",
+        "mart.staged_mv"
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "RENAME_TABLE",
+          "inputTables": [
+            "ods.orders"
+          ],
+          "outputTables": [
+            "ods.orders_archived"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.live_orders",
+            "ods.incoming_orders"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "RENAME_TABLE",
+          "inputTables": [
+            "mart.sales_mv"
+          ],
+          "outputTables": [
+            "mart.sales_daily"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "mart.active_mv",
+            "mart.staged_mv"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }
