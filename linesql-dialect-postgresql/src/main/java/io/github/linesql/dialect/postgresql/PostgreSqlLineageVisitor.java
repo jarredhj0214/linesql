@@ -48,6 +48,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private boolean returningSourcesForCte;
     private int visibleRelationCount;
+    private int orderedSetWidth = -1;
     private int firstUnknownStarOrdinal = Integer.MAX_VALUE;
     private boolean suppressColumnLineage;
     private PostgreSqlParser.SelectClauseContext setBranchSelect;
@@ -1780,9 +1781,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (union.UNION() == null) {
             return;
         }
-        List<ColumnLineage> anchor = lineageForQueryTerm(union.left).getColumnLineage();
+        List<ColumnLineage> anchor = analyzeSetOperand(union.left).result.getColumnLineage();
         LineageModelUtils.registerRecursiveColumnSources(derivedColumnLineage, name, anchor, aliases,
-                () -> lineageForQueryTerm(union.right).getColumnLineage());
+                () -> analyzeSetOperand(union.right).result.getColumnLineage());
     }
 
     private static List<ColumnRef> cteKeySources(Map<String, List<ColumnRef>> columns,
@@ -1796,8 +1797,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitSetOperation(PostgreSqlParser.SetOperationContext ctx) {
-        LineageResult leftResult = lineageForQueryTerm(ctx.left);
-        LineageResult rightResult = lineageForQueryTerm(ctx.right);
+        PostgreSqlLineageVisitor left = analyzeSetOperand(ctx.left);
+        PostgreSqlLineageVisitor right = analyzeSetOperand(ctx.right);
+        LineageResult leftResult = left.result;
+        LineageResult rightResult = right.result;
+        int width = left.knownOrderWidth(ctx.left);
+        orderedSetWidth = width >= 0 && width == right.knownOrderWidth(ctx.right)
+                && width == leftResult.getColumnLineage().size() && width == rightResult.getColumnLineage().size()
+                ? width : -1;
         for (TableRef table : leftResult.getInputTables()) {
             addInputTable(table, false);
         }
@@ -1826,7 +1833,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx.inheritanceRelation().ONLY() == null && ctx.inheritanceRelation().STAR() == null
                 && isCteReference(table)) {
             String name = table.getName().toLowerCase(Locale.ROOT);
-            addDerivedInputTables(name);
+            addDerivedReference(table.getName(), null);
             Map<String, List<ColumnRef>> columns = derivedColumnLineage.getOrDefault(name, Collections.emptyMap());
             List<ColumnLineage> lineages = new ArrayList<>();
             for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
@@ -2677,20 +2684,22 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitQueryOrganization(PostgreSqlParser.QueryOrganizationContext ctx) {
         PostgreSqlParser.QueryContext query = (PostgreSqlParser.QueryContext) ctx.getParent();
-        boolean outputOrder = query.queryTerm() instanceof PostgreSqlParser.SetOperationContext
-                || !valuesQueryRows(query).isEmpty();
+        PostgreSqlParser.QueryTermContext term = unwrappedQueryTerm(query.queryTerm());
+        PostgreSqlParser.QueryPrimaryContext primary = queryPrimary(term);
+        boolean outputOrder = term instanceof PostgreSqlParser.SetOperationContext
+                || primary instanceof PostgreSqlParser.ValuesQueryContext;
+        boolean tableOrder = primary instanceof PostgreSqlParser.TableQueryContext;
         for (PostgreSqlParser.SortItemContext sortItem : ctx.sortItem()) {
             PostgreSqlParser.ExpressionContext expression = unwrapParenthesizedExpression(sortItem.expression());
             String sortKey = expression.getText();
             int ordinal = outputOrdinal(sortKey);
-            if (outputOrder) {
+            if ((outputOrder || tableOrder) && ordinal >= 0) {
                 List<ColumnLineage> lineages = result.getColumnLineage();
-                if (ordinal >= 0 && ordinal < lineages.size()
-                        && lineages.size() == setOutputWidth(query.queryTerm())) {
+                if (ordinal < lineages.size() && lineages.size() == knownOrderWidth(term)) {
                     LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, lineages.get(ordinal).getSources());
-                } else if (ordinal < 0) {
-                    LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
                 }
+            } else if (outputOrder) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
             } else if (ordinal >= 0) {
                 addOrdinalColumnUsages(ColumnUsageType.ORDER_BY, ordinal);
             } else if (primaryExpression(expression) instanceof PostgreSqlParser.ColumnReferenceContext) {
@@ -2700,6 +2709,40 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         return visitChildren(ctx);
+    }
+
+    private int knownOrderWidth(PostgreSqlParser.QueryTermContext term) {
+        PostgreSqlParser.QueryTermContext unwrapped = unwrappedQueryTerm(term);
+        if (unwrapped instanceof PostgreSqlParser.SetOperationContext) {
+            return orderedSetWidth;
+        }
+        PostgreSqlParser.QueryPrimaryContext primary = queryPrimary(unwrapped);
+        if (primary instanceof PostgreSqlParser.TableQueryContext) {
+            PostgreSqlParser.InheritanceRelationContext relation =
+                    ((PostgreSqlParser.TableQueryContext) primary).inheritanceRelation();
+            TableRef table = tableRef(relation.multipartIdentifier());
+            String name = table.getName().toLowerCase(Locale.ROOT);
+            if (relation.ONLY() == null && relation.STAR() == null
+                    && isCteReference(table) && knownColumnRelations.contains(name)) {
+                return derivedColumnLineage.get(name).size();
+            }
+            return -1;
+        }
+        return setOutputWidth(unwrapped);
+    }
+
+    private static PostgreSqlParser.QueryPrimaryContext queryPrimary(PostgreSqlParser.QueryTermContext term) {
+        return term instanceof PostgreSqlParser.QueryTermDefaultContext
+                ? ((PostgreSqlParser.QueryTermDefaultContext) term).queryPrimary() : null;
+    }
+
+    private static PostgreSqlParser.QueryTermContext unwrappedQueryTerm(PostgreSqlParser.QueryTermContext term) {
+        PostgreSqlParser.QueryPrimaryContext primary = queryPrimary(term);
+        while (primary instanceof PostgreSqlParser.SubqueryPrimaryContext) {
+            term = ((PostgreSqlParser.SubqueryPrimaryContext) primary).query().queryTerm();
+            primary = queryPrimary(term);
+        }
+        return term;
     }
 
     private static int setOutputWidth(PostgreSqlParser.QueryTermContext term) {
@@ -2971,7 +3014,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         LineageModelUtils.mergeColumnUsages(result, relationResult);
     }
 
-    private LineageResult lineageForQueryTerm(PostgreSqlParser.QueryTermContext queryTerm) {
+    private PostgreSqlLineageVisitor analyzeSetOperand(PostgreSqlParser.QueryTermContext queryTerm) {
         LineageResult queryResult = new LineageResult();
         PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
@@ -2983,7 +3026,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         queryVisitor.setBranchSelect = fullyExplicitSelect(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
-        return queryResult;
+        return queryVisitor;
     }
 
     private static PostgreSqlParser.SelectClauseContext fullyExplicitSelect(PostgreSqlParser.QueryTermContext term) {

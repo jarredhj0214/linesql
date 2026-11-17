@@ -7550,6 +7550,77 @@
         }
       ],
       "description": "Two differently qualified identifiers can render identically and still have separate lineage and JOIN references"
+    },
+    {
+      "id": "table_query_cte_order_by_ordinal",
+      "file": "cases/table_query_cte_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "public.events.id"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "public.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.id"
+        }
+      ],
+      "description": "PostgreSQL TABLE exercises positional ordering with known CTE output columns"
+    },
+    {
+      "id": "union_table_query_order_by_ordinal",
+      "file": "cases/union_table_query_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events",
+        "archive.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "public.events.id",
+            "archive.events.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "public.events.event_time",
+            "archive.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "archive.events.event_time"
+        }
+      ],
+      "description": "PostgreSQL TABLE exercises positional ordering with known CTE output columns"
     }
   ]
 }
