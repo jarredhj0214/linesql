@@ -73,6 +73,9 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*(?:set\\s+" + FLINK_SESSION_KEY_TOKEN + "\\s*="
                     + "|reset\\s+" + FLINK_SESSION_KEY_TOKEN + "(?=\\s*(?:;|$)))");
     private static final Pattern SESSION_OPTION_COMMAND = Pattern.compile("\\b(?:set|reset)\\b");
+    private static final Pattern FLINK_MODULE_OR_SYSTEM_FUNCTION = Pattern.compile(
+            "^\\s*(?:(?:load|unload)\\s+module|use\\s+modules|show\\s+(?:full\\s+)?modules"
+                    + "|(?:create|alter|drop)\\s+temporary\\s+system\\s+function)\\b");
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
@@ -453,6 +456,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && SESSION_OPTION_COMMAND.matcher(unquotedSyntax).find()
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_SESSION_OPTION))) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink SQL session option"));
+        } else if (FLINK_MODULE_OR_SYSTEM_FUNCTION.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink module or temporary system function syntax"));
         } else if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)
                 || hasFlinkOptionsHint(rawNormalized)
                 || hasFlinkConnectorOptions(normalized)

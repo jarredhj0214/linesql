@@ -684,6 +684,28 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkModuleAndTemporarySystemFunctionCommands() {
+        List<LineageResult> results = LineSql.parseScript("SHOW FULL MODULES; "
+                + "LOAD MODULE hive WITH ('hive-version' = '3.1.3'); USE MODULES hive, core; "
+                + "CREATE TEMPORARY SYSTEM FUNCTION parse_json AS 'com.example.ParseJson'; "
+                + "DROP TEMPORARY SYSTEM FUNCTION parse_json; UNLOAD MODULE hive");
+        assertEquals(6, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.FLINK, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertEquals(StatementType.READ_METADATA, results.get(0).getStatementType());
+        assertEquals(StatementType.CONTROL, results.get(1).getStatementType());
+        assertEquals(StatementType.CONTROL, results.get(2).getStatementType());
+        assertEquals(StatementType.CREATE_ROUTINE, results.get(3).getStatementType());
+        assertEquals(StatementType.DROP_ROUTINE, results.get(4).getStatementType());
+        assertEquals(StatementType.CONTROL, results.get(5).getStatementType());
+        assertDialect(SqlDialect.FLINK, "SHOW MODULES");
+        assertDialect(SqlDialect.SPARK, "SELECT 'LOAD MODULE hive; SHOW FULL MODULES' AS notes");
+        assertDialect(SqlDialect.SPARK, "/* CREATE TEMPORARY SYSTEM FUNCTION test */ SELECT id FROM ods.events");
+    }
+
+    @Test
     public void detectsFlinkMaterializedTableLifecycleStatements() {
         LineageResult alter = LineSql.parse("ALTER MATERIALIZED TABLE mart.sales "
                 + "AS SELECT product_id FROM staging.orders");
