@@ -804,7 +804,7 @@ extensionOptionList
     ;
 
 extensionOption
-    : identifier identifier?
+    : identifier (identifier | STRING_LITERAL | DOLLAR_QUOTED_STRING)?
     ;
 
 createSchemaStatement
@@ -880,6 +880,8 @@ schemaObjectControlStatement
     : CREATE (TEMPORARY | UNLOGGED)? SEQUENCE (IF NOT EXISTS)? multipartIdentifier .+?
     | ALTER SEQUENCE (IF EXISTS)? multipartIdentifier .+?
     | DROP SEQUENCE (IF EXISTS)? multipartIdentifier (CASCADE | RESTRICT)?
+    | ALTER EXTENSION identifier
+      (UPDATE (TO (identifier | STRING_LITERAL | DOLLAR_QUOTED_STRING))? | SET SCHEMA identifier)
     ;
 
 policyStatement

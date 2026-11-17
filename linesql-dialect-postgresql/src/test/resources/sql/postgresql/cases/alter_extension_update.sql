@@ -1,0 +1,1 @@
+ALTER EXTENSION pg_trgm UPDATE;

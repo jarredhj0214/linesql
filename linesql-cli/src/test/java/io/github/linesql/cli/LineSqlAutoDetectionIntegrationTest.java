@@ -737,6 +737,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresExtensionLifecycle() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA tools VERSION '1.6' CASCADE; "
+                + "ALTER EXTENSION pg_trgm UPDATE TO '1.7'; "
+                + "ALTER EXTENSION pg_trgm SET SCHEMA search_ext; "
+                + "DROP EXTENSION IF EXISTS pg_trgm");
+        assertEquals(4, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertEquals(StatementType.CONTROL, result.getStatementType());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE EXTENSION pg_trgm' AS message");
+    }
+
+    @Test
     public void detectsPostgresMaterializationDataOptions() {
         LineageResult table = LineSql.parse("CREATE TEMPORARY TABLE cache (id) AS "
                 + "SELECT e.event_id FROM ods.events e WITH NO DATA");

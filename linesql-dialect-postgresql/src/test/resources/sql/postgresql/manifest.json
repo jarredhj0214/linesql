@@ -3954,6 +3954,42 @@
       "description": "PostgreSQL CREATE EXTENSION is accepted as a control statement"
     },
     {
+      "id": "create_extension_version",
+      "file": "cases/create_extension_version.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "CREATE EXTENSION with a quoted version and dependent installs"
+    },
+    {
+      "id": "alter_extension_update",
+      "file": "cases/alter_extension_update.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Upgrade to the default extension version"
+    },
+    {
+      "id": "alter_extension_update_version",
+      "file": "cases/alter_extension_update_version.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Upgrade to an explicitly quoted extension version"
+    },
+    {
+      "id": "alter_extension_set_schema",
+      "file": "cases/alter_extension_set_schema.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Move an extension to a new schema"
+    },
+    {
       "id": "drop_extension",
       "file": "cases/drop_extension.sql",
       "statementType": "CONTROL",
