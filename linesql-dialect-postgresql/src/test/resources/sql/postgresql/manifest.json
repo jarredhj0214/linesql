@@ -7515,6 +7515,41 @@
         }
       ],
       "description": "Schema-qualified column references distinguish relations that share a short name"
+    },
+    {
+      "id": "select_quoted_dotted_identifier_usage",
+      "file": "cases/select_quoted_dotted_identifier_usage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "a.b.c",
+        "a.b.c"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "left_id",
+          "sources": [
+            "a.b.c.id"
+          ]
+        },
+        {
+          "target": "right_id",
+          "sources": [
+            "a.b.c.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "a.b.c.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "a.b.c.id"
+        }
+      ],
+      "description": "Two differently qualified identifiers can render identically and still have separate lineage and JOIN references"
     }
   ]
 }

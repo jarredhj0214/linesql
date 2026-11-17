@@ -78,10 +78,10 @@ public final class LineageModelUtils {
     public static List<ColumnRef> mergeColumnRefs(List<ColumnRef> left, List<ColumnRef> right) {
         Map<String, ColumnRef> refs = new LinkedHashMap<String, ColumnRef>();
         for (ColumnRef ref : left) {
-            refs.put(columnKey(ref), ref);
+            refs.put(columnIdentity(ref), ref);
         }
         for (ColumnRef ref : right) {
-            refs.put(columnKey(ref), ref);
+            refs.put(columnIdentity(ref), ref);
         }
         return new ArrayList<ColumnRef>(refs.values());
     }
@@ -160,7 +160,7 @@ public final class LineageModelUtils {
         Map<String, ColumnUsage> usages = columnUsageMap(result);
         for (ColumnRef column : columns) {
             ColumnUsage usage = new ColumnUsage(type, column);
-            usages.put(columnUsageKey(usage), usage);
+            usages.put(columnUsageIdentity(usage), usage);
         }
         result.setColumnUsages(new ArrayList<ColumnUsage>(usages.values()));
     }
@@ -168,7 +168,7 @@ public final class LineageModelUtils {
     public static void mergeColumnUsages(LineageResult target, LineageResult source) {
         Map<String, ColumnUsage> usages = columnUsageMap(target);
         for (ColumnUsage usage : source.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
+            usages.put(columnUsageIdentity(usage), usage);
         }
         target.setColumnUsages(new ArrayList<ColumnUsage>(usages.values()));
     }
@@ -186,6 +186,26 @@ public final class LineageModelUtils {
         return (tableKey + "." + ref.getName()).toLowerCase(Locale.ROOT);
     }
 
+    private static String columnUsageIdentity(ColumnUsage usage) {
+        return usage.getType().name() + ":" + columnIdentity(usage.getColumn());
+    }
+
+    private static String columnIdentity(ColumnRef ref) {
+        TableRef table = ref.getTable();
+        String tableIdentity = table == null ? "" : identifierIdentity(table.getCatalog())
+                + identifierIdentity(table.getSchema()) + identifierIdentity(table.getName());
+        return tableIdentity + identifierIdentity(ref.getName());
+    }
+
+    private static String identifierIdentity(String identifier) {
+        if (identifier == null) {
+            return "-1:";
+        }
+        String normalized = identifier.toLowerCase(Locale.ROOT);
+        // Length prefixes keep quoted dots within their original identifier component.
+        return normalized.length() + ":" + normalized;
+    }
+
     public static TableRef tableRefFromParts(List<String> parts) {
         if (parts.size() >= 3) {
             return new TableRef(parts.get(parts.size() - 3), parts.get(parts.size() - 2), parts.get(parts.size() - 1));
@@ -199,7 +219,7 @@ public final class LineageModelUtils {
     private static Map<String, ColumnUsage> columnUsageMap(LineageResult result) {
         Map<String, ColumnUsage> usages = new LinkedHashMap<String, ColumnUsage>();
         for (ColumnUsage usage : result.getColumnUsages()) {
-            usages.put(columnUsageKey(usage), usage);
+            usages.put(columnUsageIdentity(usage), usage);
         }
         return usages;
     }

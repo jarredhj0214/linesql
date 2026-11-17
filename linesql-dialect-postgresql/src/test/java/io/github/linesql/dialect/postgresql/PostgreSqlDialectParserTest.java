@@ -78,15 +78,17 @@ public class PostgreSqlDialectParserTest {
     }
 
     @Test
-    public void separatesQuotedDotsInQualifiedColumnReferences() {
-        LineageResult result = parser.parse("SELECT \"a.b\".c.id AS left_id, a.\"b.c\".id AS right_id "
-                + "FROM \"a.b\".c JOIN a.\"b.c\" ON \"a.b\".c.id = a.\"b.c\".id",
-                ParseOptions.defaults(), new ParseContext());
+    public void separatesQuotedDotsInQualifiedColumnReferences() throws IOException {
+        String sql = resource("/sql/postgresql/cases/select_quoted_dotted_identifier_usage.sql");
+        LineageResult result = parser.parse(sql, ParseOptions.defaults(), new ParseContext());
         assertTrue(result.getDiagnostics().isEmpty());
         assertEquals(new TableRef(null, "a.b", "c"),
                 result.getColumnLineage().get(0).getSources().get(0).getTable());
         assertEquals(new TableRef(null, "a", "b.c"),
                 result.getColumnLineage().get(1).getSources().get(0).getTable());
+        assertEquals(2, result.getColumnUsages().size());
+        assertEquals(new TableRef(null, "a.b", "c"), result.getColumnUsages().get(0).getColumn().getTable());
+        assertEquals(new TableRef(null, "a", "b.c"), result.getColumnUsages().get(1).getColumn().getTable());
     }
 
     @Test

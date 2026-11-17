@@ -70,6 +70,24 @@ public class LineageModelUtilsTest {
     }
 
     @Test
+    public void preservesIdentifierBoundariesAcrossColumnMerges() {
+        ColumnRef left = new ColumnRef(new TableRef(null, "a.b", "c"), "id");
+        ColumnRef right = new ColumnRef(new TableRef(null, "a", "b.c"), "id");
+        List<ColumnRef> columns = LineageModelUtils.mergeColumnRefs(
+                Arrays.asList(left), Arrays.asList(right));
+        assertEquals(2, columns.size());
+
+        LineageResult outer = new LineageResult();
+        LineageResult inner = new LineageResult();
+        LineageModelUtils.addColumnUsages(outer, ColumnUsageType.JOIN_ON, Arrays.asList(left));
+        LineageModelUtils.addColumnUsages(inner, ColumnUsageType.JOIN_ON, Arrays.asList(right));
+        LineageModelUtils.mergeColumnUsages(outer, inner);
+        assertEquals(2, outer.getColumnUsages().size());
+        assertEquals(left, outer.getColumnUsages().get(0).getColumn());
+        assertEquals(right, outer.getColumnUsages().get(1).getColumn());
+    }
+
+    @Test
     public void mergesColumnUsagesByTypeAndCaseInsensitiveColumnKey() {
         TableRef table = new TableRef(null, "ods", "users");
         LineageResult result = new LineageResult();
