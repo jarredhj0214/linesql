@@ -1001,11 +1001,8 @@ storageParameter
     ;
 
 createTableStatement
-    : CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier PARTITION OF partitionParent=multipartIdentifier partitionBound?
-    | CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
-      LPAREN ctasColumnList=identifierList RPAREN
-      tableOption* createTableStorageClause
-      AS query withDataClause?
+    : createTableAsStatement
+    | CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier PARTITION OF partitionParent=multipartIdentifier partitionBound?
     | CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN tableElementList RPAREN)?
       inheritsClause?
@@ -1014,6 +1011,13 @@ createTableStatement
       tableOption* createTableStorageClause
       (AS query withDataClause?)?
     | CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? target=multipartIdentifier LIKE source=multipartIdentifier
+    ;
+
+createTableAsStatement
+    : CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
+      (LPAREN identifierList RPAREN)?
+      tableOption* createTableStorageClause
+      AS query withDataClause?
     ;
 
 createTableStorageClause
@@ -1051,8 +1055,12 @@ createViewStatement
       (LPAREN viewColumnList=identifierList RPAREN)?
       relationStorageParameters?
       AS query (WITH (CASCADED | LOCAL)? CHECK OPTION)?
-    | CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
-      (LPAREN viewColumnList=identifierList RPAREN)?
+    | createMaterializedViewStatement
+    ;
+
+createMaterializedViewStatement
+    : CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
+      (LPAREN identifierList RPAREN)?
       (USING identifier)? relationStorageParameters? (TABLESPACE identifier)?
       AS query withDataClause?
     ;
@@ -1314,6 +1322,8 @@ explainedStatement
     | mergeStatement
     | executePreparedStatement
     | declareCursorStatement
+    | createTableAsStatement
+    | createMaterializedViewStatement
     ;
 
 transactionStatement

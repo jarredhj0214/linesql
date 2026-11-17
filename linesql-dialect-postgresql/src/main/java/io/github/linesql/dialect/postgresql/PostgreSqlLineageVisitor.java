@@ -94,6 +94,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             result.setStatementType(StatementType.CONTROL);
             return visit(explained.declareCursorStatement());
         }
+        if (explained.createTableAsStatement() != null) {
+            return visit(explained.createTableAsStatement());
+        }
+        if (explained.createMaterializedViewStatement() != null) {
+            return visit(explained.createMaterializedViewStatement());
+        }
         if (explained.executePreparedStatement() != null) {
             result.setStatementType(StatementType.CONTROL);
         }
@@ -864,6 +870,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateTableStatement(PostgreSqlParser.CreateTableStatementContext ctx) {
+        if (ctx.createTableAsStatement() != null) {
+            return visit(ctx.createTableAsStatement());
+        }
         if (ctx.source != null) {
             result.setStatementType(StatementType.CREATE_TABLE_LIKE);
             outputTables.add(tableRef(ctx.target));
@@ -885,11 +894,6 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
-            if (ctx.ctasColumnList != null) {
-                for (PostgreSqlParser.IdentifierContext id : ctx.ctasColumnList.identifier()) {
-                    insertTargetColumns.add(cleanIdentifier(id));
-                }
-            }
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
@@ -911,6 +915,13 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCreateTableAsStatement(PostgreSqlParser.CreateTableAsStatementContext ctx) {
+        result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
+        visitQueryBackedRelation(ctx.multipartIdentifier(), ctx.identifierList(), ctx.query());
+        return null;
+    }
+
+    @Override
     public Void visitCreateViewStmt(PostgreSqlParser.CreateViewStmtContext ctx) {
         result.setStatementType(StatementType.CREATE_VIEW);
         return visitChildren(ctx);
@@ -918,19 +929,35 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitCreateViewStatement(PostgreSqlParser.CreateViewStatementContext ctx) {
-        TableRef target = tableRef(ctx.multipartIdentifier());
+        if (ctx.createMaterializedViewStatement() != null) {
+            return visit(ctx.createMaterializedViewStatement());
+        }
+        visitQueryBackedRelation(ctx.multipartIdentifier(), ctx.viewColumnList, ctx.query());
+        return null;
+    }
+
+    @Override
+    public Void visitCreateMaterializedViewStatement(PostgreSqlParser.CreateMaterializedViewStatementContext ctx) {
+        result.setStatementType(StatementType.CREATE_VIEW);
+        visitQueryBackedRelation(ctx.multipartIdentifier(), ctx.identifierList(), ctx.query());
+        return null;
+    }
+
+    private void visitQueryBackedRelation(PostgreSqlParser.MultipartIdentifierContext relation,
+                                          PostgreSqlParser.IdentifierListContext columnNames,
+                                          PostgreSqlParser.QueryContext query) {
+        TableRef target = tableRef(relation);
         outputTables.add(target);
-        if (ctx.viewColumnList != null) {
-            for (PostgreSqlParser.IdentifierContext id : ctx.viewColumnList.identifier()) {
+        if (columnNames != null) {
+            for (PostgreSqlParser.IdentifierContext id : columnNames.identifier()) {
                 insertTargetColumns.add(cleanIdentifier(id));
             }
         }
-        visit(ctx.query());
+        visit(query);
         refreshColumnLineage();
         retargetColumnLineage(target);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
-        return null;
     }
 
     @Override

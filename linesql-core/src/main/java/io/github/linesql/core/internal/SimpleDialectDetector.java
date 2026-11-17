@@ -216,6 +216,8 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s*\\([^;]*\\)\\s*|\\s+)as\\s+(?:select|values|table|with|insert|update|delete|merge)\\b");
     private static final Pattern POSTGRES_EXPLAIN_OPTIONS = Pattern.compile(
             "^\\s*explain\\s*\\(\\s*(?:[^()]*,\\s*)?(?:generic_plan|serialize|memory)\\b");
+    private static final Pattern POSTGRES_EXPLAIN_CURSOR = Pattern.compile(
+            "^\\s*explain\\s+(?:\\([^()]*\\)\\s*)?declare\\b");
     private static final Pattern POSTGRES_PREPARED_RESET = Pattern.compile(
             "^\\s*(?:deallocate\\s+(?:prepare\\s+)?all|discard\\s+(?:all|plans))\\b");
     private static final Pattern SQL_SERVER_VECTOR_METRIC_OR_QUOTE = Pattern.compile(
@@ -385,6 +387,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL Unicode normalization predicate"));
         } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL ROWS FROM relation"));
+        } else if (POSTGRES_EXPLAIN_CURSOR.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL EXPLAIN cursor"));
         } else if (POSTGRES_EXPLAIN_OPTIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL EXPLAIN plan options"));
         } else if (POSTGRES_PREPARED_STATEMENT.matcher(normalized).find()

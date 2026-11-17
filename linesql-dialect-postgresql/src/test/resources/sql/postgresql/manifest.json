@@ -7247,6 +7247,73 @@
           "column": "ods.events.kind"
         }
       ]
+    },
+    {
+      "id": "explain_create_table_as_select",
+      "file": "cases/explain_create_table_as_select.sql",
+      "statementType": "CREATE_TABLE_AS_SELECT",
+      "inputTables": [
+        "public.users",
+        "sales.orders"
+      ],
+      "outputTables": [
+        "mart.user_order_snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.user_order_snapshot.user_id",
+          "sources": [
+            "public.users.id"
+          ]
+        },
+        {
+          "target": "mart.user_order_snapshot.order_amount",
+          "sources": [
+            "sales.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "public.users.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "sales.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "public.users.status"
+        }
+      ],
+      "description": "EXPLAIN preserves the source columns, target names, and query clauses of the described relation"
+    },
+    {
+      "id": "explain_create_materialized_view",
+      "file": "cases/explain_create_materialized_view.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "public.users"
+      ],
+      "outputTables": [
+        "mart.active_users"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.active_users.user_id",
+          "sources": [
+            "public.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "public.users.active"
+        }
+      ],
+      "description": "EXPLAIN preserves the source columns, target names, and query clauses of the described relation"
     }
   ]
 }

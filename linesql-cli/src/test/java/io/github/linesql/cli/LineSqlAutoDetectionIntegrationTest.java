@@ -371,6 +371,8 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (GENERIC_PLAN) SELECT id FROM public.events WHERE id = $1");
         assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (ANALYZE, SERIALIZE BINARY) SELECT id FROM public.events");
         assertDialect(SqlDialect.POSTGRESQL, "EXPLAIN (MEMORY ON) SELECT id FROM public.events");
+        assertDialect(SqlDialect.POSTGRESQL,
+                "EXPLAIN (COSTS OFF) DECLARE event_cursor CURSOR FOR SELECT id FROM public.events");
         assertDialect(SqlDialect.SPARK, "SELECT 'EXPLAIN (GENERIC_PLAN)' AS note");
     }
 
