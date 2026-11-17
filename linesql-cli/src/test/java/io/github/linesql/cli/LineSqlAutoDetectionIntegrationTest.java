@@ -939,6 +939,59 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void tracesSqlServerInsertExecLiteralSelect() {
+        LineageResult result = LineSql.parse("INSERT INTO report.sink (marker, source_id, total) "
+                + "EXEC sys.sp_executesql @stmt = N'SELECT 7, src.id, src.price + src.tax "
+                + "FROM dbo.events src WHERE src.active = 1'");
+        assertEquals(SqlDialect.SQLSERVER, result.getDialect());
+        assertEquals(StatementType.INSERT, result.getStatementType());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals("events", result.getInputTables().get(0).getName());
+        assertEquals("sink", result.getOutputTables().get(0).getName());
+        assertEquals(3, result.getColumnLineage().size());
+        assertEquals("marker", result.getColumnLineage().get(0).getTarget().getName());
+        assertTrue(result.getColumnLineage().get(0).getSources().isEmpty());
+        assertEquals("source_id", result.getColumnLineage().get(1).getTarget().getName());
+        assertEquals("id", result.getColumnLineage().get(1).getSources().get(0).getName());
+        assertEquals(2, result.getColumnLineage().get(2).getSources().size());
+        assertEquals("active", result.getColumnUsages().get(0).getColumn().getName());
+
+        LineageResult wildcard = LineSql.parse("INSERT INTO report.sink (id) "
+                + "EXEC sys.sp_executesql N'SELECT * FROM dbo.events WHERE active = 1'");
+        assertEquals("events", wildcard.getInputTables().get(0).getName());
+        assertTrue(wildcard.getColumnLineage().isEmpty());
+        assertEquals(1, wildcard.getColumnUsages().size());
+
+        LineageResult set = LineSql.parse("INSERT INTO report.sink (event_id) "
+                + "EXEC sys.sp_executesql N'SELECT id FROM dbo.live UNION ALL SELECT id FROM dbo.archive'");
+        assertEquals(2, set.getInputTables().size());
+        assertEquals(1, set.getColumnLineage().size());
+        assertEquals("event_id", set.getColumnLineage().get(0).getTarget().getName());
+        assertEquals(2, set.getColumnLineage().get(0).getSources().size());
+
+        LineageResult mismatch = LineSql.parse("INSERT INTO report.sink (id, amount) "
+                + "EXEC sys.sp_executesql N'SELECT id FROM dbo.events'");
+        assertEquals(1, mismatch.getInputTables().size());
+        assertTrue(mismatch.getColumnLineage().isEmpty());
+
+        LineageResult variable = LineSql.parse("INSERT INTO report.sink EXEC sys.sp_executesql @query");
+        assertEquals(StatementType.INSERT, variable.getStatementType());
+        assertTrue(variable.getInputTables().isEmpty());
+        assertEquals("DYNAMIC_SQL_NOT_EXPANDED", variable.getDiagnostics().get(0).getCode());
+
+        LineageResult assignment = LineSql.parse("INSERT INTO report.sink (id) "
+                + "EXEC sys.sp_executesql N'SELECT @id = e.id FROM dbo.events e', N'@id int', 0");
+        assertTrue(assignment.getColumnLineage().isEmpty());
+        assertEquals("DYNAMIC_SQL_NOT_EXPANDED", assignment.getDiagnostics().get(0).getCode());
+
+        LineageResult write = LineSql.parse("INSERT INTO report.sink EXEC sys.sp_executesql "
+                + "N'SELECT id INTO dbo.other FROM dbo.events'");
+        assertEquals(1, write.getOutputTables().size());
+        assertTrue(write.getInputTables().isEmpty());
+        assertEquals("DYNAMIC_SQL_NOT_EXPANDED", write.getDiagnostics().get(0).getCode());
+    }
+
+    @Test
     public void detectsSqlServerTemporaryTableScriptsAndMaintenanceSyntax() {
         List<LineageResult> results = LineSql.parseScript("CREATE TABLE #active (event_id int); "
                 + "INSERT INTO #active (event_id) SELECT id FROM dbo.events WHERE enabled = 1; "

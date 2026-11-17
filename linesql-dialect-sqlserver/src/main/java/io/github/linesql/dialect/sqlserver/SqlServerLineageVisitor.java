@@ -2,6 +2,7 @@ package io.github.linesql.dialect.sqlserver;
 
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
+import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
@@ -93,10 +94,36 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private boolean suppressColumnLineage;
     private SqlServerParser.SelectClauseContext setBranchSelect;
     private SqlServerParser.SelectClauseContext positionalInsertSelect;
+    private LineageResult executedSelect;
 
     SqlServerLineageVisitor(LineageResult result, ParseContext context) {
         this.result = result;
         this.context = context;
+    }
+
+    void setExecutedSelect(LineageResult executedSelect) {
+        this.executedSelect = executedSelect;
+    }
+
+    void visitExecutedSelect(SqlServerParser.StatementDefaultContext statement, int targetWidth) {
+        SqlServerParser.QueryContext query = statement.query();
+        SqlServerParser.QueryTermContext term = query.queryTerm();
+        SqlServerParser.SelectClauseContext select = explicitBranchSelect(term);
+        if (select != null && select.selectItemList().selectItem().stream()
+                .map(item -> ((SqlServerParser.SelectExpressionContext) item).expression().getText())
+                .anyMatch(SqlServerLineageVisitor::isVariableAssignmentExpression)) {
+            return;
+        }
+        boolean explicitMapping = query.queryOrganization().forOutputClause() == null
+                && targetWidth > 0 && explicitOutputWidth(term) == targetWidth;
+        if (explicitMapping) {
+            setBranchSelect = select;
+        }
+        visit(statement);
+        finalizeResult();
+        if (!explicitMapping || result.getColumnLineage().size() != targetWidth) {
+            result.setColumnLineage(Collections.emptyList());
+        }
     }
 
     @Override
@@ -134,6 +161,14 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             }
             refreshColumnLineage();
             retargetColumnLineage(target);
+        } else if (executedSelect != null) {
+            inputTables.addAll(executedSelect.getInputTables());
+            for (ColumnUsage usage : executedSelect.getColumnUsages()) {
+                LineageModelUtils.addColumnUsages(result, usage.getType(), Collections.singletonList(usage.getColumn()));
+            }
+            result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
+                    executedSelect.getColumnLineage(), target, insertTargetColumns));
+            suppressColumnLineage = true;
         } else {
             result.setColumnLineage(readInsertValues(ctx.valuesClause(), target));
             suppressColumnLineage = true;

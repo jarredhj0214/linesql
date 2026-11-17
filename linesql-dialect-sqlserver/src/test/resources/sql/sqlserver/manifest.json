@@ -3781,6 +3781,47 @@
       "description": "SQL Server INSERT OUTPUT INTO table variable records audit output while preserving insert lineage"
     },
     {
+      "id": "insert_exec_sp_executesql_literal_select",
+      "file": "cases/insert_exec_sp_executesql_literal_select.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "dbo.events"
+      ],
+      "outputTables": [
+        "report.audit_event"
+      ],
+      "columnLineage": [
+        {
+          "target": "report.audit_event.marker",
+          "sources": []
+        },
+        {
+          "target": "report.audit_event.event_id",
+          "sources": [
+            "dbo.events.id"
+          ]
+        },
+        {
+          "target": "report.audit_event.adjusted_total",
+          "sources": [
+            "dbo.events.total",
+            "dbo.events.tax"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dbo.events.status"
+        },
+        {
+          "type": "WHERE",
+          "column": "dbo.events.id"
+        }
+      ],
+      "description": "SQL Server INSERT EXEC sp_executesql reads the literal SELECT and maps known output positions across unnamed expressions"
+    },
+    {
       "id": "insert_exec_procedure",
       "file": "cases/insert_exec_procedure.sql",
       "statementType": "INSERT",

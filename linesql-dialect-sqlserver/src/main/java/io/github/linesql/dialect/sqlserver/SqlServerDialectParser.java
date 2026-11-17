@@ -26,10 +26,10 @@ public class SqlServerDialectParser implements DialectParser {
 
     @Override
     public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
-        return parse(sql, options, context, true);
+        return parse(sql, context, true, -1);
     }
 
-    private LineageResult parse(String sql, ParseOptions options, ParseContext context, boolean expandLiteralSql) {
+    private LineageResult parse(String sql, ParseContext context, boolean expandLiteralSql, int insertWidth) {
         LineageResult result = new LineageResult();
         result.setDialect(SqlDialect.SQLSERVER);
         result.setDialectConfidence(1.0d);
@@ -50,34 +50,58 @@ public class SqlServerDialectParser implements DialectParser {
             return result;
         }
 
-        if (statement.statement() instanceof SqlServerParser.ExecuteStmtContext) {
-            SqlServerParser.ExecuteStatementContext execute =
-                    ((SqlServerParser.ExecuteStmtContext) statement.statement()).executeStatement();
-            int sqlArgument = spExecuteSqlArgument(tokens, execute);
-            if (sqlArgument >= 0) {
-                int lastToken = execute.getStop().getTokenIndex();
-                if (expandLiteralSql && sqlArgument <= lastToken
-                        && tokens.get(sqlArgument).getType() == SqlServerLineageLexer.STRING_LITERAL
-                        && tokens.get(sqlArgument).getText().charAt(0) == 'N'
-                        && (sqlArgument == lastToken || tokens.get(sqlArgument + 1).getType() == SqlServerLineageLexer.COMMA)) {
-                    String literal = tokens.get(sqlArgument).getText();
-                    String innerSql = literal.substring(2, literal.length() - 1).replace("''", "'");
-                    LineageResult expanded = parse(innerSql, options, dynamicSqlContext(context), false);
-                    if (expanded.getStatementType() != StatementType.UNKNOWN
-                            && expanded.getDiagnostics().stream().noneMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR)) {
-                        return expanded;
-                    }
+        SqlServerParser.StatementContext body = statement.statement();
+        SqlServerLineageVisitor visitor = new SqlServerLineageVisitor(result, context);
+        if (insertWidth >= 0) {
+            if (body instanceof SqlServerParser.StatementDefaultContext) {
+                visitor.visitExecutedSelect((SqlServerParser.StatementDefaultContext) body, insertWidth);
+            }
+            return result;
+        }
+        SqlServerParser.ExecuteStatementContext execute = null;
+        int targetWidth = -1;
+        if (body instanceof SqlServerParser.ExecuteStmtContext) {
+            execute = ((SqlServerParser.ExecuteStmtContext) body).executeStatement();
+        } else if (body instanceof SqlServerParser.InsertStmtContext) {
+            SqlServerParser.InsertStatementContext insert =
+                    ((SqlServerParser.InsertStmtContext) body).insertStatement();
+            execute = insert.executeStatement();
+            targetWidth = insert.columnList == null ? 0 : insert.columnList.identifier().size();
+        }
+        int sqlArgument = execute == null ? -1 : spExecuteSqlArgument(tokens, execute);
+        if (sqlArgument >= 0) {
+            String innerSql = expandLiteralSql ? unicodeSqlLiteral(tokens, execute, sqlArgument) : null;
+            LineageResult expanded = innerSql == null ? null
+                    : parse(innerSql, dynamicSqlContext(context), false, targetWidth);
+            if (expanded != null && expanded.getStatementType() != StatementType.UNKNOWN
+                    && expanded.getDiagnostics().stream().noneMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR)
+                    && (targetWidth < 0 || expanded.getStatementType() == StatementType.SELECT)) {
+                if (targetWidth < 0) {
+                    return expanded;
                 }
+                visitor.setExecutedSelect(expanded);
+            } else {
                 result.getDiagnostics().add(Diagnostic.warning(
                         "DYNAMIC_SQL_NOT_EXPANDED",
-                        "SQL Server sp_executesql lineage needs a direct Unicode literal containing one supported statement."));
+                        targetWidth < 0
+                                ? "SQL Server sp_executesql lineage needs a direct Unicode literal containing one supported statement."
+                                : "SQL Server INSERT EXEC sp_executesql lineage needs a direct Unicode literal containing one SELECT."));
             }
         }
-
-        SqlServerLineageVisitor visitor = new SqlServerLineageVisitor(result, context);
         visitor.visit(statement);
         visitor.finalizeResult();
         return result;
+    }
+
+    private static String unicodeSqlLiteral(CommonTokenStream tokens, SqlServerParser.ExecuteStatementContext execute,
+                                            int argument) {
+        int last = execute.getStop().getTokenIndex();
+        if (argument > last || tokens.get(argument).getType() != SqlServerLineageLexer.STRING_LITERAL
+                || (argument < last && tokens.get(argument + 1).getType() != SqlServerLineageLexer.COMMA)) {
+            return null;
+        }
+        String literal = tokens.get(argument).getText();
+        return literal.charAt(0) == 'N' ? literal.substring(2, literal.length() - 1).replace("''", "'") : null;
     }
 
     private static ParseContext dynamicSqlContext(ParseContext context) {
