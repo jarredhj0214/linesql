@@ -1915,20 +1915,31 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableQuery(PostgreSqlParser.TableQueryContext ctx) {
-        TableRef table = tableRef(ctx.inheritanceRelation().multipartIdentifier());
-        if (ctx.inheritanceRelation().ONLY() == null && ctx.inheritanceRelation().STAR() == null
-                && isCteReference(table)) {
-            String name = table.getName().toLowerCase(Locale.ROOT);
-            addDerivedReference(table.getName(), null);
-            Map<String, List<ColumnRef>> columns = derivedColumnLineage.getOrDefault(name, Collections.emptyMap());
+        PostgreSqlParser.InheritanceRelationContext inheritance = ctx.inheritanceRelation();
+        PostgreSqlParser.MultipartIdentifierContext name = inheritance.multipartIdentifier();
+        TableRef table = tableRef(name);
+        String binding = null;
+        if (inheritance.ONLY() == null && inheritance.STAR() == null) {
+            if (isCteReference(table)) {
+                binding = table.getName().toLowerCase(Locale.ROOT);
+                addDerivedReference(binding, null);
+            } else {
+                LineageResult view = temporaryView(name);
+                if (view != null) {
+                    binding = addTemporaryViewReference(name, null, view);
+                }
+            }
+        }
+        if (binding != null) {
+            Map<String, List<ColumnRef>> columns = derivedColumnLineage.getOrDefault(binding, Collections.emptyMap());
             List<ColumnLineage> lineages = new ArrayList<>();
             for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
                 lineages.add(LineageModelUtils.columnLineage(null, column.getKey(), column.getValue(), column.getKey()));
             }
             result.setColumnLineage(lineages);
-            if (!knownColumnRelations.contains(name)) {
+            if (!knownColumnRelations.contains(binding)) {
                 firstUnknownStarOrdinal = 0;
-                unresolvedStarSources.addAll(derivedWildcardSources(name));
+                unresolvedStarSources.addAll(derivedWildcardSources(binding));
             }
         } else {
             addInputTable(table, false);
@@ -2880,11 +2891,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                     ((PostgreSqlParser.TableQueryContext) primary).inheritanceRelation();
             TableRef table = tableRef(relation.multipartIdentifier());
             String name = table.getName().toLowerCase(Locale.ROOT);
-            if (relation.ONLY() == null && relation.STAR() == null
-                    && isCteReference(table) && knownColumnRelations.contains(name)) {
-                return derivedColumnLineage.get(name).size();
+            if (relation.ONLY() != null || relation.STAR() != null) {
+                return -1;
             }
-            return -1;
+            if (isCteReference(table)) {
+                return knownColumnRelations.contains(name) ? derivedColumnLineage.get(name).size() : -1;
+            }
+            LineageResult view = temporaryView(relation.multipartIdentifier());
+            return view == null ? -1 : view.getColumnLineage().size();
         }
         if (primary instanceof PostgreSqlParser.QueryPrimaryDefaultContext) {
             return selectedColumnCount;
@@ -3025,7 +3039,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return raw.startsWith("\"") ? cleanIdentifier(raw) : cleanIdentifier(raw).toLowerCase(Locale.ROOT);
     }
 
-    private void addTemporaryViewReference(PostgreSqlParser.MultipartIdentifierContext name,
+    private String addTemporaryViewReference(PostgreSqlParser.MultipartIdentifierContext name,
                                            PostgreSqlParser.TableAliasContext alias, LineageResult view) {
         String binding = "$temporary_view" + derivedColumnLineage.size();
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
@@ -3050,6 +3064,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         LineageModelUtils.mergeColumnUsages(result, view);
         addCteReference(binding, alias);
+        return binding;
     }
 
     private TableRef firstOutputTable() {

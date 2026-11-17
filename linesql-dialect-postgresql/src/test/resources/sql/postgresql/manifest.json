@@ -1847,6 +1847,178 @@
       "description": "PostgreSQL CREATE VIEW source and output lineage"
     },
     {
+      "id": "script_temporary_view_table_prepared",
+      "file": "cases/script_temporary_view_table_prepared.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "recent"
+      ],
+      "outputTables": [
+        "recent"
+      ],
+      "columnLineage": [
+        {
+          "target": "event_key",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "recent"
+          ],
+          "columnLineage": [
+            {
+              "target": "recent.event_key",
+              "sources": [
+                "ods.events.id"
+              ]
+            },
+            {
+              "target": "recent.observed_at",
+              "sources": [
+                "ods.events.observed_at"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_key",
+              "sources": [
+                "ods.events.id"
+              ]
+            },
+            {
+              "target": "observed_at",
+              "sources": [
+                "ods.events.observed_at"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            },
+            {
+              "type": "ORDER_BY",
+              "column": "ods.events.observed_at"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_key",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_key",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_key",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "recent"
+          ],
+          "outputTables": [],
+          "columnLineage": []
+        }
+      ],
+      "description": "TABLE and prepared query routes use known session view output columns while the definition exists"
+    },
+    {
       "id": "script_temporary_view_lifecycle",
       "file": "cases/script_temporary_view_lifecycle.sql",
       "statementType": "MULTI",

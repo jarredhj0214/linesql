@@ -111,14 +111,13 @@ public class PostgreSqlDialectParser implements DialectParser {
                     statements.remove(preparedName(control.identifier()));
                 }
             } else if (control.executePreparedStatement() != null) {
-                copyPreparedExecution(control.executePreparedStatement(), options, statements, result, false);
+                copyPreparedExecution(control.executePreparedStatement(), options, context, result, false);
             }
         } else if (statement instanceof PostgreSqlParser.ExplainStmtContext) {
             PostgreSqlParser.ExplainedStatementContext explained = ((PostgreSqlParser.ExplainStmtContext) statement)
                     .explainStatement().explainedStatement();
             if (explained.executePreparedStatement() != null) {
-                copyPreparedExecution(explained.executePreparedStatement(), options,
-                        context.getPreparedStatements(SqlDialect.POSTGRESQL), result, true);
+                copyPreparedExecution(explained.executePreparedStatement(), options, context, result, true);
             }
         } else if (statement instanceof PostgreSqlParser.DiscardStmtContext) {
             PostgreSqlParser.DiscardStatementContext discard =
@@ -133,12 +132,12 @@ public class PostgreSqlDialectParser implements DialectParser {
     }
 
     private void copyPreparedExecution(PostgreSqlParser.ExecutePreparedStatementContext execute, ParseOptions options,
-                                       Map<String, PreparedSql> statements, LineageResult result, boolean explain) {
-        PreparedSql prepared = statements.get(preparedName(execute.identifier()));
+                                       ParseContext context, LineageResult result, boolean explain) {
+        PreparedSql prepared = context.getPreparedStatements(SqlDialect.POSTGRESQL).get(preparedName(execute.identifier()));
         if (prepared == null) {
             return;
         }
-        LineageResult lineage = parse(prepared.getSql(), options, null);
+        LineageResult lineage = parse(prepared.getSql(), options, context);
         LineageModelUtils.copySuccessfulLineage(result, lineage);
         if (explain && lineage.getStatementType() != StatementType.UNKNOWN) {
             result.setStatementType(lineage.getStatementType());
