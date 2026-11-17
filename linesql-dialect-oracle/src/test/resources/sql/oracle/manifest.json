@@ -6387,6 +6387,44 @@
         }
       ],
       "description": "Oracle-specific nested JSON_TABLE types preserve the document dependency"
+    },
+    {
+      "id": "select_json_value_returning_varchar2",
+      "file": "cases/select_json_value_returning_varchar2.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "sku",
+          "sources": [
+            "ods.events.payload"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "An Oracle JSON_VALUE return size and character unit preserve the document source"
+    },
+    {
+      "id": "select_json_query_returning_clob",
+      "file": "cases/select_json_query_returning_clob.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "cart",
+          "sources": [
+            "ods.events.payload"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Oracle JSON_QUERY preserves the document source through a CLOB return and wrapper"
     }
   ]
 }

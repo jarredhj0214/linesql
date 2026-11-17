@@ -812,6 +812,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOracleJsonScalarReturningTypes() {
+        LineageResult result = LineSql.parse(
+                "SELECT JSON_VALUE(e.payload, '$.sku' RETURNING VARCHAR2(100 CHAR)) AS sku, "
+                        + "JSON_QUERY(e.payload, '$.cart' RETURNING CLOB WITH CONDITIONAL WRAPPER) AS cart "
+                        + "FROM ods.events e");
+        assertEquals(SqlDialect.ORACLE, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("payload", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+        assertDialect(SqlDialect.FLINK,
+                "SELECT JSON_VALUE(e.payload, '$.\"label RETURNING NUMBER\"' RETURNING STRING) AS label "
+                        + "FROM ods.events e");
+    }
+
+    @Test
     public void detectsPostgreSqlGeneratedExpressionChanges() {
         LineageResult result = LineSql.parse(
                 "ALTER TABLE mart.metrics ALTER COLUMN net SET EXPRESSION AS (amount - discount)");

@@ -1,0 +1,2 @@
+SELECT JSON_QUERY(e.payload, '$.cart' RETURNING CLOB WITH CONDITIONAL WRAPPER) AS cart
+FROM ods.events e;

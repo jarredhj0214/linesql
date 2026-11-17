@@ -477,6 +477,10 @@ primaryExpression
     | (FROM_VECTOR | VECTOR_SERIALIZE) LPAREN expression
       (RETURNING (CLOB | VARCHAR2 (LPAREN number (BYTE | CHAR_KEYWORD)? RPAREN)?))?
       (FORMAT (DENSE | SPARSE))? RPAREN                             #vectorSerializeExpression
+    | JSON_VALUE LPAREN expression (FORMAT JSON)? COMMA string jsonScalarReturning
+      jsonTableOnError? jsonTableOnEmpty? RPAREN                     #jsonValueReturningExpression
+    | JSON_QUERY LPAREN expression (FORMAT JSON)? COMMA string jsonScalarReturning
+      jsonTableWrapper? jsonTableOnError? jsonTableOnEmpty? RPAREN   #jsonQueryReturningExpression
     | JSON_ARRAYAGG LPAREN expression (FORMAT JSON)? jsonAggregateOrderBy?
       jsonOnNullClause? jsonAggregateReturning? STRICT? RPAREN jsonAggregateFilter?
                                                                       #jsonArrayAggregateExpression
@@ -500,6 +504,10 @@ primaryExpression
     | FALSE                                                          #booleanFalse
     | INTERVAL expression identifier                                 #intervalLiteral
     | DEFAULT                                                        #defaultLiteral
+    ;
+
+jsonScalarReturning
+    : RETURNING (VARCHAR2 (LPAREN number (BYTE | CHAR_KEYWORD)? RPAREN)? | dataType)
     ;
 
 jsonAggregateOrderBy
@@ -1126,7 +1134,7 @@ nonReservedKeyword
     | BULK | CHECK | COLLECT | COMPLETE | CONSTRAINT | EXCHANGE | EXCLUDING | FAST | FETCH | FIRST | FLASHBACK | FOR | FORCE | FOREIGN | FUNCTION | GRANT | IF | IMMEDIATE | INCLUDING | INDEX | INDEXES | INITIALLY | INTERVAL | LAST | LATERAL | LIKE | LIMIT | MATERIALIZED | MINUS_SET | NEXT | NO | NORELY | NOVALIDATE | NULL
     | DISTANCE | INMEMORY | GRAPH | HNSW | IVF | NEIGHBORS | EFCONSTRUCTION | SAMPLES_PER_PARTITION
     | MIN_VECTORS_PER_PARTITION | L2_SQUARED | QUANTIZATION | COMPRESSION | RATIO | SCALAR | RESCORE | FACTOR | OFF
-    | JSON_ARRAYAGG | JSON_OBJECTAGG | ABSENT | KEYS | FILTER | VARCHAR2
+    | JSON_VALUE | JSON_QUERY | JSON_ARRAYAGG | JSON_OBJECTAGG | ABSENT | KEYS | FILTER | VARCHAR2
     | CHAR_KEYWORD | BYTE | CLOB | BLOB | TYPENAME | REFERENCE
     | VECTOR_DISTANCE | TO_VECTOR | FROM_VECTOR | VECTOR_SERIALIZE | VECTOR | COSINE | DOT_PRODUCT | EUCLIDEAN | EUCLIDEAN_SQUARED
     | MANHATTAN | HAMMING | JACCARD | INT8 | FLOAT32 | FLOAT64 | BINARY | DENSE | SPARSE

@@ -34,6 +34,7 @@ Known conflict guards:
 | Spark `MERGE INTO` is not classified as Oracle | `MERGE INTO` is shared across engines and is not a safe Oracle-only anchor. |
 | JSON path array wildcard `[*]` is not classified as SQL Server | The detector checks the relation syntax outside strings. JSON_TABLE without stronger dialect evidence supplies a MySQL anchor. |
 | Oracle JSON_TABLE column types | Types such as `NUMBER` and `VARCHAR2` inside a JSON_TABLE column list signal Oracle, including in nested column lists such as `json_table_oracle_column_types`. |
+| Oracle SQL/JSON RETURNING types | Oracle-specific types in `JSON_VALUE` or `JSON_QUERY` signal Oracle and preserve the JSON document lineage. |
 | MySQL `ON DUPLICATE KEY` is not classified as StarRocks | StarRocks key anchors are scoped to `CREATE TABLE` statements. |
 | MySQL executable version comments are not dropped as ordinary comments | `/*!80000 ... */` carries MySQL SQL and is treated as a MySQL dialect anchor. |
 
@@ -824,6 +825,7 @@ Implemented Oracle table-level lineage scenarios:
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
 | Same-named Oracle tables in separate schemas | Schema-qualified columns distinguish projection and clause sources in joins and UPDATE FROM. Qualified stars keep each table identity. | `select_schema_qualified_same_name`, `select_schema_qualified_same_name_stars`, `update_schema_qualified_same_name` |
+| Oracle JSON value and fragment return formats | Explicit `RETURNING` supports Oracle return types, VARCHAR2 length units, and JSON_QUERY wrappers. | `select_json_value_returning_varchar2`, `select_json_query_returning_clob` |
 | Oracle data use case domain lifecycle | CREATE covers enums and named multi-column domains. ALTER accepts display, ordering and annotations. DROP supports FORCE PRESERVE. Native domain forms identify Oracle. | `create_usecase_enum_domain`, `create_multi_column_domain`, `alter_domain_display`, `alter_domain_annotations`, `drop_domain_force_preserve` |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
