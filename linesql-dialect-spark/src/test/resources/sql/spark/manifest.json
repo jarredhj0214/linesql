@@ -2,6 +2,19 @@
   "dialect": "SPARK",
   "cases": [
     {
+      "id": "select_quoted_dialect_markers",
+      "file": "cases/select_quoted_dialect_markers.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "id", "sources": ["ods.events.id"]},
+        {"target": "note", "sources": []}
+      ],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.id"}],
+      "description": "Text containing Flink catalog and PostgreSQL conflict syntax stays an ordinary Spark SELECT"
+    },
+    {
       "id": "insert_select_unnamed_position",
       "file": "cases/insert_select_unnamed_position.sql",
       "statementType": "INSERT",

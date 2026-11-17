@@ -451,10 +451,10 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL schema search path control"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
-        } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")
-                || normalized.matches("(?s).*\\breturning\\b.*")
-                || normalized.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
-                || normalized.matches("(?s).*\\bilike\\b.*")) {
+        } else if (unquotedSyntax.matches("(?s).*\\bon\\s+conflict\\b.*")
+                || unquotedSyntax.matches("(?s).*\\breturning\\b.*")
+                || unquotedSyntax.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
+                || unquotedSyntax.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
         }
         if (HIVE_TABLE_VALUES.matcher(unquotedSyntax).find()) {
@@ -495,26 +495,26 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*set\\s+table\\..*")
                 || normalized.matches("(?s)^\\s*set\\s+['\"]table\\..*")
                 || normalized.matches("(?s)^\\s*reset\\s+table\\..*")
-                || normalized.matches("(?s).*\\bcreate\\s+catalog\\b.*")
-                || normalized.matches("(?s).*\\buse\\s+catalog\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bcreate\\s+catalog\\b.*")
+                || unquotedSyntax.matches("(?s).*\\buse\\s+catalog\\b.*")
                 || (!oracleJsonReturningType
-                        && normalized.matches("(?s).*\\bjson_(value|query|exists|object|array|objectagg|arrayagg)\\s*\\(.*"))
-                || normalized.matches("(?s).*\\bfloor\\s*\\([^;]+\\bto\\s+(minute|hour|day|month|year)\\b.*")
-                || normalized.matches("(?s).*\\bceil\\s*\\([^;]+\\bto\\s+(minute|hour|day|month|year)\\b.*")
-                || normalized.matches("(?s).*\\bextract\\s*\\([^;]+\\bfrom\\b.*")
-                || normalized.matches("(?s).*\\b(tumble|hop|session)_(start|end|rowtime|proctime)\\s*\\(.*")
-                || normalized.matches("(?s).*\\bfrom\\s+table\\s*\\(\\s*(tumble|hop|session|cumulate)\\s*\\(.*")
+                        && unquotedSyntax.matches("(?s).*\\bjson_(value|query|exists|object|array|objectagg|arrayagg)\\s*\\(.*"))
+                || unquotedSyntax.matches("(?s).*\\bfloor\\s*\\([^;]+\\bto\\s+(minute|hour|day|month|year)\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bceil\\s*\\([^;]+\\bto\\s+(minute|hour|day|month|year)\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bextract\\s*\\([^;]+\\bfrom\\b.*")
+                || unquotedSyntax.matches("(?s).*\\b(tumble|hop|session)_(start|end|rowtime|proctime)\\s*\\(.*")
+                || unquotedSyntax.matches("(?s).*\\bfrom\\s+table\\s*\\(\\s*(tumble|hop|session|cumulate)\\s*\\(.*")
                 || relationSyntax.matches("(?s)^\\s*insert\\b.*\\bon\\s+conflict\\s+do\\s+(deduplicate|error)\\b.*")
                 || relationSyntax.matches("(?s).*[,\\s](tumble|hop|session|cumulate)\\s*\\(\\s*(?:data\\s*=>\\s*)?table\\s+.*")
-                || (!sqlServerTemporalQuery && normalized.matches("(?s).*\\bfor\\s+system_time\\s+as\\s+of\\b.*"))
-                || normalized.matches("(?s).*\\bproctime\\s*\\(\\s*\\).*")
-                || normalized.matches("(?s).*\\bsplit_index\\s*\\(.*")
-                || normalized.matches("(?s).*\\bcreate\\s+(temporary\\s+)?view\\s+if\\s+not\\s+exist\\b.*")
-                || normalized.matches("(?s).*\\bwatermark\\s+for\\b.*")
-                || normalized.matches("(?s)^\\s*(compile|execute)\\s+plan\\b.*")
-                || normalized.matches("(?s)^\\s*show\\s+jobs\\b.*")
-                || normalized.matches("(?s)^\\s*(describe|desc)\\s+job\\b.*")
-                || normalized.matches("(?s)^\\s*stop\\s+job\\b.*")
+                || (!sqlServerTemporalQuery && unquotedSyntax.matches("(?s).*\\bfor\\s+system_time\\s+as\\s+of\\b.*"))
+                || unquotedSyntax.matches("(?s).*\\bproctime\\s*\\(\\s*\\).*")
+                || unquotedSyntax.matches("(?s).*\\bsplit_index\\s*\\(.*")
+                || unquotedSyntax.matches("(?s).*\\bcreate\\s+(temporary\\s+)?view\\s+if\\s+not\\s+exist\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bwatermark\\s+for\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*(compile|execute)\\s+plan\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*show\\s+jobs\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*(describe|desc)\\s+job\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*stop\\s+job\\b.*")
                 || normalized.matches("(?s)^\\s*call\\s+`[^`]+`\\s*\\..*")
                 || FLINK_MATERIALIZED_TABLE.matcher(unquotedSyntax).find()
                 || unquotedSyntax.matches("(?s).*\\bwith\\s+connector\\b.*")) {

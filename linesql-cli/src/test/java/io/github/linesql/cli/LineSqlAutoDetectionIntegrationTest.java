@@ -684,6 +684,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void ignoresFlinkAndPostgresSyntaxInsideQuotedText() {
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE CATALOG analytics' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'USE CATALOG analytics' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'WATERMARK FOR event_time AS event_time' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'JSON_VALUE(payload)' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ON CONFLICT DO NOTHING' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'RETURNING order_id' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'name ILIKE pattern or value::text' AS note");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT id AS [WATERMARK FOR event_time] FROM ods.events");
+        assertDialect(SqlDialect.FLINK, "CREATE CATALOG analytics WITH ('type' = 'in_memory')");
+        assertDialect(SqlDialect.FLINK, "SELECT JSON_VALUE(payload, '$.code') FROM ods.events");
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT code::text FROM ods.events");
+        assertDialect(SqlDialect.POSTGRESQL, "INSERT INTO ods.events VALUES (1) ON CONFLICT DO NOTHING");
+    }
+
+    @Test
     public void detectsFlinkChangelogConversion() {
         assertDialect(SqlDialect.FLINK, "SELECT id FROM FROM_CHANGELOG(input => TABLE ods.events)");
         assertDialect(SqlDialect.FLINK, "SELECT id FROM TO_CHANGELOG(input => TABLE ods.events)");

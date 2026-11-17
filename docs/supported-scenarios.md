@@ -45,6 +45,7 @@ Implemented script-level public API scenarios:
 | Scenario | Example shape | Test asset |
 | --- | --- | --- |
 | Per-statement auto detection in scripts | Hive DDL; Flink DDL; SQL Server `TOP` query | `LineSqlAutoDetectionIntegrationTest.parseScriptAutoDetectsEachStatementIndependently` |
+| Quoted text in dialect detection | Flink catalog, watermark and JSON signatures and PostgreSQL conflict, RETURNING and cast signatures are matched in SQL syntax outside quoted text. | `select_quoted_dialect_markers`, `LineSqlAutoDetectionIntegrationTest.ignoresFlinkAndPostgresSyntaxInsideQuotedText` |
 | Partial results after bad SQL | valid SELECT; invalid statement; valid Flink DDL | `LineSqlAutoDetectionIntegrationTest.parseScriptKeepsPartialResultsAfterBadStatement` |
 
 Implemented CLI scenarios:
