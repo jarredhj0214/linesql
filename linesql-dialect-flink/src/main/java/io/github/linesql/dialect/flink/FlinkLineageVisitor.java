@@ -1010,8 +1010,54 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         LineageModelUtils.mergeColumnUsages(result, leftResult);
         LineageModelUtils.mergeColumnUsages(result, rightResult);
-        result.setColumnLineage(LineageModelUtils.mergeSetColumnLineage(leftResult, rightResult));
+        boolean unresolvedWildcard = setOutputWidth < 0
+                && (hasWildcardOutput(leftResult) || hasWildcardOutput(rightResult));
+        result.setColumnLineage(unresolvedWildcard
+                ? mergeUnresolvedSetLineage(leftResult, rightResult)
+                : LineageModelUtils.mergeSetColumnLineage(leftResult, rightResult));
         return null;
+    }
+
+    private static boolean hasWildcardOutput(LineageResult operand) {
+        for (ColumnLineage column : operand.getColumnLineage()) {
+            String expression = column.getExpression();
+            if ("*".equals(column.getTarget().getName())
+                    && (expression == null || "*".equals(expression) || expression.endsWith(".*"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<ColumnLineage> mergeUnresolvedSetLineage(LineageResult left, LineageResult right) {
+        List<ColumnRef> rightSources = setProjectionSources(right);
+        if (hasWildcardOutput(left)) {
+            List<ColumnRef> sources = LineageModelUtils.mergeColumnRefs(setProjectionSources(left), rightSources);
+            return Collections.singletonList(LineageModelUtils.columnLineage(null, "*", sources, null));
+        }
+
+        // The left operand supplies output names. The right wildcard has no reliable column positions.
+        List<ColumnRef> rightWildcards = new ArrayList<>();
+        for (ColumnRef source : rightSources) {
+            if (source.getTable() != null) {
+                rightWildcards.add(new ColumnRef(source.getTable(), "*"));
+            }
+        }
+        List<ColumnRef> distinct = LineageModelUtils.mergeColumnRefs(Collections.emptyList(), rightWildcards);
+        List<ColumnLineage> columns = new ArrayList<>();
+        for (ColumnLineage column : left.getColumnLineage()) {
+            List<ColumnRef> sources = LineageModelUtils.mergeColumnRefs(column.getSources(), distinct);
+            columns.add(LineageModelUtils.columnLineage(column.getTarget(), sources, column.getExpression()));
+        }
+        return columns;
+    }
+
+    private static List<ColumnRef> setProjectionSources(LineageResult operand) {
+        List<ColumnRef> sources = new ArrayList<>();
+        for (ColumnLineage column : operand.getColumnLineage()) {
+            sources.addAll(column.getSources());
+        }
+        return sources;
     }
 
     @Override
@@ -2327,10 +2373,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             refreshColumnLineage(targetTable);
             return;
         }
-        result.setColumnLineage(LineageModelUtils.retargetColumnLineage(
-                result.getColumnLineage(),
-                targetTable,
-                insertTargetColumns));
+        List<String> targets = hasWildcardOutput(result) ? Collections.emptyList() : insertTargetColumns;
+        result.setColumnLineage(LineageModelUtils.retargetColumnLineage(result.getColumnLineage(), targetTable, targets));
     }
 
     private List<String> visitCreateTableQuery(FlinkParser.QueryContext query, TableRef target,

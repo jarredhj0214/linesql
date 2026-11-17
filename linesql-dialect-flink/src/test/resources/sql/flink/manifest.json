@@ -9626,6 +9626,80 @@
         }
       ],
       "description": "A positional set ORDER BY traces known TABLE and wildcard projections on both sides"
+    },
+    {
+      "id": "union_unresolved_first_wildcard",
+      "file": "cases/union_unresolved_first_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "ods.live.*",
+            "ods.history.id",
+            "ods.history.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Flink preserves unknown set operands as wildcard evidence without assuming a matching column layout"
+    },
+    {
+      "id": "union_unresolved_second_wildcard",
+      "file": "cases/union_unresolved_second_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.live.id",
+            "ods.history.*"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.live.event_time",
+            "ods.history.*"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Flink preserves unknown set operands as wildcard evidence without assuming a matching column layout"
+    },
+    {
+      "id": "insert_union_unresolved_first_wildcard",
+      "file": "cases/insert_union_unresolved_first_wildcard.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [
+        "mart.combined"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.combined.*",
+          "sources": [
+            "ods.live.*",
+            "ods.history.id",
+            "ods.history.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Flink preserves unknown set operands as wildcard evidence without assuming a matching column layout"
     }
   ]
 }
