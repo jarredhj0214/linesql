@@ -15,6 +15,20 @@ public class SimpleDialectDetectorTest {
     private final SimpleDialectDetector detector = new SimpleDialectDetector();
 
     @Test
+    public void detectsDialectWithLongQuotedTokens() {
+        String payload = String.join("", Collections.nCopies(16000, "a"));
+        String escapedQuotes = String.join("", Collections.nCopies(8000, "''"));
+
+        assertFirst(SqlDialect.POSTGRESQL, "INSERT INTO app.events (id, note) VALUES (1, '" + payload
+                + " connector') ON CONFLICT DO NOTHING");
+        assertFirst(SqlDialect.MYSQL, "PREPARE stmt FROM 'SELECT ''" + payload + "'''");
+        assertFirst(SqlDialect.SPARK, "SELECT '" + escapedQuotes + "' AS payload");
+        assertFirst(SqlDialect.SPARK, "SELECT `" + payload + "` FROM app.events");
+        assertFirst(SqlDialect.FLINK, "CREATE TABLE app.events (id INT) WITH ('description'='" + payload
+                + "', 'connector'='kafka')");
+    }
+
+    @Test
     public void detectsMySqlAnchors() {
         assertFirst(SqlDialect.MYSQL, "replace into mart.t(c1) select a from app.s");
         assertFirst(SqlDialect.MYSQL, "insert into mart.t(c1) select a from app.s on duplicate key update c1 = values(c1)");

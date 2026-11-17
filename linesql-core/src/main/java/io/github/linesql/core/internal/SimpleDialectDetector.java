@@ -202,25 +202,30 @@ public class SimpleDialectDetector implements DialectDetector {
             "(?m)^\\s*(?:create\\s+or\\s+alter\\s+(?:proc(?:edure)?|function|trigger)"
                     + "|(?:create|alter)\\s+proc)\\b");
 
+    // Possessive repetition scans long quoted tokens without recursive backtracking.
+    private static final String BACKTICK_IDENTIFIER = "`(?:``|[^`])*+`";
+    private static final String DOUBLE_QUOTED_IDENTIFIER = "\"(?:\"\"|[^\"])*+\"";
     private static final Pattern QUOTED_IDENTIFIER = Pattern.compile(
-            "`(?:``|[^`])*`|\"(?:\"\"|[^\"])*\"|\\[(?:\\]\\]|[^\\]])*\\]");
-    private static final String SINGLE_QUOTED_STRING = "'(?:''|\\\\.|[^'\\\\])*'";
+            BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + "|\\[(?:\\]\\]|[^\\]])*+\\]");
+    private static final String SINGLE_QUOTED_STRING = "'(?:''|\\\\.|[^'\\\\])*+'";
     private static final Pattern SQL_SERVER_VECTOR_METRIC_OR_QUOTE = Pattern.compile(
             "(\\bvector_distance\\s*\\(\\s*n?'(?:cosine|dot|euclidean)'\\s*,)|"
                     + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
 
-    private static final String PREPARED_STATEMENT_NAME = "(?:[a-z_][\\w$]*|`(?:``|[^`])*`)";
+    private static final String PREPARED_STATEMENT_NAME = "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + ")";
     private static final Pattern MYSQL_PREPARED_LITERAL = Pattern.compile(
             "^\\s*prepare\\s+" + PREPARED_STATEMENT_NAME + "\\s+from\\s+(?:(?:n|_[a-z0-9]+)?"
                     + SINGLE_QUOTED_STRING + "|\"|@[a-z_][\\w$]*)");
     private static final Pattern STARROCKS_PREPARED_QUERY = Pattern.compile(
             "^\\s*prepare\\s+" + PREPARED_STATEMENT_NAME + "\\s+from\\s+(?:select|with)\\b");
-    private static final String FLINK_OPTION_LITERAL = "(?:" + SINGLE_QUOTED_STRING + "|\"(?:\"\"|[^\"\\\\]|\\\\.)*\")";
+    private static final String FLINK_OPTION_LITERAL =
+            "(?:" + SINGLE_QUOTED_STRING + "|\"(?:\"\"|[^\"\\\\]|\\\\.)*+\")";
     private static final Pattern SQL_WITH_OPTIONS_OR_QUOTE = Pattern.compile(
             "(\\bwith\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
     private static final Pattern FLINK_OPTION_PAIR = Pattern.compile(
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
-    private static final String FLINK_IDENTIFIER = "(?:[a-z_][\\w$]*|`(?:``|[^`])*`|\"(?:\"\"|[^\"])*\")";
+    private static final String FLINK_IDENTIFIER =
+            "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
     private static final Pattern FLINK_ALTER_STRING_OPTIONS = Pattern.compile(
             "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*\\s+(?:set|reset)\\s*\\(\\s*" + SINGLE_QUOTED_STRING);
