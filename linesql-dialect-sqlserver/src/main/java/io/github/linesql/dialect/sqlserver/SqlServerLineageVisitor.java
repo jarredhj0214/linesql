@@ -1915,7 +1915,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             } else if (sortKey.matches("[0-9]+")) {
                 addSelectSortPositionUsage(term, sortPosition(sortKey));
             } else {
-                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+                addSelectSortExpressionUsage(sortItem.expression());
             }
         }
         return visitChildren(ctx);
@@ -1937,6 +1937,18 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, refs);
         }
+    }
+
+    private void addSelectSortExpressionUsage(SqlServerParser.ExpressionContext expression) {
+        List<SourceColumn> columns = sourceColumns(expression);
+        if (columns.size() == 1 && isDirectColumnExpression(expression)) {
+            List<ColumnRef> refs = projectionAliasColumnRefs(columns.get(0));
+            if (refs != null) {
+                LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, refs);
+                return;
+            }
+        }
+        addColumnUsages(ColumnUsageType.ORDER_BY, columns);
     }
 
     private void addSetSortUsage(SqlServerParser.QueryTermContext term, String sortKey) {
@@ -2149,33 +2161,14 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
-        List<ColumnRef> refs = columnUsageRefs(sourceColumns);
+        List<ColumnRef> refs = columnRefs(sourceColumns);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
         }
     }
 
-    private List<ColumnRef> columnUsageRefs(List<SourceColumn> sourceColumns) {
-        List<ColumnRef> refs = new ArrayList<>();
-        for (SourceColumn sourceColumn : sourceColumns) {
-            List<ColumnRef> projectionRefs = projectionAliasColumnRefs(sourceColumn);
-            if (projectionRefs != null) {
-                refs.addAll(projectionRefs);
-                continue;
-            }
-            List<SourceColumn> singleton = new ArrayList<>();
-            singleton.add(sourceColumn);
-            List<ColumnRef> resolved = columnRefs(singleton);
-            if (resolved == null) {
-                return null;
-            }
-            refs.addAll(resolved);
-        }
-        return refs;
-    }
-
     private List<ColumnRef> projectionAliasColumnRefs(SourceColumn sourceColumn) {
-        if (sourceColumn.resolvedRef != null || sourceColumn.qualifier != null) {
+        if (sourceColumn.resolvedRef != null || sourceColumn.qualifier != null || sourceColumn.qualifiedKey != null) {
             return null;
         }
         for (Projection projection : projections) {

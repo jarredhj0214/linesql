@@ -217,6 +217,22 @@
       "description": "SQL Server set query preserves the positions of explicit SELECT expressions"
     },
     {
+      "id": "select_order_by_standalone_output_alias",
+      "file": "cases/select_order_by_standalone_output_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "qty", "sources": ["sales.orders.total"]}],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.qty"},
+        {"type": "GROUP_BY", "column": "sales.orders.qty"},
+        {"type": "HAVING", "column": "sales.orders.qty"},
+        {"type": "ORDER_BY", "column": "sales.orders.qty"},
+        {"type": "ORDER_BY", "column": "sales.orders.total"}
+      ],
+      "description": "SQL Server ORDER BY uses a select alias on its own and resolves input names inside expressions"
+    },
+    {
       "id": "select_order_by_unnamed_output_positions",
       "file": "cases/select_order_by_unnamed_output_positions.sql",
       "statementType": "SELECT",
