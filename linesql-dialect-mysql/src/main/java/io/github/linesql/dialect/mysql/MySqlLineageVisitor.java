@@ -46,7 +46,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
-    private MySqlParser.SelectClauseContext setBranchSelect;
+    private MySqlParser.SelectClauseContext positionalOutputSelect;
     private MySqlParser.SelectClauseContext positionalWriteSelect;
     private Map<MySqlParser.QueryContext, LineageResult> projectionSubqueries;
     private final Set<String> routineParameters;
@@ -1607,7 +1607,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             if (item instanceof MySqlParser.SelectExpressionContext) {
                 MySqlParser.SelectExpressionContext selected = (MySqlParser.SelectExpressionContext) item;
                 Projection projection = projection(selected, i, ctx == positionalWriteSelect && i < insertTargetColumns.size());
-                if (projection == null && ctx == setBranchSelect) {
+                if (projection == null && ctx == positionalOutputSelect) {
                     MySqlParser.ExpressionContext expression = selected.expression();
                     projection = new Projection(sourceColumns(expression), expression.getText(),
                             expression.getText(), expression, i);
@@ -1892,6 +1892,13 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         }
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
+        if (!columnAliases.isEmpty()) {
+            MySqlParser.QueryTermContext term = unwrapSetBranch(query.queryTerm());
+            if (term instanceof MySqlParser.QueryTermDefaultContext) {
+                relationVisitor.positionalOutputSelect =
+                        explicitBranchSelect(((MySqlParser.QueryTermDefaultContext) term).queryPrimary());
+            }
+        }
         relationVisitor.visit(query);
         relationVisitor.refreshColumnLineage();
 
@@ -2014,7 +2021,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         MySqlParser.QueryTermContext branch = unwrapSetBranch(queryTerm);
         if (branch instanceof MySqlParser.QueryTermDefaultContext) {
             MySqlParser.QueryPrimaryContext primary = ((MySqlParser.QueryTermDefaultContext) branch).queryPrimary();
-            queryVisitor.setBranchSelect = explicitBranchSelect(primary);
+            queryVisitor.positionalOutputSelect = explicitBranchSelect(primary);
         }
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
@@ -2159,7 +2166,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             Projection projection = projections.get(i);
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
-                if (setBranchSelect == null) {
+                if (positionalOutputSelect == null) {
                     continue;
                 }
                 sources = Collections.emptyList();

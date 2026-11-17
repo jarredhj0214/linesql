@@ -13112,6 +13112,75 @@
         }
       ],
       "description": "DELETE resolves an explicit target schema separately from the join source"
+    },
+    {
+      "id": "select_cte_alias_positions_with_constant",
+      "file": "cases/select_cte_alias_positions_with_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.observed_at"
+        }
+      ],
+      "description": "An unnamed CTE constant does not shift the following column alias"
+    },
+    {
+      "id": "select_derived_alias_positions_with_constant",
+      "file": "cases/select_derived_alias_positions_with_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.observed_at"
+        }
+      ],
+      "description": "A derived-table alias list preserves positions in projection and predicates"
+    },
+    {
+      "id": "insert_cte_alias_positions_with_constant",
+      "file": "cases/insert_cte_alias_positions_with_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A named INSERT source follows the second CTE alias after an unnamed constant"
     }
   ]
 }
