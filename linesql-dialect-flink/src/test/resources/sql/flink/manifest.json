@@ -11493,6 +11493,214 @@
       "description": "A known CTE star expands using its table reference aliases"
     },
     {
+      "id": "script_catalog_declared_default_database",
+      "file": "cases/script_catalog_declared_default_database.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "catalog.prod.daily.events.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "catalog.prod.daily.events.orders.event_id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "catalog.prod.daily.events.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "catalog.prod.daily.events.orders.event_id"
+              ]
+            }
+          ]
+        }
+      ],
+      "description": "USE CATALOG reads the configured default database and keeps quoted namespace components"
+    },
+    {
+      "id": "script_catalog_default_database_changes",
+      "file": "cases/script_catalog_default_database_changes.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "production.configured_db.events",
+        "production.scratch.events",
+        "archives.archive_db.events",
+        "production.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "production.configured_db.events.event_id"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "production.scratch.events.event_id"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "archives.archive_db.events.event_id"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "production.events.event_id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CREATE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "production.configured_db.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "production.configured_db.events.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "production.scratch.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "production.scratch.events.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "archives.archive_db.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "archives.archive_db.events.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "production.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "production.events.event_id"
+              ]
+            }
+          ]
+        }
+      ],
+      "description": "Catalog defaults follow SET and RESET while selecting the same catalog keeps the active database"
+    },
+    {
       "id": "script_temporary_views_quoted_paths",
       "file": "cases/script_temporary_views_quoted_paths.sql",
       "statementType": "MULTI",

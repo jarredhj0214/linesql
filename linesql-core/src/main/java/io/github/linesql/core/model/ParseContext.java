@@ -14,6 +14,8 @@ public class ParseContext {
             new EnumMap<>(SqlDialect.class);
     private final Map<SqlDialect, Map<String, String>> sessionStringVariables = new EnumMap<>(SqlDialect.class);
 
+    private final Map<SqlDialect, Map<String, String>> catalogDefaultSchemas = new EnumMap<>(SqlDialect.class);
+
     public String getDefaultCatalog() {
         return defaultCatalog;
     }
@@ -51,6 +53,10 @@ public class ParseContext {
     /** Session string values tracked by the dialect parser. A null value represents an unresolved value. */
     public Map<String, String> getSessionStringVariables(SqlDialect dialect) {
         return sessionStringVariables.computeIfAbsent(dialect, ignored -> new LinkedHashMap<>());
+    }
+    /** Catalog defaults declared in the current SQL session. A null value represents an unspecified default. */
+    public Map<String, String> getCatalogDefaultSchemas(SqlDialect dialect) {
+        return catalogDefaultSchemas.computeIfAbsent(dialect, ignored -> new LinkedHashMap<>());
     }
 
 }

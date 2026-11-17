@@ -1,0 +1,14 @@
+CREATE CATALOG production WITH ('type' = 'generic_in_memory', 'default-database' = 'initial_db');
+CREATE CATALOG archives WITH ('type' = 'generic_in_memory', 'default-database' = 'archive_db');
+ALTER CATALOG production SET ('default-database' = 'configured_db');
+CREATE DATABASE production.scratch;
+USE CATALOG production;
+SELECT event_id FROM events;
+USE scratch;
+USE CATALOG production;
+SELECT event_id FROM events;
+USE CATALOG archives;
+SELECT event_id FROM events;
+ALTER CATALOG production RESET ('default-database');
+USE CATALOG production;
+SELECT event_id FROM events;

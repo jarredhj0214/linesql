@@ -88,6 +88,18 @@ public class FlinkDialectParserTest {
     }
 
     @Test
+    public void appliesDeclaredDefaultDatabaseWhenSelectingACatalog() throws IOException {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_catalog_declared_default_database"));
+        assertEquals(3, results.size());
+        assertEquals(SqlDialect.FLINK, results.get(2).getDialect());
+        assertEquals("catalog.prod", results.get(2).getInputTables().get(0).getCatalog());
+        assertEquals("daily.events", results.get(2).getInputTables().get(0).getSchema());
+        assertEquals("orders", results.get(2).getInputTables().get(0).getName());
+        assertEquals(results.get(2).getInputTables().get(0),
+                results.get(2).getColumnLineage().get(0).getSources().get(0).getTable());
+    }
+
+    @Test
     public void distinguishesTemporaryViewsWithQuotedNamespaceComponents() throws IOException {
         List<LineageResult> results = LineSql.parseScript(sqlCase("script_temporary_views_quoted_paths"));
         assertEquals(6, results.size());

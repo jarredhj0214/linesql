@@ -332,6 +332,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitCreateCatalogStmt(FlinkParser.CreateCatalogStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        if (context != null) {
+            FlinkParser.CreateCatalogStatementContext catalog = ctx.createCatalogStatement();
+            String name = cleanIdentifier(catalog.identifier());
+            if (catalog.existsKeyword() == null || !catalogDefaults().containsKey(name)) {
+                catalogDefaults().put(name, catalogDefaultSchema(catalog.propertyList()));
+            }
+        }
         return null;
     }
 
@@ -451,6 +458,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitDropCatalogStmt(FlinkParser.DropCatalogStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        if (context != null) {
+            String name = cleanIdentifier(ctx.dropCatalogStatement().identifier());
+            if (!name.equals(context.getDefaultCatalog())) {
+                catalogDefaults().remove(name);
+            }
+        }
         return null;
     }
 
@@ -724,6 +737,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitAlterCatalogStmt(FlinkParser.AlterCatalogStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
+        if (context != null) {
+            FlinkParser.AlterCatalogStatementContext catalog = ctx.alterCatalogStatement();
+            String name = cleanIdentifier(catalog.identifier());
+            if (catalog.propertyList() != null) {
+                String schema = catalogDefaultSchema(catalog.propertyList());
+                if (schema != null) {
+                    catalogDefaults().put(name, schema);
+                }
+            } else if (catalog.stringList() != null && catalog.stringList().string().stream()
+                    .map(FlinkLineageVisitor::catalogOptionText).anyMatch("default-database"::equals)) {
+                catalogDefaults().put(name, null);
+            }
+        }
         return null;
     }
 
@@ -775,6 +801,26 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return null;
     }
 
+    private Map<String, String> catalogDefaults() {
+        return context.getCatalogDefaultSchemas(SqlDialect.FLINK);
+    }
+
+    private static String catalogDefaultSchema(FlinkParser.PropertyListContext properties) {
+        for (FlinkParser.PropertyContext property : properties.property()) {
+            if ("default-database".equals(catalogOptionText(property.string(0)))) {
+                String schema = catalogOptionText(property.string(1));
+                return schema.isEmpty() ? null : schema;
+            }
+        }
+        return null;
+    }
+
+    private static String catalogOptionText(FlinkParser.StringContext literal) {
+        String value = literal.getText();
+        String quote = value.substring(0, 1);
+        return value.substring(1, value.length() - 1).replace(quote + quote, quote);
+    }
+
     @Override
     public Void visitUseStmt(FlinkParser.UseStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
@@ -786,8 +832,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             String catalog = cleanIdentifier(statement.identifier());
             if (!catalog.equals(context.getDefaultCatalog())) {
                 context.setDefaultCatalog(catalog);
-                // A new catalog supplies its own default database, which is unknown here.
-                context.setDefaultSchema(null);
+                context.setDefaultSchema(catalogDefaults().get(catalog));
             }
         } else {
             List<String> namespace = identifierParts(statement.multipartIdentifier());
