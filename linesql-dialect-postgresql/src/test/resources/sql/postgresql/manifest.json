@@ -7433,6 +7433,88 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "select_schema_qualified_same_name",
+      "file": "cases/select_schema_qualified_same_name.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.orders",
+        "historical.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "live_id",
+          "sources": [
+            "live.orders.id"
+          ]
+        },
+        {
+          "target": "historical_id",
+          "sources": [
+            "historical.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.orders.link_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "historical.orders.link_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "live.orders.status"
+        }
+      ],
+      "description": "Schema-qualified column references distinguish relations that share a short name"
+    },
+    {
+      "id": "update_schema_qualified_same_name",
+      "file": "cases/update_schema_qualified_same_name.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "live.orders",
+        "historical.orders"
+      ],
+      "outputTables": [
+        "live.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "live.orders.status",
+          "sources": [
+            "historical.orders.status"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "live.orders.*"
+          ]
+        },
+        {
+          "target": "historical_id",
+          "sources": [
+            "historical.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "live.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "historical.orders.id"
+        }
+      ],
+      "description": "Schema-qualified column references distinguish relations that share a short name"
     }
   ]
 }

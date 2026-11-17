@@ -8,6 +8,7 @@ import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
+import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.dialect.postgresql.antlr.PostgreSqlLineageLexer;
@@ -74,6 +75,28 @@ public class PostgreSqlDialectParserTest {
     public void rejectsUnterminatedTaggedDollarQuote() {
         LineageResult result = parser.parse("SELECT $Tag$text$tag$", ParseOptions.defaults(), new ParseContext());
         assertEquals("POSTGRESQL_PARSE_ERROR", result.getDiagnostics().get(0).getCode());
+    }
+
+    @Test
+    public void separatesQuotedDotsInQualifiedColumnReferences() {
+        LineageResult result = parser.parse("SELECT \"a.b\".c.id AS left_id, a.\"b.c\".id AS right_id "
+                + "FROM \"a.b\".c JOIN a.\"b.c\" ON \"a.b\".c.id = a.\"b.c\".id",
+                ParseOptions.defaults(), new ParseContext());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals(new TableRef(null, "a.b", "c"),
+                result.getColumnLineage().get(0).getSources().get(0).getTable());
+        assertEquals(new TableRef(null, "a", "b.c"),
+                result.getColumnLineage().get(1).getSources().get(0).getTable());
+    }
+
+    @Test
+    public void distinguishesQuotedQualifiedNamesFromFoldedIdentifiers() {
+        LineageResult result = parser.parse("SELECT \"Sales\".events.id AS first_id, SALES.events.id AS second_id "
+                + "FROM \"Sales\".events JOIN sales.events ON \"Sales\".events.id = SALES.events.source_id",
+                ParseOptions.defaults(), new ParseContext());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals("Sales", result.getColumnLineage().get(0).getSources().get(0).getTable().getSchema());
+        assertEquals("sales", result.getColumnLineage().get(1).getSources().get(0).getTable().getSchema());
     }
 
     @Test
