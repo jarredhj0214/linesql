@@ -5081,6 +5081,155 @@
           ]
         }
       ]
+    },
+    {
+      "id": "script_global_and_local_temporary_view_scope",
+      "file": "cases/script_global_and_local_temporary_view_scope.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "input_db.orders",
+        "report_db.stage",
+        "report_db.live"
+      ],
+      "outputTables": [
+        "global_temp.stage",
+        "stage"
+      ],
+      "columnLineage": [
+        {
+          "target": "global_temp.stage.id",
+          "sources": [
+            "input_db.orders.id"
+          ]
+        }
+      ],
+      "description": "Global temporary views resolve in global_temp without shadowing local views or physical sources",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "input_db.orders"
+          ],
+          "outputTables": [
+            "global_temp.stage"
+          ],
+          "columnLineage": [
+            {
+              "target": "global_temp.stage.id",
+              "sources": [
+                "input_db.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "input_db.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "input_db.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "input_db.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "input_db.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "report_db.stage"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "report_db.stage.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "report_db.live"
+          ],
+          "outputTables": [
+            "stage"
+          ],
+          "columnLineage": [
+            {
+              "target": "stage.id",
+              "sources": [
+                "report_db.live.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "report_db.live"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "report_db.live.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "input_db.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "input_db.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "input_db.orders.status"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -419,15 +419,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitCreateView(SqlBaseParser.CreateViewContext ctx) {
         result.setStatementType(StatementType.CREATE_VIEW);
-        if (ctx.TEMPORARY() == null) {
-            addOutput(ctx.identifierReference());
-        } else {
-            addOutput(rawTableRef(ctx.identifierReference().getText()), null);
-        }
+        String identifier = ctx.identifierReference().getText();
+        TableRef target = ctx.TEMPORARY() == null
+                ? tableRef(identifier) : temporaryViewRef(identifier, ctx.GLOBAL() != null);
+        addOutput(target, null);
         addViewTargetColumns(ctx.identifierCommentList());
         visitChildren(ctx);
         if (ctx.TEMPORARY() != null) {
-            registerTemporaryRelation(ctx.identifierReference());
+            registerTemporaryRelation(target);
         }
         return null;
     }
@@ -446,7 +445,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitCreateTempViewUsing(SqlBaseParser.CreateTempViewUsingContext ctx) {
         result.setStatementType(StatementType.CREATE_VIEW);
-        addOutput(rawTableRef(ctx.tableIdentifier().getText()), null);
+        addOutput(temporaryViewRef(ctx.tableIdentifier().getText(), ctx.GLOBAL() != null), null);
         return null;
     }
 
@@ -482,7 +481,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         visitChildren(ctx);
         if (ctx.query() != null) {
-            registerTemporaryRelation(ctx.identifierReference());
+            registerTemporaryRelation(rawTableRef(ctx.identifierReference().getText()));
         }
         return null;
     }
@@ -1334,6 +1333,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         String temporaryRelationName = temporaryRelationName(table);
         if (temporaryRelationName != null) {
+            derivedAliases.put(table.getName().toLowerCase(java.util.Locale.ROOT), temporaryRelationName);
             addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
             return null;
         }
@@ -2426,12 +2426,12 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
 
-    private void registerTemporaryRelation(SqlBaseParser.IdentifierReferenceContext identifier) {
+    private void registerTemporaryRelation(TableRef table) {
         if (context == null) {
             return;
         }
         finalizeResult();
-        context.getTemporaryRelations().put(relationKey(rawTableRef(identifier.getText())), copyResult(result));
+        context.getTemporaryRelations().put(relationKey(table), copyResult(result));
     }
 
     private void unregisterTemporaryRelation(SqlBaseParser.IdentifierReferenceContext identifier) {
@@ -3559,6 +3559,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             schema = null;
         }
         return new TableRef(catalog, schema, table.getName());
+    }
+
+    private static TableRef temporaryViewRef(String raw, boolean global) {
+        TableRef table = rawTableRef(raw);
+        if (global && table.getCatalog() == null && table.getSchema() == null) {
+            return new TableRef(null, "global_temp", table.getName());
+        }
+        return table;
     }
 
     private static TableRef rawTableRef(String raw) {

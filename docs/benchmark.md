@@ -10,7 +10,7 @@ The repository contains a case-backed regression corpus across bundled dialect m
 
 | Dialect | Cases | Column-lineage cases | Diagnostic cases |
 | --- | ---: | ---: | ---: |
-| Spark | 262 | 148 | 14 |
+| Spark | 263 | 149 | 14 |
 | Hive | 241 | 117 | 0 |
 | Flink | 367 | 199 | 0 |
 | StarRocks | 650 | 239 | 0 |
@@ -19,7 +19,7 @@ The repository contains a case-backed regression corpus across bundled dialect m
 | SQL Server | 373 | 215 | 2 |
 | PostgreSQL | 494 | 279 | 0 |
 | OceanBase | 546 | 194 | 0 |
-| **Total** | **3870** | **1898** | **16** |
+| **Total** | **3871** | **1899** | **16** |
 
 These numbers describe the public regression suite, not a claim of full SQL grammar coverage.
 

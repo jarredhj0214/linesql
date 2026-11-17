@@ -2203,6 +2203,7 @@ Implemented Spark table-level lineage scenarios:
 | Multi-statement scripts | `select ...; create table ... as select ...` | `script_semicolon` |
 | Script-local temporary view source propagation | `create temporary view v as select ...; insert ... select ... from v` | `script_temp_view_lineage` |
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
+| Spark global and local temporary views | `CREATE GLOBAL TEMPORARY VIEW` records a target in `global_temp`. Qualified global reads preserve its source lineage across database switches, including when a local view or a physical table shares the name. | `script_global_and_local_temporary_view_scope` |
 | Temporary view drop lifecycle | `create temporary view v as ...; drop view v; select ... from v` | `script_drop_temp_view` |
 | EXECUTE IMMEDIATE with literal SQL | A direct Spark string literal identifies Spark and contributes the embedded statement's type, table references, column mappings, and clause usages. Variable SQL and `USING` bindings report `DYNAMIC_SQL_NOT_EXPANDED`. | `execute_immediate_dynamic_sql`, `execute_immediate_literal_insert`, `execute_immediate_raw_literal`, `execute_immediate_sql_variable` |
 | Spark script database resolution | `USE database` and `USE DATABASE database` qualify physical sources and targets in later statements. Temporary views retain their original dependencies across switches, and local CTEs can shadow them. | `script_use_database_and_temporary_view` |
