@@ -3701,7 +3701,19 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private List<ColumnLineage> readMergeInsertValues(PostgreSqlParser.MergeNotMatchedActionContext ctx,
                                                       TableRef target) {
         List<ColumnLineage> lineages = new ArrayList<>();
-        if (ctx.identifierList() == null || ctx.expressionList() == null) {
+        if (ctx.expressionList() == null) {
+            return lineages;
+        }
+        if (ctx.identifierList() == null) {
+            // RETURNING propagation requires named write columns.
+            if (returningSourcesForCte || containsSubquery(ctx.expressionList())) {
+                return lineages;
+            }
+            List<ColumnRef> sources = columnRefs(sourceColumns(ctx.expressionList()));
+            if (sources != null) {
+                lineages.add(LineageModelUtils.columnLineage(target, "*",
+                        LineageModelUtils.mergeColumnRefs(Collections.emptyList(), sources), ctx.expressionList().getText()));
+            }
             return lineages;
         }
         List<String> targetColumns = identifierNames(ctx.identifierList());

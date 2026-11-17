@@ -2795,6 +2795,22 @@
       "description": "Flink connector DDL tolerates a missing comma between WITH properties"
     },
     {
+      "id": "merge_insert_without_target_columns",
+      "file": "cases/merge_insert_without_target_columns.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.orders", "ods.delta"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.*", "sources": ["ods.delta.id", "ods.delta.base_amount", "ods.delta.tax_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.orders.id"},
+        {"type": "MERGE_ON", "column": "ods.delta.id"},
+        {"type": "MERGE_WHEN", "column": "ods.delta.active"}
+      ],
+      "description": "MERGE keeps source value dependencies when the destination column order is unavailable"
+    },
+    {
       "id": "merge_into",
       "file": "cases/merge_into.sql",
       "statementType": "MERGE",

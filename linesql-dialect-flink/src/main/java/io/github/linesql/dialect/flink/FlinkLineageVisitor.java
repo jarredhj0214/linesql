@@ -228,6 +228,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         outputTables.add(target);
         addInputTable(target, ctx.tableAlias(0), true);
 
+        int sourceIndex = visibleRelations.size();
         if (ctx.query() == null) {
             readNamedRelation(ctx.multipartIdentifier(1), ctx.tableAlias(1));
         } else {
@@ -236,8 +237,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
 
         // Collect column lineage from WHEN MATCHED THEN UPDATE SET assignments
+        TableRef sourceTable = visibleRelations.get(sourceIndex).table;
+        TableRef previousTarget = currentDmlTarget;
         List<ColumnLineage> assignments = new ArrayList<>();
         for (FlinkParser.MergeClauseContext clause : ctx.mergeClause()) {
+            FlinkParser.MergeNotMatchedActionContext notMatched = clause.mergeNotMatchedAction();
+            // An unmatched insert reads unqualified columns from the source row.
+            currentDmlTarget = notMatched == null ? previousTarget : sourceTable;
             if (clause.expression() != null) {
                 addColumnUsages(ColumnUsageType.MERGE_WHEN, sourceColumns(clause.expression()));
             }
@@ -245,10 +251,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                     && clause.mergeMatchedAction().assignmentList() != null) {
                 assignments.addAll(readAssignments(clause.mergeMatchedAction().assignmentList(), target));
             }
-            if (clause.mergeNotMatchedAction() != null) {
-                assignments.addAll(readMergeInsertValues(clause.mergeNotMatchedAction(), target));
+            if (notMatched != null) {
+                assignments.addAll(readMergeInsertValues(notMatched, target));
             }
         }
+        currentDmlTarget = previousTarget;
         if (!assignments.isEmpty()) {
             result.setColumnLineage(assignments);
         }
@@ -3210,7 +3217,18 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private List<ColumnLineage> readMergeInsertValues(FlinkParser.MergeNotMatchedActionContext ctx, TableRef target) {
         List<ColumnLineage> lineages = new ArrayList<>();
-        if (ctx == null || ctx.identifierList() == null || ctx.expressionList() == null) {
+        if (ctx == null || ctx.expressionList() == null) {
+            return lineages;
+        }
+        if (ctx.identifierList() == null) {
+            if (containsSubquery(ctx.expressionList())) {
+                return lineages;
+            }
+            List<ColumnRef> sources = resolveSources(sourceColumns(ctx.expressionList()));
+            if (sources != null) {
+                lineages.add(LineageModelUtils.columnLineage(target, "*",
+                        LineageModelUtils.mergeColumnRefs(Collections.emptyList(), sources), ctx.expressionList().getText()));
+            }
             return lineages;
         }
         List<String> targetColumns = identifierNames(ctx.identifierList());
