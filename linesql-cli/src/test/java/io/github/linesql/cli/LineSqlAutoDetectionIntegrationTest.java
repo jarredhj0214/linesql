@@ -684,6 +684,24 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkModelManagementAndInference() {
+        assertDialect(SqlDialect.FLINK, "ALTER MODEL ml.churn RENAME TO ml.churn_v2");
+        assertDialect(SqlDialect.FLINK, "SHOW CREATE MODEL ml.churn_v2");
+        assertDialect(SqlDialect.FLINK, "DESCRIBE MODEL EXTENDED ml.churn_v2");
+        assertDialect(SqlDialect.FLINK, "SHOW MODELS IN ml NOT LIKE 'temporary_%'");
+        assertDialect(SqlDialect.FLINK, "DROP TEMPORARY MODEL IF EXISTS ml.churn");
+        LineageResult inference = LineSql.parse("SELECT * FROM ML_PREDICT("
+                + "TABLE dwd.user_features, MODEL ml.churn_v2, DESCRIPTOR(age))");
+        assertEquals(SqlDialect.FLINK, inference.getDialect());
+        assertEquals(StatementType.SELECT, inference.getStatementType());
+        assertEquals("user_features", inference.getInputTables().get(0).getName());
+        assertTrue(inference.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.SPARK, "SELECT ml_predict(age) FROM dwd.user_features");
+        assertDialect(SqlDialect.SPARK, "SELECT 'FROM ML_PREDICT(TABLE t, MODEL m)' AS notes");
+        assertDialect(SqlDialect.SQLSERVER, "DROP EXTERNAL MODEL churn");
+    }
+
+    @Test
     public void detectsFlinkModuleAndTemporarySystemFunctionCommands() {
         List<LineageResult> results = LineSql.parseScript("SHOW FULL MODULES; "
                 + "LOAD MODULE hive WITH ('hive-version' = '3.1.3'); USE MODULES hive, core; "

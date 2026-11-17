@@ -76,6 +76,12 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern FLINK_MODULE_OR_SYSTEM_FUNCTION = Pattern.compile(
             "^\\s*(?:(?:load|unload)\\s+module|use\\s+modules|show\\s+(?:full\\s+)?modules"
                     + "|(?:create|alter|drop)\\s+temporary\\s+system\\s+function)\\b");
+    private static final Pattern FLINK_MODEL_DDL = Pattern.compile(
+            "^\\s*(?:(?:(?:create|drop)\\s+(?:temporary\\s+)?|alter\\s+|(?:describe|desc)\\s+"
+                    + "|show\\s+create\\s+)model|show\\s+models)\\b");
+    private static final Pattern FLINK_MODEL_INFERENCE = Pattern.compile(
+            "(?:\\b(?:from|join)\\s+|,\\s*)(?:lateral\\s+)?(?:table\\s*\\(\\s*)?"
+                    + "ml_predict\\s*\\(\\s*table\\s+[^,;()]+,\\s*model\\b");
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
@@ -469,6 +475,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && SESSION_OPTION_COMMAND.matcher(unquotedSyntax).find()
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_SESSION_OPTION))) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink SQL session option"));
+        } else if (FLINK_MODEL_DDL.matcher(unquotedSyntax).find()
+                || FLINK_MODEL_INFERENCE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
         } else if (FLINK_MODULE_OR_SYSTEM_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink module or temporary system function syntax"));
         } else if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)
@@ -499,7 +508,6 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*(describe|desc)\\s+job\\b.*")
                 || normalized.matches("(?s)^\\s*stop\\s+job\\b.*")
                 || normalized.matches("(?s)^\\s*call\\s+`[^`]+`\\s*\\..*")
-                || normalized.matches("(?s)^\\s*create\\s+(temporary\\s+)?model\\b.*")
                 || FLINK_MATERIALIZED_TABLE.matcher(unquotedSyntax).find()
                 || unquotedSyntax.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
