@@ -1639,8 +1639,16 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitGroupByClause(MySqlParser.GroupByClauseContext ctx) {
+        MySqlParser.SelectClauseContext select = ((MySqlParser.QuerySpecificationContext) ctx.getParent()).selectClause();
         for (MySqlParser.GroupByItemContext groupByItem : ctx.groupByItem()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(groupByItem.expression()));
+            MySqlParser.ExpressionContext expression = groupByItem.expression();
+            String key = expression.getText();
+            int position = key.matches("[0-9]+") ? sortPosition(key) : 0;
+            if (position > 0) {
+                addSelectOrdinalUsage(ColumnUsageType.GROUP_BY, select, position);
+            } else {
+                addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(expression));
+            }
         }
         return null;
     }
@@ -1699,27 +1707,29 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     @Override
     public Void visitQueryOrganization(MySqlParser.QueryOrganizationContext ctx) {
         MySqlParser.QueryTermContext term = ctx.getParent() instanceof MySqlParser.QueryContext
-                ? ((MySqlParser.QueryContext) ctx.getParent()).queryTerm() : null;
+                ? unwrapSetBranch(((MySqlParser.QueryContext) ctx.getParent()).queryTerm()) : null;
         boolean setQuery = term instanceof MySqlParser.SetOperationContext;
-        boolean valuesQuery = term instanceof MySqlParser.QueryTermDefaultContext
-                && ((MySqlParser.QueryTermDefaultContext) term).queryPrimary() instanceof MySqlParser.ValuesPrimaryContext;
+        MySqlParser.QueryPrimaryContext primary = term instanceof MySqlParser.QueryTermDefaultContext
+                ? ((MySqlParser.QueryTermDefaultContext) term).queryPrimary() : null;
+        boolean valuesQuery = primary instanceof MySqlParser.ValuesPrimaryContext;
         for (MySqlParser.SortItemContext sortItem : ctx.sortItem()) {
-            if (setQuery || valuesQuery) {
-                String sortKey = sortItem.expression().getText();
-                if (sortKey.matches("[0-9]+")) {
-                    int position = sortPosition(sortKey);
-                    if (position > 0) {
-                        if (valuesQuery) {
-                            LineageModelUtils.addSetOrderByUsage(result, "column_" + (position - 1));
-                        } else {
-                            addSetOrdinalUsage(term, position);
-                        }
-                    }
-                } else {
-                    LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
+            MySqlParser.ExpressionContext expression = sortItem.expression();
+            String sortKey = expression.getText();
+            if (sortKey.matches("[0-9]+")) {
+                int position = sortPosition(sortKey);
+                if (position > 0 && valuesQuery) {
+                    LineageModelUtils.addSetOrderByUsage(result, "column_" + (position - 1));
+                } else if (position > 0 && setQuery) {
+                    addSetOrdinalUsage(term, position);
+                } else if (position > 0 && primary instanceof MySqlParser.QueryPrimaryDefaultContext) {
+                    MySqlParser.SelectClauseContext select =
+                            ((MySqlParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
+                    addSelectOrdinalUsage(ColumnUsageType.ORDER_BY, select, position);
                 }
+            } else if (setQuery || valuesQuery) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
             } else {
-                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(expression));
             }
         }
         return null;
@@ -1730,6 +1740,35 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             return Integer.parseInt(sortKey);
         } catch (NumberFormatException ignored) {
             return 0;
+        }
+    }
+
+    private void addSelectOrdinalUsage(ColumnUsageType type, MySqlParser.SelectClauseContext select, int position) {
+        for (MySqlParser.SelectItemContext item : select.selectItemList().selectItem()) {
+            if (item instanceof MySqlParser.SelectExpressionContext) {
+                if (position-- == 1) {
+                    MySqlParser.ExpressionContext expression = ((MySqlParser.SelectExpressionContext) item).expression();
+                    List<SourceColumn> sourceColumns = sourceColumns(expression);
+                    addNamedWindowSourceColumns(expression, sourceColumns);
+                    List<ColumnRef> refs = columnRefs(sourceColumns);
+                    if (refs != null) {
+                        LineageModelUtils.addColumnUsages(result, type, refs);
+                    }
+                    return;
+                }
+            } else {
+                String qualifier = item instanceof MySqlParser.SelectQualifiedStarContext
+                        ? qualifiedNameText(((MySqlParser.SelectQualifiedStarContext) item).qualifiedName()) : null;
+                Map<String, List<ColumnRef>> columns = knownWildcardColumns(new SourceColumn(qualifier, "*"));
+                if (columns == null) {
+                    return;
+                }
+                if (position <= columns.size()) {
+                    LineageModelUtils.addColumnUsages(result, type, new ArrayList<>(columns.values()).get(position - 1));
+                    return;
+                }
+                position -= columns.size();
+            }
         }
     }
 

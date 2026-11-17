@@ -3899,7 +3899,13 @@
           ]
         }
       ],
-      "description": "MySQL ORDER BY ordinal position preserves projection lineage without false column usage"
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "app.users.id"
+        }
+      ],
+      "description": "MySQL ORDER BY ordinal position traces the first projected expression"
     },
     {
       "id": "create_view_column_list",
@@ -13293,6 +13299,141 @@
       ],
       "columnUsages": [],
       "description": "JSON_TABLE declares both star positions before the trailing INSERT dependency"
+    },
+    {
+      "id": "select_group_and_order_output_positions",
+      "file": "cases/select_group_and_order_output_positions.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "location",
+          "sources": [
+            "ods.events.city",
+            "ods.events.country"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.city"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.country"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.city"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.country"
+        }
+      ],
+      "description": "MySQL GROUP BY and ORDER BY positions trace all sources of the selected expression"
+    },
+    {
+      "id": "select_order_position_known_cte_star",
+      "file": "cases/select_order_position_known_cte_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "ods.events.event_id",
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.observed_at"
+        }
+      ],
+      "description": "A known qualified CTE star resolves a later order position"
+    },
+    {
+      "id": "select_order_position_unknown_star_prefix",
+      "file": "cases/select_order_position_unknown_star_prefix.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "ods.events.*"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.event_id"
+        }
+      ],
+      "description": "A physical star with unknown width preserves only safely known sort positions"
+    },
+    {
+      "id": "select_wrapped_union_order_position",
+      "file": "cases/select_wrapped_union_order_position.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events",
+        "history.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.event_id",
+            "history.events.event_id"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "ods.events.observed_at",
+            "history.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.observed_at"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "history.events.observed_at"
+        }
+      ],
+      "description": "A wrapper around UNION does not change its positional sort references"
     }
   ]
 }
