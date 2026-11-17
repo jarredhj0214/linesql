@@ -177,11 +177,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitUpdateStatement(FlinkParser.UpdateStatementContext ctx) {
-        TableRef target = tableRef(ctx.multipartIdentifier());
-        currentDmlTarget = target;
-        inputTables.add(target);
-        outputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        TableRef target = bindDmlTarget(ctx.multipartIdentifier());
 
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
@@ -277,11 +273,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitDeleteStatement(FlinkParser.DeleteStatementContext ctx) {
-        TableRef target = tableRef(ctx.multipartIdentifier());
-        currentDmlTarget = target;
-        inputTables.add(target);
-        outputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        bindDmlTarget(ctx.multipartIdentifier());
 
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));
@@ -291,6 +283,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private TableRef bindDmlTarget(FlinkParser.MultipartIdentifierContext name) {
+        TableRef target = tableRef(name);
+        currentDmlTarget = target;
+        inputTables.add(target);
+        outputTables.add(target);
+        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        tableAliases.put(localBindingKey(target.getName()), target);
+        for (String qualified : qualifiedTableBindings(target)) {
+            tableAliases.put(qualified, target);
+        }
+        return target;
     }
 
     @Override

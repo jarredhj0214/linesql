@@ -2,6 +2,69 @@
   "dialect": "FLINK",
   "cases": [
     {
+      "id": "update_correlated_qualified_target_namespace",
+      "file": "cases/update_correlated_qualified_target_namespace.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "lake.mart.orders",
+        "lake.staging.orders"
+      ],
+      "outputTables": [
+        "lake.mart.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "lake.mart.orders.amount",
+          "sources": [
+            "lake.staging.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "lake.mart.orders.active"
+        },
+        {
+          "type": "WHERE",
+          "column": "lake.staging.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "lake.mart.orders.id"
+        }
+      ],
+      "description": "Flink correlated subqueries keep the outer write target separate from a same-named inner table"
+    },
+    {
+      "id": "delete_correlated_qualified_target_namespace",
+      "file": "cases/delete_correlated_qualified_target_namespace.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "lake.mart.orders",
+        "lake.staging.orders"
+      ],
+      "outputTables": [
+        "lake.mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "lake.staging.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "lake.mart.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "lake.mart.orders.expired"
+        }
+      ],
+      "description": "Flink correlated subqueries keep the outer write target separate from a same-named inner table"
+    },
+    {
       "id": "union_order_by_case_distinct_aliases",
       "file": "cases/union_order_by_case_distinct_aliases.sql",
       "statementType": "SELECT",
