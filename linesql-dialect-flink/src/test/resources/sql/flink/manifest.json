@@ -11493,6 +11493,130 @@
       "description": "A known CTE star expands using its table reference aliases"
     },
     {
+      "id": "script_temporary_views_quoted_paths",
+      "file": "cases/script_temporary_views_quoted_paths.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.raw_events",
+        "ods.archive_events"
+      ],
+      "outputTables": [
+        "sales.daily.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "recent_id",
+          "sources": [
+            "ods.raw_events.event_id"
+          ]
+        },
+        {
+          "target": "archive_id",
+          "sources": [
+            "ods.archive_events.event_id"
+          ]
+        }
+      ],
+      "description": "Distinct quoted namespace paths retain separate temporary view lineage after creating and dropping one name",
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.raw_events"
+          ],
+          "outputTables": [
+            "sales.daily.events"
+          ],
+          "columnLineage": [
+            {
+              "target": "sales.daily.events.event_id",
+              "sources": [
+                "ods.raw_events.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.archive_events"
+          ],
+          "outputTables": [
+            "sales.daily.events"
+          ],
+          "columnLineage": [
+            {
+              "target": "sales.daily.events.event_id",
+              "sources": [
+                "ods.archive_events.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.raw_events",
+            "ods.archive_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "recent_id",
+              "sources": [
+                "ods.raw_events.event_id"
+              ]
+            },
+            {
+              "target": "archive_id",
+              "sources": [
+                "ods.archive_events.event_id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "JOIN_ON",
+              "column": "ods.raw_events.event_id"
+            },
+            {
+              "type": "JOIN_ON",
+              "column": "ods.archive_events.event_id"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_VIEW",
+          "inputTables": [],
+          "outputTables": [
+            "sales.daily.events"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.archive_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "ods.archive_events.event_id"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "script_registered_table_reference_column_aliases",
       "file": "cases/script_registered_table_reference_column_aliases.sql",
       "statementType": "MULTI",

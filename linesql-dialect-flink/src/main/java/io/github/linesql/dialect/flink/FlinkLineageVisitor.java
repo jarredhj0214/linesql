@@ -316,7 +316,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
             List<String> names = visitCreateTableQuery(ctx.query(), target, ctx.tableElementList());
             if (names.isEmpty() && context != null && ctx.REPLACE() != null && ctx.existsKeyword() == null) {
-                registeredRelations(false).remove(relationKey(target));
+                registeredRelations(false).remove(storedRelationKey(target, false));
             } else {
                 registerTableSchema(target, names, !ctx.TEMPORARY().isEmpty(), ctx.existsKeyword() != null);
             }
@@ -700,8 +700,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         retargetColumnLineage(target);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
-        if (context != null && !registeredRelations(true).containsKey(relationKey(target))) {
-            LineageResult previous = registeredRelations(false).get(relationKey(target));
+        if (context != null && !registeredRelations(true).containsKey(storedRelationKey(target, true))) {
+            LineageResult previous = registeredRelations(false).get(storedRelationKey(target, false));
             if (previous == null || previous.getStatementType() == StatementType.CREATE_VIEW) {
                 registerCurrentView(target, false, false);
             }
@@ -2849,11 +2849,15 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return;
         }
         Map<String, LineageResult> relations = registeredRelations(temporary);
-        if (ifNotExists) {
-            relations.putIfAbsent(relationKey(table), value);
-        } else {
-            relations.put(relationKey(table), value);
+        String storedKey = storedRelationKey(table, temporary);
+        if (ifNotExists && relations.get(storedKey) != null) {
+            return;
         }
+        String key = relationKey(table);
+        if (!key.equals(storedKey)) {
+            relations.remove(storedKey);
+        }
+        relations.put(key, value);
     }
 
     private void registerLikeTableSchema(TableRef target, TableRef source,
@@ -2946,10 +2950,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private List<String> registeredTableColumns(TableRef table) {
-        if (context == null || registeredRelations(true).containsKey(relationKey(table))) {
+        if (context == null || registeredRelations(true).containsKey(storedRelationKey(table, true))) {
             return null;
         }
-        return tableColumnNames(registeredRelations(false).get(relationKey(table)));
+        return tableColumnNames(registeredRelations(false).get(storedRelationKey(table, false)));
     }
 
     private static List<String> tableColumnNames(LineageResult schema) {
@@ -3063,12 +3067,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private void renameRegisteredView(TableRef source, TableRef target) {
-        if (context == null || registeredRelations(true).containsKey(relationKey(source))
+        if (context == null || registeredRelations(true).containsKey(storedRelationKey(source, true))
                 || registeredRelation(target) != null) {
             return;
         }
         Map<String, LineageResult> views = registeredRelations(false);
-        String sourceKey = relationKey(source);
+        String sourceKey = storedRelationKey(source, false);
         LineageResult previous = views.get(sourceKey);
         if (previous == null || previous.getStatementType() != StatementType.CREATE_VIEW) {
             return;
@@ -3084,7 +3088,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private void renameRegisteredTable(TableRef source, TableRef target) {
         List<String> columns = registeredTableColumns(source);
         if (columns != null && registeredRelation(target) == null) {
-            registeredRelations(false).remove(relationKey(source));
+            registeredRelations(false).remove(storedRelationKey(source, false));
             registerTableSchema(target, columns, false, false);
         }
     }
@@ -3106,9 +3110,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (context == null) {
             return null;
         }
-        String key = relationKey(table);
-        LineageResult temporary = registeredRelations(true).get(key);
-        return temporary != null ? temporary : registeredRelations(false).get(key);
+        LineageResult temporary = registeredRelations(true).get(storedRelationKey(table, true));
+        return temporary != null ? temporary : registeredRelations(false).get(storedRelationKey(table, false));
     }
 
     private Map<String, LineageResult> registeredRelations(boolean temporary) {
@@ -3119,8 +3122,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (context == null) {
             return;
         }
-        String key = relationKey(table);
-        if (!temporary && registeredRelations(true).containsKey(key)) {
+        String key = storedRelationKey(table, temporary);
+        if (!temporary && registeredRelations(true).containsKey(storedRelationKey(table, true))) {
             return;
         }
         Map<String, LineageResult> relations = registeredRelations(temporary);
@@ -3794,7 +3797,35 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return ("\0" + String.join("\0", parts)).toLowerCase(Locale.ROOT);
     }
 
+    private String storedRelationKey(TableRef table, boolean temporary) {
+        Map<String, LineageResult> relations = registeredRelations(temporary);
+        String key = relationKey(table);
+        if (!key.startsWith("\0") || relations.containsKey(key)) {
+            return key;
+        }
+        // A legacy dotted key can match more than one quoted path.
+        String legacyKey = dottedRelationKey(table);
+        LineageResult legacy = relations.get(legacyKey);
+        if (legacy != null && (legacy.getOutputTables().contains(table)
+                || (legacy.getStatementType() == StatementType.CREATE_TABLE
+                    && legacy.getInputTables().equals(Collections.singletonList(table))))) {
+            return legacyKey;
+        }
+        return key;
+    }
+
     private static String relationKey(TableRef table) {
+        String catalog = table.getCatalog() == null ? "" : table.getCatalog();
+        String schema = table.getSchema() == null ? "" : table.getSchema();
+        String name = table.getName();
+        if ((!catalog.isEmpty() && schema.isEmpty()) || catalog.contains(".") || schema.contains(".")
+                || name.contains(".")) {
+            return ("\0" + catalog + "\0" + schema + "\0" + name).toLowerCase(Locale.ROOT);
+        }
+        return dottedRelationKey(table);
+    }
+
+    private static String dottedRelationKey(TableRef table) {
         List<String> parts = new ArrayList<>();
         if (table.getCatalog() != null) {
             parts.add(table.getCatalog());

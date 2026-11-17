@@ -88,6 +88,31 @@ public class FlinkDialectParserTest {
     }
 
     @Test
+    public void distinguishesTemporaryViewsWithQuotedNamespaceComponents() throws IOException {
+        List<LineageResult> results = LineSql.parseScript(sqlCase("script_temporary_views_quoted_paths"));
+        assertEquals(6, results.size());
+        assertEquals("sales.daily", results.get(1).getOutputTables().get(0).getSchema());
+        assertEquals("events", results.get(1).getOutputTables().get(0).getName());
+        assertEquals("sales", results.get(2).getOutputTables().get(0).getSchema());
+        assertEquals("daily.events", results.get(2).getOutputTables().get(0).getName());
+        assertEquals("raw_events", results.get(3).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertEquals("archive_events", results.get(3).getColumnLineage().get(1).getSources().get(0).getTable().getName());
+        assertEquals("archive_events", results.get(5).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+    }
+
+    @Test
+    public void readsLegacyDottedRegistryKeyWhenStoredViewIdentifiesItsTarget() {
+        ParseContext context = new ParseContext();
+        LineageResult legacy = LineSql.parse("CREATE VIEW `sales.daily`.events AS SELECT id FROM ods.raw_events",
+                SqlDialect.FLINK);
+        context.getTemporaryRelations().put("sales.daily.events", legacy);
+        LineageResult result = LineSql.parse("SELECT e.id FROM `sales.daily`.events e", SqlDialect.FLINK, context);
+        assertEquals("raw_events", result.getInputTables().get(0).getName());
+        LineSql.parse("DROP VIEW `sales.daily`.events", SqlDialect.FLINK, context);
+        assertTrue(context.getTemporaryRelations().isEmpty());
+    }
+
+    @Test
     public void autoDetectsFlinkConnectorSyntax() throws IOException {
         LineageResult result = LineSql.parse(sqlCase("create_table_connector"));
 
