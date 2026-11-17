@@ -858,7 +858,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             for (int i = 0; i < ctx.getChildCount(); i++) {
                 ParseTree child = ctx.getChild(i);
                 if (child instanceof FlinkParser.MultipartIdentifierContext) {
-                    inputTables.add(tableRef((FlinkParser.MultipartIdentifierContext) child));
+                    TableRef table = tableRef((FlinkParser.MultipartIdentifierContext) child);
+                    inputTables.add(table);
+                    addPartitionMetadataUsages(table, ctx.partitionSpec());
                     break;
                 }
             }
@@ -891,9 +893,39 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAnalyzeStatement(FlinkParser.AnalyzeStatementContext ctx) {
-        inputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        inputTables.add(table);
+        addPartitionMetadataUsages(table, ctx.partitionSpec());
+        List<String> columns = Collections.emptyList();
+        if (ctx.identifierList() != null) {
+            columns = identifierNames(ctx.identifierList());
+        } else if (ctx.ALL() != null) {
+            columns = registeredTableColumns(table);
+            if (columns == null) {
+                columns = Collections.singletonList("*");
+            }
+        }
+        addMetadataColumnUsages(table, columns);
         result.setInputTables(new ArrayList<>(inputTables));
         return null;
+    }
+
+    private void addPartitionMetadataUsages(TableRef table, FlinkParser.PartitionSpecContext partition) {
+        if (partition != null) {
+            List<String> names = new ArrayList<>();
+            for (FlinkParser.PartitionSpecItemContext item : partition.partitionSpecItem()) {
+                names.add(cleanIdentifier(item.identifier()));
+            }
+            addMetadataColumnUsages(table, names);
+        }
+    }
+
+    private void addMetadataColumnUsages(TableRef table, List<String> columns) {
+        List<ColumnRef> refs = new ArrayList<>();
+        for (String column : columns) {
+            refs.add(new ColumnRef(table, column));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.READ_METADATA, refs);
     }
 
     @Override

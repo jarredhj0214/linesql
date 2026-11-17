@@ -487,6 +487,27 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void recordsFlinkStatisticsColumnsAndPartitionKeys() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TABLE lake.staging.orders (id BIGINT, amount DECIMAL(12,2), day_key STRING) "
+                + "PARTITIONED BY (day_key) WITH ('connector'='filesystem', 'path'='file:///tmp/orders', 'format'='csv'); "
+                + "ANALYZE TABLE lake.staging.orders PARTITION (day_key='2026-11-17') COMPUTE STATISTICS FOR ALL COLUMNS; "
+                + "SHOW PARTITIONS lake.staging.orders PARTITION (day_key='2026-11-17');", SqlDialect.FLINK);
+        assertEquals(3, results.size());
+        LineageResult analyze = results.get(1);
+        assertEquals(StatementType.READ_METADATA, analyze.getStatementType());
+        assertTrue(analyze.getDiagnostics().isEmpty());
+        assertEquals(3, analyze.getColumnUsages().size());
+        assertEquals(new TableRef("lake", "staging", "orders"), analyze.getColumnUsages().get(0).getColumn().getTable());
+        assertEquals("day_key", analyze.getColumnUsages().get(0).getColumn().getName());
+        assertEquals("id", analyze.getColumnUsages().get(1).getColumn().getName());
+        assertEquals("amount", analyze.getColumnUsages().get(2).getColumn().getName());
+        LineageResult show = results.get(2);
+        assertEquals(StatementType.READ_METADATA, show.getStatementType());
+        assertEquals("day_key", show.getColumnUsages().get(0).getColumn().getName());
+    }
+
+    @Test
     public void detectsAndSplitsFlinkCompileAndExecutePlans() {
         String plan = "COMPILE AND EXECUTE PLAN 'file:///tmp/daily;orders.json' FOR ";
         LineageResult single = LineSql.parse(plan

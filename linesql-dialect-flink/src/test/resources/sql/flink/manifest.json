@@ -5786,6 +5786,9 @@
       ],
       "outputTables": [],
       "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "dwd.orders.dt"}
+      ],
       "description": "Flink SHOW PARTITIONS table metadata read"
     },
     {
@@ -6526,6 +6529,22 @@
       "description": "Flink CTAS explicit column list reorders matching SELECT outputs by name"
     },
     {
+      "id": "analyze_table_qualified_dynamic_partitions",
+      "file": "cases/analyze_table_qualified_dynamic_partitions.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["lake.staging.orders"],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "lake.staging.orders.sold_year"},
+        {"type": "READ_METADATA", "column": "lake.staging.orders.sold_month"},
+        {"type": "READ_METADATA", "column": "lake.staging.orders.sold_day"},
+        {"type": "READ_METADATA", "column": "lake.staging.orders.order_id"},
+        {"type": "READ_METADATA", "column": "lake.staging.orders.amount"}
+      ],
+      "description": "Flink statistics retain catalog qualification, static and dynamic partition references, and selected columns"
+    },
+    {
       "id": "analyze_table_statistics",
       "file": "cases/analyze_table_statistics.sql",
       "statementType": "READ_METADATA",
@@ -6545,6 +6564,9 @@
       ],
       "outputTables": [],
       "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "Store.*"}
+      ],
       "description": "Flink ANALYZE TABLE FOR ALL COLUMNS metadata read"
     },
     {
@@ -6556,6 +6578,13 @@
       ],
       "outputTables": [],
       "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "Orders.sold_year"},
+        {"type": "READ_METADATA", "column": "Orders.sold_month"},
+        {"type": "READ_METADATA", "column": "Orders.sold_day"},
+        {"type": "READ_METADATA", "column": "Orders.amount"},
+        {"type": "READ_METADATA", "column": "Orders.product"}
+      ],
       "description": "Flink ANALYZE TABLE partition statistics for selected columns"
     },
     {
