@@ -90,6 +90,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             result.setStatementType(StatementType.MERGE);
             return visit(explained.mergeStatement());
         }
+        if (explained.executePreparedStatement() != null) {
+            result.setStatementType(StatementType.CONTROL);
+        }
         return null;
     }
 

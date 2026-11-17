@@ -6,6 +6,7 @@ import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.PreparedSql;
 import io.github.linesql.core.model.SqlDialect;
+import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.spi.DialectParser;
 import io.github.linesql.core.util.LineageModelUtils;
 import io.github.linesql.dialect.postgresql.antlr.PostgreSqlLineageLexer;
@@ -75,15 +76,32 @@ public class PostgreSqlDialectParser implements DialectParser {
                 } else {
                     statements.remove(preparedName(control.identifier()));
                 }
-            } else if (control.EXECUTE() != null) {
-                PreparedSql prepared = statements.get(preparedName(control.identifier()));
-                if (prepared != null) {
-                    LineageModelUtils.copySuccessfulLineage(result, parse(prepared.getSql(), options, null));
-                }
+            } else if (control.executePreparedStatement() != null) {
+                copyPreparedExecution(control.executePreparedStatement(), options, statements, result, false);
+            }
+        } else if (statement instanceof PostgreSqlParser.ExplainStmtContext) {
+            PostgreSqlParser.ExplainedStatementContext explained = ((PostgreSqlParser.ExplainStmtContext) statement)
+                    .explainStatement().explainedStatement();
+            if (explained.executePreparedStatement() != null) {
+                copyPreparedExecution(explained.executePreparedStatement(), options,
+                        context.getPreparedStatements(SqlDialect.POSTGRESQL), result, true);
             }
         } else if (statement instanceof PostgreSqlParser.DiscardStmtContext
                 && ((PostgreSqlParser.DiscardStmtContext) statement).discardStatement().ALL() != null) {
             context.getPreparedStatements(SqlDialect.POSTGRESQL).clear();
+        }
+    }
+
+    private void copyPreparedExecution(PostgreSqlParser.ExecutePreparedStatementContext execute, ParseOptions options,
+                                       Map<String, PreparedSql> statements, LineageResult result, boolean explain) {
+        PreparedSql prepared = statements.get(preparedName(execute.identifier()));
+        if (prepared == null) {
+            return;
+        }
+        LineageResult lineage = parse(prepared.getSql(), options, null);
+        LineageModelUtils.copySuccessfulLineage(result, lineage);
+        if (explain && lineage.getStatementType() != StatementType.UNKNOWN) {
+            result.setStatementType(lineage.getStatementType());
         }
     }
 
