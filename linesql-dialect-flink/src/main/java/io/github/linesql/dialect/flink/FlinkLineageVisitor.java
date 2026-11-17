@@ -1314,7 +1314,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableFunction(FlinkParser.TableFunctionContext ctx) {
-        if (registerWindowTableFunction(ctx.functionName(), ctx.tableFunctionArgList(), ctx.tableAlias())) {
+        if (registerKnownTableFunction(ctx.functionName(), ctx.tableFunctionArgList(), ctx.tableAlias())) {
             return null;
         }
         visitChildren(ctx);
@@ -1331,7 +1331,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitBareTableFunction(FlinkParser.BareTableFunctionContext ctx) {
-        if (registerWindowTableFunction(ctx.functionName(), ctx.tableFunctionArgList(), ctx.tableAlias())) {
+        if (registerKnownTableFunction(ctx.functionName(), ctx.tableFunctionArgList(), ctx.tableAlias())) {
             return null;
         }
         registerGeneratedRelation(ctx.tableAlias(), sourceColumns(ctx.tableFunctionArgList()));
@@ -1343,7 +1343,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitLateralTableFunction(FlinkParser.LateralTableFunctionContext ctx) {
-        if (registerWindowTableFunction(ctx.functionName(), ctx.tableFunctionArgList(), ctx.tableAlias())) {
+        if (registerKnownTableFunction(ctx.functionName(), ctx.tableFunctionArgList(), ctx.tableAlias())) {
             return null;
         }
         registerGeneratedRelation(ctx.tableAlias(), sourceColumns(ctx.tableFunctionArgList()));
@@ -2029,7 +2029,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private static void collectTableFunctionDescriptors(FlinkParser.TableFunctionArgContext ctx,
                                                         List<String> descriptors) {
         if (ctx instanceof FlinkParser.TvfDescriptorArgContext) {
-            descriptors.add(cleanIdentifier(((FlinkParser.TvfDescriptorArgContext) ctx).identifier()));
+            FlinkParser.TvfDescriptorArgContext descriptor = (FlinkParser.TvfDescriptorArgContext) ctx;
+            descriptors.add(cleanIdentifier(descriptor.identifier()));
+            if (descriptor.identifierList() != null) {
+                descriptors.addAll(identifierNames(descriptor.identifierList()));
+            }
             return;
         }
         if (ctx instanceof FlinkParser.NamedTableFunctionArgContext) {
@@ -2145,6 +2149,64 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (ctx != null) {
             addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.expression()));
         }
+    }
+
+    private boolean registerKnownTableFunction(FlinkParser.FunctionNameContext functionName,
+                                               FlinkParser.TableFunctionArgListContext args,
+                                               FlinkParser.TableAliasContext aliasContext) {
+        return registerWindowTableFunction(functionName, args, aliasContext)
+                || registerModelPrediction(functionName, args, aliasContext);
+    }
+
+    private boolean registerModelPrediction(FlinkParser.FunctionNameContext functionName,
+                                            FlinkParser.TableFunctionArgListContext args,
+                                            FlinkParser.TableAliasContext aliasContext) {
+        if (!"ML_PREDICT".equalsIgnoreCase(cleanIdentifier(functionName.getText()))) {
+            return false;
+        }
+        FlinkParser.TvfTableArgContext table = firstTableFunctionArgument(args);
+        List<String> aliases = tableAliasColumnAliases(aliasContext);
+        List<String> descriptorColumns = tableFunctionDescriptors(args);
+        if (table == null || aliases.isEmpty() || descriptorColumns.isEmpty()) {
+            return false;
+        }
+        TableRef input = tableRef(table.multipartIdentifier());
+        String inputName = input.getName().toLowerCase(Locale.ROOT);
+        boolean cte = isCteReference(table.multipartIdentifier(), input);
+        LineageResult relation = cte ? null : registeredRelation(input);
+        Map<String, List<ColumnRef>> inputColumns;
+        if (cte) {
+            inputColumns = incompleteDerivedSchemas.contains(inputName) ? null : derivedColumnLineage.get(inputName);
+        } else {
+            inputColumns = tableColumnNames(relation) == null ? null : temporaryRelationColumns(relation);
+        }
+        if (inputColumns == null || inputColumns.isEmpty() || inputColumns.containsKey("*")
+                || aliases.size() <= inputColumns.size() || !inputColumns.keySet().containsAll(descriptorColumns)) {
+            return false;
+        }
+        List<ColumnRef> modelSources = new ArrayList<>();
+        for (String descriptor : descriptorColumns) {
+            modelSources.addAll(inputColumns.get(descriptor));
+        }
+        List<ColumnRef> prediction = distinctColumnRefs(modelSources);
+        Map<String, List<ColumnRef>> outputs = new LinkedHashMap<>();
+        int position = 0;
+        for (List<ColumnRef> inputSources : inputColumns.values()) {
+            outputs.put(aliases.get(position++), inputSources);
+        }
+        while (position < aliases.size()) {
+            outputs.put(aliases.get(position++), prediction);
+        }
+        if (cte) {
+            addDerivedInputTables(inputName);
+        } else {
+            for (TableRef source : relation.getInputTables()) {
+                addInputTable(source, false);
+            }
+            LineageModelUtils.mergeColumnUsages(result, relation);
+        }
+        registerGeneratedRelation(tableAlias(aliasContext), outputs);
+        return true;
     }
 
     private boolean registerWindowTableFunction(FlinkParser.FunctionNameContext functionName,

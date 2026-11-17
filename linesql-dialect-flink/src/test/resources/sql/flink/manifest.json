@@ -5815,6 +5815,117 @@
       "description": "Flink ML_PREDICT table-valued function table input lineage"
     },
     {
+      "id": "select_ml_predict_registered_aliases",
+      "file": "cases/select_ml_predict_registered_aliases.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "dwd.features"
+      ],
+      "outputTables": [
+        "dwd.features"
+      ],
+      "columnLineage": [
+        {
+          "target": "user_key",
+          "sources": [
+            "dwd.features.user_id"
+          ]
+        },
+        {
+          "target": "score",
+          "sources": [
+            "dwd.features.age",
+            "dwd.features.income"
+          ]
+        }
+      ],
+      "description": "ML_PREDICT retains source fields and maps predictions to all descriptor features",
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "dwd.features"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "dwd.features"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "user_key",
+              "sources": [
+                "dwd.features.user_id"
+              ]
+            },
+            {
+              "target": "score",
+              "sources": [
+                "dwd.features.age",
+                "dwd.features.income"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "dwd.features.age"
+            },
+            {
+              "type": "WHERE",
+              "column": "dwd.features.income"
+            },
+            {
+              "type": "ORDER_BY",
+              "column": "dwd.features.age"
+            },
+            {
+              "type": "ORDER_BY",
+              "column": "dwd.features.income"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "select_ml_predict_cte_aliases",
+      "file": "cases/select_ml_predict_cte_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "result_id",
+          "sources": [
+            "dwd.events.user_id"
+          ]
+        },
+        {
+          "target": "score",
+          "sources": [
+            "dwd.events.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.events.ready"
+        },
+        {
+          "type": "WHERE",
+          "column": "dwd.events.amount"
+        }
+      ],
+      "description": "ML_PREDICT follows derived feature expressions through a known CTE without reporting the CTE as a physical table"
+    },
+    {
       "id": "vector_search_lateral_table",
       "file": "cases/vector_search_lateral_table.sql",
       "statementType": "SELECT",

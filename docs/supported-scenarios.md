@@ -1435,6 +1435,7 @@ Implemented Flink table-level lineage scenarios:
 | TUMBLE table-valued function source table | `from table(tumble(table ods.orders, descriptor(ts), interval '1' hour))`; window descriptor columns are returned as `WINDOW_ORDER_BY` usages | `tumble_window` |
 | HOP/CUMULATE/SESSION table-valued function source table | `from table(hop/cumulate/session(table t, descriptor(ts), ...))`; window descriptor columns are returned as `WINDOW_ORDER_BY` usages | `hop_window`, `cumulate_window`, `session_window` |
 | ML and vector table functions | `from ml_predict(table t, model m, descriptor(...))`; `lateral table(vector_search(table v, q.embedding, descriptor(...)))` | `ml_predict_table_function`, `vector_search_lateral_table` |
+| ML_PREDICT aliases and feature lineage | Given a known input layout and explicit output aliases, input fields pass through in order and prediction fields follow every DESCRIPTOR column. WHERE and ORDER BY use the same sources. | `select_ml_predict_registered_aliases`, `select_ml_predict_cte_aliases` |
 | Changelog conversion PTF | `from from_changelog(input => table raw_orders, op => descriptor(op_type), op_mapping => map[...])` | `from_changelog_ptf` |
 | Time travel source table | `from lake.orders for system_time as of timestamp '...'` | `time_travel_timestamp`, `time_travel_timestamp_interval` |
 | Flink SQL hints | `table /*+ options(...) */`; `select /*+ broadcast(t) */ ...`; `insert into sink /*+ options(...) */ select ...` | `dynamic_table_options_hint`, `join_query_hint`, `insert_target_options_hint` |

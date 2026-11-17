@@ -498,7 +498,7 @@ tableFunctionArg
     : identifier FAT_ARROW tableFunctionArg                          #namedTableFunctionArg
     | TABLE multipartIdentifier (PARTITION BY partitionKeys=tableFunctionPartitionKeys)? #tvfTableArg
     | MODEL multipartIdentifier                                      #tvfModelArg
-    | DESCRIPTOR LPAREN identifier RPAREN                            #tvfDescriptorArg
+    | DESCRIPTOR LPAREN identifier (COMMA identifierList)? RPAREN   #tvfDescriptorArg
     | expression                                                     #tvfExprArg
     ;
 
