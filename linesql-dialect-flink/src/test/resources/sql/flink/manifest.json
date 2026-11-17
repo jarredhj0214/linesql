@@ -11255,6 +11255,36 @@
         }
       ],
       "description": "A temporal table keeps its registered physical columns and per-reference aliases"
+    },
+    {
+      "id": "select_wildcard_dotted_table_boundaries",
+      "file": "cases/select_wildcard_dotted_table_boundaries.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.data.events",
+        "live.data.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.data.events.*",
+            "live.data.events.*"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.data.events.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "live.data.events.id"
+        }
+      ],
+      "description": "A wildcard retains both physical inputs when quoted identifier paths render identically"
     }
   ]
 }

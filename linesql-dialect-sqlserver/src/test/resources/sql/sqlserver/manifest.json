@@ -8074,6 +8074,36 @@
         }
       ],
       "description": "An explicit DELETE FROM target with a joined FROM clause preserves DELETE output lineage"
+    },
+    {
+      "id": "pivot_dotted_table_boundaries",
+      "file": "cases/pivot_dotted_table_boundaries.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.region.orders",
+        "sales.region.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "one",
+          "sources": [
+            "sales.region.orders.key_value",
+            "sales.region.orders.key_value"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "sales.region.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "sales.region.orders.id"
+        }
+      ],
+      "description": "PIVOT preserves aggregate and key dependencies from distinct quoted table paths"
     }
   ]
 }

@@ -1733,18 +1733,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> mergeRefs(List<ColumnRef> left, List<ColumnRef> right) {
-        Map<String, ColumnRef> refs = new LinkedHashMap<>();
-        if (left != null) {
-            for (ColumnRef ref : left) {
-                refs.put(columnKey(ref), ref);
-            }
-        }
-        if (right != null) {
-            for (ColumnRef ref : right) {
-                refs.put(columnKey(ref), ref);
-            }
-        }
-        return new ArrayList<>(refs.values());
+        return LineageModelUtils.mergeColumnRefs(
+                left == null ? Collections.emptyList() : left,
+                right == null ? Collections.emptyList() : right);
     }
 
     private List<SourceColumn> sourceColumns(SqlServerParser.MultipartIdentifierContext ctx) {
@@ -2305,22 +2296,6 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return refs == null || refs.size() < 2
                 ? refs
                 : LineageModelUtils.mergeColumnRefs(Collections.emptyList(), refs);
-    }
-
-    private static String columnKey(ColumnRef column) {
-        List<String> parts = new ArrayList<>();
-        TableRef table = column.getTable();
-        if (table != null) {
-            if (table.getCatalog() != null) {
-                parts.add(table.getCatalog());
-            }
-            if (table.getSchema() != null) {
-                parts.add(table.getSchema());
-            }
-            parts.add(table.getName());
-        }
-        parts.add(column.getName());
-        return String.join(".", parts).toLowerCase(Locale.ROOT);
     }
 
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {

@@ -2576,22 +2576,6 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return columnRefs(projection.sourceColumns);
     }
 
-    private static String columnKey(ColumnRef column) {
-        List<String> parts = new ArrayList<>();
-        TableRef table = column.getTable();
-        if (table != null) {
-            if (table.getCatalog() != null) {
-                parts.add(table.getCatalog());
-            }
-            if (table.getSchema() != null) {
-                parts.add(table.getSchema());
-            }
-            parts.add(table.getName());
-        }
-        parts.add(column.getName());
-        return String.join(".", parts).toLowerCase(Locale.ROOT);
-    }
-
     private List<ColumnRef> columnRefs(List<SourceColumn> sourceColumns) {
         TableRef defaultTable = visibleRelations.size() == 1 ? visibleRelations.get(0).table : null;
         if (defaultTable == null && visibleRelationCount <= 1 && inputTables.size() == 1) {
@@ -2686,11 +2670,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private static List<ColumnRef> distinctColumnRefs(List<ColumnRef> refs) {
-        Map<String, ColumnRef> unique = new LinkedHashMap<>();
-        for (ColumnRef ref : refs) {
-            unique.put(columnKey(ref), ref);
-        }
-        return new ArrayList<>(unique.values());
+        return LineageModelUtils.mergeColumnRefs(Collections.emptyList(), refs);
     }
 
     private SourceColumn scopedSourceColumn(SourceColumn sourceColumn) {

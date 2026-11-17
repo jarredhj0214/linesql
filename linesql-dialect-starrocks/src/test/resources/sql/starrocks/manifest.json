@@ -12708,6 +12708,36 @@
         }
       ],
       "description": "Source and target namespaces survive StarRocks UPDATE predicates"
+    },
+    {
+      "id": "select_external_wildcard_dotted_table_boundaries",
+      "file": "cases/select_external_wildcard_dotted_table_boundaries.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "jdbc.live.data.events",
+        "jdbc.live.data.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "jdbc.live.data.events.*",
+            "jdbc.live.data.events.*"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "jdbc.live.data.events.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "jdbc.live.data.events.id"
+        }
+      ],
+      "description": "External wildcard sources remain distinct across quoted namespace boundaries"
     }
   ]
 }
