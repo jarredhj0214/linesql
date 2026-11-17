@@ -2454,24 +2454,32 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private int addKnownStarProjections(PostgreSqlParser.SelectItemContext item, int ordinal) {
-        String relation = null;
-        String qualifier = null;
         if (item instanceof PostgreSqlParser.SelectQualifiedStarContext) {
             PostgreSqlParser.SelectQualifiedStarContext star = (PostgreSqlParser.SelectQualifiedStarContext) item;
             List<PostgreSqlParser.IdentifierContext> parts = star.qualifiedName().identifier();
-            qualifier = cleanIdentifier(parts.get(parts.size() - 1)).toLowerCase(Locale.ROOT);
-            relation = derivedAliases.get(qualifier);
-        } else if (visibleRelations.size() == 1) {
-            relation = visibleRelations.get(0).derivedName;
+            String qualifier = cleanIdentifier(parts.get(parts.size() - 1)).toLowerCase(Locale.ROOT);
+            String relation = derivedAliases.get(qualifier);
+            return knownColumnRelations.contains(relation)
+                    ? addKnownRelationProjections(relation, qualifier, item.getText(), ordinal)
+                    : 0;
         }
-        if (!knownColumnRelations.contains(relation)) {
+        if (!relationJoinKeys.isEmpty() || visibleRelations.stream()
+                .anyMatch(relation -> !knownColumnRelations.contains(relation.derivedName))) {
             return 0;
         }
+        int width = 0;
+        for (VisibleRelation relation : visibleRelations) {
+            width += addKnownRelationProjections(relation.derivedName, relation.derivedName, item.getText(),
+                    ordinal + width);
+        }
+        return width;
+    }
+
+    private int addKnownRelationProjections(String relation, String qualifier, String expression, int ordinal) {
         Set<String> columns = derivedColumnLineage.get(relation).keySet();
-        String sourceQualifier = qualifier == null ? relation : qualifier;
         for (String column : columns) {
-            projections.add(new Projection(Collections.singletonList(new SourceColumn(sourceQualifier, column)),
-                    column, item.getText(), ordinal++));
+            projections.add(new Projection(Collections.singletonList(new SourceColumn(qualifier, column)),
+                    column, expression, ordinal++));
         }
         return columns.size();
     }

@@ -7970,6 +7970,97 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "Column positions after an unknown star are not inferred"
+    },
+    {
+      "id": "select_star_multiple_known_relations",
+      "file": "cases/select_star_multiple_known_relations.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "crm.accounts",
+        "billing.invoices"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "account_id",
+          "sources": [
+            "crm.accounts.account_id"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "crm.accounts.region"
+          ]
+        },
+        {
+          "target": "customer_id",
+          "sources": [
+            "billing.invoices.customer_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "billing.invoices.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "crm.accounts.account_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "billing.invoices.customer_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "billing.invoices.amount"
+        }
+      ],
+      "description": "A star over a join with known derived inputs follows FROM order"
+    },
+    {
+      "id": "insert_star_multiple_known_relations",
+      "file": "cases/insert_star_multiple_known_relations.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "crm.accounts",
+        "billing.invoices"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.customer",
+          "sources": [
+            "crm.accounts.account_id"
+          ]
+        },
+        {
+          "target": "audit.summary.zone",
+          "sources": [
+            "crm.accounts.region"
+          ]
+        },
+        {
+          "target": "audit.summary.invoice_customer_id",
+          "sources": [
+            "billing.invoices.customer_id"
+          ]
+        },
+        {
+          "target": "audit.summary.invoice_amount",
+          "sources": [
+            "billing.invoices.amount"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A star over two known relations maps to INSERT destinations in source order"
     }
   ]
 }
