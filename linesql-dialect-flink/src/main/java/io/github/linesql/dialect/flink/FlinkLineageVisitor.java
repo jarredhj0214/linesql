@@ -314,10 +314,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
-            collectColumnNameOnlyTargets(ctx.tableElementList());
-            visit(ctx.query());
-            refreshColumnLineage();
-            retargetColumnLineage(target);
+            List<String> names = columnNameOnlyTargets(ctx.tableElementList());
+            visitCreateTableQuery(ctx.query(), target, names);
+            if (!names.isEmpty() && result.getColumnLineage().size() == names.size()) {
+                registerTableSchema(target, names, !ctx.TEMPORARY().isEmpty(), ctx.existsKeyword() != null);
+            }
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
             registerTableSchema(target, ctx.tableElementList(), !ctx.TEMPORARY().isEmpty(), ctx.existsKeyword() != null);
@@ -363,10 +364,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         addTableModelSemantics(target, ctx.tableElementList(), ctx.distributionClause(), ctx.partitionedByClause());
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
-            collectColumnNameOnlyTargets(ctx.tableElementList());
-            visit(ctx.query());
-            refreshColumnLineage();
-            retargetColumnLineage(target);
+            visitCreateTableQuery(ctx.query(), target, columnNameOnlyTargets(ctx.tableElementList()));
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
             registerTableSchema(target, ctx.tableElementList(), false, false);
@@ -2245,17 +2243,42 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 insertTargetColumns));
     }
 
-    private void collectColumnNameOnlyTargets(FlinkParser.TableElementListContext ctx) {
-        if (ctx == null) {
+    private void visitCreateTableQuery(FlinkParser.QueryContext query, TableRef target, List<String> names) {
+        visit(query);
+        refreshColumnLineage();
+        if (names.isEmpty()) {
+            retargetColumnLineage(target);
             return;
         }
-        for (FlinkParser.TableElementContext element : ctx.tableElement()) {
-            if (element instanceof FlinkParser.ColumnNameOnlyDefinitionContext) {
-                FlinkParser.ColumnNameOnlyDefinitionContext column =
-                        (FlinkParser.ColumnNameOnlyDefinitionContext) element;
-                insertTargetColumns.add(cleanIdentifier(column.identifier()));
+
+        Map<String, ColumnLineage> projectionsByName = new LinkedHashMap<>();
+        for (ColumnLineage column : result.getColumnLineage()) {
+            projectionsByName.put(column.getTarget().getName(), column);
+        }
+        List<ColumnLineage> reordered = new ArrayList<>();
+        for (String name : names) {
+            ColumnLineage column = projectionsByName.get(name);
+            if (column != null) {
+                reordered.add(LineageModelUtils.columnLineage(target, name, column.getSources(),
+                        column.getExpression()));
             }
         }
+        result.setColumnLineage(reordered);
+        suppressColumnLineage = true;
+    }
+
+    private static List<String> columnNameOnlyTargets(FlinkParser.TableElementListContext ctx) {
+        List<String> columns = new ArrayList<>();
+        if (ctx != null) {
+            for (FlinkParser.TableElementContext element : ctx.tableElement()) {
+                if (element instanceof FlinkParser.ColumnNameOnlyDefinitionContext) {
+                    FlinkParser.ColumnNameOnlyDefinitionContext column =
+                            (FlinkParser.ColumnNameOnlyDefinitionContext) element;
+                    columns.add(cleanIdentifier(column.identifier()));
+                }
+            }
+        }
+        return columns;
     }
 
     private String targetColumn(Projection projection, int index) {

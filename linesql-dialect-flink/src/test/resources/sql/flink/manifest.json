@@ -5989,7 +5989,7 @@
         {
           "target": "dwd.reordered_orders.order_time",
           "sources": [
-            "ods.orders.order_id"
+            "ods.orders.order_time"
           ]
         },
         {
@@ -6007,11 +6007,11 @@
         {
           "target": "dwd.reordered_orders.order_id",
           "sources": [
-            "ods.orders.order_time"
+            "ods.orders.order_id"
           ]
         }
       ],
-      "description": "Flink CTAS explicit column list remaps SELECT outputs by position"
+      "description": "Flink CTAS explicit column list reorders matching SELECT outputs by name"
     },
     {
       "id": "analyze_table_statistics",
@@ -8915,6 +8915,103 @@
             {
               "type": "ORDER_BY",
               "column": "lake.ods.event_log.amount"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "script_ctas_named_column_order",
+      "file": "cases/script_ctas_named_column_order.sql",
+      "statementType": "MULTI",
+      "description": "CTAS reorders named outputs without swapping source columns and registers the target schema for later reads",
+      "inputTables": [
+        "ods.events",
+        "mart.events_reordered"
+      ],
+      "outputTables": [
+        "mart.events_reordered"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.events_reordered.event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        },
+        {
+          "target": "mart.events_reordered.event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "mart.events_reordered.event_time"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "mart.events_reordered.event_id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.events_reordered"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.events_reordered.event_time",
+              "sources": [
+                "ods.events.event_time"
+              ]
+            },
+            {
+              "target": "mart.events_reordered.event_id",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.kind"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.events_reordered"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_time",
+              "sources": [
+                "mart.events_reordered.event_time"
+              ]
+            },
+            {
+              "target": "event_id",
+              "sources": [
+                "mart.events_reordered.event_id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "mart.events_reordered.event_time"
             }
           ]
         }

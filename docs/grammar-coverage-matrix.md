@@ -253,7 +253,9 @@ Hive covers Iceberg time-travel queries and snapshot commands and preserves posi
 
 Flink window table functions trace generated time fields to descriptors and partition keys, including CTE and script-defined inputs. `UNNEST WITH ORDINALITY` distinguishes generated ordinality from input-derived values.
 
-Flink parses additional materialized-table operations and traces merged JOIN USING keys through writes. A Flink script can identify shared `ON CONFLICT DO NOTHING` syntax using its connector and statement-set context. Catalog and database switches qualify following physical relations and scope temporary views.
+Flink parses additional materialized-table operations and traces merged JOIN USING keys through writes. Connector, statement-set, and native session-option syntax can identify Flink for shared `ON CONFLICT DO NOTHING`. Catalog and database switches qualify following physical relations and scope temporary views.
+
+Script-declared Flink schemas retain column order through supported `ALTER TABLE` operations. CTAS column lists reorder query outputs by name. `TABLE` shorthand, known wildcard writes, named windows used by `QUALIFY`, and positional set ordering have executable cases.
 
 ### Oracle
 
