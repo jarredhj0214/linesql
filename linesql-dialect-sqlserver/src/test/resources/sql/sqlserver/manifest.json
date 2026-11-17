@@ -7685,6 +7685,147 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "SQL Server FLOAT16 vector type identifies the native declaration"
+    },
+    {
+      "id": "script_use_database_and_dynamic_scope",
+      "file": "cases/script_use_database_and_dynamic_scope.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "Raw.dbo.orders",
+        "#scratch"
+      ],
+      "outputTables": [
+        "#scratch",
+        "Mart.dbo.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "Mart.dbo.summary.id",
+          "sources": [
+            "Raw.dbo.orders.id"
+          ]
+        }
+      ],
+      "description": "SQL Server database context applies through GO and dynamic reads while nested USE stays in the dynamic batch",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "Raw.dbo.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "Raw.dbo.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "Raw.dbo.orders.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "Raw.dbo.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "Raw.dbo.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "Raw.dbo.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "Raw.dbo.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "#scratch"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "#scratch"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "#scratch.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "Raw.dbo.orders"
+          ],
+          "outputTables": [
+            "Mart.dbo.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "Mart.dbo.summary.id",
+              "sources": [
+                "Raw.dbo.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

@@ -74,6 +74,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     }
 
     private final LineageResult result;
+    private final ParseContext context;
     private final Set<TableRef> inputTables = new LinkedHashSet<>();
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
@@ -98,8 +99,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private SqlServerParser.SelectClauseContext setBranchSelect;
     private SqlServerParser.SelectClauseContext positionalInsertSelect;
 
-    SqlServerLineageVisitor(LineageResult result) {
+    SqlServerLineageVisitor(LineageResult result, ParseContext context) {
         this.result = result;
+        this.context = context;
     }
 
     @Override
@@ -1076,6 +1078,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     @Override
     public Void visitUseStmt(SqlServerParser.UseStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
+        if (context != null) {
+            String database = cleanIdentifier(ctx.useStatement().identifier());
+            if (!database.equals(context.getDefaultCatalog())) {
+                context.setDefaultCatalog(database);
+                context.setDefaultSchema(null);
+            }
+        }
         return null;
     }
 
@@ -1325,7 +1334,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     private static boolean referencesRelation(ParseTree tree, String name) {
         if (tree instanceof SqlServerParser.TableNameContext) {
-            TableRef table = tableRef(((SqlServerParser.TableNameContext) tree).multipartIdentifier());
+            TableRef table = rawTableRef(((SqlServerParser.TableNameContext) tree).multipartIdentifier());
             return table.getCatalog() == null && table.getSchema() == null && name.equalsIgnoreCase(table.getName());
         }
         for (int index = 0; index < tree.getChildCount(); index++) {
@@ -1354,12 +1363,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableName(SqlServerParser.TableNameContext ctx) {
-        TableRef table = tableRef(ctx.multipartIdentifier());
+        TableRef table = rawTableRef(ctx.multipartIdentifier());
         if (isCteReference(table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
         }
-        addInputTable(table, ctx.tableAlias(), true);
+        addInputTable(qualifyTable(table), ctx.tableAlias(), true);
         return null;
     }
 
@@ -2055,7 +2064,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     private void registerDerivedRelation(String name, SqlServerParser.QueryContext query, List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
-        SqlServerLineageVisitor relationVisitor = new SqlServerLineageVisitor(relationResult);
+        SqlServerLineageVisitor relationVisitor = new SqlServerLineageVisitor(relationResult, context);
         relationVisitor.correlatedScope = true;
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.tableAliases.putAll(tableAliases);
@@ -2105,7 +2114,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     private LineageResult lineageForQueryTerm(SqlServerParser.QueryTermContext queryTerm) {
         LineageResult queryResult = new LineageResult();
-        SqlServerLineageVisitor queryVisitor = new SqlServerLineageVisitor(queryResult);
+        SqlServerLineageVisitor queryVisitor = new SqlServerLineageVisitor(queryResult, context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -2574,7 +2583,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     private LineageResult analyzeSubquery(SqlServerParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
-        SqlServerLineageVisitor queryVisitor = new SqlServerLineageVisitor(queryResult);
+        SqlServerLineageVisitor queryVisitor = new SqlServerLineageVisitor(queryResult, context);
         queryVisitor.correlatedScope = true;
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
@@ -2815,7 +2824,20 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     // ============ Utility ============
 
-    private static TableRef tableRef(SqlServerParser.MultipartIdentifierContext ctx) {
+    private TableRef tableRef(SqlServerParser.MultipartIdentifierContext ctx) {
+        return qualifyTable(rawTableRef(ctx));
+    }
+
+    private TableRef qualifyTable(TableRef table) {
+        if (context == null || table.getCatalog() != null
+                || table.getName().startsWith("#") || table.getName().startsWith("@")) {
+            return table;
+        }
+        String schema = table.getSchema() == null ? context.getDefaultSchema() : table.getSchema();
+        return new TableRef(context.getDefaultCatalog(), schema, table.getName());
+    }
+
+    private static TableRef rawTableRef(SqlServerParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
         return LineageModelUtils.tableRefFromParts(parts);
     }

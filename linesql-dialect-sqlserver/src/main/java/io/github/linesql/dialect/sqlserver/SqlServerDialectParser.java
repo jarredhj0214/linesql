@@ -62,7 +62,7 @@ public class SqlServerDialectParser implements DialectParser {
                         && (sqlArgument == lastToken || tokens.get(sqlArgument + 1).getType() == SqlServerLineageLexer.COMMA)) {
                     String literal = tokens.get(sqlArgument).getText();
                     String innerSql = literal.substring(2, literal.length() - 1).replace("''", "'");
-                    LineageResult expanded = parse(innerSql, options, context, false);
+                    LineageResult expanded = parse(innerSql, options, dynamicSqlContext(context), false);
                     if (expanded.getStatementType() != StatementType.UNKNOWN
                             && expanded.getDiagnostics().stream().noneMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR)) {
                         return expanded;
@@ -74,10 +74,20 @@ public class SqlServerDialectParser implements DialectParser {
             }
         }
 
-        SqlServerLineageVisitor visitor = new SqlServerLineageVisitor(result);
+        SqlServerLineageVisitor visitor = new SqlServerLineageVisitor(result, context);
         visitor.visit(statement);
         visitor.finalizeResult();
         return result;
+    }
+
+    private static ParseContext dynamicSqlContext(ParseContext context) {
+        if (context == null) {
+            return null;
+        }
+        ParseContext innerContext = new ParseContext();
+        innerContext.setDefaultCatalog(context.getDefaultCatalog());
+        innerContext.setDefaultSchema(context.getDefaultSchema());
+        return innerContext;
     }
 
     private static int spExecuteSqlArgument(CommonTokenStream tokens, SqlServerParser.ExecuteStatementContext execute) {
