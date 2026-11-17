@@ -959,6 +959,15 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitCompileAndExecutePlanStatement(FlinkParser.CompileAndExecutePlanStatementContext ctx) {
+        result.setStatementType(StatementType.INSERT);
+        if (ctx.insertStatement() != null) {
+            return visit(ctx.insertStatement());
+        }
+        return visit(ctx.executeStatementSet());
+    }
+
+    @Override
     public Void visitExecutePlanStatement(FlinkParser.ExecutePlanStatementContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;

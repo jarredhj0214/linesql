@@ -806,6 +806,7 @@ explainDetailList
 
 planStatement
     : COMPILE PLAN (IF NOT EXISTS)? string? FOR statement                              #compilePlanStatement
+    | COMPILE AND EXECUTE PLAN string FOR (insertStatement | executeStatementSet)       #compileAndExecutePlanStatement
     | EXECUTE PLAN string                                             #executePlanStatement
     ;
 

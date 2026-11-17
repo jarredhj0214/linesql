@@ -470,6 +470,30 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsAndSplitsFlinkCompileAndExecutePlans() {
+        String plan = "COMPILE AND EXECUTE PLAN 'file:///tmp/daily;orders.json' FOR ";
+        LineageResult single = LineSql.parse(plan
+                + "INSERT INTO mart.orders (event_id) SELECT id FROM ods.orders ON CONFLICT DO NOTHING");
+        assertEquals(SqlDialect.FLINK, single.getDialect());
+        assertEquals(StatementType.INSERT, single.getStatementType());
+        assertTrue(single.getDiagnostics().isEmpty());
+        assertEquals("event_id", single.getColumnLineage().get(0).getTarget().getName());
+
+        List<LineageResult> script = LineSql.parseScript(plan + "STATEMENT SET BEGIN "
+                + "INSERT INTO mart.orders SELECT id FROM ods.orders;"
+                + "INSERT INTO mart.audit SELECT order_id FROM ods.audit; END; "
+                + "EXECUTE PLAN 'file:///tmp/daily;orders.json';");
+        assertEquals(2, script.size());
+        LineageResult combined = script.get(0);
+        assertEquals(SqlDialect.FLINK, combined.getDialect());
+        assertEquals(StatementType.INSERT, combined.getStatementType());
+        assertTrue(combined.getDiagnostics().isEmpty());
+        assertEquals(2, combined.getOutputTables().size());
+        assertEquals(2, combined.getColumnLineage().size());
+        assertEquals(StatementType.CONTROL, script.get(1).getStatementType());
+    }
+
+    @Test
     public void detectsFlinkExecuteInsertWithSharedConflictSyntax() {
         String insert = "INSERT INTO mart.events (event_id) SELECT id FROM ods.events WHERE active"
                 + " ON CONFLICT DO NOTHING";

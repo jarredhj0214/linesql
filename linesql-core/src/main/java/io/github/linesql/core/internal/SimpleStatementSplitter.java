@@ -79,7 +79,7 @@ public class SimpleStatementSplitter implements StatementSplitter {
 
     private static final Pattern FLINK_STATEMENT_SET = Pattern.compile(
             "(?:^|;)\\s*(?:(?:EXPLAIN(?:\\s+(?:PLAN\\s+FOR|\\w+(?:\\s*,\\s*\\w+)*))?"
-                    + "|COMPILE\\s+PLAN(?:\\s+IF\\s+NOT\\s+EXISTS)?"
+                    + "|COMPILE(?:\\s+AND\\s+EXECUTE)?\\s+PLAN(?:\\s+IF\\s+NOT\\s+EXISTS)?"
                     + "(?:\\s+(?:'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"))?\\s+FOR)\\s+)?"
                     + "(?:(?:EXECUTE\\s+)?STATEMENT\\s+SET\\s+BEGIN|BEGIN\\s+STATEMENT\\s+SET)\\b",
             Pattern.CASE_INSENSITIVE);

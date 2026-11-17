@@ -552,7 +552,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bsplit_index\\s*\\(.*")
                 || unquotedSyntax.matches("(?s).*\\bcreate\\s+(temporary\\s+)?view\\s+if\\s+not\\s+exist\\b.*")
                 || unquotedSyntax.matches("(?s).*\\bwatermark\\s+for\\b.*")
-                || unquotedSyntax.matches("(?s)^\\s*(compile|execute)\\s+plan\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*(?:compile(?:\\s+and\\s+execute)?|execute)\\s+plan\\b.*")
                 || unquotedSyntax.matches("(?s)^\\s*show\\s+jobs\\b.*")
                 || unquotedSyntax.matches("(?s)^\\s*(describe|desc)\\s+job\\b.*")
                 || unquotedSyntax.matches("(?s)^\\s*stop\\s+job\\b.*")

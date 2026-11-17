@@ -45,6 +45,22 @@
       "description": "Legacy BEGIN STATEMENT SET retains both sink mappings"
     },
     {
+      "id": "compile_and_execute_plan_statement_set",
+      "file": "cases/compile_and_execute_plan_statement_set.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.audit"],
+      "outputTables": ["mart.order_events", "mart.order_audit"],
+      "columnLineage": [
+        {"target": "mart.order_events.id", "sources": ["ods.orders.id"]},
+        {"target": "mart.order_audit.id", "sources": ["ods.audit.order_id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.paid"},
+        {"type": "WHERE", "column": "ods.audit.visible"}
+      ],
+      "description": "COMPILE AND EXECUTE PLAN treats the statement set as one write and keeps both branches' predicates"
+    },
+    {
       "id": "compile_plan_statement_set",
       "file": "cases/compile_plan_statement_set.sql",
       "statementType": "READ_METADATA",

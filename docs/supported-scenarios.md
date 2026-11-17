@@ -1504,6 +1504,7 @@ Implemented Flink table-level lineage scenarios:
 | CALL and JOB utility statements | `call system.generate_n(4); show jobs; describe job '...'; stop job '...' with savepoint`; `stop job '...' with drain`; `stop job '...' with savepoint with drain` | `call_catalog_procedure`, `show_jobs`, `describe_job`, `stop_job_with_savepoint`, `stop_job_with_drain`, `stop_job_with_savepoint_drain` |
 | EXPLAIN wrapped lineage | EXPLAIN keeps wrapped query and INSERT lineage. Named plan details such as JSON_EXECUTION_PLAN identify Flink automatically. | `explain_plan_for_select`, `explain_details_insert`, `explain_json_plan_query_lineage`, `LineSqlAutoDetectionIntegrationTest.detectsFlinkExplainDetailsAndJarManagement` |
 | Compiled plan utility statements | `compile plan '...' for insert into/overwrite ... select ...`; `execute plan '...'` | `compile_plan_insert`, `compile_plan_insert_overwrite`, `execute_plan_file` |
+| Compile and execute plan | `COMPILE AND EXECUTE PLAN ... FOR` identifies Flink and reports the inner INSERT or statement set, including source-to-sink mappings and branch predicates. | `compile_and_execute_plan_statement_set`, `LineSqlAutoDetectionIntegrationTest.detectsAndSplitsFlinkCompileAndExecutePlans` |
 | Set output positions | UNION retains positions across constants and expressions for output aliases, CTE columns, temporary views and INSERT targets. | `union_constant_order_by_alias`, `insert_union_unnamed_derivations`, `cte_union_output_positions` |
 
 Implemented Flink column-level lineage scenarios:
