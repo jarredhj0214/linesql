@@ -30,7 +30,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
     private final Set<String> cteNames = new LinkedHashSet<>();
-    private final Map<String, List<SourceColumn>> namedWindowSources = new LinkedHashMap<>();
+    private final Map<String, FlinkParser.WindowSpecContext> namedWindows = new LinkedHashMap<>();
+    private final Set<FlinkParser.WindowSpecContext> activeWindows = new LinkedHashSet<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
@@ -1282,12 +1283,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitQuerySpecification(FlinkParser.QuerySpecificationContext ctx) {
-        Map<String, List<SourceColumn>> previousWindows = new LinkedHashMap<>(namedWindowSources);
-        namedWindowSources.clear();
+        Map<String, FlinkParser.WindowSpecContext> previousWindows = new LinkedHashMap<>(namedWindows);
+        namedWindows.clear();
         if (ctx.windowClause() != null) {
             for (FlinkParser.NamedWindowContext window : ctx.windowClause().namedWindow()) {
                 String name = cleanIdentifier(window.identifier()).toLowerCase(Locale.ROOT);
-                namedWindowSources.put(name, sourceColumns(window.windowSpec()));
+                namedWindows.put(name, window.windowSpec());
             }
         }
         try {
@@ -1309,8 +1310,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             return null;
         } finally {
-            namedWindowSources.clear();
-            namedWindowSources.putAll(previousWindows);
+            namedWindows.clear();
+            namedWindows.putAll(previousWindows);
         }
     }
 
@@ -1394,7 +1395,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitQualifyClause(FlinkParser.QualifyClauseContext ctx) {
-        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression(), true));
         return visit(ctx.expression());
     }
 
@@ -1426,7 +1427,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             } else if (setQuery) {
                 LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(key));
             } else {
-                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
+                addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression(), true));
             }
         }
         return visitChildren(ctx);
@@ -2012,7 +2013,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> projectionAliasColumnRefs(SourceColumn sourceColumn) {
-        if (sourceColumn.resolvedRef != null || sourceColumn.qualifier != null) {
+        if (sourceColumn.inputOnly || sourceColumn.resolvedRef != null || sourceColumn.qualifier != null) {
             return null;
         }
         for (Projection projection : projections) {
@@ -2837,9 +2838,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private List<SourceColumn> sourceColumns(ParseTree tree) {
+        return sourceColumns(tree, false);
+    }
+
+    private List<SourceColumn> sourceColumns(ParseTree tree, boolean inputScopeForWindows) {
         Set<SourceColumn> columns = new LinkedHashSet<>();
         if (tree != null) {
-            collectSourceColumns(tree, columns);
+            collectSourceColumns(tree, columns, inputScopeForWindows);
         }
         return new ArrayList<>(columns);
     }
@@ -2907,14 +2912,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return refs;
     }
 
-    private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
+    private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns,
+                                      boolean inputScopeForWindows) {
         if (tree instanceof FlinkParser.OverClauseContext) {
             FlinkParser.OverClauseContext over = (FlinkParser.OverClauseContext) tree;
-            if (over.identifier() != null) {
-                String name = cleanIdentifier(over.identifier()).toLowerCase(Locale.ROOT);
-                columns.addAll(namedWindowSources.getOrDefault(name, Collections.emptyList()));
-                return;
-            }
+            collectWindowSourceColumns(over, columns, inputScopeForWindows);
+            return;
         }
         if (tree instanceof FlinkParser.ColumnReferenceContext) {
             FlinkParser.ColumnReferenceContext colRef = (FlinkParser.ColumnReferenceContext) tree;
@@ -2927,7 +2930,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (tree instanceof FlinkParser.DereferenceContext) {
             FlinkParser.DereferenceContext deref = (FlinkParser.DereferenceContext) tree;
             if (deref.primaryExpression() instanceof FlinkParser.SubscriptExpressionContext) {
-                collectSourceColumns(deref.primaryExpression(), columns);
+                collectSourceColumns(deref.primaryExpression(), columns, inputScopeForWindows);
                 return;
             }
             List<String> parts = collectDereferenceParts(deref);
@@ -2942,8 +2945,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         if (tree instanceof FlinkParser.SubscriptExpressionContext) {
             FlinkParser.SubscriptExpressionContext subscript = (FlinkParser.SubscriptExpressionContext) tree;
-            collectSourceColumns(subscript.primaryExpression(), columns);
-            collectSourceColumns(subscript.expression(), columns);
+            collectSourceColumns(subscript.primaryExpression(), columns, inputScopeForWindows);
+            collectSourceColumns(subscript.expression(), columns, inputScopeForWindows);
             return;
         }
         if (tree instanceof FlinkParser.ScalarSubqueryContext) {
@@ -2973,7 +2976,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 for (int i = 0; i < tree.getChildCount(); i++) {
                     ParseTree child = tree.getChild(i);
                     if (child != predicate.query()) {
-                        collectSourceColumns(child, columns);
+                        collectSourceColumns(child, columns, inputScopeForWindows);
                     }
                 }
                 for (ColumnRef source : scalarSubqueryProjectionRefs(predicate.query())) {
@@ -2985,7 +2988,35 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
         }
         for (int i = 0; i < tree.getChildCount(); i++) {
-            collectSourceColumns(tree.getChild(i), columns);
+            collectSourceColumns(tree.getChild(i), columns, inputScopeForWindows);
+        }
+    }
+
+    private void collectWindowSourceColumns(FlinkParser.OverClauseContext over,
+                                            Set<SourceColumn> columns, boolean inputScopeForWindows) {
+        FlinkParser.WindowSpecContext window = over.windowSpec();
+        if (window == null) {
+            window = namedWindows.get(cleanIdentifier(over.identifier()).toLowerCase(Locale.ROOT));
+        }
+        Set<FlinkParser.WindowSpecContext> visited = new LinkedHashSet<>();
+        while (window != null && visited.add(window)) {
+            window = window.base == null
+                    ? null : namedWindows.get(cleanIdentifier(window.base).toLowerCase(Locale.ROOT));
+        }
+        List<FlinkParser.WindowSpecContext> windows = new ArrayList<>(visited);
+        Collections.reverse(windows);
+        // Resolve inherited keys first and keep malformed nested windows from recursing.
+        for (FlinkParser.WindowSpecContext spec : windows) {
+            if (!activeWindows.add(spec)) {
+                continue;
+            }
+            try {
+                for (SourceColumn source : sourceColumns(spec)) {
+                    columns.add(inputScopeForWindows ? source.inInputScope() : source);
+                }
+            } finally {
+                activeWindows.remove(spec);
+            }
         }
     }
 
@@ -3146,19 +3177,26 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         final ColumnRef resolvedRef;
         final String qualifier;
         final String name;
+        final boolean inputOnly;
 
         SourceColumn(String qualifier, String name) {
-            this(null, qualifier, name);
+            this(null, qualifier, name, false);
         }
 
-        private SourceColumn(ColumnRef resolvedRef, String qualifier, String name) {
+        private SourceColumn(ColumnRef resolvedRef, String qualifier, String name, boolean inputOnly) {
             this.resolvedRef = resolvedRef;
             this.qualifier = qualifier;
             this.name = name;
+            this.inputOnly = inputOnly;
         }
 
         static SourceColumn resolved(ColumnRef ref) {
-            return new SourceColumn(ref, null, ref.getName());
+            return new SourceColumn(ref, null, ref.getName(), false);
+        }
+
+        SourceColumn inInputScope() {
+            return inputOnly || resolvedRef != null || qualifier != null
+                    ? this : new SourceColumn(null, null, name, true);
         }
 
         @Override
@@ -3170,14 +3208,15 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 return false;
             }
             SourceColumn that = (SourceColumn) other;
-            return Objects.equals(resolvedRef, that.resolvedRef)
+            return inputOnly == that.inputOnly
+                    && Objects.equals(resolvedRef, that.resolvedRef)
                     && Objects.equals(qualifier, that.qualifier)
                     && Objects.equals(name, that.name);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(resolvedRef, qualifier, name);
+            return Objects.hash(resolvedRef, qualifier, name, inputOnly);
         }
     }
 

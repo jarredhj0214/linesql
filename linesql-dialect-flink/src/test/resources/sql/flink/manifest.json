@@ -8167,6 +8167,78 @@
         }
       ],
       "description": "Named-window filter retains projection and window dependencies regardless of supported clause order"
+    },
+    {
+      "id": "select_inherited_named_window",
+      "file": "cases/select_inherited_named_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "running_total",
+          "sources": [
+            "ods.events.amount",
+            "ods.events.user_id",
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "Flink traces inherited window keys in projections and QUALIFY"
+    },
+    {
+      "id": "qualify_over_base_window",
+      "file": "cases/qualify_over_base_window.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "event_clock",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.events.event_time"
+        },
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "Flink traces inherited window keys in projections and QUALIFY"
     }
   ]
 }

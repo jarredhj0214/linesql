@@ -1400,6 +1400,7 @@ Implemented Flink table-level lineage scenarios:
 | Changelog conversion PTF | `from from_changelog(input => table raw_orders, op => descriptor(op_type), op_mapping => map[...])` | `from_changelog_ptf` |
 | Time travel source table | `from lake.orders for system_time as of timestamp '...'` | `time_travel_timestamp`, `time_travel_timestamp_interval` |
 | Flink SQL hints | `table /*+ options(...) */`; `select /*+ broadcast(t) */ ...`; `insert into sink /*+ options(...) */ select ...` | `dynamic_table_options_hint`, `join_query_hint`, `insert_target_options_hint` |
+| Inherited window definitions | `WINDOW w1 AS (PARTITION BY ...), w2 AS (w1 ORDER BY ...)` and `OVER (w1 ORDER BY ...)` retain inherited keys in projections and filters. | `select_inherited_named_window`, `qualify_over_base_window` |
 | Top-N and deduplication QUALIFY | `qualify row_number() over(partition by ... order by ...) <= n`; inline and named windows supply partition and order references. Window keys resolve against input columns, and the filter can use projected aliases. | `topn_qualify`, `deduplication_qualify`, `qualify_after_named_window`, `qualify_before_named_window` |
 | Window JOIN over windowing TVFs | `from table(tumble(...)) l join/semi join/anti join table(tumble(...)) r on l.window_start = r.window_start ...` | `window_join_tumble`, `window_semi_join`, `window_anti_join` |
 | Hive-compatible LEFT SEMI/ANTI JOIN | `left semi join ... on ...`; `left anti join ... on ...` | `hive_left_semi_join`, `hive_left_anti_join` |
