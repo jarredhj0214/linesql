@@ -1757,9 +1757,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                     return;
                 }
             } else {
-                String qualifier = item instanceof MySqlParser.SelectQualifiedStarContext
-                        ? qualifiedNameText(((MySqlParser.SelectQualifiedStarContext) item).qualifiedName()) : null;
-                Map<String, List<ColumnRef>> columns = knownWildcardColumns(new SourceColumn(qualifier, "*"));
+                Map<String, List<ColumnRef>> columns = knownWildcardColumns(item);
                 if (columns == null) {
                     return;
                 }
@@ -1944,15 +1942,25 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         relationVisitor.refreshColumnLineage();
 
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        List<ColumnLineage> lineages = relationResult.getColumnLineage();
-        for (int i = 0; i < lineages.size(); i++) {
-            ColumnLineage lineage = lineages.get(i);
-            String columnName = i < columnAliases.size() ? columnAliases.get(i) : lineage.getTarget().getName();
-            columns.put(columnName, lineage.getSources());
+        Map<String, List<ColumnRef>> forwarded = relationVisitor.knownForwardedColumns(query.queryTerm());
+        int width = forwarded == null ? explicitOutputWidth(query.queryTerm()) : forwarded.size();
+        int outputs = 0;
+        if (forwarded != null) {
+            for (Map.Entry<String, List<ColumnRef>> column : forwarded.entrySet()) {
+                String columnName = outputs < columnAliases.size() ? columnAliases.get(outputs) : column.getKey();
+                columns.put(columnName, column.getValue());
+                outputs++;
+            }
+        } else {
+            for (ColumnLineage lineage : relationResult.getColumnLineage()) {
+                String columnName = outputs < columnAliases.size()
+                        ? columnAliases.get(outputs) : lineage.getTarget().getName();
+                columns.put(columnName, lineage.getSources());
+                outputs++;
+            }
         }
         derivedColumnLineage.put(name, columns);
-        int width = explicitOutputWidth(query.queryTerm());
-        if (width > 0 && lineages.size() == width && columns.size() == width) {
+        if (width > 0 && outputs == width && columns.size() == width) {
             knownDerivedSchemas.add(name);
         } else {
             knownDerivedSchemas.remove(name);
@@ -2286,6 +2294,27 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
+    }
+
+    private Map<String, List<ColumnRef>> knownForwardedColumns(MySqlParser.QueryTermContext term) {
+        MySqlParser.QueryTermContext unwrapped = unwrapSetBranch(term);
+        if (!(unwrapped instanceof MySqlParser.QueryTermDefaultContext)) {
+            return null;
+        }
+        MySqlParser.QueryPrimaryContext primary = ((MySqlParser.QueryTermDefaultContext) unwrapped).queryPrimary();
+        if (!(primary instanceof MySqlParser.QueryPrimaryDefaultContext)) {
+            return null;
+        }
+        List<MySqlParser.SelectItemContext> items = ((MySqlParser.QueryPrimaryDefaultContext) primary)
+                .querySpecification().selectClause().selectItemList().selectItem();
+        return items.size() == 1 && !(items.get(0) instanceof MySqlParser.SelectExpressionContext)
+                ? knownWildcardColumns(items.get(0)) : null;
+    }
+
+    private Map<String, List<ColumnRef>> knownWildcardColumns(MySqlParser.SelectItemContext item) {
+        String qualifier = item instanceof MySqlParser.SelectQualifiedStarContext
+                ? qualifiedNameText(((MySqlParser.SelectQualifiedStarContext) item).qualifiedName()) : null;
+        return knownWildcardColumns(new SourceColumn(qualifier, "*"));
     }
 
     private Map<String, List<ColumnRef>> knownWildcardColumns(SourceColumn wildcard) {

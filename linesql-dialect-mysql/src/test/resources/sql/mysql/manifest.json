@@ -13498,6 +13498,58 @@
         }
       ],
       "description": "HAVING resolves the output alias when no matching input field exists"
+    },
+    {
+      "id": "select_order_position_forwarded_cte_star",
+      "file": "cases/select_order_position_forwarded_cte_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "ods.events.event_id",
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.observed_at"
+        }
+      ],
+      "description": "A forwarded known star retains column positions for ORDER BY"
+    },
+    {
+      "id": "insert_forwarded_cte_star_positions",
+      "file": "cases/insert_forwarded_cte_star_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "audit.summary.recorded_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A CTE forwarding a known star and introducing aliases maps INSERT destinations by position"
     }
   ]
 }
