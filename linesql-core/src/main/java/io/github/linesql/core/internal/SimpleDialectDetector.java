@@ -97,6 +97,12 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|^\\s*alter\\s+type\\b[^;]*\\b(?:add|rename)\\s+value\\b"
                     + "|^\\s*alter\\s+domain\\b[^;]*\\b(?:validate\\s+constraint"
                     + "|(?:set|drop)\\s+(?:default|not\\s+null)|not\\s+valid)\\b");
+    private static final Pattern POSTGRES_DISTINCT_ON = Pattern.compile(
+            "\\bselect\\s+distinct\\s+on\\s*\\(");
+    private static final Pattern POSTGRES_CTE_MATERIALIZATION = Pattern.compile(
+            "^\\s*with\\s+(?:recursive\\s+)?" + POSTGRES_NAME
+                    + "(?:\\s+|\\s*\\([^()]*\\)\\s*)as\\s+materialized\\s*\\("
+                    + "|\\bas\\s+not\\s+materialized\\s*\\(");
     private static final Pattern POSTGRES_DATA_MATERIALIZATION = Pattern.compile(
             "^\\s*create\\s+unlogged\\s+table\\b"
                     + "|^\\s*refresh\\s+materialized\\s+view\\s+concurrently\\b");
@@ -443,6 +449,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("prepare")
                         && hasStatementInScript(unwrapped, SqlDialect.POSTGRESQL, POSTGRES_PREPARED_STATEMENT))) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL prepared statement control"));
+        } else if (POSTGRES_DISTINCT_ON.matcher(unquotedSyntax).find()
+                || (unquotedSyntax.contains("materialized") && POSTGRES_CTE_MATERIALIZATION.matcher(
+                        QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find())) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL DISTINCT ON or CTE materialization"));
         } else if (POSTGRES_DATA_MATERIALIZATION.matcher(unquotedSyntax).find()
                 || (POSTGRES_DATA_OPTION_END.matcher(unquotedSyntax).find()
                         && POSTGRES_DATA_OPTION_STATEMENT.matcher(unquotedSyntax).find())) {

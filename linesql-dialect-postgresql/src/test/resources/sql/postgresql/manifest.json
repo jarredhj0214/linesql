@@ -1864,6 +1864,16 @@
       "description": "PostgreSQL CTE source and column propagation"
     },
     {
+      "id": "select_materialized_quoted_cte",
+      "file": "cases/select_materialized_quoted_cte.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [{"target": "event_key", "sources": ["ods.events.id"]}],
+      "columnUsages": [{"type": "WHERE", "column": "ods.events.id"}],
+      "description": "A quoted leading MATERIALIZED CTE identifies PostgreSQL and preserves its declared column order"
+    },
+    {
       "id": "cte_not_materialized",
       "file": "cases/cte_not_materialized.sql",
       "statementType": "SELECT",

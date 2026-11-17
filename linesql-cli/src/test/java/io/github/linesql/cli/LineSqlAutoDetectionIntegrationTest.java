@@ -794,6 +794,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresDistinctOnAndCteMaterializationClauses() {
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT DISTINCT ON (event_id) event_id FROM ods.events "
+                + "ORDER BY event_id, observed_at DESC");
+        assertDialect(SqlDialect.POSTGRESQL, "WITH base AS (SELECT 1), selected AS NOT MATERIALIZED "
+                + "(SELECT id FROM ods.events) SELECT id FROM selected");
+        LineageResult result = LineSql.parse("WITH \"snapshot.data\" (event_key) AS MATERIALIZED "
+                + "(SELECT e.id FROM ods.events AS e) SELECT s.event_key FROM \"snapshot.data\" s");
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals("id", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.SPARK, "WITH q AS (SELECT id FROM ods.events AS materialized(id)) "
+                + "SELECT id FROM q");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SELECT DISTINCT ON (id)' AS note");
+    }
+
+    @Test
     public void detectsPostgresMaterializationDataOptions() {
         LineageResult table = LineSql.parse("CREATE TEMPORARY TABLE cache (id) AS "
                 + "SELECT e.event_id FROM ods.events e WITH NO DATA");
