@@ -3413,7 +3413,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         List<ColumnLineage> lineages = new ArrayList<>();
         if (specification == null || specification.selectClause() == null) {
             List<ColumnLineage> sources = queryResult.getColumnLineage();
-            int width = setOutputWidth(assignment.query().queryTerm());
+            int width = queryVisitor.knownOrderWidth(assignment.query().queryTerm());
             if (width == targets.size() && sources.size() == width) {
                 for (int i = 0; i < width; i++) {
                     lineages.add(assignedColumnLineage(targets.get(i), defaultTarget,

@@ -7718,6 +7718,83 @@
         }
       ],
       "description": "Positional ordering traces both set branches with a known star expansion"
+    },
+    {
+      "id": "update_row_assignment_table_cte",
+      "file": "cases/update_row_assignment_table_cte.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "staging.changes",
+        "public.settings"
+      ],
+      "outputTables": [
+        "public.settings"
+      ],
+      "columnLineage": [
+        {
+          "target": "public.settings.key",
+          "sources": [
+            "staging.changes.source_a"
+          ]
+        },
+        {
+          "target": "public.settings.value",
+          "sources": [
+            "staging.changes.source_b"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "staging.changes.ready"
+        },
+        {
+          "type": "WHERE",
+          "column": "public.settings.active"
+        }
+      ],
+      "description": "Row assignment from TABLE uses the known CTE positions"
+    },
+    {
+      "id": "update_row_assignment_union_known_star",
+      "file": "cases/update_row_assignment_union_known_star.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "staging.changes",
+        "public.settings",
+        "staging.backup"
+      ],
+      "outputTables": [
+        "public.settings"
+      ],
+      "columnLineage": [
+        {
+          "target": "public.settings.key",
+          "sources": [
+            "staging.changes.source_a",
+            "staging.backup.fallback_a"
+          ]
+        },
+        {
+          "target": "public.settings.value",
+          "sources": [
+            "staging.changes.source_b",
+            "staging.backup.fallback_b"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "staging.changes.ready"
+        },
+        {
+          "type": "WHERE",
+          "column": "public.settings.active"
+        }
+      ],
+      "description": "Row assignment from a set uses both sets of sources when star width is known"
     }
   ]
 }
