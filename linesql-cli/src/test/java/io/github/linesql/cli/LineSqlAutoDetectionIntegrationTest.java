@@ -939,6 +939,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresTableLikeTemplatesAndLocalColumns() {
+        LineageResult create = LineSql.parse("CREATE TABLE mart.snapshot (LIKE \"template.set\".events INCLUDING ALL, "
+                + "LIKE templates.audit EXCLUDING DEFAULTS, revision int GENERATED ALWAYS AS (version + 1) STORED)");
+        assertEquals(SqlDialect.POSTGRESQL, create.getDialect());
+        assertEquals(StatementType.CREATE_TABLE_LIKE, create.getStatementType());
+        assertTrue(create.getDiagnostics().isEmpty());
+        assertEquals(new TableRef(null, "template.set", "events"), create.getInputTables().get(0));
+        assertEquals(new TableRef(null, "templates", "audit"), create.getInputTables().get(1));
+        assertEquals("revision", create.getColumnLineage().get(0).getTarget().getName());
+        assertEquals("version", create.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE TABLE t (LIKE u INCLUDING ALL)' AS note");
+    }
+
+    @Test
     public void detectsPostgresTwoPhaseTransactionsWithDeferredConstraints() {
         List<LineageResult> results = LineSql.parseScript("BEGIN; SET CONSTRAINTS accounting.invoice_fk DEFERRED; "
                 + "INSERT INTO accounting.audit (id) SELECT id FROM staging.events WHERE accepted; "

@@ -95,6 +95,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
+    private static final Pattern POSTGRES_TABLE_LIKE_OPTIONS = Pattern.compile(
+            "^\\s*create\\s+(?:(?:global|local)\\s+)?(?:(?:temp|temporary|unlogged)\\s+)?table\\b"
+                    + "[^;]*[(,]\\s*like\\s+" + POSTGRES_RELATION + "\\s+(?:including|excluding)\\b");
     private static final Pattern POSTGRES_FOREIGN_KEY_OPTIONS = Pattern.compile(
             "^\\s*(?:create|alter)\\s+table\\b[^;]*\\breferences\\b[^;]*"
                     + "(?:\\bon\\s+delete\\s+set\\s+(?:null|default)\\s*\\(|\\bnot\\s+valid\\b)");
@@ -448,6 +451,9 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL SQL-standard routine body"));
         } else if (POSTGRES_DROP_DOMAIN.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.95, "PostgreSQL-compatible DROP DOMAIN"));
+        } else if (unquotedSyntax.contains("like") && POSTGRES_TABLE_LIKE_OPTIONS.matcher(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL parenthesized table LIKE options"));
         } else if (POSTGRES_FOREIGN_KEY_OPTIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL foreign-key validation or delete action"));
         } else if (POSTGRES_SCHEMA_DDL.matcher(unquotedSyntax).find()) {

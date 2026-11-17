@@ -3708,6 +3708,69 @@
       "description": "PostgreSQL CREATE MATERIALIZED VIEW WITH DATA preserves eager refresh lineage"
     },
     {
+      "id": "create_table_multiple_like_and_constraints",
+      "file": "cases/create_table_multiple_like_and_constraints.sql",
+      "statementType": "CREATE_TABLE_LIKE",
+      "inputTables": [
+        "template.order_fields",
+        "template.audit_fields",
+        "ops.users"
+      ],
+      "outputTables": [
+        "mart.order_snapshots"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.order_snapshots.total",
+          "sources": [
+            "mart.order_snapshots.subtotal",
+            "mart.order_snapshots.shipping"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_snapshots.audit_user"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ops.users.id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_snapshots.shipping"
+        }
+      ],
+      "description": "Every LIKE source is tracked and explicit generated columns, references and checks keep their dependencies"
+    },
+    {
+      "id": "create_foreign_table_like_generated",
+      "file": "cases/create_foreign_table_like_generated.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "template.inventory_fields"
+      ],
+      "outputTables": [
+        "ext.inventory"
+      ],
+      "columnLineage": [
+        {
+          "target": "ext.inventory.normalized_qty",
+          "sources": [
+            "ext.inventory.qty"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ext.inventory.qty"
+        }
+      ],
+      "description": "Foreign table templates, generated columns and local checks share the table-definition analysis"
+    },
+    {
       "id": "create_table_like_including",
       "file": "cases/create_table_like_including.sql",
       "statementType": "CREATE_TABLE_LIKE",

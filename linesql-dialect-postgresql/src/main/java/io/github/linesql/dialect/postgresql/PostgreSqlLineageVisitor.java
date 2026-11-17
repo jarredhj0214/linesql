@@ -910,7 +910,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 }
             } else {
                 result.setStatementType(ctx.CREATE() != null ? StatementType.CREATE_TABLE : StatementType.ALTER_TABLE);
-                outputTables.add(tableRef(ctx.multipartIdentifier()));
+                TableRef target = tableRef(ctx.multipartIdentifier());
+                outputTables.add(target);
+                if (ctx.CREATE() != null) {
+                    currentDmlTarget = target;
+                    collectCreateTableElements(ctx.tableElementList(), target);
+                }
                 if (ctx.foreignPartitionOf() != null) {
                     inputTables.add(tableRef(ctx.foreignPartitionOf().multipartIdentifier()));
                 }
@@ -961,13 +966,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             visit(ctx.query());
             refreshColumnLineage();
             retargetColumnLineage(target);
-        } else if (ctx.tableElementList() != null && likeSource(ctx.tableElementList()) != null) {
-            result.setStatementType(StatementType.CREATE_TABLE_LIKE);
-            inputTables.add(tableRef(likeSource(ctx.tableElementList())));
         } else {
-            result.setStatementType(StatementType.CREATE_TABLE);
             currentDmlTarget = target;
-            collectCreateTableElements(ctx.tableElementList(), target);
+            boolean hasLike = collectCreateTableElements(ctx.tableElementList(), target);
+            result.setStatementType(hasLike ? StatementType.CREATE_TABLE_LIKE : StatementType.CREATE_TABLE);
         }
         if (ctx.partitionByClause() != null) {
             currentDmlTarget = target;
@@ -3990,21 +3992,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return lineages;
     }
 
-    private PostgreSqlParser.MultipartIdentifierContext likeSource(PostgreSqlParser.TableElementListContext ctx) {
-        for (PostgreSqlParser.TableElementContext element : ctx.tableElement()) {
-            if (element.LIKE() != null && element.multipartIdentifier() != null) {
-                return element.multipartIdentifier();
-            }
-        }
-        return null;
-    }
-
-    private void collectCreateTableElements(PostgreSqlParser.TableElementListContext ctx, TableRef target) {
+    private boolean collectCreateTableElements(PostgreSqlParser.TableElementListContext ctx, TableRef target) {
         if (ctx == null) {
-            return;
+            return false;
         }
+        boolean hasLike = false;
         List<ColumnLineage> generatedColumns = new ArrayList<>();
         for (PostgreSqlParser.TableElementContext element : ctx.tableElement()) {
+            if (element.LIKE() != null) {
+                inputTables.add(tableRef(element.multipartIdentifier()));
+                hasLike = true;
+            }
             if (element.columnName != null) {
                 String columnName = cleanIdentifier(element.columnName);
                 for (PostgreSqlParser.ColumnConstraintContext constraint : element.columnConstraint()) {
@@ -4018,6 +4016,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (!generatedColumns.isEmpty()) {
             result.setColumnLineage(generatedColumns);
         }
+        return hasLike;
     }
 
     private void collectColumnConstraint(PostgreSqlParser.ColumnConstraintContext ctx,
