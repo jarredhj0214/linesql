@@ -5602,13 +5602,46 @@
       "description": "PostgreSQL CREATE USER MAPPING is accepted as foreign data wrapper control"
     },
     {
+      "id": "create_foreign_table_spaced",
+      "file": "cases/create_foreign_table_spaced.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ext.orders"
+      ],
+      "columnLineage": [],
+      "description": "PostgreSQL foreign table operation preserves statement type and table across whitespace and comments"
+    },
+    {
+      "id": "alter_foreign_table_spaced",
+      "file": "cases/alter_foreign_table_spaced.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ext.orders"
+      ],
+      "columnLineage": [],
+      "description": "PostgreSQL foreign table operation preserves statement type and table across whitespace and comments"
+    },
+    {
+      "id": "drop_foreign_table_spaced",
+      "file": "cases/drop_foreign_table_spaced.sql",
+      "statementType": "DROP_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "ext.orders"
+      ],
+      "columnLineage": [],
+      "description": "PostgreSQL foreign table operation preserves statement type and table across whitespace and comments"
+    },
+    {
       "id": "import_foreign_schema_control",
       "file": "cases/import_foreign_schema_control.sql",
       "statementType": "CONTROL",
       "inputTables": [],
-      "outputTables": [],
+      "outputTables": ["ext.orders", "ext.customers"],
       "columnLineage": [],
-      "description": "PostgreSQL IMPORT FOREIGN SCHEMA with LIMIT TO is accepted as foreign data wrapper control"
+      "description": "PostgreSQL IMPORT FOREIGN SCHEMA with LIMIT TO reports the named local table definitions"
     },
     {
       "id": "import_foreign_schema_except_control",

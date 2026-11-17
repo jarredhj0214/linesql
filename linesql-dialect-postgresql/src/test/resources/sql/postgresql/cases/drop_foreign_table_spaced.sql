@@ -1,0 +1,2 @@
+DROP FOREIGN
+TABLE IF EXISTS ext.orders;

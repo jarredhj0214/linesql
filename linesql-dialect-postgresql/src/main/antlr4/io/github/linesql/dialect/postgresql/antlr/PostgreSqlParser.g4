@@ -956,7 +956,7 @@ foreignDataStatement
     : CREATE FOREIGN TABLE (IF NOT EXISTS)? multipartIdentifier (LPAREN tableElementList RPAREN)? SERVER identifier foreignOptions?
     | ALTER FOREIGN TABLE (IF EXISTS)? multipartIdentifier .+?
     | DROP FOREIGN TABLE (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
-    | IMPORT FOREIGN SCHEMA identifier importForeignSchemaFilter? FROM SERVER identifier INTO identifier foreignOptions?
+    | IMPORT FOREIGN SCHEMA identifier importForeignSchemaFilter? FROM SERVER identifier INTO importTargetSchema=identifier foreignOptions?
     | CREATE FOREIGN DATA WRAPPER identifier .+?
     | ALTER FOREIGN DATA WRAPPER identifier .+?
     | DROP FOREIGN DATA WRAPPER (IF EXISTS)? identifier (CASCADE | RESTRICT)?

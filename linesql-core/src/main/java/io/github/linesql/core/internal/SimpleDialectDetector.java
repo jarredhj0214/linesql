@@ -87,6 +87,8 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
     private static final Pattern POSTGRES_SCHEMA_DDL = Pattern.compile(
             "^\\s*(?:create|alter|drop)\\s+event\\s+trigger\\b"
+                    + "|^\\s*(?:create|alter|drop)\\s+(?:foreign\\s+(?:table|data\\s+wrapper)|user\\s+mapping)\\b"
+                    + "|^\\s*import\\s+foreign\\s+schema\\b"
                     + "|^\\s*(?:create|alter|drop)\\s+extension\\b"
                     + "|^\\s*create\\s+type\\b[^;]*\\bas\\s+(?:enum|range)\\s*\\("
                     + "|^\\s*alter\\s+type\\b[^;]*\\b(?:add|rename)\\s+value\\b"

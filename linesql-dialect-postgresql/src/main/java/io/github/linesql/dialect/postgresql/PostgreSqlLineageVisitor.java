@@ -886,25 +886,28 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitForeignDataStatement(PostgreSqlParser.ForeignDataStatementContext ctx) {
-        String normalized = ctx.getStart().getInputStream()
-                .getText(org.antlr.v4.runtime.misc.Interval.of(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex()))
-                .trim()
-                .toLowerCase(Locale.ROOT);
-        if (normalized.startsWith("create foreign table") || normalized.startsWith("alter foreign table")) {
-            result.setStatementType(normalized.startsWith("create") ? StatementType.CREATE_TABLE : StatementType.ALTER_TABLE);
-            outputTables.add(tableRef(ctx.multipartIdentifier()));
-            result.setOutputTables(new ArrayList<>(outputTables));
-            return null;
-        }
-        if (normalized.startsWith("drop foreign table")) {
-            result.setStatementType(StatementType.DROP_TABLE);
-            for (PostgreSqlParser.MultipartIdentifierContext table : ctx.multipartIdentifierList().multipartIdentifier()) {
-                outputTables.add(tableRef(table));
+        if (ctx.TABLE() != null) {
+            if (ctx.DROP() != null) {
+                result.setStatementType(StatementType.DROP_TABLE);
+                for (PostgreSqlParser.MultipartIdentifierContext table : ctx.multipartIdentifierList().multipartIdentifier()) {
+                    outputTables.add(tableRef(table));
+                }
+            } else {
+                result.setStatementType(ctx.CREATE() != null ? StatementType.CREATE_TABLE : StatementType.ALTER_TABLE);
+                outputTables.add(tableRef(ctx.multipartIdentifier()));
             }
             result.setOutputTables(new ArrayList<>(outputTables));
             return null;
         }
         result.setStatementType(StatementType.CONTROL);
+        PostgreSqlParser.ImportForeignSchemaFilterContext filter = ctx.importForeignSchemaFilter();
+        if (filter != null && filter.LIMIT() != null) {
+            String schema = cleanIdentifier(ctx.importTargetSchema);
+            for (PostgreSqlParser.IdentifierContext table : filter.identifierList().identifier()) {
+                outputTables.add(new TableRef(null, schema, cleanIdentifier(table)));
+            }
+            result.setOutputTables(new ArrayList<>(outputTables));
+        }
         return null;
     }
 

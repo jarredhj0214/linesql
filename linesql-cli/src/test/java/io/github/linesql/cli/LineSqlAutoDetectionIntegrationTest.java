@@ -737,6 +737,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresForeignDataStatementsAcrossWhitespace() {
+        LineageResult created = LineSql.parse("CREATE /* fdw */ FOREIGN\nTABLE ext.orders (id bigint) SERVER remote");
+        assertEquals(SqlDialect.POSTGRESQL, created.getDialect());
+        assertEquals(StatementType.CREATE_TABLE, created.getStatementType());
+        assertEquals("orders", created.getOutputTables().get(0).getName());
+        LineageResult imported = LineSql.parse("IMPORT FOREIGN SCHEMA sales LIMIT TO (orders, \"order.items\") "
+                + "FROM SERVER remote INTO ext");
+        assertEquals(SqlDialect.POSTGRESQL, imported.getDialect());
+        assertEquals(StatementType.CONTROL, imported.getStatementType());
+        assertEquals(2, imported.getOutputTables().size());
+        assertEquals("ext", imported.getOutputTables().get(1).getSchema());
+        assertEquals("order.items", imported.getOutputTables().get(1).getName());
+        assertDialect(SqlDialect.POSTGRESQL, "CREATE USER MAPPING FOR CURRENT_USER SERVER remote");
+        assertDialect(SqlDialect.SPARK, "SELECT 'IMPORT FOREIGN SCHEMA sales' AS message");
+    }
+
+    @Test
     public void detectsPostgresExtensionLifecycle() {
         List<LineageResult> results = LineSql.parseScript(
                 "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA tools VERSION '1.6' CASCADE; "
