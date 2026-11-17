@@ -130,6 +130,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|" + POSTGRES_RELATION + "(?:\\s+(?:as\\s+)?" + POSTGRES_NAME + ")?"
                     + "(?=\\s+(?:using|where|set|returning)\\b|\\s*(?:[;)]|$)))"
                     + "|" + POSTGRES_RELATION + "\\s*\\*(?=\\s|;|$))");
+    private static final Pattern POSTGRES_TABLE_INHERITANCE = Pattern.compile(
+            "^\\s*table\\s+(?:only(?:\\s*\\(\\s*" + POSTGRES_RELATION + "\\s*\\)|\\s+" + POSTGRES_RELATION + ")"
+                    + "|" + POSTGRES_RELATION + "\\s*\\*)(?=\\s|;|$)");
+    private static final Pattern POSTGRES_ROW_LOCKING = Pattern.compile(
+            "\\bfor\\s+(?:no\\s+key\\s+update|key\\s+share)\\b");
     private static final Pattern POSTGRES_ALIASED_DELETE_USING = Pattern.compile(
             "\\bdelete\\s+from\\s+" + POSTGRES_RELATION + "\\s+as\\s+" + POSTGRES_NAME + "\\s+using\\b");
     private static final Pattern POSTGRES_DATA_MODIFYING_CTE = Pattern.compile(
@@ -477,6 +482,11 @@ public class SimpleDialectDetector implements DialectDetector {
                 && POSTGRES_DML_TARGET.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL inherited DML target"));
+        } else if (POSTGRES_ROW_LOCKING.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL query row-lock strength"));
+        } else if (unquotedSyntax.contains("table") && POSTGRES_TABLE_INHERITANCE.matcher(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL TABLE inheritance syntax"));
         } else if (unquotedSyntax.contains("join") && unquotedSyntax.contains("using")
                 && POSTGRES_JOIN_USING_ALIAS.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {

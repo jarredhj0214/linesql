@@ -939,6 +939,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresRowLockStrengthsAndTableInheritance() {
+        LineageResult locks = LineSql.parse("SELECT q.id, p.owner FROM queue.pending q "
+                + "JOIN queue.partitions p ON q.partition_id = p.id WHERE q.ready "
+                + "FOR NO KEY UPDATE OF q SKIP LOCKED FOR KEY SHARE OF p NOWAIT");
+        assertEquals(SqlDialect.POSTGRESQL, locks.getDialect());
+        assertEquals(StatementType.SELECT, locks.getStatementType());
+        assertTrue(locks.getDiagnostics().isEmpty());
+        assertEquals(2, locks.getInputTables().size());
+        assertEquals("ready", locks.getColumnUsages().get(2).getColumn().getName());
+
+        LineageResult table = LineSql.parse("TABLE \"history.store\".\"current.orders\" *");
+        assertEquals(SqlDialect.POSTGRESQL, table.getDialect());
+        assertEquals(StatementType.SELECT, table.getStatementType());
+        assertTrue(table.getDiagnostics().isEmpty());
+        assertEquals(new TableRef(null, "history.store", "current.orders"), table.getInputTables().get(0));
+        assertDialect(SqlDialect.POSTGRESQL, "TABLE ONLY queue.pending");
+        assertDialect(SqlDialect.SPARK, "SELECT 'FOR KEY SHARE OF q' AS note");
+    }
+
+    @Test
     public void detectsPostgresTableLikeTemplatesAndLocalColumns() {
         LineageResult create = LineSql.parse("CREATE TABLE mart.snapshot (LIKE \"template.set\".events INCLUDING ALL, "
                 + "LIKE templates.audit EXCLUDING DEFAULTS, revision int GENERATED ALWAYS AS (version + 1) STORED)");

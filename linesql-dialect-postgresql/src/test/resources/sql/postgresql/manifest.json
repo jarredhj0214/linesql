@@ -1559,6 +1559,25 @@
       "description": "PostgreSQL SELECT FOR UPDATE OF table SKIP LOCKED keeps query lineage and clause usage"
     },
     {
+      "id": "select_for_multiple_row_lock_strengths",
+      "file": "cases/select_for_multiple_row_lock_strengths.sql",
+      "statementType": "SELECT",
+      "inputTables": ["queue.pending", "queue.partitions"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "pending_id", "sources": ["queue.pending.id"]},
+        {"target": "partition_owner", "sources": ["queue.partitions.owner"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "queue.pending.partition_id"},
+        {"type": "JOIN_ON", "column": "queue.partitions.id"},
+        {"type": "WHERE", "column": "queue.pending.state"},
+        {"type": "ORDER_BY", "column": "queue.pending.priority"},
+        {"type": "ORDER_BY", "column": "queue.pending.id"}
+      ],
+      "description": "Native PostgreSQL row-lock strengths preserve both relation aliases and query dependencies"
+    },
+    {
       "id": "select_for_no_key_update_nowait",
       "file": "cases/select_for_no_key_update_nowait.sql",
       "statementType": "SELECT",
