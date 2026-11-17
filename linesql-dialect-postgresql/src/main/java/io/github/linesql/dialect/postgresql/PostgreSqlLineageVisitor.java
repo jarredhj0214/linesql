@@ -2460,28 +2460,39 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             String qualifier = cleanIdentifier(parts.get(parts.size() - 1)).toLowerCase(Locale.ROOT);
             String relation = derivedAliases.get(qualifier);
             return knownColumnRelations.contains(relation)
-                    ? addKnownRelationProjections(relation, qualifier, item.getText(), ordinal)
+                    ? addKnownRelationProjections(relation, qualifier, item.getText(), ordinal, Collections.emptySet())
                     : 0;
         }
-        if (!relationJoinKeys.isEmpty() || visibleRelations.stream()
-                .anyMatch(relation -> !knownColumnRelations.contains(relation.derivedName))) {
+        if (visibleRelations.stream().anyMatch(relation -> !knownColumnRelations.contains(relation.derivedName))) {
+            return 0;
+        }
+        Set<String> mergedKeys = unqualifiedJoinKeys.keySet();
+        if (!relationJoinKeys.isEmpty()
+                && (visibleRelations.size() != 2 || relationJoinKeys.size() != 1 || mergedKeys.isEmpty())) {
             return 0;
         }
         int width = 0;
+        for (String key : mergedKeys) {
+            projections.add(new Projection(Collections.singletonList(new SourceColumn(null, key)),
+                    key, item.getText(), ordinal + width++));
+        }
         for (VisibleRelation relation : visibleRelations) {
             width += addKnownRelationProjections(relation.derivedName, relation.derivedName, item.getText(),
-                    ordinal + width);
+                    ordinal + width, mergedKeys);
         }
         return width;
     }
 
-    private int addKnownRelationProjections(String relation, String qualifier, String expression, int ordinal) {
-        Set<String> columns = derivedColumnLineage.get(relation).keySet();
-        for (String column : columns) {
-            projections.add(new Projection(Collections.singletonList(new SourceColumn(qualifier, column)),
-                    column, expression, ordinal++));
+    private int addKnownRelationProjections(String relation, String qualifier, String expression, int ordinal,
+                                            Set<String> excludedColumns) {
+        int index = ordinal;
+        for (String column : derivedColumnLineage.get(relation).keySet()) {
+            if (!excludedColumns.contains(column)) {
+                projections.add(new Projection(Collections.singletonList(new SourceColumn(qualifier, column)),
+                        column, expression, index++));
+            }
         }
-        return columns.size();
+        return index - ordinal;
     }
 
     @Override

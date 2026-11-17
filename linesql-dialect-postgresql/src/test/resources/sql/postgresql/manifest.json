@@ -8061,6 +8061,167 @@
       ],
       "columnUsages": [],
       "description": "A star over two known relations maps to INSERT destinations in source order"
+    },
+    {
+      "id": "select_star_using_join_key_order",
+      "file": "cases/select_star_using_join_key_order.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.users",
+        "archive.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "state_id",
+          "sources": [
+            "live.users.state_id",
+            "archive.users.state_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "live.users.user_id",
+            "archive.users.user_id"
+          ]
+        },
+        {
+          "target": "active_at",
+          "sources": [
+            "live.users.active_at"
+          ]
+        },
+        {
+          "target": "closed_at",
+          "sources": [
+            "archive.users.closed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.users.state_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.users.state_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "live.users.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.users.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "live.users.state_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "archive.users.state_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "archive.users.closed_at"
+        }
+      ],
+      "description": "USING order precedes the remaining columns and full-join keys carry both sources"
+    },
+    {
+      "id": "insert_star_right_join_using",
+      "file": "cases/insert_star_right_join_using.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "live.users",
+        "archive.users"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.customer",
+          "sources": [
+            "archive.users.user_id"
+          ]
+        },
+        {
+          "target": "audit.summary.region",
+          "sources": [
+            "live.users.region"
+          ]
+        },
+        {
+          "target": "audit.summary.last_seen",
+          "sources": [
+            "archive.users.closed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.users.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.users.user_id"
+        }
+      ],
+      "description": "A right join key contributes only the right input to the corresponding INSERT target"
+    },
+    {
+      "id": "select_star_natural_join_known_order",
+      "file": "cases/select_star_natural_join_known_order.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.users",
+        "archive.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "user_id",
+          "sources": [
+            "live.users.user_id"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "live.users.region"
+          ]
+        },
+        {
+          "target": "closed_at",
+          "sources": [
+            "archive.users.closed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.users.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.users.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "live.users.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "archive.users.closed_at"
+        }
+      ],
+      "description": "A natural left join emits shared keys once before the nonkey inputs"
     }
   ]
 }
