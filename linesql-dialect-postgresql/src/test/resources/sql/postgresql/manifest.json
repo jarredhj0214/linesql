@@ -6851,6 +6851,36 @@
         }
       ],
       "description": "An unqualified name in a projection and sort expression resolves across inputs with complete column lists"
+    },
+    {
+      "id": "set_schema_literal",
+      "file": "cases/set_schema_literal.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "PostgreSQL schema search path statement keeps control classification"
+    },
+    {
+      "id": "set_local_search_path",
+      "file": "cases/set_local_search_path.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "PostgreSQL schema search path statement keeps control classification"
+    },
+    {
+      "id": "set_session_search_path_default",
+      "file": "cases/set_session_search_path_default.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "PostgreSQL schema search path statement keeps control classification"
     }
   ]
 }

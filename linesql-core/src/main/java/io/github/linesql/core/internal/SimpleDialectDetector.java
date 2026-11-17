@@ -208,6 +208,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern QUOTED_IDENTIFIER = Pattern.compile(
             BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + "|\\[(?:\\]\\]|[^\\]])*+\\]");
     private static final String SINGLE_QUOTED_STRING = "'(?:''|\\\\.|[^'\\\\])*+'";
+    private static final Pattern POSTGRES_SCHEMA_CONTROL = Pattern.compile(
+            "^\\s*(?:set\\s+(?:(?:session|local)\\s+)?(?:search_path\\s*(?:to\\b|=)"
+                    + "|schema\\s+" + SINGLE_QUOTED_STRING + ")|reset\\s+search_path\\b)");
     private static final Pattern SQL_SERVER_VECTOR_METRIC_OR_QUOTE = Pattern.compile(
             "(\\bvector_distance\\s*\\(\\s*n?'(?:cosine|dot|euclidean)'\\s*,)|"
                     + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
@@ -374,6 +377,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL Unicode normalization predicate"));
         } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL ROWS FROM relation"));
+        } else if (POSTGRES_SCHEMA_CONTROL.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL schema search path control"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.94, "PostgreSQL dollar-quoted DO block"));
         } else if (normalized.matches("(?s).*\\bon\\s+conflict\\b.*")

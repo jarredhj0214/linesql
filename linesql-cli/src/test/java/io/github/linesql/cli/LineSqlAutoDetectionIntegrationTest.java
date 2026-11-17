@@ -348,6 +348,15 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgreSqlSearchPathCommands() {
+        assertDialect(SqlDialect.POSTGRESQL, "SET SCHEMA 'reporting'");
+        assertDialect(SqlDialect.POSTGRESQL, "SET LOCAL search_path TO app, public");
+        assertDialect(SqlDialect.POSTGRESQL, "SET SESSION search_path = DEFAULT");
+        assertDialect(SqlDialect.POSTGRESQL, "RESET search_path");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SET LOCAL search_path TO app' AS note");
+    }
+
+    @Test
     public void detectsCatalogSwitchesFromNativeCommands() {
         assertDialect(SqlDialect.SPARK, "SET CATALOG `lake`");
         assertDialect(SqlDialect.FLINK, "USE CATALOG lake");
