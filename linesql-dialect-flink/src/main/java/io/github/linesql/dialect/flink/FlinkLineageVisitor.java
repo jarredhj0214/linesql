@@ -969,18 +969,29 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableName(FlinkParser.TableNameContext ctx) {
-        TableRef table = tableRef(ctx.multipartIdentifier());
-        if (isCteReference(ctx.multipartIdentifier(), table)) {
-            addDerivedReference(table.getName(), ctx.tableAlias());
-            return null;
+        readNamedRelation(ctx.multipartIdentifier(), ctx.tableAlias());
+        return null;
+    }
+
+    @Override
+    public Void visitTableQuery(FlinkParser.TableQueryContext ctx) {
+        projections.add(wildcardProjection(null, "*", 0));
+        readNamedRelation(ctx.multipartIdentifier(), null);
+        return null;
+    }
+
+    private void readNamedRelation(FlinkParser.MultipartIdentifierContext name, FlinkParser.TableAliasContext alias) {
+        TableRef table = tableRef(name);
+        if (isCteReference(name, table)) {
+            addDerivedReference(table.getName(), alias);
+            return;
         }
         LineageResult relation = registeredRelation(table);
         if (relation != null) {
-            addRegisteredRelationReference(table, ctx.tableAlias(), relation);
-            return null;
+            addRegisteredRelationReference(table, alias, relation);
+            return;
         }
-        addInputTable(table, ctx.tableAlias(), true);
-        return null;
+        addInputTable(table, alias, true);
     }
 
     @Override

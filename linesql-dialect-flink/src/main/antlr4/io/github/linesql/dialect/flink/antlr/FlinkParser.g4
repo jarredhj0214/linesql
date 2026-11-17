@@ -73,6 +73,7 @@ queryTerm
 queryPrimary
     : querySpecification                                             #queryPrimaryDefault
     | VALUES valuesClause (COMMA valuesClause)*                      #valuesQuery
+    | TABLE multipartIdentifier                                      #tableQuery
     | LPAREN query RPAREN                                            #subqueryPrimary
     ;
 

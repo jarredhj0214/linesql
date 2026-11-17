@@ -8382,6 +8382,60 @@
           ]
         }
       ]
+    },
+    {
+      "id": "table_query_physical",
+      "file": "cases/table_query_physical.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "ods.events.*"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        }
+      ],
+      "description": "Flink TABLE queries resolve relations and ordering the same way as SELECT *"
+    },
+    {
+      "id": "table_query_cte",
+      "file": "cases/table_query_cte.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "Flink TABLE queries resolve relations and ordering the same way as SELECT *"
     }
   ]
 }
