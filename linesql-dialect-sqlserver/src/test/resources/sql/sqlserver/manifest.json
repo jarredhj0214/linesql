@@ -247,6 +247,24 @@
       "description": "SQL Server ORDER BY positions follow the SELECT list, including unnamed expressions and preceding constants"
     },
     {
+      "id": "select_order_by_openjson_output_positions",
+      "file": "cases/select_order_by_openjson_output_positions.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.documents"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.documents.payload"]},
+        {"target": "amount", "sources": ["ods.documents.payload"]},
+        {"target": "created_at", "sources": ["ods.documents.created_at"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.documents.payload"},
+        {"type": "ORDER_BY", "column": "ods.documents.payload"},
+        {"type": "ORDER_BY", "column": "ods.documents.created_at"}
+      ],
+      "description": "SQL Server ORDER BY positions resolve within and after an expanded OPENJSON result"
+    },
+    {
       "id": "select_order_by_position_before_unknown_star",
       "file": "cases/select_order_by_position_before_unknown_star.sql",
       "statementType": "SELECT",

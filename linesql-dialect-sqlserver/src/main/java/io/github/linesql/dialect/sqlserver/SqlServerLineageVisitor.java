@@ -1926,17 +1926,41 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (select == null || position <= 0) {
             return;
         }
-        List<SqlServerParser.SelectItemContext> items = select.selectItemList().selectItem();
-        if (position > items.size() || items.subList(0, position).stream()
-                .anyMatch(item -> !(item instanceof SqlServerParser.SelectExpressionContext))) {
-            return;
-        }
-        SqlServerParser.SelectExpressionContext selected =
-                (SqlServerParser.SelectExpressionContext) items.get(position - 1);
-        List<ColumnRef> refs = columnRefs(sourceColumns(selected.expression()));
+        List<ColumnRef> refs = selectPositionSources(select.selectItemList().selectItem(), position);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, refs);
         }
+    }
+
+    private List<ColumnRef> selectPositionSources(List<SqlServerParser.SelectItemContext> items, int position) {
+        for (SqlServerParser.SelectItemContext item : items) {
+            if (item instanceof SqlServerParser.SelectExpressionContext) {
+                if (position == 1) {
+                    SqlServerParser.SelectExpressionContext selected = (SqlServerParser.SelectExpressionContext) item;
+                    return columnRefs(sourceColumns(selected.expression()));
+                }
+                position--;
+                continue;
+            }
+            String qualifier = null;
+            if (item instanceof SqlServerParser.SelectQualifiedStarContext) {
+                List<SqlServerParser.IdentifierContext> identifiers =
+                        ((SqlServerParser.SelectQualifiedStarContext) item).qualifiedName().identifier();
+                if (identifiers.size() != 1) {
+                    return null;
+                }
+                qualifier = cleanIdentifier(identifiers.get(0));
+            }
+            Map<String, List<ColumnRef>> columns = documentWildcardColumns(qualifier);
+            if (columns == null || columns.isEmpty()) {
+                return null;
+            }
+            if (position <= columns.size()) {
+                return new ArrayList<>(columns.values()).get(position - 1);
+            }
+            position -= columns.size();
+        }
+        return null;
     }
 
     private void addSelectSortExpressionUsage(SqlServerParser.ExpressionContext expression) {
@@ -2267,13 +2291,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private int expandDerivedWildcard(Projection projection, TableRef targetTable, List<ColumnLineage> lineage,
                                       int expandedColumns) {
         String qualifier = projection.sourceColumns.get(0).qualifier;
-        String relation = qualifier == null
-                ? visibleRelations.size() == 1 ? visibleRelations.get(0).derivedName : null
-                : derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
-        if (!documentTableRelations.contains(relation)) {
-            return 0;
-        }
-        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation);
+        Map<String, List<ColumnRef>> columns = documentWildcardColumns(qualifier);
         if (columns == null || columns.isEmpty()) {
             return 0;
         }
@@ -2283,6 +2301,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                     targetTable, targetColumn(column.getKey(), position++), column.getValue(), projection.expression));
         }
         return columns.size() - 1;
+    }
+
+    private Map<String, List<ColumnRef>> documentWildcardColumns(String qualifier) {
+        String relation = qualifier == null
+                ? visibleRelations.size() == 1 ? visibleRelations.get(0).derivedName : null
+                : derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
+        return documentTableRelations.contains(relation) ? derivedColumnLineage.get(relation) : null;
     }
 
     private void flushPendingColumnUsages() {
