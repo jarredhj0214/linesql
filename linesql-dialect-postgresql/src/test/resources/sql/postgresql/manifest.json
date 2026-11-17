@@ -3651,6 +3651,35 @@
       "description": "VACUUM options and multiple relations keep the per-table maintenance columns"
     },
     {
+      "id": "analyze_british_spelling_and_options",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ops.archive.daily.events"
+      ],
+      "outputTables": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "ops.archive.daily.events.event.id"
+        }
+      ],
+      "description": "PostgreSQL ANALYSE preserves quoted name components and selected statistics columns",
+      "file": "cases/analyze_british_spelling_and_options.sql",
+      "columnLineage": []
+    },
+    {
+      "id": "cluster_parenthesized_options",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnUsages": [],
+      "description": "PostgreSQL CLUSTER accepts modern options and preserves the physically rewritten table",
+      "file": "cases/cluster_parenthesized_options.sql",
+      "columnLineage": []
+    },
+    {
       "id": "analyze_multiple_relations",
       "file": "cases/analyze_multiple_relations.sql",
       "statementType": "READ_METADATA",

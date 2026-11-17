@@ -278,6 +278,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_PREPARED_STATEMENT = Pattern.compile(
             "^\\s*prepare\\s+(?:[a-z_][\\w$]*|" + DOUBLE_QUOTED_IDENTIFIER + ")"
                     + "(?:\\s*\\([^;]*\\)\\s*|\\s+)as\\s+(?:select|values|table|with|insert|update|delete|merge)\\b");
+    private static final Pattern POSTGRES_MAINTENANCE = Pattern.compile(
+            "^\\s*(?:vacuum\\s*\\(|analyze\\s*(?:\\(|\\s+verbose\\b)|analyse\\b"
+                    + "|reindex\\s*(?:\\(|\\s+(?:index|table|schema|database|system)\\b)"
+                    + "|cluster\\b(?!\\s+by\\b))");
     private static final Pattern POSTGRES_EXPLAIN_OPTIONS = Pattern.compile(
             "^\\s*explain\\s*\\(\\s*(?:(?:analyze|analyse|verbose|costs|settings|generic_plan|buffers"
                     + "|serialize|wal|timing|summary|memory|format)\\b"
@@ -474,6 +478,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL ROWS FROM relation"));
         } else if (POSTGRES_EXPLAIN_CURSOR.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL EXPLAIN cursor"));
+        } else if (POSTGRES_MAINTENANCE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL relation maintenance command"));
         } else if (POSTGRES_EXPLAIN_OPTIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL EXPLAIN plan options"));
         } else if (POSTGRES_PREPARED_STATEMENT.matcher(normalized).find()

@@ -1251,8 +1251,7 @@ reindexStatement
     ;
 
 clusterStatement
-    : CLUSTER VERBOSE
-    | CLUSTER VERBOSE? multipartIdentifier (USING multipartIdentifier)?
+    : CLUSTER (maintenanceOptions | VERBOSE)? (multipartIdentifier (USING multipartIdentifier)?)?
     ;
 
 lockStatement

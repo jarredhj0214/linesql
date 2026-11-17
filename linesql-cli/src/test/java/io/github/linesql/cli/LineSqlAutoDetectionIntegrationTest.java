@@ -904,6 +904,27 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresMaintenanceWithNativeOptions() {
+        LineageResult analyze = LineSql.parse("ANALYSE (SKIP_LOCKED, BUFFER_USAGE_LIMIT '128kB') "
+                + "\"ops.archive\".\"daily.events\" (\"event.id\")");
+        assertEquals(SqlDialect.POSTGRESQL, analyze.getDialect());
+        assertEquals(StatementType.READ_METADATA, analyze.getStatementType());
+        assertTrue(analyze.getDiagnostics().isEmpty());
+        assertEquals(new TableRef(null, "ops.archive", "daily.events"), analyze.getInputTables().get(0));
+        assertEquals("event.id", analyze.getColumnUsages().get(0).getColumn().getName());
+
+        LineageResult cluster = LineSql.parse("CLUSTER (VERBOSE true) mart.orders USING orders_idx");
+        assertEquals(SqlDialect.POSTGRESQL, cluster.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, cluster.getStatementType());
+        assertTrue(cluster.getDiagnostics().isEmpty());
+        assertEquals(new TableRef(null, "mart", "orders"), cluster.getOutputTables().get(0));
+        assertDialect(SqlDialect.POSTGRESQL, "VACUUM (FULL, ANALYZE) mart.orders (id)");
+        assertDialect(SqlDialect.POSTGRESQL, "REINDEX (VERBOSE) TABLE CONCURRENTLY mart.orders");
+        assertDialect(SqlDialect.SPARK, "ANALYZE TABLE mart.orders COMPUTE STATISTICS");
+        assertDialect(SqlDialect.SPARK, "SELECT 'CLUSTER (VERBOSE)' AS sample");
+    }
+
+    @Test
     public void detectsPostgresForeignKeyDeleteColumnsAndValidation() {
         LineageResult create = LineSql.parse("CREATE TABLE mart.links (tenant_id int, parent_id int, "
                 + "FOREIGN KEY (tenant_id, parent_id) REFERENCES core.parent (tenant_id, id) "
