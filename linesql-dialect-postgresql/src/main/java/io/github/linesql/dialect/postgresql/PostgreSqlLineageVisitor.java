@@ -1324,9 +1324,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitAlterTableAddKeyConstraint(PostgreSqlParser.AlterTableAddKeyConstraintContext ctx) {
+        collectTableKey(currentDmlTarget, ctx.tableKeyConstraint());
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableAddForeignKey(PostgreSqlParser.AlterTableAddForeignKeyContext ctx) {
         addIdentifierListUsages(currentDmlTarget, ctx.localColumns, ColumnUsageType.TABLE_MODEL);
-        collectForeignKeyReference(currentDmlTarget, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
+        addPeriodKeyUsage(currentDmlTarget, ctx.localPeriod);
+        collectForeignKeyReference(currentDmlTarget, ctx.refTable, ctx.refColumns,
+                ctx.refPeriod, ctx.foreignKeyOptions());
         return null;
     }
 
@@ -4004,10 +4012,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx == null) {
             return;
         }
-        if (ctx.refTable != null) {
+        if (ctx.refTable != null || ctx.PRIMARY() != null || ctx.UNIQUE() != null) {
             LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL,
                     Collections.singletonList(new ColumnRef(target, columnName)));
-            collectForeignKeyReference(target, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
+        }
+        if (ctx.refTable != null) {
+            collectForeignKeyReference(target, ctx.refTable, ctx.refColumns, null, ctx.foreignKeyOptions());
         }
         if (ctx.generatedExpression != null) {
             generatedColumns.add(generatedColumnLineage(target, columnName, ctx.generatedExpression));
@@ -4027,22 +4037,40 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private void collectTableConstraint(PostgreSqlParser.TableConstraintContext ctx, TableRef target) {
+        if (ctx.tableKeyConstraint() != null) {
+            collectTableKey(target, ctx.tableKeyConstraint());
+        }
         if (ctx.refTable != null) {
             addIdentifierListUsages(target, ctx.localColumns, ColumnUsageType.TABLE_MODEL);
-            collectForeignKeyReference(target, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
+            addPeriodKeyUsage(target, ctx.localPeriod);
+            collectForeignKeyReference(target, ctx.refTable, ctx.refColumns, ctx.refPeriod, ctx.foreignKeyOptions());
         }
         if (ctx.checkExpression != null) {
             addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.checkExpression));
         }
     }
 
+    private void collectTableKey(TableRef table, PostgreSqlParser.TableKeyConstraintContext key) {
+        addIdentifierListUsages(table, key.keyColumns, ColumnUsageType.TABLE_MODEL);
+        addIdentifierListUsages(table, key.includeColumns, ColumnUsageType.TABLE_MODEL);
+    }
+
+    private void addPeriodKeyUsage(TableRef table, PostgreSqlParser.IdentifierContext period) {
+        if (period != null) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL,
+                    Collections.singletonList(new ColumnRef(table, cleanIdentifier(period))));
+        }
+    }
+
     private void collectForeignKeyReference(TableRef localTable,
                                             PostgreSqlParser.MultipartIdentifierContext referencedName,
                                             PostgreSqlParser.IdentifierListContext referencedColumns,
+                                            PostgreSqlParser.IdentifierContext referencedPeriod,
                                             PostgreSqlParser.ForeignKeyOptionsContext options) {
         TableRef referencedTable = tableRef(referencedName);
         inputTables.add(referencedTable);
         addIdentifierListUsages(referencedTable, referencedColumns, ColumnUsageType.TABLE_MODEL);
+        addPeriodKeyUsage(referencedTable, referencedPeriod);
         for (PostgreSqlParser.ReferentialActionContext action : options.referentialAction()) {
             addIdentifierListUsages(localTable, action.identifierList(), ColumnUsageType.TABLE_MODEL);
         }

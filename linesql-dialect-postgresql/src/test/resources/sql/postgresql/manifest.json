@@ -3452,6 +3452,62 @@
       "description": "PostgreSQL foreign-key actions and deferral keep local and referenced columns"
     },
     {
+      "id": "create_table_temporal_key_constraints",
+      "file": "cases/create_table_temporal_key_constraints.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "core.project_history"
+      ],
+      "outputTables": [
+        "mart.project_assignments"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.project_assignments.worker_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.project_assignments.project_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.project_assignments.valid_at"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "core.project_history.project_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "core.project_history.active_at"
+        }
+      ],
+      "description": "Named PostgreSQL constraints preserve their key and included column references"
+    },
+    {
+      "id": "alter_table_unique_nulls_not_distinct",
+      "file": "cases/alter_table_unique_nulls_not_distinct.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.external_ref"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.observed_at"
+        }
+      ],
+      "description": "Named PostgreSQL constraints preserve their key and included column references"
+    },
+    {
       "id": "alter_table_multiple_column_and_constraint_actions",
       "file": "cases/alter_table_multiple_column_and_constraint_actions.sql",
       "statementType": "ALTER_TABLE",
@@ -4016,6 +4072,7 @@
       "inputTables": [],
       "outputTables": ["mart.users"],
       "columnLineage": [],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.users.id"}],
       "description": "PostgreSQL CREATE TABLE schema DDL records the created table"
     },
     {
@@ -6455,6 +6512,7 @@
       "inputTables": [],
       "outputTables": ["mart.users_identity"],
       "columnLineage": [],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "mart.users_identity.id"}],
       "description": "PostgreSQL GENERATED ALWAYS AS IDENTITY column definition is accepted in CREATE TABLE"
     },
     {

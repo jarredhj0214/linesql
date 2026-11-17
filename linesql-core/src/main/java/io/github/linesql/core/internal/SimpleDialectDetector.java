@@ -98,6 +98,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_TABLE_LIKE_OPTIONS = Pattern.compile(
             "^\\s*create\\s+(?:(?:global|local)\\s+)?(?:(?:temp|temporary|unlogged)\\s+)?table\\b"
                     + "[^;]*[(,]\\s*like\\s+" + POSTGRES_RELATION + "\\s+(?:including|excluding)\\b");
+    private static final Pattern POSTGRES_KEY_CONSTRAINT = Pattern.compile(
+            "^\\s*(?:create|alter)\\s+table\\b[^;]*"
+                    + "(?:\\bwithout\\s+overlaps\\b|\\bunique\\s+nulls\\s+not\\s+distinct\\b"
+                    + "|\\bforeign\\s+key\\s*\\([^)]*,\\s*period\\s+[^)]+\\)\\s+references\\b)");
     private static final Pattern POSTGRES_FOREIGN_KEY_OPTIONS = Pattern.compile(
             "^\\s*(?:create|alter)\\s+table\\b[^;]*\\breferences\\b[^;]*"
                     + "(?:\\bon\\s+delete\\s+set\\s+(?:null|default)\\s*\\(|\\bnot\\s+valid\\b)");
@@ -459,6 +463,8 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (unquotedSyntax.contains("like") && POSTGRES_TABLE_LIKE_OPTIONS.matcher(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL parenthesized table LIKE options"));
+        } else if (POSTGRES_KEY_CONSTRAINT.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL temporal or null-distinct key constraint"));
         } else if (POSTGRES_FOREIGN_KEY_OPTIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL foreign-key validation or delete action"));
         } else if (POSTGRES_SCHEMA_DDL.matcher(unquotedSyntax).find()) {
