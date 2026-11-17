@@ -105,6 +105,39 @@
       "description": "Flink set operations retain explicitly selected positions for downstream column mappings"
     },
     {
+      "id": "cte_case_distinct_star_and_table",
+      "file": "cases/cte_case_distinct_star_and_table.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.LiveEvents", "ods.HistoricalEvents"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.LiveEvents.id", "ods.HistoricalEvents.id"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.LiveEvents.id"},
+        {"type": "ORDER_BY", "column": "ods.HistoricalEvents.id"}
+      ],
+      "description": "Flink qualified star and TABLE keep separate case-distinct CTE layouts across a set operation"
+    },
+    {
+      "id": "cte_case_distinct_names",
+      "file": "cases/cte_case_distinct_names.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.ActiveOrders", "ods.OrderHistory"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "active_id", "sources": ["ods.ActiveOrders.id"]},
+        {"target": "history_amount", "sources": ["ods.OrderHistory.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.ActiveOrders.id"},
+        {"type": "JOIN_ON", "column": "ods.OrderHistory.id"},
+        {"type": "WHERE", "column": "ods.ActiveOrders.amount"},
+        {"type": "ORDER_BY", "column": "ods.OrderHistory.amount"}
+      ],
+      "description": "Flink CTEs with case-distinct names bind to separate sources in projections and clauses"
+    },
+    {
       "id": "cte_union_output_positions",
       "file": "cases/cte_union_output_positions.sql",
       "statementType": "SELECT",

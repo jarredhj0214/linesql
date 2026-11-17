@@ -1080,7 +1080,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitCtes(FlinkParser.CtesContext ctx) {
         for (FlinkParser.NamedQueryContext namedQuery : ctx.namedQuery()) {
-            String cteName = cleanIdentifier(namedQuery.name).toLowerCase(Locale.ROOT);
+            String cteName = localBindingKey(cleanIdentifier(namedQuery.name));
             registerDerivedRelation(cteName, namedQuery.query(), cteColumnAliases(namedQuery));
             cteNames.add(cteName);
         }
@@ -1169,11 +1169,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private void readNamedRelation(FlinkParser.MultipartIdentifierContext name, FlinkParser.TableAliasContext alias) {
-        TableRef table = tableRef(name);
-        if (isCteReference(name, table)) {
-            addCteReference(table.getName(), alias);
+        String cte = cteReference(name);
+        if (cte != null) {
+            addCteReference(cte, alias);
             return;
         }
+        TableRef table = tableRef(name);
         LineageResult relation = registeredRelation(table);
         if (relation != null) {
             addRegisteredRelationReference(table, alias, relation);
@@ -1281,8 +1282,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private void addDerivedQueryReference(FlinkParser.QueryContext query, FlinkParser.TableAliasContext aliasCtx) {
         String alias = tableAlias(aliasCtx);
-        String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
-        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), query, tableAliasColumnAliases(aliasCtx));
+        String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : localBindingKey(alias);
+        registerDerivedRelation(relationName, query, tableAliasColumnAliases(aliasCtx));
         addDerivedReference(relationName, aliasCtx);
     }
 
@@ -1981,6 +1982,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         String binding = alias == null ? name : alias.toLowerCase(Locale.ROOT);
         tableAliases.put(binding, table);
+        if (visibleRelation) {
+            String exact = localBindingKey(alias == null ? table.getName() : alias);
+            tableAliases.put(exact, table);
+            derivedAliases.remove(exact);
+        }
         if (visibleRelation && alias == null) {
             for (String qualified : qualifiedTableBindings(table)) {
                 tableAliases.put(qualified, table);
@@ -1994,8 +2000,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         refreshColumnLineage();
     }
 
-    private void addCteReference(String name, FlinkParser.TableAliasContext alias) {
-        String relation = name.toLowerCase(Locale.ROOT);
+    private void addCteReference(String relation, FlinkParser.TableAliasContext alias) {
         Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation);
         if (!incompleteDerivedSchemas.contains(relation)) {
             Map<String, List<ColumnRef>> renamed = applyReferenceColumnAliases(columns, alias);
@@ -2023,13 +2028,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private void addDerivedReference(String rawName, FlinkParser.TableAliasContext aliasCtx) {
         visibleRelationCount++;
-        String derivedName = rawName.toLowerCase(Locale.ROOT);
+        String derivedName = bindingLookupKey(rawName);
         visibleRelations.add(VisibleRelation.derived(derivedName));
         derivedReferences.add(derivedName);
         derivedAliases.put(derivedName, derivedName);
         String alias = tableAlias(aliasCtx);
         if (alias != null) {
             derivedAliases.put(alias.toLowerCase(Locale.ROOT), derivedName);
+            derivedAliases.put(localBindingKey(alias), derivedName);
         }
         addDerivedInputTables(derivedName);
         refreshColumnLineage();
@@ -2267,12 +2273,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return false;
         }
         TableRef input = tableRef(table.multipartIdentifier());
-        String inputName = input.getName().toLowerCase(Locale.ROOT);
-        boolean cte = isCteReference(table.multipartIdentifier(), input);
-        LineageResult relation = cte ? null : registeredRelation(input);
+        String cte = cteReference(table.multipartIdentifier());
+        LineageResult relation = cte == null ? registeredRelation(input) : null;
         Map<String, List<ColumnRef>> inputColumns;
-        if (cte) {
-            inputColumns = incompleteDerivedSchemas.contains(inputName) ? null : derivedColumnLineage.get(inputName);
+        if (cte != null) {
+            inputColumns = incompleteDerivedSchemas.contains(cte) ? null : derivedColumnLineage.get(cte);
         } else {
             inputColumns = tableColumnNames(relation) == null ? null : temporaryRelationColumns(relation);
         }
@@ -2286,8 +2291,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (outputs == null) {
             return false;
         }
-        if (cte) {
-            addDerivedInputTables(inputName);
+        if (cte != null) {
+            addDerivedInputTables(cte);
         } else {
             for (TableRef source : relation.getInputTables()) {
                 addInputTable(source, false);
@@ -2350,12 +2355,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return false;
         }
         TableRef input = tableRef(table.multipartIdentifier());
-        String inputName = input.getName().toLowerCase(Locale.ROOT);
-        LineageResult relation = registeredRelation(input);
+        String cte = cteReference(table.multipartIdentifier());
+        LineageResult relation = cte == null ? registeredRelation(input) : null;
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        if (isCteReference(table.multipartIdentifier(), input)) {
-            columns.putAll(derivedColumnLineage.getOrDefault(inputName, Collections.emptyMap()));
-            addDerivedInputTables(inputName);
+        if (cte != null) {
+            columns.putAll(derivedColumnLineage.getOrDefault(cte, Collections.emptyMap()));
+            addDerivedInputTables(cte);
         } else if (relation != null) {
             columns.putAll(temporaryRelationColumns(relation));
             for (TableRef tableRef : relation.getInputTables()) {
@@ -2582,7 +2587,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         String derivedName = null;
         if (wildcard.qualifier != null) {
-            derivedName = derivedAliases.get(wildcard.qualifier.toLowerCase(Locale.ROOT));
+            derivedName = derivedAliases.get(bindingLookupKey(wildcard.qualifier));
         } else if (visibleRelations.size() == 1) {
             derivedName = visibleRelations.get(0).derivedName;
         } else if (canCombineWildcardInputs()) {
@@ -2789,7 +2794,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             TableRef table = defaultTable;
             if (sourceColumn.qualifier != null) {
-                table = tableAliases.get(sourceColumn.qualifier.toLowerCase(Locale.ROOT));
+                table = tableAliases.get(bindingLookupKey(sourceColumn.qualifier));
                 if (table == null && defaultTable != null) {
                     refs.add(new ColumnRef(defaultTable, sourceColumn.qualifier + "." + sourceColumn.name));
                     continue;
@@ -2808,7 +2813,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private List<ColumnRef> wildcardColumnRefs(String qualifier) {
         List<ColumnRef> refs = new ArrayList<>();
         if (qualifier != null) {
-            String key = qualifier.toLowerCase(Locale.ROOT);
+            String key = bindingLookupKey(qualifier);
             String derivedName = derivedAliases.get(key);
             if (derivedName != null) {
                 addDerivedWildcardRefs(refs, derivedName);
@@ -2876,7 +2881,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private List<ColumnRef> derivedColumnRefs(SourceColumn sourceColumn) {
         String derivedName = null;
         if (sourceColumn.qualifier != null) {
-            derivedName = derivedAliases.get(sourceColumn.qualifier.toLowerCase(Locale.ROOT));
+            derivedName = derivedAliases.get(bindingLookupKey(sourceColumn.qualifier));
         } else if (visibleRelationCount == 1 && derivedReferences.size() == 1) {
             derivedName = derivedReferences.iterator().next();
         } else {
@@ -3232,6 +3237,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         String alias = tableAlias(aliasCtx);
         String visibleName = alias == null ? table.getName() : alias;
         derivedAliases.put(visibleName.toLowerCase(Locale.ROOT), relationName);
+        derivedAliases.put(localBindingKey(visibleName), relationName);
         if (alias == null) {
             for (String qualified : qualifiedTableBindings(table)) {
                 derivedAliases.put(qualified, relationName);
@@ -3273,8 +3279,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return copy;
     }
 
-    private boolean isCteReference(FlinkParser.MultipartIdentifierContext name, TableRef table) {
-        return name.identifier().size() == 1 && cteNames.contains(table.getName().toLowerCase(Locale.ROOT));
+    private String cteReference(FlinkParser.MultipartIdentifierContext name) {
+        if (name.identifier().size() != 1) {
+            return null;
+        }
+        String key = localBindingKey(cleanIdentifier(name.identifier(0)));
+        return cteNames.contains(key) ? key : null;
     }
 
     private List<ColumnLineage> readAssignments(FlinkParser.AssignmentListContext ctx, TableRef defaultTarget) {
@@ -3355,7 +3365,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             TableRef table = null;
             if (col.qualifier != null) {
-                table = tableAliases.get(col.qualifier.toLowerCase(Locale.ROOT));
+                table = tableAliases.get(bindingLookupKey(col.qualifier));
             } else if (currentDmlTarget != null) {
                 table = currentDmlTarget;
             } else if (inputTables.size() == 1) {
@@ -3600,7 +3610,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 parts.add(cleanIdentifier(id));
             }
             String qualifier = String.join(".", parts);
-            String qualified = parts.size() < 2 ? null : qualifiedBindingKey(parts);
+            String qualified = parts.size() == 1 ? localBindingKey(parts.get(0)) : qualifiedBindingKey(parts);
             return new Projection(Collections.singletonList(new SourceColumn(qualifier, "*", qualified)),
                     "*", star.getText(), true, ordinal);
         }
@@ -3730,7 +3740,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             if (parts.size() >= 2) {
                 String qualifier = parts.get(parts.size() - 2);
                 String name = parts.get(parts.size() - 1);
-                String qualified = parts.size() < 3 ? null
+                String qualified = parts.size() == 2 ? localBindingKey(qualifier)
                         : qualifiedBindingKey(parts.subList(0, parts.size() - 1));
                 columns.add(new SourceColumn(qualifier, name, qualified));
             } else if (parts.size() == 1) {
@@ -3876,6 +3886,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             bindings.add(qualifiedBindingKey(parts));
         }
         return bindings;
+    }
+
+    private static String localBindingKey(String name) {
+        return "\0" + name;
+    }
+
+    private static String bindingLookupKey(String qualifier) {
+        return qualifier.startsWith("\0") ? qualifier : qualifier.toLowerCase(Locale.ROOT);
     }
 
     private static String qualifiedBindingKey(List<String> parts) {
