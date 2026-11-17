@@ -1325,8 +1325,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     public Void visitAlterTableAddForeignKey(PostgreSqlParser.AlterTableAddForeignKeyContext ctx) {
         TableRef table = tableRef(ctx.target);
         outputTables.add(table);
-        inputTables.add(tableRef(ctx.refTable));
         addIdentifierListUsages(table, ctx.localColumns, ColumnUsageType.TABLE_MODEL);
+        collectForeignKeyReference(table, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -3970,7 +3970,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 }
             }
             if (element.tableConstraint() != null) {
-                collectTableConstraint(element.tableConstraint());
+                collectTableConstraint(element.tableConstraint(), target);
             }
         }
         if (!generatedColumns.isEmpty()) {
@@ -3986,7 +3986,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return;
         }
         if (ctx.refTable != null) {
-            inputTables.add(tableRef(ctx.refTable));
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL,
+                    Collections.singletonList(new ColumnRef(target, columnName)));
+            collectForeignKeyReference(target, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
         }
         if (ctx.generatedExpression != null) {
             generatedColumns.add(generatedColumnLineage(target, columnName, ctx.generatedExpression));
@@ -4005,12 +4007,25 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 sources == null ? Collections.emptyList() : sources, expression.getText());
     }
 
-    private void collectTableConstraint(PostgreSqlParser.TableConstraintContext ctx) {
+    private void collectTableConstraint(PostgreSqlParser.TableConstraintContext ctx, TableRef target) {
         if (ctx.refTable != null) {
-            inputTables.add(tableRef(ctx.refTable));
+            addIdentifierListUsages(target, ctx.localColumns, ColumnUsageType.TABLE_MODEL);
+            collectForeignKeyReference(target, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
         }
         if (ctx.checkExpression != null) {
             addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.checkExpression));
+        }
+    }
+
+    private void collectForeignKeyReference(TableRef localTable,
+                                            PostgreSqlParser.MultipartIdentifierContext referencedName,
+                                            PostgreSqlParser.IdentifierListContext referencedColumns,
+                                            PostgreSqlParser.ForeignKeyOptionsContext options) {
+        TableRef referencedTable = tableRef(referencedName);
+        inputTables.add(referencedTable);
+        addIdentifierListUsages(referencedTable, referencedColumns, ColumnUsageType.TABLE_MODEL);
+        for (PostgreSqlParser.ReferentialActionContext action : options.referentialAction()) {
+            addIdentifierListUsages(localTable, action.identifierList(), ColumnUsageType.TABLE_MODEL);
         }
     }
 

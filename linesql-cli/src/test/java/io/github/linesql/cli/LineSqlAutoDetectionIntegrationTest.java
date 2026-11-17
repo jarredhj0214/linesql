@@ -904,6 +904,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresForeignKeyDeleteColumnsAndValidation() {
+        LineageResult create = LineSql.parse("CREATE TABLE mart.links (tenant_id int, parent_id int, "
+                + "FOREIGN KEY (tenant_id, parent_id) REFERENCES core.parent (tenant_id, id) "
+                + "ON DELETE SET NULL (parent_id) DEFERRABLE INITIALLY DEFERRED)");
+        assertEquals(SqlDialect.POSTGRESQL, create.getDialect());
+        assertEquals(StatementType.CREATE_TABLE, create.getStatementType());
+        assertTrue(create.getDiagnostics().isEmpty());
+        assertEquals(new TableRef(null, "core", "parent"), create.getInputTables().get(0));
+        assertEquals("id", create.getColumnUsages().get(3).getColumn().getName());
+
+        LineageResult alter = LineSql.parse("ALTER TABLE IF EXISTS ONLY mart.links ADD CONSTRAINT links_fk "
+                + "FOREIGN KEY (parent_id) REFERENCES core.parent (id) NOT VALID");
+        assertEquals(SqlDialect.POSTGRESQL, alter.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, alter.getStatementType());
+        assertTrue(alter.getDiagnostics().isEmpty());
+        assertEquals(new TableRef(null, "core", "parent"), alter.getInputTables().get(0));
+    }
+
+    @Test
     public void detectsPostgresCopyTableAndQueryForms() {
         LineageResult output = LineSql.parse(
                 "COPY \"sales.daily\".\"current.events\" (\"event.id\", payload) TO STDOUT WITH (FORMAT CSV)");

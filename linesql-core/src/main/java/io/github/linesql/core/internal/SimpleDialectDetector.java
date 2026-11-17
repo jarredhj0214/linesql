@@ -95,6 +95,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
+    private static final Pattern POSTGRES_FOREIGN_KEY_OPTIONS = Pattern.compile(
+            "^\\s*(?:create|alter)\\s+table\\b[^;]*\\breferences\\b[^;]*"
+                    + "(?:\\bon\\s+delete\\s+set\\s+(?:null|default)\\s*\\(|\\bnot\\s+valid\\b)");
     private static final Pattern POSTGRES_SCHEMA_DDL = Pattern.compile(
             "^\\s*(?:create|alter|drop)\\s+event\\s+trigger\\b"
                     + "|^\\s*(?:create|alter|drop)\\s+(?:foreign\\s+(?:table|data\\s+wrapper)|user\\s+mapping)\\b"
@@ -428,6 +431,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL SQL-standard routine body"));
         } else if (POSTGRES_DROP_DOMAIN.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.95, "PostgreSQL-compatible DROP DOMAIN"));
+        } else if (POSTGRES_FOREIGN_KEY_OPTIONS.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL foreign-key validation or delete action"));
         } else if (POSTGRES_SCHEMA_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL event trigger, enum, range, or domain DDL"));
         } else if (unquotedSyntax.matches("(?s)^\\s*alter\\s+table\\b[^;]*\\balter\\b[^;]*"

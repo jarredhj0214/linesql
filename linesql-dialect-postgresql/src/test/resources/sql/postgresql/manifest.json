@@ -3198,6 +3198,77 @@
       "description": "PostgreSQL ALTER COLUMN TYPE USING records affected table, model column, and USING expression dependencies"
     },
     {
+      "id": "create_table_foreign_key_actions",
+      "file": "cases/create_table_foreign_key_actions.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "app.users",
+        "sales.orders"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_items.user_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "app.users.id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_items.tenant_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_items.order_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "sales.orders.tenant_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "sales.orders.id"
+        }
+      ],
+      "description": "PostgreSQL foreign-key actions and deferral keep local and referenced columns"
+    },
+    {
+      "id": "alter_table_foreign_key_actions",
+      "file": "cases/alter_table_foreign_key_actions.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [
+        "mart.order_items"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_items.tenant_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.order_items.order_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "sales.orders.tenant_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "sales.orders.id"
+        }
+      ],
+      "description": "PostgreSQL foreign-key actions and deferral keep local and referenced columns"
+    },
+    {
       "id": "alter_table_add_foreign_key",
       "file": "cases/alter_table_add_foreign_key.sql",
       "statementType": "ALTER_TABLE",
@@ -3205,7 +3276,8 @@
       "outputTables": ["mart.order_items"],
       "columnLineage": [],
       "columnUsages": [
-        {"type": "TABLE_MODEL", "column": "mart.order_items.order_id"}
+        {"type": "TABLE_MODEL", "column": "mart.order_items.order_id"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.id"}
       ],
       "description": "PostgreSQL ALTER TABLE ADD FOREIGN KEY records referenced table and local key columns"
     },
@@ -6027,6 +6099,8 @@
       "outputTables": ["mart.order_items"],
       "columnLineage": [],
       "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.order_items.order_id"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.id"},
         {"type": "TABLE_MODEL", "column": "mart.order_items.amount"}
       ],
       "description": "PostgreSQL column-level REFERENCES and CHECK constraints record referenced table and table-model columns"
@@ -6039,6 +6113,8 @@
       "outputTables": ["mart.order_items_fk"],
       "columnLineage": [],
       "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.order_items_fk.order_id"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.id"},
         {"type": "TABLE_MODEL", "column": "mart.order_items_fk.amount"}
       ],
       "description": "PostgreSQL table-level FOREIGN KEY and CHECK constraints record referenced table and table-model columns"
