@@ -7826,6 +7826,75 @@
         }
       ],
       "description": "An input name keeps its physical source when a SELECT output uses the same name"
+    },
+    {
+      "id": "select_order_ordinal_with_known_wildcard",
+      "file": "cases/select_order_ordinal_with_known_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.events.amount"
+          ]
+        },
+        {
+          "target": "batch_id",
+          "sources": []
+        },
+        {
+          "target": "next_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.amount"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        }
+      ],
+      "description": "A wildcard contributes output positions when its source columns are known"
+    },
+    {
+      "id": "select_order_ordinal_with_unknown_wildcard",
+      "file": "cases/select_order_ordinal_with_unknown_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "ods.events.*"
+          ]
+        },
+        {
+          "target": "status_key",
+          "sources": [
+            "ods.events.status"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A wildcard contributes output positions when its source columns are known"
     }
   ]
 }

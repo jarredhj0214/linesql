@@ -1445,11 +1445,32 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             return;
         }
-        List<FlinkParser.SelectItemContext> items = selectItems(term);
-        if (index < items.size() && items.subList(0, index + 1).stream()
-                .allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)) {
-            FlinkParser.SelectExpressionContext item = (FlinkParser.SelectExpressionContext) items.get(index);
-            addInputColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(item.expression()));
+        for (FlinkParser.SelectItemContext item : selectItems(term)) {
+            if (item instanceof FlinkParser.SelectExpressionContext) {
+                if (index-- == 0) {
+                    FlinkParser.SelectExpressionContext selected = (FlinkParser.SelectExpressionContext) item;
+                    addInputColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(selected.expression()));
+                    return;
+                }
+                continue;
+            }
+            Projection wildcard = wildcardProjection(item, -1);
+            if (wildcard == null) {
+                return;
+            }
+            Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(wildcard);
+            if (columns == null || columns.containsKey("*")) {
+                return;
+            }
+            if (index < columns.size()) {
+                for (List<ColumnRef> sources : columns.values()) {
+                    if (index-- == 0) {
+                        LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, sources);
+                        return;
+                    }
+                }
+            }
+            index -= columns.size();
         }
     }
 
@@ -2079,24 +2100,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             TableRef targetTable,
             Projection projection,
             List<ColumnLineage> columnLineage) {
-        if (projection.sourceColumns.size() != 1) {
-            return false;
-        }
-        SourceColumn wildcard = projection.sourceColumns.get(0);
-        if (!"*".equals(wildcard.name)) {
-            return false;
-        }
-        String derivedName = null;
-        if (wildcard.qualifier != null) {
-            derivedName = derivedAliases.get(wildcard.qualifier.toLowerCase(Locale.ROOT));
-        } else if (visibleRelations.size() == 1 && visibleRelations.get(0).derivedName != null) {
-            derivedName = visibleRelations.get(0).derivedName;
-        }
-        if (derivedName == null) {
-            return false;
-        }
-        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
-        if (columns == null || columns.isEmpty() || (columns.size() == 1 && columns.containsKey("*"))) {
+        Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(projection);
+        if (columns == null) {
             return false;
         }
         for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
@@ -2110,6 +2115,30 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                     projection.expression));
         }
         return true;
+    }
+
+    private Map<String, List<ColumnRef>> wildcardProjectionColumns(Projection projection) {
+        if (projection.sourceColumns.size() != 1) {
+            return null;
+        }
+        SourceColumn wildcard = projection.sourceColumns.get(0);
+        if (!"*".equals(wildcard.name)) {
+            return null;
+        }
+        String derivedName = null;
+        if (wildcard.qualifier != null) {
+            derivedName = derivedAliases.get(wildcard.qualifier.toLowerCase(Locale.ROOT));
+        } else if (visibleRelations.size() == 1 && visibleRelations.get(0).derivedName != null) {
+            derivedName = visibleRelations.get(0).derivedName;
+        }
+        if (derivedName == null) {
+            return null;
+        }
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
+        if (columns == null || columns.isEmpty() || (columns.size() == 1 && columns.containsKey("*"))) {
+            return null;
+        }
+        return columns;
     }
 
     private void flushPendingColumnUsages() {
@@ -2651,11 +2680,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 if (projection != null) {
                     projections.add(projection);
                 }
-            } else if (item instanceof FlinkParser.SelectQualifiedStarContext) {
-                FlinkParser.SelectQualifiedStarContext star = (FlinkParser.SelectQualifiedStarContext) item;
-                projections.add(wildcardProjection(qualifiedName(star.qualifiedName()), star.getText(), i));
-            } else if (item instanceof FlinkParser.SelectStarContext) {
-                projections.add(wildcardProjection(null, item.getText(), i));
+            } else {
+                Projection star = wildcardProjection(item, i);
+                if (star != null) {
+                    projections.add(star);
+                }
             }
         }
     }
@@ -2749,6 +2778,17 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 || normalized.startsWith("ARRAY_AGG(")
                 || normalized.startsWith("JSON_OBJECTAGG(")
                 || normalized.startsWith("JSON_ARRAYAGG(");
+    }
+
+    private static Projection wildcardProjection(FlinkParser.SelectItemContext item, int ordinal) {
+        if (item instanceof FlinkParser.SelectQualifiedStarContext) {
+            FlinkParser.SelectQualifiedStarContext star = (FlinkParser.SelectQualifiedStarContext) item;
+            return wildcardProjection(qualifiedName(star.qualifiedName()), star.getText(), ordinal);
+        }
+        if (item instanceof FlinkParser.SelectStarContext) {
+            return wildcardProjection(null, item.getText(), ordinal);
+        }
+        return null;
     }
 
     private static Projection wildcardProjection(String qualifier, String expression, int ordinal) {
