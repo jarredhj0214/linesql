@@ -421,7 +421,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 resultSources.add(new ColumnRef(targetTable, name));
                 continue;
             }
-            String derivedName = qualifier == null ? null : derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
+            String derivedName = qualifier == null ? null : derivedAliases.get(qualifierKey(qualifier));
             List<ColumnRef> sources;
             if (row == ReturningRow.AFTER_WRITE) {
                 sources = Collections.singletonList(new ColumnRef(targetTable, name));
@@ -579,11 +579,13 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private void visitRelationPrimaryForDml(PostgreSqlParser.RelationPrimaryContext primary, boolean output) {
         if (primary instanceof PostgreSqlParser.TableNameContext) {
             PostgreSqlParser.TableNameContext tableName = (PostgreSqlParser.TableNameContext) primary;
-            TableRef table = tableRef(tableName.inheritanceRelation().multipartIdentifier());
-            if (isCteReference(table)) {
-                addCteReference(table.getName(), tableName.tableAlias());
+            PostgreSqlParser.MultipartIdentifierContext name = tableName.inheritanceRelation().multipartIdentifier();
+            String cte = cteReference(name);
+            if (cte != null) {
+                addCteReference(cte, tableName.tableAlias());
                 return;
             }
+            TableRef table = tableRef(name);
             inputTables.add(table);
             if (output) {
                 outputTables.add(table);
@@ -592,8 +594,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             String alias = tableAlias(tableName.tableAlias());
             if (alias != null) {
                 tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+                bindPhysicalQualifier(singleIdentifierKey(tableName.tableAlias().strictIdentifier().getText()), table);
             } else {
-                bindQualifiedTable(tableName.inheritanceRelation().multipartIdentifier(), table);
+                bindQualifiedTable(name, table);
             }
             return;
         }
@@ -1748,7 +1751,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private static String cteName(PostgreSqlParser.NamedQueryContext definition) {
-        return cleanIdentifier(definition.name).toLowerCase(Locale.ROOT);
+        return singleIdentifierKey(definition.name.getText());
     }
 
     private static List<PostgreSqlParser.NamedQueryContext> orderRecursiveCtes(
@@ -1801,12 +1804,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         if (relation != null) {
-            List<String> parts = identifierParts(relation.multipartIdentifier());
-            if (parts.size() == 1) {
-                String name = parts.get(0).toLowerCase(Locale.ROOT);
-                if (!hidden.contains(name)) {
-                    dependencies.add(name);
-                }
+            String name = cteRelationKey(relation.multipartIdentifier());
+            if (name != null && !hidden.contains(name)) {
+                dependencies.add(name);
             }
         }
 
@@ -1930,8 +1930,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         TableRef table = tableRef(name);
         String binding = null;
         if (inheritance.ONLY() == null && inheritance.STAR() == null) {
-            if (isCteReference(table)) {
-                binding = table.getName().toLowerCase(Locale.ROOT);
+            binding = cteReference(name);
+            if (binding != null) {
                 addDerivedReference(binding, null);
             } else {
                 LineageResult view = temporaryView(name);
@@ -1962,11 +1962,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitTableName(PostgreSqlParser.TableNameContext ctx) {
         PostgreSqlParser.MultipartIdentifierContext name = ctx.inheritanceRelation().multipartIdentifier();
-        TableRef table = tableRef(name);
-        if (isCteReference(table)) {
-            addCteReference(table.getName(), ctx.tableAlias());
+        String cte = cteReference(name);
+        if (cte != null) {
+            addCteReference(cte, ctx.tableAlias());
             return null;
         }
+        TableRef table = tableRef(name);
         LineageResult view = temporaryView(name);
         if (view != null) {
             addTemporaryViewReference(name, ctx.tableAlias(), view);
@@ -2573,21 +2574,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private void collectUnresolvedStarSources(PostgreSqlParser.SelectItemContext item) {
         if (item instanceof PostgreSqlParser.SelectQualifiedStarContext) {
             PostgreSqlParser.SelectQualifiedStarContext star = (PostgreSqlParser.SelectQualifiedStarContext) item;
-            List<PostgreSqlParser.IdentifierContext> parts = star.qualifiedName().identifier();
-            if (parts.size() == 1) {
-                String qualifier = cleanIdentifier(parts.get(0));
-                String derived = derivedAliases.get(qualifier.toLowerCase(Locale.ROOT));
-                if (derived != null) {
-                    unresolvedStarSources.addAll(derivedWildcardSources(derived));
-                    return;
-                }
-                addUnresolvedTableStar(tableForQualifier(qualifier));
+            String qualifier = starQualifier(star.qualifiedName());
+            String derived = derivedAliases.get(qualifier);
+            if (derived != null) {
+                unresolvedStarSources.addAll(derivedWildcardSources(derived));
             } else {
-                List<String> path = new ArrayList<>();
-                for (PostgreSqlParser.IdentifierContext part : parts) {
-                    path.add(part.getText());
-                }
-                addUnresolvedTableStar(tableForQualifier(qualifiedTableKey(path)));
+                addUnresolvedTableStar(tableForQualifier(qualifier));
             }
             return;
         }
@@ -2606,11 +2598,20 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
     }
 
+    private String starQualifier(PostgreSqlParser.QualifiedNameContext name) {
+        List<String> parts = new ArrayList<>();
+        for (PostgreSqlParser.IdentifierContext identifier : name.identifier()) {
+            parts.add(identifier.getText());
+        }
+        String exact = qualifiedTableKey(parts);
+        return parts.size() == 1 && !derivedAliases.containsKey(exact) && !tableAliases.containsKey(exact)
+                ? cleanIdentifier(parts.get(0)).toLowerCase(Locale.ROOT) : exact;
+    }
+
     private int addKnownStarProjections(PostgreSqlParser.SelectItemContext item, int ordinal) {
         if (item instanceof PostgreSqlParser.SelectQualifiedStarContext) {
             PostgreSqlParser.SelectQualifiedStarContext star = (PostgreSqlParser.SelectQualifiedStarContext) item;
-            List<PostgreSqlParser.IdentifierContext> parts = star.qualifiedName().identifier();
-            String qualifier = cleanIdentifier(parts.get(parts.size() - 1)).toLowerCase(Locale.ROOT);
+            String qualifier = starQualifier(star.qualifiedName());
             String relation = derivedAliases.get(qualifier);
             return knownColumnRelations.contains(relation)
                     ? addKnownRelationProjections(relation, qualifier, item.getText(), ordinal, Collections.emptySet())
@@ -2899,13 +2900,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (primary instanceof PostgreSqlParser.TableQueryContext) {
             PostgreSqlParser.InheritanceRelationContext relation =
                     ((PostgreSqlParser.TableQueryContext) primary).inheritanceRelation();
-            TableRef table = tableRef(relation.multipartIdentifier());
-            String name = table.getName().toLowerCase(Locale.ROOT);
             if (relation.ONLY() != null || relation.STAR() != null) {
                 return -1;
             }
-            if (isCteReference(table)) {
-                return knownColumnRelations.contains(name) ? derivedColumnLineage.get(name).size() : -1;
+            String cte = cteReference(relation.multipartIdentifier());
+            if (cte != null) {
+                return knownColumnRelations.contains(cte) ? derivedColumnLineage.get(cte).size() : -1;
             }
             LineageResult view = temporaryView(relation.multipartIdentifier());
             return view == null ? -1 : view.getColumnLineage().size();
@@ -3098,8 +3098,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         if (visibleRelation) {
             String binding = alias == null ? baseName : alias.toLowerCase(Locale.ROOT);
-            tableAliases.put(binding, table);
-            derivedAliases.remove(binding);
+            bindPhysicalQualifier(binding, table);
+            if (alias != null) {
+                bindPhysicalQualifier(singleIdentifierKey(aliasCtx.strictIdentifier().getText()), table);
+            }
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
@@ -3111,12 +3113,18 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             parts.add(part.getText());
         }
         int size = parts.size();
-        if (size >= 2) {
-            tableAliases.put(qualifiedTableKey(parts.subList(size - 2, size)), table);
+        for (int count = 1; count <= Math.min(3, size); count++) {
+            bindPhysicalQualifier(qualifiedTableKey(parts.subList(size - count, size)), table);
         }
-        if (size >= 3) {
-            tableAliases.put(qualifiedTableKey(parts.subList(size - 3, size)), table);
-        }
+    }
+
+    private void bindPhysicalQualifier(String key, TableRef table) {
+        tableAliases.put(key, table);
+        derivedAliases.remove(key);
+    }
+
+    private static String singleIdentifierKey(String rawIdentifier) {
+        return qualifiedTableKey(Collections.singletonList(rawIdentifier));
     }
 
     private static String qualifiedTableKey(List<String> parts) {
@@ -3130,14 +3138,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private TableRef tableForQualifier(String qualifier) {
-        return tableAliases.get(qualifier.startsWith("\0") ? qualifier : qualifier.toLowerCase(Locale.ROOT));
+        return tableAliases.get(qualifierKey(qualifier));
     }
 
-    private void addCteReference(String name, PostgreSqlParser.TableAliasContext alias) {
-        String relation = name.toLowerCase(Locale.ROOT);
+    private static String qualifierKey(String qualifier) {
+        return qualifier.startsWith("\0") ? qualifier : qualifier.toLowerCase(Locale.ROOT);
+    }
+
+    private void addCteReference(String relation, PostgreSqlParser.TableAliasContext alias) {
         List<String> columnNames = tableAliasColumnNames(alias);
         if (columnNames.isEmpty() || !knownColumnRelations.contains(relation)) {
-            addDerivedReference(name, alias);
+            addDerivedReference(relation, alias);
             return;
         }
         Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation);
@@ -3158,13 +3169,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private void addDerivedReference(String rawName, PostgreSqlParser.TableAliasContext aliasCtx) {
         visibleRelationCount++;
-        String derivedName = rawName.toLowerCase(Locale.ROOT);
+        String derivedName = qualifierKey(rawName);
         visibleRelations.add(VisibleRelation.derived(derivedName));
         derivedReferences.add(derivedName);
         derivedAliases.put(derivedName, derivedName);
         String alias = tableAlias(aliasCtx);
         if (alias != null) {
             derivedAliases.put(alias.toLowerCase(Locale.ROOT), derivedName);
+            derivedAliases.put(singleIdentifierKey(aliasCtx.strictIdentifier().getText()), derivedName);
         }
         addDerivedInputTables(derivedName);
         refreshColumnLineage();
@@ -3584,19 +3596,24 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private SourceColumn schemaQualifiedColumn(SourceColumn sourceColumn) {
         List<String> path = sourceColumn.path;
-        if (path.size() < 3) {
-            return null;
+        for (int i = Math.min(3, path.size() - 1); i > 0; i--) {
+            String qualifier = qualifiedTableKey(path.subList(0, i));
+            if (tableAliases.containsKey(qualifier) || derivedAliases.containsKey(qualifier)) {
+                List<String> fields = new ArrayList<>();
+                for (int j = i; j < path.size(); j++) {
+                    fields.add(cleanIdentifier(path.get(j)));
+                }
+                return new SourceColumn(qualifier, String.join(".", fields));
+            }
         }
-        String qualifier = qualifiedTableKey(path.subList(0, path.size() - 1));
-        return tableAliases.containsKey(qualifier) || derivedAliases.containsKey(qualifier)
-                ? new SourceColumn(qualifier, cleanIdentifier(path.get(path.size() - 1))) : null;
+        return null;
     }
 
     private List<ColumnRef> derivedColumnRefs(SourceColumn sourceColumn) {
         String derivedName = null;
         if (sourceColumn.qualifier != null) {
             String qualifier = sourceColumn.qualifier;
-            derivedName = derivedAliases.get(qualifier.startsWith("\0") ? qualifier : qualifier.toLowerCase(Locale.ROOT));
+            derivedName = derivedAliases.get(qualifierKey(qualifier));
         } else if (visibleRelationCount == 1 && derivedReferences.size() == 1) {
             derivedName = derivedReferences.iterator().next();
         }
@@ -3617,10 +3634,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return refs == null && EXCLUDED_RELATION.equals(derivedName) ? Collections.emptyList() : refs;
     }
 
-    private boolean isCteReference(TableRef table) {
-        return table.getCatalog() == null
-                && table.getSchema() == null
-                && cteNames.contains(table.getName().toLowerCase(Locale.ROOT));
+    private String cteReference(PostgreSqlParser.MultipartIdentifierContext name) {
+        String key = cteRelationKey(name);
+        return cteNames.contains(key) ? key : null;
+    }
+
+    private static String cteRelationKey(PostgreSqlParser.MultipartIdentifierContext name) {
+        return name.identifier().size() == 1
+                ? singleIdentifierKey(name.identifier(0).getText()) : null;
     }
 
     private List<ColumnLineage> readAssignments(PostgreSqlParser.AssignmentListContext ctx, TableRef defaultTarget,

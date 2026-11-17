@@ -2892,6 +2892,39 @@
       "description": "PostgreSQL WITH before DELETE USING resolves CTE predicates and RETURNING lineage"
     },
     {
+      "id": "cte_case_distinct_star_and_table",
+      "file": "cases/cte_case_distinct_star_and_table.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.live_events", "ods.archived_events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.live_events.id", "ods.archived_events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.live_events.id"},
+        {"type": "ORDER_BY", "column": "ods.archived_events.id"}
+      ],
+      "description": "Qualified star and TABLE shorthand use their own case-sensitive CTE layouts across a set query"
+    },
+    {
+      "id": "cte_case_distinct_quoted_names",
+      "file": "cases/cte_case_distinct_quoted_names.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.active_orders", "ods.historical_orders"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "active_id", "sources": ["ods.active_orders.id"]},
+        {"target": "past_amount", "sources": ["ods.historical_orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.active_orders.id"},
+        {"type": "JOIN_ON", "column": "ods.historical_orders.id"},
+        {"type": "WHERE", "column": "ods.active_orders.amount"},
+        {"type": "ORDER_BY", "column": "ods.historical_orders.amount"}
+      ],
+      "description": "PostgreSQL keeps a quoted CTE separate from an unquoted CTE with the same folded spelling"
+    },
+    {
       "id": "data_modifying_cte_inherited_delete_insert",
       "file": "cases/data_modifying_cte_inherited_delete_insert.sql",
       "statementType": "INSERT",
