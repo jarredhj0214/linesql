@@ -502,6 +502,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         boolean hasOldRow = false;
         boolean hasNewRow = false;
         for (PostgreSqlParser.MergeClauseContext clause : ctx.mergeClause()) {
+            PostgreSqlParser.MergeNotMatchedActionContext notMatched = clause.mergeNotMatchedAction();
+            currentDmlTarget = notMatched == null ? target : null;
             if (clause.mergeCondition() != null) {
                 addColumnUsages(ColumnUsageType.MERGE_WHEN,
                         sourceColumns(clause.mergeCondition().expression()));
@@ -516,7 +518,6 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                     lineages.addAll(readAssignments(matched.assignmentList(), target, false));
                 }
             }
-            PostgreSqlParser.MergeNotMatchedActionContext notMatched = clause.mergeNotMatchedAction();
             if (notMatched != null && notMatched.INSERT() != null) {
                 hasNewRow = true;
                 if (notMatched.expressionList() != null) {
@@ -524,6 +525,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 }
             }
         }
+        currentDmlTarget = target;
         result.setColumnLineage(lineages);
         List<ColumnRef> sourceWildcard = new ArrayList<>();
         if (ctx.returningClause() != null) {
@@ -3703,7 +3705,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (containsSubquery(expression)) {
                 continue;
             }
-            List<ColumnRef> sources = resolveSources(sourceColumns(expression));
+            List<ColumnRef> sources = columnRefs(sourceColumns(expression));
             if (sources == null) {
                 sources = new ArrayList<>();
             }
