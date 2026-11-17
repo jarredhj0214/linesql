@@ -10524,6 +10524,159 @@
           ]
         }
       ]
+    },
+    {
+      "id": "script_create_table_like_known_layout",
+      "file": "cases/script_create_table_like_known_layout.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "mart.copy",
+        "mart.without_generated"
+      ],
+      "outputTables": [
+        "ods.events",
+        "mart.copy",
+        "mart.without_generated"
+      ],
+      "description": "CREATE TABLE LIKE preserves a known inherited column order when no column kind is excluded",
+      "columnLineage": [
+        {
+          "target": "ods.events.event_day",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "mart.copy.event_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "mart.copy.event_time"
+          ]
+        },
+        {
+          "target": "event_day",
+          "sources": [
+            "mart.copy.event_day"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "mart.copy.region"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "mart.without_generated.*"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [
+            {
+              "target": "ods.events.event_day",
+              "sources": [
+                "ods.events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_LIKE",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.copy"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.copy"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "mart.copy.event_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "mart.copy.event_time"
+              ]
+            },
+            {
+              "target": "event_day",
+              "sources": [
+                "mart.copy.event_day"
+              ]
+            },
+            {
+              "target": "region",
+              "sources": [
+                "mart.copy.region"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "mart.copy.event_day"
+            },
+            {
+              "type": "ORDER_BY",
+              "column": "mart.copy.region"
+            }
+          ]
+        },
+        {
+          "statementType": "CREATE_TABLE_LIKE",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.without_generated"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.without_generated"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "*",
+              "sources": [
+                "mart.without_generated.*"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

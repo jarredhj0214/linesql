@@ -310,7 +310,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         addTableModelSemantics(target, ctx.tableElementList(), ctx.distributionClause(), ctx.partitionedByClause());
         if (ctx.likeClause() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_LIKE);
-            inputTables.add(tableRef(ctx.likeClause().source));
+            TableRef source = tableRef(ctx.likeClause().source);
+            inputTables.add(source);
+            registerLikeTableSchema(target, source, ctx);
             result.setInputTables(new ArrayList<>(inputTables));
             result.setOutputTables(new ArrayList<>(outputTables));
             return null;
@@ -2678,6 +2680,34 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
     }
 
+    private void registerLikeTableSchema(TableRef target, TableRef source,
+                                         FlinkParser.CreateTableStatementContext create) {
+        List<String> columns = tableColumnNames(registeredRelation(source));
+        if (columns == null || !likePreservesColumnKinds(create.likeClause())) {
+            return;
+        }
+        if (create.tableElementList() != null) {
+            for (String column : declaredColumnNames(create.tableElementList())) {
+                if (!columns.contains(column)) {
+                    columns.add(column);
+                }
+            }
+        }
+        registerTableSchema(target, columns, !create.TEMPORARY().isEmpty(), create.existsKeyword() != null);
+    }
+
+    private static boolean likePreservesColumnKinds(FlinkParser.LikeClauseContext like) {
+        Map<String, Boolean> excludes = new LinkedHashMap<>();
+        for (FlinkParser.LikeOptionContext option : like.likeOption()) {
+            if (option.identifier() != null) {
+                excludes.put(option.identifier().getText().toUpperCase(Locale.ROOT), option.EXCLUDING() != null);
+            }
+        }
+        boolean excludesAll = excludes.getOrDefault("ALL", false);
+        return !excludes.getOrDefault("GENERATED", excludesAll)
+                && !excludes.getOrDefault("METADATA", excludesAll);
+    }
+
     private void replaceMaterializedTableSchema(TableRef table, List<String> columnNames) {
         if (columnNames.isEmpty()) {
             dropRegisteredRelation(table, false, false);
@@ -2743,7 +2773,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (context == null || registeredRelations(true).containsKey(relationKey(table))) {
             return null;
         }
-        LineageResult schema = registeredRelations(false).get(relationKey(table));
+        return tableColumnNames(registeredRelations(false).get(relationKey(table)));
+    }
+
+    private static List<String> tableColumnNames(LineageResult schema) {
         if (schema == null || schema.getStatementType() != StatementType.CREATE_TABLE
                 || schema.getColumnLineage().isEmpty()) {
             return null;
