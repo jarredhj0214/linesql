@@ -3266,6 +3266,22 @@
       "description": "COPY FROM WHERE reports filtering columns in the incoming row"
     },
     {
+      "id": "copy_to_stdout_quoted_path",
+      "file": "cases/copy_to_stdout_quoted_path.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.daily.current.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event.id", "sources": ["sales.daily.current.events.event.id"]},
+        {"target": "payload", "sources": ["sales.daily.current.events.payload"]}
+      ],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "sales.daily.current.events.event.id"},
+        {"type": "READ_METADATA", "column": "sales.daily.current.events.payload"}
+      ],
+      "description": "COPY TO STDOUT identifies PostgreSQL and keeps quoted relation and column components"
+    },
+    {
       "id": "copy_from_csv",
       "file": "cases/copy_from_csv.sql",
       "statementType": "LOAD_DATA",

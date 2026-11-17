@@ -257,6 +257,14 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern QUOTED_IDENTIFIER = Pattern.compile(
             BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + "|\\[(?:\\]\\]|[^\\]])*+\\]");
     private static final String SINGLE_QUOTED_STRING = "'(?:''|\\\\.|[^'\\\\])*+'";
+    private static final String POSTGRES_COPY_IDENTIFIER = "(?:" + POSTGRES_NAME + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern POSTGRES_COPY_COMMAND = Pattern.compile(
+            "^\\s*copy\\b\\s*(?:\\(\\s*(?:select|with|table|values|insert|update|delete|merge)\\b"
+                    + "|(?!into\\b)" + POSTGRES_COPY_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + POSTGRES_COPY_IDENTIFIER + ")*"
+                    + "(?:\\s*\\(\\s*" + POSTGRES_COPY_IDENTIFIER
+                    + "(?:\\s*,\\s*" + POSTGRES_COPY_IDENTIFIER + ")*\\s*\\))?"
+                    + "\\s+(?:from|to)\\s+(?:(?:program|stdin|stdout)\\b|" + SINGLE_QUOTED_STRING + "))");
     private static final Pattern POSTGRES_SCHEMA_CONTROL = Pattern.compile(
             "^\\s*(?:set\\s+(?:(?:session|local)\\s+)?(?:search_path\\s*(?:to\\b|=)"
                     + "|schema\\s+" + SINGLE_QUOTED_STRING + ")|reset\\s+search_path\\b)");
@@ -426,6 +434,8 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (unquotedSyntax.contains("copy") && SimpleStatementSplitter.containsPostgresCopyFromStdin(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier"))) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL COPY FROM STDIN"));
+        } else if (POSTGRES_COPY_COMMAND.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL COPY table or query"));
         } else if ((unquotedSyntax.contains("delete") || unquotedSyntax.contains("update"))
                 && POSTGRES_DML_TARGET.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {

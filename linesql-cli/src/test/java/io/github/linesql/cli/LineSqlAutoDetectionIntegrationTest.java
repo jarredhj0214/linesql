@@ -823,6 +823,21 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresCopyTableAndQueryForms() {
+        LineageResult output = LineSql.parse(
+                "COPY \"sales.daily\".\"current.events\" (\"event.id\", payload) TO STDOUT WITH (FORMAT CSV)");
+        assertEquals(SqlDialect.POSTGRESQL, output.getDialect());
+        assertEquals(StatementType.SELECT, output.getStatementType());
+        assertEquals("sales.daily", output.getInputTables().get(0).getSchema());
+        assertEquals("current.events", output.getInputTables().get(0).getName());
+        assertEquals("event.id", output.getColumnLineage().get(0).getTarget().getName());
+        assertDialect(SqlDialect.POSTGRESQL, "COPY mart.events (id) FROM '/tmp/events.csv' WITH (FORMAT CSV)");
+        assertDialect(SqlDialect.POSTGRESQL, "COPY (SELECT id FROM ods.events WHERE active) TO STDOUT");
+        assertDialect(SqlDialect.POSTGRESQL, "COPY mart.events TO PROGRAM 'gzip'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'COPY mart.events TO STDOUT' AS message");
+    }
+
+    @Test
     public void detectsPostgresParenthesizedExplainOptions() {
         LineageResult explain = LineSql.parse("EXPLAIN (FORMAT JSON) SELECT id FROM ods.events WHERE active");
         assertEquals(SqlDialect.POSTGRESQL, explain.getDialect());
