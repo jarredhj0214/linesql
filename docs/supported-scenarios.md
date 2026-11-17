@@ -2199,6 +2199,7 @@ Implemented Spark table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
+| Provider-backed temporary views | `CREATE TEMPORARY VIEW ... USING` keeps the local or global view as the source boundary for subsequent column reads. Dropping the local view restores resolution through the active namespace. | `script_provider_temporary_view_scope`, `script_provider_global_temporary_view_scope` |
 | Altered and renamed temporary views | Local and global temporary views keep the new query lineage after `ALTER VIEW ... AS` and `RENAME TO`. An unqualified rename keeps the source namespace. | `script_alter_temporary_view`, `script_alter_global_temporary_view`, `rename_table_preserves_namespace` |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | TABLE query primary source table | `table ods.users`; schema-free wildcard lineage is returned as `ods.users.*` | `table_query` |

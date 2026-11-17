@@ -446,7 +446,27 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitCreateTempViewUsing(SqlBaseParser.CreateTempViewUsingContext ctx) {
         result.setStatementType(StatementType.CREATE_VIEW);
-        addOutput(temporaryViewRef(ctx.tableIdentifier().getText(), ctx.GLOBAL() != null), null);
+        TableRef target = temporaryViewRef(ctx.tableIdentifier().getText(), ctx.GLOBAL() != null);
+        addOutput(target, null);
+        if (context != null) {
+            LineageResult view = copyResult(result);
+            view.setInputTables(Collections.singletonList(target));
+            if (ctx.colTypeList() != null) {
+                List<ColumnLineage> columns = new ArrayList<>();
+                for (SqlBaseParser.ColTypeContext column : ctx.colTypeList().colType()) {
+                    String name = cleanIdentifier(column.colName.getText());
+                    columns.add(LineageModelUtils.columnLineage(target, name,
+                            Collections.singletonList(new ColumnRef(target, name)), name));
+                }
+                view.setColumnLineage(columns);
+            }
+            Map<String, LineageResult> views = context.getTemporaryRelations();
+            if (ctx.REPLACE() != null) {
+                views.put(relationKey(target), view);
+            } else {
+                views.putIfAbsent(relationKey(target), view);
+            }
+        }
         return null;
     }
 

@@ -5530,6 +5530,154 @@
         "raw.orders_archive"
       ],
       "description": "An unqualified Spark rename target keeps the old schema"
+    },
+    {
+      "id": "script_provider_temporary_view_scope",
+      "file": "cases/script_provider_temporary_view_scope.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "incoming",
+        "analytics.incoming"
+      ],
+      "outputTables": [
+        "incoming"
+      ],
+      "columnLineage": [
+        {
+          "target": "stage_id",
+          "sources": [
+            "incoming.id"
+          ]
+        },
+        {
+          "target": "stored_id",
+          "sources": [
+            "analytics.incoming.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [],
+          "outputTables": [
+            "incoming"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "incoming"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "stage_id",
+              "sources": [
+                "incoming.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "incoming.state"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_VIEW",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "analytics.incoming"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "stored_id",
+              "sources": [
+                "analytics.incoming.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ],
+      "description": "Spark resolves a provider-created local temporary view before a physical table in the active database"
+    },
+    {
+      "id": "script_provider_global_temporary_view_scope",
+      "file": "cases/script_provider_global_temporary_view_scope.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "global_temp.incoming"
+      ],
+      "outputTables": [
+        "global_temp.incoming"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "global_temp.incoming.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [],
+          "outputTables": [
+            "global_temp.incoming"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "global_temp.incoming"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "global_temp.incoming.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "global_temp.incoming.state"
+            }
+          ]
+        }
+      ],
+      "description": "Without a declared schema, provider-created global temporary views retain their explicit lineage boundary"
     }
   ]
 }
