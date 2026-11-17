@@ -134,6 +134,17 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|" + POSTGRES_RELATION + "(?:\\s+(?:as\\s+)?" + POSTGRES_NAME + ")?"
                     + "(?=\\s+(?:using|where|set|returning)\\b|\\s*(?:[;)]|$)))"
                     + "|" + POSTGRES_RELATION + "\\s*\\*(?=\\s|;|$))");
+    private static final String TSQL_EXEC_IDENTIFIER = "[\\p{L}_#][\\p{L}\\p{N}_#$]*";
+    private static final String TSQL_EXEC_PATH =
+            TSQL_EXEC_IDENTIFIER + "(?:\\s*\\.\\s*" + TSQL_EXEC_IDENTIFIER + ")*";
+    private static final String TSQL_EXEC_PREFIX = "^\\s*exec(?:ute)?\\s+(?:@[\\w$]+\\s*=\\s*)?";
+    private static final Pattern TSQL_EXEC_ROUTINE = Pattern.compile(
+            TSQL_EXEC_PREFIX + "(?:" + TSQL_EXEC_IDENTIFIER + "\\s*\\.\\s*)*"
+                    + "sp_(?:columns|help(?:text|index|constraint|db|server)?|tables|spaceused|who"
+                    + "|describe_first_result_set)\\b(?!\\s*\\()"
+                    + "|" + TSQL_EXEC_PREFIX + TSQL_EXEC_PATH + "\\s+[^;]*@[\\w$]+\\s*="
+                    + "|^\\s*insert\\s+(?:into\\s+)?" + TSQL_EXEC_PATH
+                    + "(?:\\s*\\([^()]*\\))?\\s+exec(?:ute)?\\b");
     private static final Pattern POSTGRES_TABLE_INHERITANCE = Pattern.compile(
             "^\\s*table\\s+(?:only(?:\\s*\\(\\s*" + POSTGRES_RELATION + "\\s*\\)|\\s+" + POSTGRES_RELATION + ")"
                     + "|" + POSTGRES_RELATION + "\\s*\\*)(?=\\s|;|$)");
@@ -760,6 +771,9 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (JSON_AGGREGATION.matcher(unquotedSyntax).find()
                 && TSQL_JSON_AGGREGATION_CONTEXT.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server TOP or OPENJSON with JSON aggregation"));
+        } else if (unquotedSyntax.contains("exec") && TSQL_EXEC_ROUTINE.matcher(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server procedure execution or INSERT EXEC"));
         } else if (TSQL_FOR_SERIALIZATION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server FOR JSON or FOR XML output"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()

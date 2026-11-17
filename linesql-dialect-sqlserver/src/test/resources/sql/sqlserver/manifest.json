@@ -7077,6 +7077,18 @@
       "description": "SQL Server sp_helptext over a view is treated as object metadata read"
     },
     {
+      "id": "execute_sp_columns_unicode_names",
+      "file": "cases/execute_sp_columns_unicode_names.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["warehouse.ops.schema.order.history"],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {"type": "READ_METADATA", "column": "warehouse.ops.schema.order.history.order'id"}
+      ],
+      "description": "SQL Server sp_columns keeps separate Unicode catalog, schema, table and column arguments"
+    },
+    {
       "id": "execute_sp_columns_named_args",
       "file": "cases/execute_sp_columns_named_args.sql",
       "statementType": "READ_METADATA",

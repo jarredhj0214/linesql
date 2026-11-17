@@ -939,6 +939,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsSqlServerExecuteAndPreservesUnicodeMetadataNames() {
+        LineageResult columns = LineSql.parse("EXEC @rc = sys.sp_columns @table_owner=N'ops.schema', "
+                + "@table_qualifier=N'warehouse', @table_name=N'order.history', @column_name=N'order''id'");
+        assertEquals(SqlDialect.SQLSERVER, columns.getDialect());
+        assertEquals(StatementType.READ_METADATA, columns.getStatementType());
+        assertTrue(columns.getDiagnostics().isEmpty());
+        assertEquals(new TableRef("warehouse", "ops.schema", "order.history"), columns.getInputTables().get(0));
+        assertEquals("order'id", columns.getColumnUsages().get(0).getColumn().getName());
+        assertDialect(SqlDialect.SQLSERVER, "EXEC dbo.refresh_cache @force = 1");
+        assertDialect(SqlDialect.SQLSERVER, "INSERT INTO audit.summary (id) EXEC dbo.fetch_ids");
+        assertDialect(SqlDialect.SPARK, "SELECT 'EXEC sys.sp_columns @table_name=sample' AS note");
+    }
+
+    @Test
     public void detectsPostgresTemporalRowOverlapExpressions() {
         LineageResult result = LineSql.parse("SELECT (a.start_time, a.end_time) OVERLAPS "
                 + "(b.start_time, b.end_time) AS overlaps_window "

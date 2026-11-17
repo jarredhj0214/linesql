@@ -50,11 +50,6 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
     private static final Pattern ROUTINE_MERGE_TARGET_PATTERN = Pattern.compile(
             "(?i)" + ROUTINE_QUOTED_IDENTIFIER + "|\\bMERGE\\s+(?:INTO\\s+)?(" + ROUTINE_IDENTIFIER + ")");
     private static final Set<String> METADATA_EXEC_ROUTINES = new LinkedHashSet<>();
-    private static final Pattern EXEC_STRING_ARGUMENT_PATTERN = Pattern.compile("'([^']+)'");
-    private static final Pattern EXEC_TABLE_NAME_ARGUMENT_PATTERN = Pattern.compile(
-            "(?i)@table_name\\s*=\\s*'([^']+)'");
-    private static final Pattern EXEC_TABLE_OWNER_ARGUMENT_PATTERN = Pattern.compile(
-            "(?i)@table_owner\\s*=\\s*'([^']+)'");
     private static final Pattern DBCC_TABLE_STRING_ARGUMENT_PATTERN = Pattern.compile(
             "(?i)\\bDBCC\\s+(?:CHECKIDENT|SHOW_STATISTICS)\\s*\\(\\s*'([^']+)'");
 
@@ -1112,14 +1107,24 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
 
     @Override
     public Void visitExecuteStmt(SqlServerParser.ExecuteStmtContext ctx) {
-        String text = originalText(ctx);
-        String routine = firstExecuteRoutine(text);
+        SqlServerLineageLexer lexer = new SqlServerLineageLexer(CharStreams.fromString(originalText(ctx)));
+        lexer.removeErrorListeners();
+        List<? extends Token> tokens = lexer.getAllTokens();
+        int routineEnd = executeRoutineEnd(tokens);
+        String routine = routineEnd < 0 ? "" : cleanIdentifier(tokens.get(routineEnd).getText()).toLowerCase(Locale.ROOT);
         if (METADATA_EXEC_ROUTINES.contains(routine)) {
             result.setStatementType(StatementType.READ_METADATA);
-            TableRef metadataObject = metadataExecObject(routine, text);
+            TableRef metadataObject = metadataExecObject(routine, tokens, routineEnd + 1);
             if (metadataObject != null) {
                 inputTables.add(metadataObject);
                 result.setInputTables(new ArrayList<>(inputTables));
+                if ("sp_columns".equals(routine)) {
+                    String column = executeLiteralArgument(tokens, routineEnd + 1, "@column_name", 3);
+                    if (column != null && !column.isEmpty() && !column.contains("%")) {
+                        LineageModelUtils.addColumnUsages(result, ColumnUsageType.READ_METADATA,
+                                Collections.singletonList(new ColumnRef(metadataObject, column)));
+                    }
+                }
             }
             return null;
         }
@@ -2967,62 +2972,67 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return ctx.start.getInputStream().getText(Interval.of(ctx.start.getStartIndex(), ctx.stop.getStopIndex()));
     }
 
-    private static String firstExecuteRoutine(String text) {
-        if (text == null) {
-            return "";
+    private static int executeRoutineEnd(List<? extends Token> tokens) {
+        int index = isNamedExecArgument(tokens, 1) ? 3 : 1;
+        if (index >= tokens.size() || !isExecuteIdentifier(tokens.get(index))) {
+            return -1;
         }
-        String normalized = text.replace("[", "").replace("]", "")
-                .replaceAll("(?i)^\\s*EXEC(?:UTE)?\\s+", "")
-                .trim()
-                .toLowerCase(Locale.ROOT);
-        int whitespace = firstIndexOfWhitespace(normalized);
-        String head = whitespace < 0 ? normalized : normalized.substring(0, whitespace);
-        int paren = head.indexOf('(');
-        if (paren >= 0) {
-            head = head.substring(0, paren);
+        while (index + 2 < tokens.size() && tokens.get(index + 1).getType() == SqlServerLineageLexer.DOT
+                && isExecuteIdentifier(tokens.get(index + 2))) {
+            index += 2;
         }
-        String[] parts = head.split("\\.");
-        return parts.length == 0 ? "" : parts[parts.length - 1].trim();
+        return index;
     }
 
-    private static int firstIndexOfWhitespace(String text) {
-        for (int i = 0; i < text.length(); i++) {
-            if (Character.isWhitespace(text.charAt(i))) {
-                return i;
+    private static boolean isExecuteIdentifier(Token token) {
+        int type = token.getType();
+        return type == SqlServerLineageLexer.IDENTIFIER || type == SqlServerLineageLexer.BACKQUOTED_IDENTIFIER
+                || type == SqlServerLineageLexer.DOUBLE_QUOTED_IDENTIFIER;
+    }
+
+    private static boolean isNamedExecArgument(List<? extends Token> tokens, int index) {
+        return index + 2 < tokens.size() && tokens.get(index).getType() == SqlServerLineageLexer.VARIABLE_IDENTIFIER
+                && tokens.get(index + 1).getType() == SqlServerLineageLexer.EQ;
+    }
+
+    private static String executeLiteralArgument(List<? extends Token> tokens, int start, String parameter, int ordinal) {
+        String positional = null;
+        int position = 0;
+        for (int i = start; i < tokens.size(); i++) {
+            Token token = tokens.get(i);
+            if (isNamedExecArgument(tokens, i)) {
+                if (parameter.equalsIgnoreCase(token.getText())) {
+                    return executeStringLiteral(tokens.get(i + 2));
+                }
+            } else if (position++ == ordinal) {
+                positional = executeStringLiteral(token);
+            }
+            while (i < tokens.size() && tokens.get(i).getType() != SqlServerLineageLexer.COMMA) {
+                i++;
             }
         }
-        return -1;
+        return positional;
     }
 
-    private TableRef metadataExecObject(String routine, String text) {
-        if ("sp_tables".equals(routine)
-                || "sp_helpdb".equals(routine)
-                || "sp_helpserver".equals(routine)
-                || "sp_who".equals(routine)
-                || "sp_describe_first_result_set".equals(routine)) {
+    private static String executeStringLiteral(Token token) {
+        return token.getType() == SqlServerLineageLexer.STRING_LITERAL ? stringLiteralValue(token.getText()) : null;
+    }
+
+    private TableRef metadataExecObject(String routine, List<? extends Token> tokens, int start) {
+        if ("sp_tables".equals(routine) || "sp_helpdb".equals(routine) || "sp_helpserver".equals(routine)
+                || "sp_who".equals(routine) || "sp_describe_first_result_set".equals(routine)) {
             return null;
         }
         if ("sp_columns".equals(routine)) {
-            Matcher tableName = EXEC_TABLE_NAME_ARGUMENT_PATTERN.matcher(text);
-            if (tableName.find()) {
-                Matcher tableOwner = EXEC_TABLE_OWNER_ARGUMENT_PATTERN.matcher(text);
-                String name = tableName.group(1);
-                if (tableOwner.find()) {
-                    return tableRefFromExpressionText(tableOwner.group(1) + "." + name);
-                }
-                return tableRefFromExpressionText(name);
+            String table = executeLiteralArgument(tokens, start, "@table_name", 0);
+            if (table == null || table.isEmpty() || table.contains("%")) {
+                return null;
             }
+            String owner = executeLiteralArgument(tokens, start, "@table_owner", 1);
+            String database = executeLiteralArgument(tokens, start, "@table_qualifier", 2);
+            return qualifyTable(new TableRef(database, owner, table));
         }
-        Matcher firstString = EXEC_STRING_ARGUMENT_PATTERN.matcher(text);
-        if (!firstString.find()) {
-            return null;
-        }
-        String value = firstString.group(1);
-        String normalized = value.trim().toLowerCase(Locale.ROOT);
-        if (normalized.isEmpty() || normalized.startsWith("select ")) {
-            return null;
-        }
-        return tableRefFromExpressionText(value);
+        return tableRefFromExpressionText(executeLiteralArgument(tokens, start, "@objname", 0));
     }
 
     private TableRef dbccMetadataObject(String text) {
