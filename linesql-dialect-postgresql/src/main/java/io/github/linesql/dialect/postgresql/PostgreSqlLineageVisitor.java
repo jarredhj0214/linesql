@@ -559,7 +559,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             PostgreSqlParser.TableNameContext tableName = (PostgreSqlParser.TableNameContext) primary;
             TableRef table = tableRef(tableName.inheritanceRelation().multipartIdentifier());
             if (isCteReference(table)) {
-                addDerivedReference(table.getName(), tableName.tableAlias());
+                addCteReference(table.getName(), tableName.tableAlias());
                 return;
             }
             inputTables.add(table);
@@ -1853,7 +1853,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         PostgreSqlParser.MultipartIdentifierContext name = ctx.inheritanceRelation().multipartIdentifier();
         TableRef table = tableRef(name);
         if (isCteReference(table)) {
-            addDerivedReference(table.getName(), ctx.tableAlias());
+            addCteReference(table.getName(), ctx.tableAlias());
             return null;
         }
         if (tableAlias(ctx.tableAlias()) == null) {
@@ -2897,6 +2897,29 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private TableRef tableForQualifier(String qualifier) {
         return tableAliases.get(qualifier.startsWith("\0") ? qualifier : qualifier.toLowerCase(Locale.ROOT));
+    }
+
+    private void addCteReference(String name, PostgreSqlParser.TableAliasContext alias) {
+        String relation = name.toLowerCase(Locale.ROOT);
+        List<String> columnNames = tableAliasColumnNames(alias);
+        if (columnNames.isEmpty() || !knownColumnRelations.contains(relation)) {
+            addDerivedReference(name, alias);
+            return;
+        }
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation);
+        Map<String, List<ColumnRef>> renamed = new LinkedHashMap<>();
+        int index = 0;
+        for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
+            String columnName = index < columnNames.size() ? columnNames.get(index) : entry.getKey();
+            renamed.put(columnName, entry.getValue());
+            index++;
+        }
+        String aliasRelation = "$cte_alias_" + derivedColumnLineage.size();
+        derivedColumnLineage.put(aliasRelation, renamed);
+        if (renamed.size() == columns.size()) {
+            knownColumnRelations.add(aliasRelation);
+        }
+        addDerivedReference(aliasRelation, alias);
     }
 
     private void addDerivedReference(String rawName, PostgreSqlParser.TableAliasContext aliasCtx) {

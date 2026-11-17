@@ -8222,6 +8222,107 @@
         }
       ],
       "description": "A natural left join emits shared keys once before the nonkey inputs"
+    },
+    {
+      "id": "select_cte_reference_column_aliases",
+      "file": "cases/select_cte_reference_column_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "public.events.id"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "public.events.observed_at"
+          ]
+        },
+        {
+          "target": "other_id",
+          "sources": [
+            "public.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "public.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.id"
+        }
+      ],
+      "description": "Each reference to a CTE gets its own alias list"
+    },
+    {
+      "id": "update_cte_reference_column_aliases",
+      "file": "cases/update_cte_reference_column_aliases.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "public.events",
+        "public.summary"
+      ],
+      "outputTables": [
+        "public.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "public.summary.observed_at",
+          "sources": [
+            "public.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "public.summary.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "public.events.id"
+        }
+      ],
+      "description": "DML assignments and predicates trace through CTE reference alias lists"
+    },
+    {
+      "id": "select_cte_reference_alias_wildcard",
+      "file": "cases/select_cte_reference_alias_wildcard.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "public.events.id"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "public.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.id"
+        }
+      ],
+      "description": "A qualified star uses the partial CTE reference alias list and leaves trailing names intact"
     }
   ]
 }
