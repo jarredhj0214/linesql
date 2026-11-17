@@ -7903,6 +7903,73 @@
         }
       ],
       "description": "The CTE alias list names an unaliased expression and retains all its sources"
+    },
+    {
+      "id": "order_by_ordinal_unnamed_expression",
+      "file": "cases/order_by_ordinal_unnamed_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.time_delta"
+        }
+      ],
+      "description": "ORDER BY resolves the sources of an unaliased select expression"
+    },
+    {
+      "id": "group_by_ordinal_unnamed_expression",
+      "file": "cases/group_by_ordinal_unnamed_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_count",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "public.events.event_time"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "public.events.time_delta"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.time_delta"
+        }
+      ],
+      "description": "GROUP BY and ORDER BY share the same unnamed expression position"
+    },
+    {
+      "id": "order_by_ordinal_after_unknown_star",
+      "file": "cases/order_by_ordinal_after_unknown_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Column positions after an unknown star are not inferred"
     }
   ]
 }

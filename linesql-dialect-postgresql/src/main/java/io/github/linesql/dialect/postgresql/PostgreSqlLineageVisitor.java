@@ -42,6 +42,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private final List<String> insertTargetColumns = new ArrayList<>();
     private final List<VisibleRelation> visibleRelations = new ArrayList<>();
     private final List<PendingColumnUsage> pendingColumnUsages = new ArrayList<>();
+    private final Map<Integer, PostgreSqlParser.ExpressionContext> unnamedSelectExpressions = new LinkedHashMap<>();
     private final Map<PostgreSqlParser.RelationContext, Map<String, List<ColumnRef>>> relationJoinKeys =
             new IdentityHashMap<>();
     private Map<String, List<ColumnRef>> unqualifiedJoinKeys = Collections.emptyMap();
@@ -2427,15 +2428,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         int ordinal = 0;
         for (PostgreSqlParser.SelectItemContext item : ctx.selectItemList().selectItem()) {
             if (item instanceof PostgreSqlParser.SelectExpressionContext) {
-                Projection projection = projection((PostgreSqlParser.SelectExpressionContext) item, ordinal);
+                PostgreSqlParser.SelectExpressionContext select = (PostgreSqlParser.SelectExpressionContext) item;
+                Projection projection = projection(select, ordinal);
                 if (projection == null && ctx == positionalSelect) {
-                    PostgreSqlParser.ExpressionContext expression =
-                            ((PostgreSqlParser.SelectExpressionContext) item).expression();
+                    PostgreSqlParser.ExpressionContext expression = select.expression();
                     projection = new Projection(sourceColumns(expression), defaultSetColumnName(expression),
                             expression.getText(), ordinal);
                 }
                 if (projection != null) {
                     projections.add(projection);
+                } else {
+                    unnamedSelectExpressions.put(ordinal, select.expression());
                 }
                 ordinal++;
             } else {
@@ -2762,6 +2765,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 addInputColumnUsages(type, projection.sourceColumns);
                 return;
             }
+        }
+        PostgreSqlParser.ExpressionContext expression = unnamedSelectExpressions.get(ordinal);
+        if (expression != null) {
+            addInputColumnUsages(type, sourceColumns(expression));
         }
     }
 
