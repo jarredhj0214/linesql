@@ -11144,6 +11144,117 @@
           ]
         }
       ]
+    },
+    {
+      "id": "script_temporal_join_registered_column_layout",
+      "file": "cases/script_temporal_join_registered_column_layout.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.trades",
+        "ods.rates"
+      ],
+      "outputTables": [
+        "ods.rates"
+      ],
+      "columnLineage": [
+        {
+          "target": "rate_symbol",
+          "sources": [
+            "ods.rates.symbol"
+          ]
+        },
+        {
+          "target": "exchange_rate",
+          "sources": [
+            "ods.rates.rate"
+          ]
+        },
+        {
+          "target": "quote_time",
+          "sources": [
+            "ods.rates.event_time"
+          ]
+        },
+        {
+          "target": "trade_id",
+          "sources": [
+            "ods.trades.trade_id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.rates"
+          ],
+          "columnLineage": [],
+          "columnUsages": [
+            {
+              "type": "TABLE_MODEL",
+              "column": "ods.rates.event_time"
+            },
+            {
+              "type": "TABLE_MODEL",
+              "column": "ods.rates.symbol"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.trades",
+            "ods.rates"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "rate_symbol",
+              "sources": [
+                "ods.rates.symbol"
+              ]
+            },
+            {
+              "target": "exchange_rate",
+              "sources": [
+                "ods.rates.rate"
+              ]
+            },
+            {
+              "target": "quote_time",
+              "sources": [
+                "ods.rates.event_time"
+              ]
+            },
+            {
+              "target": "trade_id",
+              "sources": [
+                "ods.trades.trade_id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "JOIN_ON",
+              "column": "ods.trades.event_time"
+            },
+            {
+              "type": "JOIN_ON",
+              "column": "ods.trades.symbol"
+            },
+            {
+              "type": "JOIN_ON",
+              "column": "ods.rates.symbol"
+            },
+            {
+              "type": "ORDER_BY",
+              "column": "ods.rates.rate"
+            }
+          ]
+        }
+      ],
+      "description": "A temporal table keeps its registered physical columns and per-reference aliases"
     }
   ]
 }

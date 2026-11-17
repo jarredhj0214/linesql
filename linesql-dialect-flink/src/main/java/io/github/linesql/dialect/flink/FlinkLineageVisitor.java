@@ -1105,8 +1105,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitTemporalTableName(FlinkParser.TemporalTableNameContext ctx) {
-        TableRef table = tableRef(ctx.multipartIdentifier());
-        addInputTable(table, ctx.tableAlias(), true);
+        readNamedRelation(ctx.multipartIdentifier(), ctx.tableAlias());
         addTemporalColumnUsages(ctx.temporalClause());
         return null;
     }
