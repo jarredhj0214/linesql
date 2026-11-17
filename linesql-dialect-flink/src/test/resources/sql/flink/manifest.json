@@ -10804,6 +10804,118 @@
         }
       ],
       "description": "Shared field names preserve ordinal references even when wildcard output names need disambiguation"
+    },
+    {
+      "id": "select_star_using_join_key_order",
+      "file": "cases/select_star_using_join_key_order.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.users",
+        "archive.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "state_id",
+          "sources": [
+            "live.users.state_id",
+            "archive.users.state_id"
+          ]
+        },
+        {
+          "target": "user_id",
+          "sources": [
+            "live.users.user_id",
+            "archive.users.user_id"
+          ]
+        },
+        {
+          "target": "active_at",
+          "sources": [
+            "live.users.active_at"
+          ]
+        },
+        {
+          "target": "closed_at",
+          "sources": [
+            "archive.users.closed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.users.state_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.users.state_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "live.users.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.users.user_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "live.users.state_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "archive.users.state_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "archive.users.closed_at"
+        }
+      ],
+      "description": "A bare star follows the USING order before emitting remaining columns from both inputs"
+    },
+    {
+      "id": "insert_star_right_join_using",
+      "file": "cases/insert_star_right_join_using.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "live.users",
+        "archive.users"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.customer",
+          "sources": [
+            "archive.users.user_id"
+          ]
+        },
+        {
+          "target": "audit.summary.region",
+          "sources": [
+            "live.users.region"
+          ]
+        },
+        {
+          "target": "audit.summary.last_seen",
+          "sources": [
+            "archive.users.closed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.users.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.users.user_id"
+        }
+      ],
+      "description": "The merged right join key maps to the first INSERT slot and keeps the right source"
     }
   ]
 }

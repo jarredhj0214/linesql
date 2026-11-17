@@ -13,6 +13,7 @@ import io.github.linesql.dialect.flink.antlr.FlinkParser;
 import io.github.linesql.dialect.flink.antlr.FlinkParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -2377,7 +2378,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private boolean canCombineWildcardInputs() {
-        return visibleRelations.size() > 1 && relationJoinKeys.isEmpty() && !hasNonConcatenatingJoin;
+        return visibleRelations.size() > 1 && !hasNonConcatenatingJoin
+                && (relationJoinKeys.isEmpty() || (visibleRelations.size() == 2
+                        && relationJoinKeys.size() == 1 && !usingJoinKeys.isEmpty()));
     }
 
     private Map<String, List<ColumnRef>> concatenatedWildcardColumns() {
@@ -2405,7 +2408,29 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             combined.addAll(columns.entrySet());
         }
-        return combined;
+        return usingJoinKeys.isEmpty() ? combined : mergeUsingWildcardEntries(combined);
+    }
+
+    private List<Map.Entry<String, List<ColumnRef>>> mergeUsingWildcardEntries(
+            List<Map.Entry<String, List<ColumnRef>>> inputs) {
+        Map<String, String> inputNames = new LinkedHashMap<>();
+        List<Map.Entry<String, List<ColumnRef>>> output = new ArrayList<>();
+        for (Map.Entry<String, List<ColumnRef>> column : inputs) {
+            inputNames.putIfAbsent(column.getKey().toLowerCase(Locale.ROOT), column.getKey());
+        }
+        for (Map.Entry<String, List<ColumnRef>> key : usingJoinKeys.entrySet()) {
+            String name = inputNames.get(key.getKey());
+            if (name == null) {
+                return null;
+            }
+            output.add(new AbstractMap.SimpleImmutableEntry<>(name, key.getValue()));
+        }
+        for (Map.Entry<String, List<ColumnRef>> column : inputs) {
+            if (!usingJoinKeys.containsKey(column.getKey().toLowerCase(Locale.ROOT))) {
+                output.add(column);
+            }
+        }
+        return output;
     }
 
     private Map<String, List<ColumnRef>> relationWildcardColumns(String derivedName, boolean complete) {
