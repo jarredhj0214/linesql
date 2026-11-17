@@ -470,6 +470,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkExecuteInsertWithSharedConflictSyntax() {
+        String insert = "INSERT INTO mart.events (event_id) SELECT id FROM ods.events WHERE active"
+                + " ON CONFLICT DO NOTHING";
+        LineageResult result = LineSql.parse("EXECUTE " + insert);
+        assertEquals(SqlDialect.FLINK, result.getDialect());
+        assertEquals(StatementType.INSERT, result.getStatementType());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals("event_id", result.getColumnLineage().get(0).getTarget().getName());
+        assertEquals("id", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.POSTGRESQL, insert);
+        assertDialect(SqlDialect.FLINK, "EXECUTE INSERT OVERWRITE mart.events SELECT id FROM ods.events");
+        assertDialect(SqlDialect.SPARK, "SELECT 'EXECUTE INSERT INTO mart.events' AS note");
+        List<LineageResult> script = LineSql.parseScript("SELECT 1; EXECUTE " + insert + "; " + insert);
+        assertEquals(3, script.size());
+        assertEquals(SqlDialect.FLINK, script.get(1).getDialect());
+        assertEquals(SqlDialect.FLINK, script.get(2).getDialect());
+    }
+
+    @Test
     public void usesFlinkSessionOptionsToResolveSharedConflictSyntax() {
         String insert = "INSERT INTO mart.events SELECT id FROM ods.events ON CONFLICT DO NOTHING";
         List<LineageResult> results = LineSql.parseScript("SELECT 1;"

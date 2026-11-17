@@ -5551,6 +5551,43 @@
       "description": "Flink MATCH_RECOGNIZE alternation and range quantifier pattern lineage"
     },
     {
+      "id": "execute_insert_on_conflict_do_nothing",
+      "file": "cases/execute_insert_on_conflict_do_nothing.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.orders",
+        "dim.products"
+      ],
+      "outputTables": [
+        "dwd.product_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "dwd.product_orders.name",
+          "sources": [
+            "dim.products.name"
+          ]
+        },
+        {
+          "target": "dwd.product_orders.order_id",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "description": "EXECUTE INSERT identifies Flink and preserves sink mappings and join predicate usages",
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.orders.product_name"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "dim.products.name"
+        }
+      ]
+    },
+    {
       "id": "insert_on_conflict_do_nothing",
       "file": "cases/insert_on_conflict_do_nothing.sql",
       "statementType": "INSERT",

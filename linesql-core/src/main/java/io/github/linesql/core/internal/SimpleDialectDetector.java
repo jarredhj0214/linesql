@@ -73,6 +73,8 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*(?:set\\s+" + FLINK_SESSION_KEY_TOKEN + "\\s*="
                     + "|reset\\s+" + FLINK_SESSION_KEY_TOKEN + "(?=\\s*(?:;|$)))");
     private static final Pattern SESSION_OPTION_COMMAND = Pattern.compile("\\b(?:set|reset)\\b");
+    private static final Pattern FLINK_EXECUTE_INSERT = Pattern.compile(
+            "^\\s*execute\\s+insert\\s+(?:into|overwrite)\\b");
     private static final Pattern FLINK_MODULE_OR_SYSTEM_FUNCTION = Pattern.compile(
             "^\\s*(?:(?:load|unload)\\s+module|use\\s+modules|show\\s+(?:full\\s+)?modules"
                     + "|(?:create|alter|drop)\\s+temporary\\s+system\\s+function)\\b");
@@ -514,6 +516,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && SESSION_OPTION_COMMAND.matcher(unquotedSyntax).find()
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_SESSION_OPTION))) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink SQL session option"));
+        } else if (FLINK_EXECUTE_INSERT.matcher(unquotedSyntax).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("execute")
+                        && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_EXECUTE_INSERT))) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink EXECUTE INSERT statement"));
         } else if (FLINK_MODEL_DDL.matcher(unquotedSyntax).find()
                 || FLINK_MODEL_INFERENCE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
