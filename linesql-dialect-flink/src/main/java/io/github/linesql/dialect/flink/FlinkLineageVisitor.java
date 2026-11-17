@@ -1633,7 +1633,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             if (key.matches("[0-9]+")) {
                 addOrdinalOrderByUsage(term, key);
             } else if (setQuery) {
-                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(key));
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(key), true);
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression(), true));
             }
@@ -2446,7 +2446,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return null;
         }
         for (Projection projection : projections) {
-            if (projection.targetColumn.equalsIgnoreCase(sourceColumn.name)) {
+            if (projection.targetColumn.equals(sourceColumn.name)) {
                 return columnRefs(projection.sourceColumns);
             }
         }

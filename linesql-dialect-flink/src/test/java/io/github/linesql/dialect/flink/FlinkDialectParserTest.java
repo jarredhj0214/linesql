@@ -146,6 +146,15 @@ public class FlinkDialectParserTest {
     }
 
     @Test
+    public void sortsByExactFlinkProjectionAlias() {
+        LineageResult result = LineSql.parse("SELECT active_value AS Metric, archived_value AS metric "
+                + "FROM ods.metrics ORDER BY metric", SqlDialect.FLINK);
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals(1, result.getColumnUsages().size());
+        assertEquals("archived_value", result.getColumnUsages().get(0).getColumn().getName());
+    }
+
+    @Test
     public void autoDetectsFlinkConnectorSyntax() throws IOException {
         LineageResult result = LineSql.parse(sqlCase("create_table_connector"));
 

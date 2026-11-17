@@ -148,9 +148,14 @@ public final class LineageModelUtils {
     }
 
     public static void addSetOrderByUsage(LineageResult result, String outputName) {
+        addSetOrderByUsage(result, outputName, false);
+    }
+
+    public static void addSetOrderByUsage(LineageResult result, String outputName, boolean caseSensitive) {
         for (ColumnLineage lineage : result.getColumnLineage()) {
             ColumnRef target = lineage.getTarget();
-            if (target != null && outputName.equalsIgnoreCase(target.getName())) {
+            if (target != null && (caseSensitive ? outputName.equals(target.getName())
+                    : outputName.equalsIgnoreCase(target.getName()))) {
                 addColumnUsages(result, ColumnUsageType.ORDER_BY, lineage.getSources());
             }
         }

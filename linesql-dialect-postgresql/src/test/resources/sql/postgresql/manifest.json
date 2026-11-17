@@ -2,6 +2,22 @@
   "dialect": "POSTGRESQL",
   "cases": [
     {
+      "id": "union_order_by_case_distinct_aliases",
+      "file": "cases/union_order_by_case_distinct_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.live_snapshots", "ods.archived_snapshots"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "Metric", "sources": ["ods.live_snapshots.live_value", "ods.archived_snapshots.current_value"]},
+        {"target": "metric", "sources": ["ods.live_snapshots.archived_value", "ods.archived_snapshots.previous_value"]}
+      ],
+      "columnUsages": [
+        {"type": "ORDER_BY", "column": "ods.live_snapshots.archived_value"},
+        {"type": "ORDER_BY", "column": "ods.archived_snapshots.previous_value"}
+      ],
+      "description": "Set ORDER BY resolves the matching case-sensitive output alias across branches"
+    },
+    {
       "id": "create_table_virtual_generated_columns",
       "file": "cases/create_table_virtual_generated_columns.sql",
       "statementType": "CREATE_TABLE",

@@ -2886,7 +2886,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                     LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, lineages.get(ordinal).getSources());
                 }
             } else if (outputOrder) {
-                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortKey));
+                LineageModelUtils.addSetOrderByUsage(result, normalizedIdentifier(sortKey), true);
             } else if (ordinal >= 0) {
                 addOrdinalColumnUsages(ColumnUsageType.ORDER_BY, ordinal);
             } else if (primaryExpression(expression) instanceof PostgreSqlParser.ColumnReferenceContext) {
