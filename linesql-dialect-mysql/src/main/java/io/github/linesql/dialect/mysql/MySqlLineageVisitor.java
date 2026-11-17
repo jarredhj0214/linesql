@@ -13,6 +13,7 @@ import io.github.linesql.dialect.mysql.antlr.MySqlParserBaseVisitor;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -196,6 +197,8 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         currentDmlTarget = target;
         String targetQualifier = target.getName().toLowerCase(Locale.ROOT);
         TableRef existingAlias = tableAliases.putIfAbsent(targetQualifier, target);
+        String qualifiedTarget = schemaTableKey(target);
+        TableRef existingQualified = qualifiedTarget == null ? null : tableAliases.putIfAbsent(qualifiedTarget, target);
         try {
             List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
             lineages.addAll(readDuplicateKeyAssignments(assignments, target, insertedSourcesByColumn(lineages)));
@@ -205,6 +208,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             currentDmlTarget = previousDmlTarget;
             if (existingAlias == null) {
                 tableAliases.remove(targetQualifier, target);
+            }
+            if (qualifiedTarget != null && existingQualified == null) {
+                tableAliases.remove(qualifiedTarget, target);
             }
         }
     }
@@ -408,7 +414,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             if (parts.size() < 2) {
                 continue;
             }
-            String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
+            String qualifier = qualifierKey(parts.subList(0, parts.size() - 1));
             TableRef resolved = tableAliases.get(qualifier);
             if (resolved != null) {
                 outputTables.add(resolved);
@@ -435,6 +441,8 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         String alias = tableAlias(ctx.tableAlias());
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
+        } else {
+            bindQualifiedTable(target);
         }
         if (ctx.relationList() != null) {
             visit(ctx.relationList());
@@ -486,8 +494,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private void addDeleteTargets(MySqlParser.DeleteTargetListContext ctx) {
         for (MySqlParser.DeleteTargetContext deleteTargetContext : ctx.deleteTarget()) {
             List<String> parts = identifierParts(deleteTargetContext.multipartIdentifier());
-            String deleteAlias = parts.get(parts.size() - 1).toLowerCase(Locale.ROOT);
-            TableRef target = tableAliases.get(deleteAlias);
+            TableRef target = tableAliases.get(qualifierKey(parts));
             if (target != null) {
                 outputTables.add(target);
                 if (currentDmlTarget == null) {
@@ -1814,9 +1821,28 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             String binding = alias == null ? baseName : alias.toLowerCase(Locale.ROOT);
             tableAliases.put(binding, table);
             derivedAliases.remove(binding);
+            if (alias == null) {
+                bindQualifiedTable(table);
+            }
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
+    }
+
+    private void bindQualifiedTable(TableRef table) {
+        String key = schemaTableKey(table);
+        if (key != null) {
+            tableAliases.put(key, table);
+        }
+    }
+
+    private static String schemaTableKey(TableRef table) {
+        return table.getSchema() == null ? null : qualifierKey(Arrays.asList(table.getSchema(), table.getName()));
+    }
+
+    private static String qualifierKey(List<String> parts) {
+        String name = parts.size() == 1 ? parts.get(0) : "\0" + String.join("\0", parts);
+        return name.toLowerCase(Locale.ROOT);
     }
 
     private void addDerivedReference(String rawName, MySqlParser.TableAliasContext aliasCtx) {
@@ -2371,7 +2397,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
             if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
+                String qualifier = qualifierKey(parts.subList(0, parts.size() - 1));
                 TableRef resolved = tableAliases.get(qualifier);
                 if (resolved != null) {
                     table = resolved;
@@ -2409,7 +2435,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
             if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
+                String qualifier = qualifierKey(parts.subList(0, parts.size() - 1));
                 TableRef resolved = tableAliases.get(qualifier);
                 if (resolved != null) {
                     table = resolved;
@@ -2883,7 +2909,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             MySqlParser.DereferenceContext deref = (MySqlParser.DereferenceContext) tree;
             List<String> parts = collectDereferenceParts(deref);
             if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2);
+                String qualifier = qualifierKey(parts.subList(0, parts.size() - 1));
                 String name = parts.get(parts.size() - 1);
                 columns.add(new SourceColumn(qualifier, name));
             } else if (parts.size() == 1) {
@@ -3025,7 +3051,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         for (MySqlParser.IdentifierContext id : ctx.identifier()) {
             parts.add(cleanIdentifier(id));
         }
-        return String.join(".", parts);
+        return qualifierKey(parts);
     }
 
     private static String tableAlias(MySqlParser.TableAliasContext ctx) {

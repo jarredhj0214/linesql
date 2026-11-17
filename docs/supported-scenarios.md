@@ -1784,6 +1784,7 @@ Implemented MySQL table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
+| Same-named MySQL tables in separate schemas | Database qualifiers distinguish projection columns, wildcard sources, predicates and the targets of UPDATE and DELETE. | `select_schema_qualified_same_name`, `select_schema_qualified_same_name_stars`, `update_schema_qualified_same_name`, `delete_schema_qualified_same_name` |
 | Basic SELECT source table | `select ... from app.users` | `select_basic` |
 | TABLE statement source table | `table app.users order by id limit 10` | `table_statement` |
 | HANDLER table access syntax | `handler app.users open`, `handler app.users read idx = (...) where ...`, `handler app.users close` | `handler_open`, `handler_read_index_range`, `handler_close` |

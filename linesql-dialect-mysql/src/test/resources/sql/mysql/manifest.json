@@ -12967,6 +12967,151 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "select_schema_qualified_same_name",
+      "file": "cases/select_schema_qualified_same_name.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.orders",
+        "archive.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "live_id",
+          "sources": [
+            "live.orders.id"
+          ]
+        },
+        {
+          "target": "archive_id",
+          "sources": [
+            "archive.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.orders.customer_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.orders.customer_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "live.orders.enabled"
+        },
+        {
+          "type": "WHERE",
+          "column": "archive.orders.enabled"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "archive.orders.ordered_at"
+        }
+      ],
+      "description": "Schema-qualified projection and predicate sources stay distinct in the same query"
+    },
+    {
+      "id": "select_schema_qualified_same_name_stars",
+      "file": "cases/select_schema_qualified_same_name_stars.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.orders",
+        "archive.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.orders.*"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "archive.orders.*"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.orders.id"
+        }
+      ],
+      "description": "Each schema-qualified star resolves to its own table"
+    },
+    {
+      "id": "update_schema_qualified_same_name",
+      "file": "cases/update_schema_qualified_same_name.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "live.orders",
+        "archive.orders"
+      ],
+      "outputTables": [
+        "live.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "live.orders.total",
+          "sources": [
+            "archive.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "live.orders.active"
+        }
+      ],
+      "description": "UPDATE assignment targets and clause refs use the indicated schemas"
+    },
+    {
+      "id": "delete_schema_qualified_same_name",
+      "file": "cases/delete_schema_qualified_same_name.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "live.orders",
+        "archive.orders"
+      ],
+      "outputTables": [
+        "live.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "archive.orders.retired"
+        }
+      ],
+      "description": "DELETE resolves an explicit target schema separately from the join source"
     }
   ]
 }
