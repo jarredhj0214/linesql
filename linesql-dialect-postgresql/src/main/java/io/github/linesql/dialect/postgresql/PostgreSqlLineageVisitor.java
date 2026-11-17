@@ -353,7 +353,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
             String targetColumn = item.alias == null
                     ? returningTargetColumn(item.expression().getText(), sourceColumns)
-                    : cleanIdentifier(item.alias);
+                    : normalizedIdentifier(item.alias);
             if (targetColumn == null && returningSourcesForCte) {
                 targetColumn = defaultSetColumnName(item.expression());
             }
@@ -409,7 +409,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (qualified != null) {
                 qualifier = qualified.qualifier;
                 name = qualified.name;
-            } else if (column.resolvedRef == null && qualifier == null && dot >= 0) {
+            } else if (column.resolvedRef == null && qualifier == null && column.path.size() != 1 && dot >= 0) {
                 qualifier = name.substring(0, dot);
                 name = name.substring(dot + 1);
             }
@@ -1110,7 +1110,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     public Void visitAlterViewRename(PostgreSqlParser.AlterViewRenameContext ctx) {
         if (context != null) {
             String temporaryName = temporaryViewName(ctx.source);
-            String targetName = sessionIdentifier(ctx.target);
+            String targetName = normalizedIdentifier(ctx.target);
             if (temporaryName != null && temporaryViews().containsKey(temporaryName)
                     && !temporaryViews().containsKey(targetName)) {
                 temporaryViews().put(targetName, temporaryViews().remove(temporaryName));
@@ -2724,7 +2724,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             if (!knownColumnRelations.contains(relation.derivedName)) {
                 return null;
             }
-            List<ColumnRef> refs = derivedColumnLineage.get(relation.derivedName).get(column.name);
+            List<ColumnRef> refs = derivedColumnLineage.get(relation.derivedName).get(columnBindingName(column));
             if (refs != null) {
                 if (matching != null) {
                     return null;
@@ -3037,16 +3037,20 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (identifiers.size() != 1 && !isTemporaryViewSchema(relation)) {
             return null;
         }
-        return sessionIdentifier(identifiers.get(identifiers.size() - 1));
+        return normalizedIdentifier(identifiers.get(identifiers.size() - 1));
     }
 
     private static boolean isTemporaryViewSchema(PostgreSqlParser.MultipartIdentifierContext relation) {
-        return relation.identifier().size() == 2 && "pg_temp".equals(sessionIdentifier(relation.identifier(0)));
+        return relation.identifier().size() == 2 && "pg_temp".equals(normalizedIdentifier(relation.identifier(0)));
     }
 
-    private static String sessionIdentifier(PostgreSqlParser.IdentifierContext identifier) {
-        String raw = identifier.getText();
-        return raw.startsWith("\"") ? cleanIdentifier(raw) : cleanIdentifier(raw).toLowerCase(Locale.ROOT);
+    private static String normalizedIdentifier(PostgreSqlParser.IdentifierContext identifier) {
+        return normalizedIdentifier(identifier.getText());
+    }
+
+    private static String normalizedIdentifier(String raw) {
+        String name = cleanIdentifier(raw);
+        return raw.startsWith("\"") || raw.startsWith("`") ? name : name.toLowerCase(Locale.ROOT);
     }
 
     private String addTemporaryViewReference(PostgreSqlParser.MultipartIdentifierContext name,
@@ -3131,8 +3135,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         StringBuilder key = new StringBuilder();
         for (String part : parts) {
             // NUL separates components because quoted SQL identifiers can contain dots.
-            key.append('\0').append(part.charAt(0) == '"' || part.charAt(0) == '`'
-                    ? cleanIdentifier(part) : part.toLowerCase(Locale.ROOT));
+            key.append('\0').append(normalizedIdentifier(part));
         }
         return key.toString();
     }
@@ -3205,7 +3208,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private static List<String> tableAliasColumnNames(PostgreSqlParser.TableAliasContext ctx) {
         List<String> names = new ArrayList<>();
         if (ctx != null && ctx.identifierList() != null) {
-            names.addAll(identifierNames(ctx.identifierList()));
+            for (PostgreSqlParser.IdentifierContext identifier : ctx.identifierList().identifier()) {
+                names.add(normalizedIdentifier(identifier));
+            }
         }
         return names;
     }
@@ -3372,8 +3377,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (sourceColumn.resolvedRef != null || sourceColumn.qualifier != null) {
             return null;
         }
+        String name = columnBindingName(sourceColumn);
         for (Projection projection : projections) {
-            if (projection.targetColumn.equalsIgnoreCase(sourceColumn.name)) {
+            if (projection.targetColumn.equals(name)) {
                 return columnRefs(projection.sourceColumns);
             }
         }
@@ -3567,10 +3573,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (sourceColumn.resolvedRef != null) {
             return sourceColumn;
         }
-        if (mergeTargetOnly && sourceColumn.qualifier == null && sourceColumn.path.isEmpty()) {
+        if (mergeTargetOnly && sourceColumn.qualifier == null && sourceColumn.path.size() <= 1) {
             return SourceColumn.resolved(new ColumnRef(currentDmlTarget, sourceColumn.name));
         }
-        if (sourceColumn.qualifier != null || !sourceColumn.name.contains(".")) {
+        if (sourceColumn.qualifier != null || sourceColumn.path.size() == 1 || !sourceColumn.name.contains(".")) {
             return sourceColumn;
         }
         SourceColumn qualified = schemaQualifiedColumn(sourceColumn);
@@ -3603,7 +3609,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 for (int j = i; j < path.size(); j++) {
                     fields.add(cleanIdentifier(path.get(j)));
                 }
-                return new SourceColumn(qualifier, String.join(".", fields));
+                return new SourceColumn(null, qualifier, String.join(".", fields), path.subList(i, path.size()));
             }
         }
         return null;
@@ -3624,14 +3630,28 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (columns == null) {
             return null;
         }
-        List<ColumnRef> refs = columns.get(sourceColumn.name);
-        if (refs == null) {
-            int dot = sourceColumn.name.indexOf('.');
+        String name = columnBindingName(sourceColumn);
+        List<ColumnRef> refs = columns.get(name);
+        if (refs == null && sourceColumn.path.size() > 1) {
+            refs = columns.get(normalizedIdentifier(sourceColumn.path.get(0)));
+        } else if (refs == null && sourceColumn.path.isEmpty()) {
+            int dot = name.indexOf('.');
             if (dot > 0) {
-                refs = columns.get(sourceColumn.name.substring(0, dot));
+                refs = columns.get(name.substring(0, dot));
             }
         }
         return refs == null && EXCLUDED_RELATION.equals(derivedName) ? Collections.emptyList() : refs;
+    }
+
+    private static String columnBindingName(SourceColumn column) {
+        if (column.path.size() <= 1) {
+            return column.path.isEmpty() ? column.name : normalizedIdentifier(column.path.get(0));
+        }
+        List<String> fields = new ArrayList<>();
+        for (String raw : column.path) {
+            fields.add(normalizedIdentifier(raw));
+        }
+        return String.join(".", fields);
     }
 
     private String cteReference(PostgreSqlParser.MultipartIdentifierContext name) {
@@ -4279,7 +4299,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (sourceColumns.size() > 1 && ctx.alias == null) {
             return null;
         }
-        String targetColumn = ctx.alias == null ? directColumn : cleanIdentifier(ctx.alias);
+        String targetColumn = ctx.alias == null ? directColumn : normalizedIdentifier(ctx.alias);
         if (targetColumn == null) {
             return null;
         }
@@ -4327,7 +4347,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private static String directColumnName(SourceColumn column) {
         return column.path.isEmpty() ? unqualifiedName(column.name)
-                : cleanIdentifier(column.path.get(column.path.size() - 1));
+                : normalizedIdentifier(column.path.get(column.path.size() - 1));
     }
 
     private static String unqualifiedName(String raw) {
@@ -4383,9 +4403,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private void collectSourceColumns(ParseTree tree, Set<SourceColumn> columns) {
         if (tree instanceof PostgreSqlParser.ColumnReferenceContext) {
             PostgreSqlParser.ColumnReferenceContext colRef = (PostgreSqlParser.ColumnReferenceContext) tree;
-            String column = cleanIdentifier(colRef.identifier());
-            if (!isPostgreSqlGeneratedExpression(column)) {
-                columns.add(new SourceColumn(null, column));
+            String raw = colRef.identifier().getText();
+            if (!isPostgreSqlGeneratedExpression(raw)) {
+                columns.add(SourceColumn.path(Collections.singletonList(raw)));
             }
             return;
         }
@@ -4538,7 +4558,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         List<String> aliases = new ArrayList<>();
         if (ctx.columnAliases != null) {
             for (PostgreSqlParser.IdentifierContext id : ctx.columnAliases.identifier()) {
-                aliases.add(cleanIdentifier(id));
+                aliases.add(normalizedIdentifier(id));
             }
         }
         return aliases;

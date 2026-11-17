@@ -2892,6 +2892,24 @@
       "description": "PostgreSQL WITH before DELETE USING resolves CTE predicates and RETURNING lineage"
     },
     {
+      "id": "cte_case_distinct_column_aliases",
+      "file": "cases/cte_case_distinct_column_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "display", "sources": ["ods.events.id"]},
+        {"target": "Display", "sources": ["ods.events.version_id"]},
+        {"target": "observed_date", "sources": ["ods.events.current_date"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.id"},
+        {"type": "ORDER_BY", "column": "ods.events.id"},
+        {"type": "ORDER_BY", "column": "ods.events.version_id"}
+      ],
+      "description": "Unquoted CTE aliases fold to lowercase and quoted output aliases keep distinct ordering sources"
+    },
+    {
       "id": "cte_case_distinct_star_and_table",
       "file": "cases/cte_case_distinct_star_and_table.sql",
       "statementType": "SELECT",
