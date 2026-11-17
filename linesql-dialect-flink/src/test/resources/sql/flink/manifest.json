@@ -10971,6 +10971,179 @@
         }
       ],
       "description": "Explicit target names map positionally across a known wildcard with duplicate input names"
+    },
+    {
+      "id": "select_cte_reference_distinct_column_aliases",
+      "file": "cases/select_cte_reference_distinct_column_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        },
+        {
+          "target": "change_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.events.id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        }
+      ],
+      "description": "Each reference to a known CTE keeps its own column aliases"
+    },
+    {
+      "id": "select_cte_reference_aliases_and_ordinal_star",
+      "file": "cases/select_cte_reference_aliases_and_ordinal_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "recorded_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.observed_at"
+        }
+      ],
+      "description": "A known CTE star expands using its table reference aliases"
+    },
+    {
+      "id": "script_registered_table_reference_column_aliases",
+      "file": "cases/script_registered_table_reference_column_aliases.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "ods.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "recorded_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "description": "Alias lists on registered tables retain physical source names",
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "ods.events.id"
+              ]
+            },
+            {
+              "target": "recorded_at",
+              "sources": [
+                "ods.events.observed_at"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "ods.events.observed_at"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "ods.events.id"
+              ]
+            },
+            {
+              "target": "observed_at",
+              "sources": [
+                "ods.events.observed_at"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "ods.events.observed_at"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

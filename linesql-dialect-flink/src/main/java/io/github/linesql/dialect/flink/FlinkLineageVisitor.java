@@ -1092,7 +1092,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private void readNamedRelation(FlinkParser.MultipartIdentifierContext name, FlinkParser.TableAliasContext alias) {
         TableRef table = tableRef(name);
         if (isCteReference(name, table)) {
-            addDerivedReference(table.getName(), alias);
+            addCteReference(table.getName(), alias);
             return;
         }
         LineageResult relation = registeredRelation(table);
@@ -1910,6 +1910,33 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
+    }
+
+    private void addCteReference(String name, FlinkParser.TableAliasContext alias) {
+        String relation = name.toLowerCase(Locale.ROOT);
+        Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(relation);
+        if (!incompleteDerivedSchemas.contains(relation)) {
+            Map<String, List<ColumnRef>> renamed = applyReferenceColumnAliases(columns, alias);
+            if (renamed != columns) {
+                relation = "$reference_" + derivedColumnLineage.size();
+                derivedColumnLineage.put(relation, renamed);
+            }
+        }
+        addDerivedReference(relation, alias);
+    }
+
+    private static Map<String, List<ColumnRef>> applyReferenceColumnAliases(
+            Map<String, List<ColumnRef>> columns, FlinkParser.TableAliasContext alias) {
+        List<String> names = tableAliasColumnAliases(alias);
+        if (columns == null || names.isEmpty() || names.size() != columns.size() || columns.containsKey("*")) {
+            return columns;
+        }
+        Map<String, List<ColumnRef>> renamed = new LinkedHashMap<>();
+        int position = 0;
+        for (List<ColumnRef> sources : columns.values()) {
+            renamed.put(names.get(position++), sources);
+        }
+        return renamed.size() == columns.size() ? renamed : columns;
     }
 
     private void addDerivedReference(String rawName, FlinkParser.TableAliasContext aliasCtx) {
@@ -3032,7 +3059,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private void addRegisteredRelationReference(TableRef table, FlinkParser.TableAliasContext aliasCtx,
                                                 LineageResult relation) {
-        String relationName = relationKey(table);
+        Map<String, List<ColumnRef>> columns = temporaryRelationColumns(relation);
+        Map<String, List<ColumnRef>> namedColumns = applyReferenceColumnAliases(columns, aliasCtx);
+        String relationName = namedColumns == columns
+                ? relationKey(table) : "$reference_" + derivedColumnLineage.size();
         visibleRelationCount++;
         visibleRelations.add(VisibleRelation.derived(relationName));
         derivedReferences.add(relationName);
@@ -3046,8 +3076,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 tableAliases.remove(qualified);
             }
         }
-        Map<String, List<ColumnRef>> columns = temporaryRelationColumns(relation);
-        derivedColumnLineage.put(relationName, columns);
+        derivedColumnLineage.put(relationName, namedColumns);
         incompleteDerivedSchemas.remove(relationName);
         for (TableRef source : relation.getInputTables()) {
             addInputTable(source, false);
