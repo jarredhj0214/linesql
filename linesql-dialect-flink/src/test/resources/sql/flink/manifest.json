@@ -8812,6 +8812,113 @@
           ]
         }
       ]
+    },
+    {
+      "id": "script_modify_and_rename_table_layout",
+      "file": "cases/script_modify_and_rename_table_layout.sql",
+      "statementType": "MULTI",
+      "description": "A known Flink table preserves its reordered columns through a same-namespace table rename",
+      "inputTables": [
+        "lake.ods.events",
+        "lake.ods.event_log"
+      ],
+      "outputTables": [
+        "lake.ods.events",
+        "lake.ods.event_log"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "lake.ods.event_log.id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "lake.ods.event_log.amount"
+          ]
+        },
+        {
+          "target": "label",
+          "sources": [
+            "lake.ods.event_log.label"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "RENAME_TABLE",
+          "inputTables": [
+            "lake.ods.events"
+          ],
+          "outputTables": [
+            "lake.ods.event_log"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake.ods.event_log"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake.ods.event_log.id"
+              ]
+            },
+            {
+              "target": "amount",
+              "sources": [
+                "lake.ods.event_log.amount"
+              ]
+            },
+            {
+              "target": "label",
+              "sources": [
+                "lake.ods.event_log.label"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "lake.ods.event_log.amount"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
