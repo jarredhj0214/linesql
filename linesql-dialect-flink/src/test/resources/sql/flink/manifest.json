@@ -9016,6 +9016,237 @@
           ]
         }
       ]
+    },
+    {
+      "id": "script_ctas_computed_column_sources",
+      "file": "cases/script_ctas_computed_column_sources.sql",
+      "statementType": "MULTI",
+      "description": "Flink CTAS computed columns follow the query sources and the declared schema is visible to later statements",
+      "inputTables": [
+        "ods.orders",
+        "mart.orders_summary"
+      ],
+      "outputTables": [
+        "mart.orders_summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.orders_summary.cost",
+          "sources": [
+            "ods.orders.price",
+            "ods.orders.quantity"
+          ]
+        },
+        {
+          "target": "mart.orders_summary.id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "mart.orders_summary.price",
+          "sources": [
+            "ods.orders.price"
+          ]
+        },
+        {
+          "target": "mart.orders_summary.quantity",
+          "sources": [
+            "ods.orders.quantity"
+          ]
+        },
+        {
+          "target": "description",
+          "sources": [
+            "mart.orders_summary.description"
+          ]
+        },
+        {
+          "target": "cost",
+          "sources": [
+            "mart.orders_summary.cost"
+          ]
+        },
+        {
+          "target": "id",
+          "sources": [
+            "mart.orders_summary.id"
+          ]
+        },
+        {
+          "target": "price",
+          "sources": [
+            "mart.orders_summary.price"
+          ]
+        },
+        {
+          "target": "quantity",
+          "sources": [
+            "mart.orders_summary.quantity"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.orders"
+          ],
+          "outputTables": [
+            "mart.orders_summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.orders_summary.cost",
+              "sources": [
+                "ods.orders.price",
+                "ods.orders.quantity"
+              ]
+            },
+            {
+              "target": "mart.orders_summary.id",
+              "sources": [
+                "ods.orders.id"
+              ]
+            },
+            {
+              "target": "mart.orders_summary.price",
+              "sources": [
+                "ods.orders.price"
+              ]
+            },
+            {
+              "target": "mart.orders_summary.quantity",
+              "sources": [
+                "ods.orders.quantity"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.orders.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.orders_summary"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "description",
+              "sources": [
+                "mart.orders_summary.description"
+              ]
+            },
+            {
+              "target": "cost",
+              "sources": [
+                "mart.orders_summary.cost"
+              ]
+            },
+            {
+              "target": "id",
+              "sources": [
+                "mart.orders_summary.id"
+              ]
+            },
+            {
+              "target": "price",
+              "sources": [
+                "mart.orders_summary.price"
+              ]
+            },
+            {
+              "target": "quantity",
+              "sources": [
+                "mart.orders_summary.quantity"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "mart.orders_summary.cost"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "script_replace_ctas_unknown_layout",
+      "file": "cases/script_replace_ctas_unknown_layout.sql",
+      "statementType": "MULTI",
+      "description": "Flink RTAS removes stale column names when the replacement select has an unknown wildcard width",
+      "inputTables": [
+        "ods.orders",
+        "mart.snapshot"
+      ],
+      "outputTables": [
+        "mart.snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.snapshot.*",
+          "sources": [
+            "ods.orders.*"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "mart.snapshot.*"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "mart.snapshot"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.orders"
+          ],
+          "outputTables": [
+            "mart.snapshot"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.snapshot.*",
+              "sources": [
+                "ods.orders.*"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.snapshot"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "*",
+              "sources": [
+                "mart.snapshot.*"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }
