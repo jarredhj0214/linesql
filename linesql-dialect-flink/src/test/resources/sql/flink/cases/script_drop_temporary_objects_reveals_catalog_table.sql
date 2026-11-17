@@ -1,0 +1,12 @@
+USE CATALOG lake;
+USE ods;
+CREATE TABLE stage (id INT) WITH ('connector'='datagen');
+CREATE TEMPORARY VIEW stage AS SELECT s.id FROM incoming s WHERE s.active = true;
+SELECT stage.id FROM stage;
+DROP TEMPORARY VIEW stage;
+SELECT stage.id FROM stage;
+CREATE TEMPORARY TABLE stage (alternate_id INT) WITH ('connector'='datagen');
+CREATE TEMPORARY TABLE IF NOT EXISTS stage (ignored_id INT) WITH ('connector'='datagen');
+SELECT * FROM stage;
+DROP TEMPORARY TABLE stage;
+SELECT * FROM stage;

@@ -7895,6 +7895,180 @@
       ],
       "columnUsages": [],
       "description": "A wildcard contributes output positions when its source columns are known"
+    },
+    {
+      "id": "script_drop_temporary_objects_reveals_catalog_table",
+      "file": "cases/script_drop_temporary_objects_reveals_catalog_table.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "lake.ods.incoming",
+        "lake.ods.stage"
+      ],
+      "outputTables": [
+        "lake.ods.stage"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "lake.ods.stage.id"
+          ]
+        }
+      ],
+      "description": "Temporary views and tables shadow permanent metadata only until the matching temporary drop",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.stage"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "lake.ods.incoming"
+          ],
+          "outputTables": [
+            "lake.ods.stage"
+          ],
+          "columnLineage": [
+            {
+              "target": "lake.ods.stage.id",
+              "sources": [
+                "lake.ods.incoming.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.ods.incoming.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake.ods.incoming"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake.ods.incoming.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.ods.incoming.active"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_VIEW",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.stage"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake.ods.stage"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake.ods.stage.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.stage"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.stage"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake.ods.stage"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "alternate_id",
+              "sources": [
+                "lake.ods.stage.alternate_id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "DROP_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ods.stage"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake.ods.stage"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake.ods.stage.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

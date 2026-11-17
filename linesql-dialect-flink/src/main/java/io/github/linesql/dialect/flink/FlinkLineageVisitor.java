@@ -5,6 +5,7 @@ import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
+import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
@@ -318,7 +319,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             retargetColumnLineage(target);
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
-            registerTableSchema(target, ctx.tableElementList());
+            registerTableSchema(target, ctx.tableElementList(), !ctx.TEMPORARY().isEmpty(), ctx.existsKeyword() != null);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -367,7 +368,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             retargetColumnLineage(target);
         } else {
             result.setStatementType(StatementType.CREATE_TABLE);
-            registerTableSchema(target, ctx.tableElementList());
+            registerTableSchema(target, ctx.tableElementList(), false, false);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -392,7 +393,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         visit(ctx.query());
         refreshColumnLineage();
         retargetColumnLineage(target);
-        registerTemporaryRelation(target);
+        registerRelation(target, ctx.TEMPORARY() != null, ctx.existsKeyword() != null, copyResult(result));
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -406,7 +407,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropTableStatement(FlinkParser.DropTableStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        outputTables.add(table);
+        dropRegisteredRelation(table, ctx.TEMPORARY() != null, false);
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -419,7 +422,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitDropViewStatement(FlinkParser.DropViewStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef table = tableRef(ctx.multipartIdentifier());
+        outputTables.add(table);
+        dropRegisteredRelation(table, ctx.TEMPORARY() != null, true);
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
@@ -968,9 +973,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
         }
-        String temporaryRelationName = temporaryRelationName(table);
-        if (temporaryRelationName != null) {
-            addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
+        LineageResult relation = registeredRelation(table);
+        if (relation != null) {
+            addRegisteredRelationReference(table, ctx.tableAlias(), relation);
             return null;
         }
         addInputTable(table, ctx.tableAlias(), true);
@@ -1922,13 +1927,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         TableRef input = tableRef(table.multipartIdentifier());
         String inputName = input.getName().toLowerCase(Locale.ROOT);
-        String relationName = temporaryRelationName(input);
+        LineageResult relation = registeredRelation(input);
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         if (isCteReference(table.multipartIdentifier(), input)) {
             columns.putAll(derivedColumnLineage.getOrDefault(inputName, Collections.emptyMap()));
             addDerivedInputTables(inputName);
-        } else if (relationName != null) {
-            LineageResult relation = context.getTemporaryRelations().get(relationName);
+        } else if (relation != null) {
             columns.putAll(temporaryRelationColumns(relation));
             for (TableRef tableRef : relation.getInputTables()) {
                 addInputTable(tableRef, false);
@@ -2374,14 +2378,20 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return refs.isEmpty() ? null : refs;
     }
 
-    private void registerTemporaryRelation(TableRef table) {
+    private void registerRelation(TableRef table, boolean temporary, boolean ifNotExists, LineageResult value) {
         if (context == null) {
             return;
         }
-        context.getTemporaryRelations().put(relationKey(table), copyResult(result));
+        Map<String, LineageResult> relations = registeredRelations(temporary);
+        if (ifNotExists) {
+            relations.putIfAbsent(relationKey(table), value);
+        } else {
+            relations.put(relationKey(table), value);
+        }
     }
 
-    private void registerTableSchema(TableRef table, FlinkParser.TableElementListContext tableElements) {
+    private void registerTableSchema(TableRef table, FlinkParser.TableElementListContext tableElements,
+                                     boolean temporary, boolean ifNotExists) {
         if (context == null || tableElements == null) {
             return;
         }
@@ -2403,7 +2413,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             columns.add(LineageModelUtils.columnLineage(table, columnName, sources, columnName));
         }
         schema.setColumnLineage(columns);
-        context.getTemporaryRelations().put(relationKey(table), schema);
+        registerRelation(table, temporary, ifNotExists, schema);
     }
 
     private static List<String> declaredColumnNames(FlinkParser.TableElementListContext ctx) {
@@ -2420,31 +2430,48 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return columns;
     }
 
-    private String temporaryRelationName(TableRef table) {
+    private LineageResult registeredRelation(TableRef table) {
         if (context == null) {
             return null;
         }
         String key = relationKey(table);
-        return context.getTemporaryRelations().containsKey(key) ? key : null;
+        LineageResult temporary = registeredRelations(true).get(key);
+        return temporary != null ? temporary : registeredRelations(false).get(key);
     }
 
-    private void addTemporaryRelationReference(String relationName, FlinkParser.TableAliasContext aliasCtx) {
-        LineageResult relation = context.getTemporaryRelations().get(relationName);
-        if (relation == null) {
+    private Map<String, LineageResult> registeredRelations(boolean temporary) {
+        return temporary ? context.getSessionTemporaryRelations(SqlDialect.FLINK) : context.getTemporaryRelations();
+    }
+
+    private void dropRegisteredRelation(TableRef table, boolean temporary, boolean view) {
+        if (context == null) {
             return;
         }
+        String key = relationKey(table);
+        if (!temporary && registeredRelations(true).containsKey(key)) {
+            return;
+        }
+        Map<String, LineageResult> relations = registeredRelations(temporary);
+        LineageResult registered = relations.get(key);
+        if (registered != null && (registered.getStatementType() == StatementType.CREATE_VIEW) == view) {
+            relations.remove(key);
+        }
+    }
+
+    private void addRegisteredRelationReference(TableRef table, FlinkParser.TableAliasContext aliasCtx,
+                                                LineageResult relation) {
+        String relationName = relationKey(table);
         visibleRelationCount++;
         visibleRelations.add(VisibleRelation.derived(relationName));
         derivedReferences.add(relationName);
         derivedAliases.put(relationName, relationName);
         String alias = tableAlias(aliasCtx);
-        if (alias != null) {
-            derivedAliases.put(alias.toLowerCase(Locale.ROOT), relationName);
-        }
+        String visibleName = alias == null ? table.getName() : alias;
+        derivedAliases.put(visibleName.toLowerCase(Locale.ROOT), relationName);
         Map<String, List<ColumnRef>> columns = temporaryRelationColumns(relation);
         derivedColumnLineage.put(relationName, columns);
-        for (TableRef table : relation.getInputTables()) {
-            addInputTable(table, false);
+        for (TableRef source : relation.getInputTables()) {
+            addInputTable(source, false);
         }
         LineageModelUtils.mergeColumnUsages(result, relation);
         refreshColumnLineage();
