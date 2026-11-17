@@ -9247,6 +9247,152 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "script_alter_and_rename_view_lineage",
+      "file": "cases/script_alter_and_rename_view_lineage.sql",
+      "statementType": "MULTI",
+      "description": "Flink changes a registered view query, follows the new definition through a rename, and matches the drop target",
+      "inputTables": [
+        "ods.old_events",
+        "ods.current_events",
+        "mart.events_view"
+      ],
+      "outputTables": [
+        "mart.events_view",
+        "mart.events_latest"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.events_view.id",
+          "sources": [
+            "ods.old_events.id"
+          ]
+        },
+        {
+          "target": "mart.events_view.id",
+          "sources": [
+            "ods.current_events.id"
+          ]
+        },
+        {
+          "target": "current_id",
+          "sources": [
+            "ods.current_events.id"
+          ]
+        },
+        {
+          "target": "latest_id",
+          "sources": [
+            "ods.current_events.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.old_events"
+          ],
+          "outputTables": [
+            "mart.events_view"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.events_view.id",
+              "sources": [
+                "ods.old_events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_VIEW",
+          "inputTables": [
+            "ods.current_events"
+          ],
+          "outputTables": [
+            "mart.events_view"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.events_view.id",
+              "sources": [
+                "ods.current_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.current_events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.current_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "current_id",
+              "sources": [
+                "ods.current_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.current_events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "ALTER_VIEW",
+          "inputTables": [
+            "mart.events_view"
+          ],
+          "outputTables": [
+            "mart.events_latest"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.current_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "latest_id",
+              "sources": [
+                "ods.current_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.current_events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_VIEW",
+          "inputTables": [],
+          "outputTables": [
+            "mart.events_latest"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

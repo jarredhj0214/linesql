@@ -393,9 +393,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         visit(ctx.query());
         refreshColumnLineage();
         retargetColumnLineage(target);
-        registerRelation(target, ctx.TEMPORARY() != null, ctx.existsKeyword() != null, copyResult(result));
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
+        registerCurrentView(target, ctx.TEMPORARY() != null, ctx.existsKeyword() != null);
         return null;
     }
 
@@ -489,9 +489,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitAlterTableRename(FlinkParser.AlterTableRenameContext ctx) {
         List<FlinkParser.MultipartIdentifierContext> ids = ctx.multipartIdentifier();
         TableRef source = tableRef(ids.get(0));
-        TableRef target = ids.get(1).identifier().size() == 1
-                ? new TableRef(source.getCatalog(), source.getSchema(), cleanIdentifier(ids.get(1).identifier(0)))
-                : tableRef(ids.get(1));
+        TableRef target = renamedRelation(source, ids.get(1));
         result.setStatementType(StatementType.RENAME_TABLE);
         inputTables.add(source);
         outputTables.add(target);
@@ -678,8 +676,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitAlterViewRename(FlinkParser.AlterViewRenameContext ctx) {
         result.setStatementType(StatementType.ALTER_VIEW);
-        inputTables.add(tableRef(ctx.multipartIdentifier(0)));
-        outputTables.add(tableRef(ctx.multipartIdentifier(1)));
+        TableRef source = tableRef(ctx.multipartIdentifier(0));
+        TableRef target = renamedRelation(source, ctx.multipartIdentifier(1));
+        inputTables.add(source);
+        outputTables.add(target);
+        renameRegisteredView(source, target);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
@@ -695,6 +696,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         retargetColumnLineage(target);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
+        if (context != null && !registeredRelations(true).containsKey(relationKey(target))) {
+            LineageResult previous = registeredRelations(false).get(relationKey(target));
+            if (previous == null || previous.getStatementType() == StatementType.CREATE_VIEW) {
+                registerCurrentView(target, false, false);
+            }
+        }
         return null;
     }
 
@@ -2673,6 +2680,35 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return columns.remove(name) && insertSchemaColumn(columns, name, position);
     }
 
+    private void registerCurrentView(TableRef target, boolean temporary, boolean ifNotExists) {
+        if (context == null) {
+            return;
+        }
+        flushPendingColumnUsages();
+        LineageResult view = copyResult(result);
+        view.setStatementType(StatementType.CREATE_VIEW);
+        registerRelation(target, temporary, ifNotExists, view);
+    }
+
+    private void renameRegisteredView(TableRef source, TableRef target) {
+        if (context == null || registeredRelations(true).containsKey(relationKey(source))
+                || registeredRelation(target) != null) {
+            return;
+        }
+        Map<String, LineageResult> views = registeredRelations(false);
+        String sourceKey = relationKey(source);
+        LineageResult previous = views.get(sourceKey);
+        if (previous == null || previous.getStatementType() != StatementType.CREATE_VIEW) {
+            return;
+        }
+        LineageResult view = copyResult(previous);
+        view.setOutputTables(Collections.singletonList(target));
+        view.setColumnLineage(LineageModelUtils.retargetColumnLineage(
+                view.getColumnLineage(), target, Collections.emptyList()));
+        views.put(relationKey(target), view);
+        views.remove(sourceKey);
+    }
+
     private void renameRegisteredTable(TableRef source, TableRef target) {
         List<String> columns = registeredTableColumns(source);
         if (columns != null && registeredRelation(target) == null) {
@@ -3322,6 +3358,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     // ============ Utility ============
+
+    private TableRef renamedRelation(TableRef source, FlinkParser.MultipartIdentifierContext name) {
+        return name.identifier().size() == 1
+                ? new TableRef(source.getCatalog(), source.getSchema(), cleanIdentifier(name.identifier(0)))
+                : tableRef(name);
+    }
 
     private TableRef tableRef(FlinkParser.MultipartIdentifierContext ctx) {
         TableRef table = LineageModelUtils.tableRefFromParts(identifierParts(ctx));
