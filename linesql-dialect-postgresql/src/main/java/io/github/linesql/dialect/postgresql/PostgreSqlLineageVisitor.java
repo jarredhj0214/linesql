@@ -49,6 +49,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private boolean returningSourcesForCte;
     private int visibleRelationCount;
     private int orderedSetWidth = -1;
+    private int selectedColumnCount = -1;
     private int firstUnknownStarOrdinal = Integer.MAX_VALUE;
     private boolean suppressColumnLineage;
     private PostgreSqlParser.SelectClauseContext setBranchSelect;
@@ -2445,6 +2446,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 ordinal += Math.max(1, width);
             }
         }
+        selectedColumnCount = firstUnknownStarOrdinal == Integer.MAX_VALUE ? ordinal : -1;
         return visitChildren(ctx);
     }
 
@@ -2728,6 +2730,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
             return -1;
         }
+        if (primary instanceof PostgreSqlParser.QueryPrimaryDefaultContext) {
+            return selectedColumnCount;
+        }
         return setOutputWidth(unwrapped);
     }
 
@@ -2966,7 +2971,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             columns.put(columnName, lineage.getSources());
         }
         derivedColumnLineage.put(name, columns);
-        int width = setOutputWidth(query.queryTerm());
+        int width = relationVisitor.knownOrderWidth(query.queryTerm());
         if (width > 0 && lineages.size() == width && columns.size() == width) {
             knownColumnRelations.add(name);
         } else {

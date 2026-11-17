@@ -7621,6 +7621,103 @@
         }
       ],
       "description": "PostgreSQL TABLE exercises positional ordering with known CTE output columns"
+    },
+    {
+      "id": "table_query_forwarded_cte_order_by_ordinal",
+      "file": "cases/table_query_forwarded_cte_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "hr.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "employee_id",
+          "sources": [
+            "hr.employees.employee_id"
+          ]
+        },
+        {
+          "target": "dept_id",
+          "sources": [
+            "hr.employees.dept_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "hr.employees.dept_id"
+        }
+      ],
+      "description": "TABLE preserves the output order of another CTE"
+    },
+    {
+      "id": "select_star_forwarded_cte_order_by_ordinal",
+      "file": "cases/select_star_forwarded_cte_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "hr.employees"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "employee_id",
+          "sources": [
+            "hr.employees.employee_id"
+          ]
+        },
+        {
+          "target": "dept_id",
+          "sources": [
+            "hr.employees.dept_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "hr.employees.dept_id"
+        }
+      ],
+      "description": "SELECT star preserves the output order of a known CTE"
+    },
+    {
+      "id": "union_known_star_order_by_ordinal",
+      "file": "cases/union_known_star_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "hr.employees",
+        "hr.contractors"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "employee_id",
+          "sources": [
+            "hr.employees.employee_id",
+            "hr.contractors.employee_id"
+          ]
+        },
+        {
+          "target": "dept_id",
+          "sources": [
+            "hr.employees.dept_id",
+            "hr.contractors.dept_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "hr.employees.dept_id"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "hr.contractors.dept_id"
+        }
+      ],
+      "description": "Positional ordering traces both set branches with a known star expansion"
     }
   ]
 }
