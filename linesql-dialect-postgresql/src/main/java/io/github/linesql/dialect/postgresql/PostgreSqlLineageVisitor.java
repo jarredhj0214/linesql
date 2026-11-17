@@ -157,6 +157,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         tableAliases.put(targetName.toLowerCase(Locale.ROOT), target);
         if (ctx.targetAlias == null) {
             bindQualifiedTable(ctx.multipartIdentifier(), target);
+        } else {
+            bindPhysicalQualifier(singleIdentifierKey(ctx.targetAlias.getText()), target);
         }
         if (ctx.onConflictClause() != null) {
             applyConflictLineage(ctx.onConflictClause(), target);
@@ -273,6 +275,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         String alias = tableAlias(ctx.tableAlias());
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
+            bindPhysicalQualifier(singleIdentifierKey(ctx.tableAlias().strictIdentifier().getText()), target);
         } else {
             bindQualifiedTable(ctx.inheritanceRelation().multipartIdentifier(), target);
         }
@@ -334,11 +337,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                         path.add(qualifier.getText());
                     }
                     path.add("*");
-                    SourceColumn wildcard = schemaQualifiedColumn(SourceColumn.path(path));
-                    if (wildcard == null) {
-                        wildcard = new SourceColumn(cleanIdentifier(path.get(path.size() - 2)), "*");
-                    }
-                    sources = resolveReturningSources(Collections.singletonList(wildcard), targetTable, rows, writtenSources);
+                    sources = resolveReturningSources(Collections.singletonList(SourceColumn.path(path)),
+                            targetTable, rows, writtenSources);
                 }
                 if (sources != null) {
                     lineages.add(LineageModelUtils.columnLineage(null, "*", sources, item.getText()));
@@ -378,7 +378,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         ReturningRow oldRow = hasOldRow ? ReturningRow.BEFORE_WRITE : ReturningRow.ABSENT;
         ReturningRow newRow = hasNewRow ? ReturningRow.AFTER_WRITE : ReturningRow.ABSENT;
         for (PostgreSqlParser.ReturningRowAliasContext alias : returning.returningRowAlias()) {
-            String name = cleanIdentifier(alias.alias).toLowerCase(Locale.ROOT);
+            String name = normalizedIdentifier(alias.alias);
             if (alias.OLD() != null) {
                 rows.put(name, oldRow);
                 oldRenamed = true;
@@ -387,13 +387,19 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 newRenamed = true;
             }
         }
-        if (!oldRenamed && !tableAliases.containsKey("old") && !derivedAliases.containsKey("old")) {
+        if (!oldRenamed && !hasReturningQualifier("old")) {
             rows.putIfAbsent("old", oldRow);
         }
-        if (!newRenamed && !tableAliases.containsKey("new") && !derivedAliases.containsKey("new")) {
+        if (!newRenamed && !hasReturningQualifier("new")) {
             rows.putIfAbsent("new", newRow);
         }
         return rows;
+    }
+
+    private boolean hasReturningQualifier(String name) {
+        String exact = singleIdentifierKey(name);
+        return tableAliases.containsKey(exact) || derivedAliases.containsKey(exact)
+                || tableAliases.containsKey(name) || derivedAliases.containsKey(name);
     }
 
     private List<ColumnRef> resolveReturningSources(List<SourceColumn> columns,
@@ -413,7 +419,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 qualifier = name.substring(0, dot);
                 name = name.substring(dot + 1);
             }
-            ReturningRow row = qualifier == null ? null : rows.get(qualifier.toLowerCase(Locale.ROOT));
+            ReturningRow row = column.path.size() == 2 ? rows.get(normalizedIdentifier(column.path.get(0))) : null;
             if (row == ReturningRow.ABSENT) {
                 continue;
             }
@@ -495,6 +501,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         String targetAlias = tableAlias(ctx.tableAlias());
         if (targetAlias != null) {
             tableAliases.put(targetAlias.toLowerCase(Locale.ROOT), target);
+            bindPhysicalQualifier(singleIdentifierKey(ctx.tableAlias().strictIdentifier().getText()), target);
         } else {
             bindQualifiedTable(ctx.targetRelation.multipartIdentifier(), target);
         }

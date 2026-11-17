@@ -529,6 +529,23 @@
       "description": "An ON CONFLICT DO UPDATE path can return a prior target row"
     },
     {
+      "id": "update_returning_case_distinct_row_aliases",
+      "file": "cases/update_returning_case_distinct_row_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.orders", "staging.prices"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "old_amount", "sources": ["mart.orders.amount"]},
+        {"target": "new_amount", "sources": ["staging.prices.amount"]},
+        {"target": "order_id", "sources": ["mart.orders.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "mart.orders.id"},
+        {"type": "WHERE", "column": "staging.prices.id"}
+      ],
+      "description": "Case-distinct RETURNING row aliases preserve pre-write and assigned values through the CTE"
+    },
+    {
       "id": "update_cte_returning_old_new",
       "file": "cases/update_cte_returning_old_new.sql",
       "statementType": "SELECT",
