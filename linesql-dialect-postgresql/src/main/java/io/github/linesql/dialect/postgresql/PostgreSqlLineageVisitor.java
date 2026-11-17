@@ -301,15 +301,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         Map<String, ReturningRow> rows = returningRows(returning, hasOldRow, hasNewRow);
         List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
-        Map<String, List<ColumnRef>> writtenSources = new LinkedHashMap<>();
+        Map<TableRef, Map<String, List<ColumnRef>>> writtenSources = new LinkedHashMap<>();
         if (returningSourcesForCte) {
             if (returning.returningItem().stream().noneMatch(item -> item.STAR() != null)) {
                 returningColumnCount = returning.returningItem().size();
             }
             for (ColumnLineage lineage : lineages) {
                 if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
-                    writtenSources.merge(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources(),
-                            LineageModelUtils::mergeColumnRefs);
+                    ColumnRef target = lineage.getTarget();
+                    writtenSources.computeIfAbsent(target.getTable(), ignored -> new LinkedHashMap<>())
+                            .merge(target.getName().toLowerCase(Locale.ROOT), lineage.getSources(),
+                                    LineageModelUtils::mergeColumnRefs);
                 }
             }
         }
@@ -390,7 +392,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private List<ColumnRef> resolveReturningSources(List<SourceColumn> columns,
                                                    TableRef targetTable,
                                                    Map<String, ReturningRow> rows,
-                                                   Map<String, List<ColumnRef>> writtenSources) {
+                                                   Map<TableRef, Map<String, List<ColumnRef>>> writtenSources) {
         List<ColumnRef> resultSources = new ArrayList<>();
         for (SourceColumn column : columns) {
             int dot = column.name.indexOf('.');
@@ -425,7 +427,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 return null;
             }
             for (ColumnRef source : sources) {
-                List<ColumnRef> written = writtenSources.get(LineageModelUtils.columnKey(source));
+                List<ColumnRef> written = writtenSources.getOrDefault(source.getTable(), Collections.emptyMap())
+                        .get(source.getName().toLowerCase(Locale.ROOT));
                 resultSources.addAll(written == null ? Collections.singletonList(source) : written);
             }
         }

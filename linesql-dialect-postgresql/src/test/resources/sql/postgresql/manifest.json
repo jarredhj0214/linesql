@@ -8709,6 +8709,43 @@
         }
       ],
       "description": "An unnamed constant keeps its RETURNING position when the CTE supplies a name"
+    },
+    {
+      "id": "update_cte_returning_dotted_table_boundaries",
+      "file": "cases/update_cte_returning_dotted_table_boundaries.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sales.region.orders",
+        "sales.region.orders"
+      ],
+      "outputTables": [
+        "sales.region.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "new_price",
+          "sources": [
+            "sales.region.orders.retail_price"
+          ]
+        },
+        {
+          "target": "source_price",
+          "sources": [
+            "sales.region.orders.price"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "sales.region.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "sales.region.orders.id"
+        }
+      ],
+      "description": "RETURNING substitutes writes only for the actual target relation when quoted paths render alike"
     }
   ]
 }
