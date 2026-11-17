@@ -1054,6 +1054,7 @@ Implemented StarRocks table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
+| Prepared SELECT execution | Direct and quoted `PREPARE` queries use the catalog and schema active when prepared. `EXECUTE` follows the current binding, and `DROP PREPARE` or `DEALLOCATE PREPARE` clears it. | `script_execute_prepared_query` |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | JOIN source tables | `select ... from ods.users u join dwd.orders o ...` | `join_projection` |
 | INSERT INTO target and source | `insert into ads.t select ... from ods.s` | `insert_into` |

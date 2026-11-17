@@ -12373,6 +12373,159 @@
         }
       ],
       "description": "StarRocks reads source and predicate columns from a literal prepared SELECT with placeholders"
+    },
+    {
+      "id": "script_execute_prepared_query",
+      "file": "cases/script_execute_prepared_query.sql",
+      "statementType": "MULTI",
+      "description": "StarRocks EXECUTE uses the namespace captured during preparation, respects replacement, and clears on DROP PREPARE",
+      "inputTables": [
+        "lake.staging.events",
+        "lake.reporting.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "lake.staging.events.id"
+          ]
+        },
+        {
+          "target": "status",
+          "sources": [
+            "lake.reporting.events.status"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "lake.staging.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake.staging.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.staging.events.kind"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "lake.staging.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake.staging.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.staging.events.kind"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "lake.reporting.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "status",
+              "sources": [
+                "lake.reporting.events.status"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.reporting.events.id"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "lake.reporting.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "status",
+              "sources": [
+                "lake.reporting.events.status"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "lake.reporting.events.id"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

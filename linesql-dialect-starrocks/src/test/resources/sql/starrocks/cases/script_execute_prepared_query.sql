@@ -1,0 +1,10 @@
+SET CATALOG lake;
+USE staging;
+PREPARE lookup FROM SELECT e.id FROM events e WHERE e.kind = ?;
+USE reporting;
+SET @kind = 1, @event_id = 2;
+EXECUTE lookup USING @kind;
+PREPARE lookup FROM 'SELECT s.status FROM events s WHERE s.id = ?';
+EXECUTE lookup USING @event_id;
+DROP PREPARE lookup;
+EXECUTE lookup USING @event_id;
