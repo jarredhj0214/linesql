@@ -1428,6 +1428,7 @@ Implemented Flink table-level lineage scenarios:
 | Common Flink connector sink/source DDL | `upsert-kafka`, `datagen`, and partitioned `filesystem` connector table definitions; source-free computed columns such as `proctime()` do not emit column lineage | `create_table_upsert_kafka`, `create_table_datagen`, `create_table_filesystem_partitioned` |
 | CDC source to sink aggregate write | `insert into sink select key, count(...), sum(...) from cdc_source group by key` | `insert_cdc_to_sink` |
 | MERGE INTO target and source tables | `merge into ads.t using ods.s on ... when matched then update ...` | `merge_into` |
+| MERGE USING named source lineage | Declared source columns retain their lineage under positional aliases. Schema-qualified names distinguish a source and target with the same table name. | `merge_using_registered_table_aliases`, `merge_using_qualified_same_name` |
 | MERGE USING subquery lineage | A derived source carries projected and positional column aliases into ON, WHEN, UPDATE and INSERT. The source query retains its own WHERE references. | `merge_using_derived_columns` |
 | Temporal join source tables | `join rates for system_time as of o.proc_time` | `temporal_join` |
 | TUMBLE table-valued function source table | `from table(tumble(table ods.orders, descriptor(ts), interval '1' hour))`; window descriptor columns are returned as `WINDOW_ORDER_BY` usages | `tumble_window` |

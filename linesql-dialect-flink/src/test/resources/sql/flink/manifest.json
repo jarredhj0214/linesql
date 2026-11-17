@@ -2890,6 +2890,125 @@
       ]
     },
     {
+      "id": "merge_using_registered_table_aliases",
+      "file": "cases/merge_using_registered_table_aliases.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "mart.totals",
+        "ods.events"
+      ],
+      "outputTables": [
+        "ods.events",
+        "mart.totals"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.totals.amount",
+          "sources": [
+            "ods.events.amount"
+          ]
+        },
+        {
+          "target": "mart.totals.id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "mart.totals.amount",
+          "sources": [
+            "ods.events.amount"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "MERGE",
+          "inputTables": [
+            "mart.totals",
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.totals"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.totals.amount",
+              "sources": [
+                "ods.events.amount"
+              ]
+            },
+            {
+              "target": "mart.totals.id",
+              "sources": [
+                "ods.events.id"
+              ]
+            },
+            {
+              "target": "mart.totals.amount",
+              "sources": [
+                "ods.events.amount"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "MERGE_ON",
+              "column": "mart.totals.id"
+            },
+            {
+              "type": "MERGE_ON",
+              "column": "ods.events.id"
+            },
+            {
+              "type": "MERGE_WHEN",
+              "column": "ods.events.is_valid"
+            }
+          ]
+        }
+      ],
+      "description": "A Flink MERGE source table uses declared column order to resolve reference aliases"
+    },
+    {
+      "id": "merge_using_qualified_same_name",
+      "file": "cases/merge_using_qualified_same_name.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "mart.events",
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.events.amount",
+          "sources": [
+            "ods.events.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "MERGE_ON",
+          "column": "mart.events.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.events.id"
+        }
+      ],
+      "description": "Flink MERGE distinguishes schema-qualified source and target tables with the same simple name"
+    },
+    {
       "id": "temporal_join",
       "file": "cases/temporal_join.sql",
       "statementType": "SELECT",

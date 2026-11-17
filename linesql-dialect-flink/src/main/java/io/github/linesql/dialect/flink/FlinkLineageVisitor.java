@@ -226,25 +226,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         // Output table = MERGE INTO target
         TableRef target = tableRef(ctx.multipartIdentifier(0));
         outputTables.add(target);
-        inputTables.add(target);
-        String alias = tableAlias(ctx.tableAlias(0));
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
-        }
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
+        addInputTable(target, ctx.tableAlias(0), true);
 
-        // Input table from USING clause - either table name or subquery
-        if (ctx.multipartIdentifier().size() > 1) {
-            // USING tableName
-            TableRef source = tableRef(ctx.multipartIdentifier(1));
-            inputTables.add(source);
-            tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
-            String sourceAlias = tableAlias(ctx.tableAlias(1));
-            if (sourceAlias != null) {
-                tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
-            }
-        }
-        if (ctx.query() != null) {
+        if (ctx.query() == null) {
+            readNamedRelation(ctx.multipartIdentifier(1), ctx.tableAlias(1));
+        } else {
             addDerivedQueryReference(ctx.query(), ctx.tableAlias(1));
         }
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
