@@ -6001,6 +6001,125 @@
       "description": "SQL Server CREATE TABLE accepts computed column definitions"
     },
     {
+      "id": "script_local_temp_table_auto_detection",
+      "file": "cases/script_local_temp_table_auto_detection.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "dbo.events",
+        "#active_events"
+      ],
+      "outputTables": [
+        "#active_events"
+      ],
+      "columnLineage": [
+        {
+          "target": "#active_events.event_id",
+          "sources": [
+            "dbo.events.id"
+          ]
+        },
+        {
+          "target": "#active_events.amount",
+          "sources": [
+            "dbo.events.total"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "#active_events.event_id"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "#active_events.amount"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "#active_events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "dbo.events"
+          ],
+          "outputTables": [
+            "#active_events"
+          ],
+          "columnLineage": [
+            {
+              "target": "#active_events.event_id",
+              "sources": [
+                "dbo.events.id"
+              ]
+            },
+            {
+              "target": "#active_events.amount",
+              "sources": [
+                "dbo.events.total"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "dbo.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "#active_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "#active_events.event_id"
+              ]
+            },
+            {
+              "target": "amount",
+              "sources": [
+                "#active_events.amount"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "#active_events.amount"
+            },
+            {
+              "type": "ORDER_BY",
+              "column": "#active_events.amount"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "#active_events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ],
+      "description": "SQL Server local temporary table scripts keep write, read and removal dependencies"
+    },
+    {
       "id": "create_local_temp_table",
       "file": "cases/create_local_temp_table.sql",
       "statementType": "CREATE_TABLE",

@@ -134,6 +134,17 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|" + POSTGRES_RELATION + "(?:\\s+(?:as\\s+)?" + POSTGRES_NAME + ")?"
                     + "(?=\\s+(?:using|where|set|returning)\\b|\\s*(?:[;)]|$)))"
                     + "|" + POSTGRES_RELATION + "\\s*\\*(?=\\s|;|$))");
+    private static final String TSQL_TEMP_NAME = "#{1,2}[\\p{L}_][\\p{L}\\p{N}_$]*(?![#\\p{L}\\p{N}_$])";
+    private static final Pattern TSQL_TEMP_RELATION = Pattern.compile(
+            "^\\s*(?:create\\s+table\\s+" + TSQL_TEMP_NAME + "\\s*\\("
+                    + "|drop\\s+table\\s+(?:if\\s+exists\\s+)?" + TSQL_TEMP_NAME + "(?=\\s*(?:[,;]|$))"
+                    + "|insert\\s+(?:into\\s+)?" + TSQL_TEMP_NAME + "(?=\\s*(?:\\(|select|values|default|exec)\\b|\\s*\\()"
+                    + "|(?:select|with)\\b[^;]*\\binto\\s+" + TSQL_TEMP_NAME + "\\s+from\\b"
+                    + "|(?:select|with|delete)\\b[^;]*\\b(?:from|join)\\s+" + TSQL_TEMP_NAME
+                    + "(?=\\s*(?:[,);]|$)|\\s+(?:as|where|join|order|group|union)\\b))");
+    private static final Pattern TSQL_INDEX_OR_DBCC = Pattern.compile(
+            "^\\s*(?:create\\s+(?:unique\\s+)?(?:clustered|nonclustered)\\s+(?:columnstore\\s+)?index"
+                    + "|dbcc\\s+(?:checkdb|checktable|checkident|show_statistics))\\b");
     private static final String TSQL_EXEC_IDENTIFIER = "[\\p{L}_#][\\p{L}\\p{N}_#$]*";
     private static final String TSQL_EXEC_PATH =
             TSQL_EXEC_IDENTIFIER + "(?:\\s*\\.\\s*" + TSQL_EXEC_IDENTIFIER + ")*";
@@ -774,6 +785,9 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (unquotedSyntax.contains("exec") && TSQL_EXEC_ROUTINE.matcher(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server procedure execution or INSERT EXEC"));
+        } else if (TSQL_TEMP_RELATION.matcher(unquotedSyntax).find()
+                || TSQL_INDEX_OR_DBCC.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server temporary table, index, or DBCC syntax"));
         } else if (TSQL_FOR_SERIALIZATION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server FOR JSON or FOR XML output"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()

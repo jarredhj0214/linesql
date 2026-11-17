@@ -939,6 +939,27 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsSqlServerTemporaryTableScriptsAndMaintenanceSyntax() {
+        List<LineageResult> results = LineSql.parseScript("CREATE TABLE #active (event_id int); "
+                + "INSERT INTO #active (event_id) SELECT id FROM dbo.events WHERE enabled = 1; "
+                + "SELECT event_id FROM #active; DROP TABLE IF EXISTS #active;");
+        assertEquals(4, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.SQLSERVER, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertEquals(StatementType.CREATE_TABLE, results.get(0).getStatementType());
+        assertEquals("#active", results.get(1).getColumnLineage().get(0).getTarget().getTable().getName());
+        assertEquals("events", results.get(1).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertEquals(StatementType.DROP_TABLE, results.get(3).getStatementType());
+        assertDialect(SqlDialect.SQLSERVER, "DROP TABLE IF EXISTS ##shared_events");
+        assertDialect(SqlDialect.SQLSERVER, "CREATE NONCLUSTERED COLUMNSTORE INDEX idx ON dbo.events (id)");
+        assertDialect(SqlDialect.SQLSERVER, "DBCC CHECKTABLE (dbo.events)");
+        assertDialect(SqlDialect.SPARK, "SELECT id FROM #events#");
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE TABLE #events (id int)' AS note");
+    }
+
+    @Test
     public void detectsSqlServerExecuteAndPreservesUnicodeMetadataNames() {
         LineageResult columns = LineSql.parse("EXEC @rc = sys.sp_columns @table_owner=N'ops.schema', "
                 + "@table_qualifier=N'warehouse', @table_name=N'order.history', @column_name=N'order''id'");
