@@ -470,6 +470,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void keepsFlinkCompilePlanSetWithNativeIfNotExistsPlacement() {
+        List<LineageResult> script = LineSql.parseScript(
+                "COMPILE PLAN 'file:///tmp/orders;daily.json' IF NOT EXISTS FOR STATEMENT SET BEGIN "
+                + "INSERT INTO mart.orders (event_id) SELECT id FROM ods.orders;"
+                + "INSERT INTO mart.audit (event_id) SELECT order_id FROM ods.audit; END; "
+                + "SELECT id FROM ods.events;");
+        assertEquals(2, script.size());
+        LineageResult plan = script.get(0);
+        assertEquals(SqlDialect.FLINK, plan.getDialect());
+        assertEquals(StatementType.READ_METADATA, plan.getStatementType());
+        assertTrue(plan.getDiagnostics().isEmpty());
+        assertEquals(2, plan.getColumnLineage().size());
+        assertEquals("order_id", plan.getColumnLineage().get(1).getSources().get(0).getName());
+        assertEquals(StatementType.SELECT, script.get(1).getStatementType());
+    }
+
+    @Test
     public void detectsAndSplitsFlinkCompileAndExecutePlans() {
         String plan = "COMPILE AND EXECUTE PLAN 'file:///tmp/daily;orders.json' FOR ";
         LineageResult single = LineSql.parse(plan
@@ -491,6 +508,27 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals(2, combined.getOutputTables().size());
         assertEquals(2, combined.getColumnLineage().size());
         assertEquals(StatementType.CONTROL, script.get(1).getStatementType());
+    }
+
+    @Test
+    public void detectsFlinkExecuteQueriesWithoutClaimingPreparedExecution() {
+        LineageResult result = LineSql.parse("EXECUTE SELECT id AS event_id FROM ods.events WHERE active");
+        assertEquals(SqlDialect.FLINK, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals("event_id", result.getColumnLineage().get(0).getTarget().getName());
+        assertEquals("active", result.getColumnUsages().get(0).getColumn().getName());
+
+        LineageResult explanation = LineSql.parse("EXPLAIN PLAN FOR EXECUTE SELECT id FROM ods.events");
+        assertEquals(SqlDialect.FLINK, explanation.getDialect());
+        assertEquals(StatementType.READ_METADATA, explanation.getStatementType());
+        assertTrue(explanation.getDiagnostics().isEmpty());
+
+        List<LineageResult> postgres = LineSql.parseScript(
+                "PREPARE \"select\" AS SELECT id FROM ods.events; EXECUTE \"select\";");
+        assertEquals(2, postgres.size());
+        assertEquals(SqlDialect.POSTGRESQL, postgres.get(1).getDialect());
+        assertEquals("id", postgres.get(1).getColumnLineage().get(0).getTarget().getName());
     }
 
     @Test

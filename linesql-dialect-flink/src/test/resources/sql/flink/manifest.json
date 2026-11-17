@@ -61,6 +61,18 @@
       "description": "COMPILE AND EXECUTE PLAN treats the statement set as one write and keeps both branches' predicates"
     },
     {
+      "id": "compile_plan_statement_set_if_not_exists",
+      "file": "cases/compile_plan_statement_set_if_not_exists.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": ["ods.orders", "ods.audit"],
+      "outputTables": ["mart.order_events", "mart.order_audit"],
+      "columnLineage": [
+        {"target": "mart.order_events.id", "sources": ["ods.orders.id"]},
+        {"target": "mart.order_audit.id", "sources": ["ods.audit.order_id"]}
+      ],
+      "description": "COMPILE PLAN accepts IF NOT EXISTS after its file path and keeps the statement set intact"
+    },
+    {
       "id": "compile_plan_statement_set",
       "file": "cases/compile_plan_statement_set.sql",
       "statementType": "READ_METADATA",
@@ -5565,6 +5577,22 @@
         }
       ],
       "description": "Flink MATCH_RECOGNIZE alternation and range quantifier pattern lineage"
+    },
+    {
+      "id": "execute_with_query",
+      "file": "cases/execute_with_query.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.events"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "event_id", "sources": ["ods.events.id"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.events.active"},
+        {"type": "WHERE", "column": "ods.events.id"},
+        {"type": "ORDER_BY", "column": "ods.events.id"}
+      ],
+      "description": "EXECUTE WITH keeps CTE sources and propagates predicate and ordering column references"
     },
     {
       "id": "execute_insert_on_conflict_do_nothing",

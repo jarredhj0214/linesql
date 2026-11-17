@@ -7,7 +7,7 @@ singleStatement
     ;
 
 statement
-    : query                                                          #statementDefault
+    : EXECUTE? query                                                 #statementDefault
     | hiveMultiInsertStatement                                       #hiveMultiInsertStmt
     | insertDirectoryStatement                                       #insertDirectoryStmt
     | insertStatement                                                #insertStmt
@@ -805,7 +805,7 @@ explainDetailList
     ;
 
 planStatement
-    : COMPILE PLAN (IF NOT EXISTS)? string? FOR statement                              #compilePlanStatement
+    : COMPILE PLAN ((IF NOT EXISTS) string? | string (IF NOT EXISTS)?)? FOR statement                              #compilePlanStatement
     | COMPILE AND EXECUTE PLAN string FOR (insertStatement | executeStatementSet)       #compileAndExecutePlanStatement
     | EXECUTE PLAN string                                             #executePlanStatement
     ;
