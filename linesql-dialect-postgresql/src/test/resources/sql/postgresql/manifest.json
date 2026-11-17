@@ -2198,6 +2198,20 @@
       "description": "MERGE BY SOURCE and BY TARGET preserve predicates and write mappings with inherited relations"
     },
     {
+      "id": "merge_not_matched_target_column_scope",
+      "file": "cases/merge_not_matched_target_column_scope.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.totals", "ods.events"],
+      "outputTables": ["mart.totals"],
+      "columnLineage": [{"target": "mart.totals.amount", "sources": ["mart.totals.amount"]}],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.totals.id"},
+        {"type": "MERGE_ON", "column": "ods.events.id"},
+        {"type": "MERGE_WHEN", "column": "mart.totals.active"}
+      ],
+      "description": "Unqualified BY SOURCE predicates and updates refer to the target row even when the source projects the same names"
+    },
+    {
       "id": "merge_not_matched_source_column_scope",
       "file": "cases/merge_not_matched_source_column_scope.sql",
       "statementType": "MERGE",

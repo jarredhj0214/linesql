@@ -47,6 +47,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             new IdentityHashMap<>();
     private Map<String, List<ColumnRef>> unqualifiedJoinKeys = Collections.emptyMap();
     private TableRef currentDmlTarget;
+    private boolean mergeTargetOnly;
     private boolean returningSourcesForCte;
     private int returningColumnCount = -1;
     private int visibleRelationCount;
@@ -504,6 +505,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         for (PostgreSqlParser.MergeClauseContext clause : ctx.mergeClause()) {
             PostgreSqlParser.MergeNotMatchedActionContext notMatched = clause.mergeNotMatchedAction();
             currentDmlTarget = notMatched == null ? target : null;
+            mergeTargetOnly = clause.SOURCE() != null;
             if (clause.mergeCondition() != null) {
                 addColumnUsages(ColumnUsageType.MERGE_WHEN,
                         sourceColumns(clause.mergeCondition().expression()));
@@ -526,6 +528,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             }
         }
         currentDmlTarget = target;
+        mergeTargetOnly = false;
         result.setColumnLineage(lineages);
         List<ColumnRef> sourceWildcard = new ArrayList<>();
         if (ctx.returningClause() != null) {
@@ -3377,11 +3380,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn rawSourceColumn : sourceColumns) {
-            if (rawSourceColumn.resolvedRef != null) {
-                refs.add(rawSourceColumn.resolvedRef);
+            SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
+            if (sourceColumn.resolvedRef != null) {
+                refs.add(sourceColumn.resolvedRef);
                 continue;
             }
-            SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
             List<ColumnRef> joinRefs = sourceColumn.qualifier == null
                     ? unqualifiedJoinKeys.get(sourceColumn.name) : null;
             if (joinRefs != null) {
@@ -3412,6 +3415,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private SourceColumn scopedSourceColumn(SourceColumn sourceColumn) {
         if (sourceColumn.resolvedRef != null) {
             return sourceColumn;
+        }
+        if (mergeTargetOnly && sourceColumn.qualifier == null && sourceColumn.path.isEmpty()) {
+            return SourceColumn.resolved(new ColumnRef(currentDmlTarget, sourceColumn.name));
         }
         if (sourceColumn.qualifier != null || !sourceColumn.name.contains(".")) {
             return sourceColumn;
@@ -3858,11 +3864,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private List<ColumnRef> resolveSources(List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sc : sourceColumns) {
-            if (sc.resolvedRef != null) {
-                refs.add(sc.resolvedRef);
+            SourceColumn col = scopedSourceColumn(sc);
+            if (col.resolvedRef != null) {
+                refs.add(col.resolvedRef);
                 continue;
             }
-            SourceColumn col = scopedSourceColumn(sc);
             List<ColumnRef> joinRefs = col.qualifier == null ? unqualifiedJoinKeys.get(col.name) : null;
             if (joinRefs != null) {
                 refs.addAll(joinRefs);
