@@ -4664,6 +4664,27 @@
       "description": "Flink INSERT target OPTIONS hint does not block write lineage extraction"
     },
     {
+      "id": "statement_set_partition_assignments",
+      "file": "cases/statement_set_partition_assignments.sql",
+      "statementType": "INSERT",
+      "inputTables": ["ods.orders", "ods.audit"],
+      "outputTables": ["mart.orders_daily", "mart.orders_audit"],
+      "columnLineage": [
+        {"target": "mart.orders_daily.order_id", "sources": ["ods.orders.id"]},
+        {"target": "mart.orders_daily.amount", "sources": ["ods.orders.total"]},
+        {"target": "mart.orders_daily.region", "sources": []},
+        {"target": "mart.orders_audit.order_id", "sources": ["ods.audit.id"]},
+        {"target": "mart.orders_audit.audit_kind", "sources": []}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.orders.ready"},
+        {"type": "TABLE_MODEL", "column": "mart.orders_daily.region"},
+        {"type": "WHERE", "column": "ods.audit.include_row"},
+        {"type": "TABLE_MODEL", "column": "mart.orders_audit.audit_kind"}
+      ],
+      "description": "Static partition assignments attach to the corresponding sink and preserve projection positions"
+    },
+    {
       "id": "insert_partition_select",
       "file": "cases/insert_partition_select.sql",
       "statementType": "INSERT",
@@ -4685,13 +4706,15 @@
           "sources": [
             "dwd.orders.amount"
           ]
-        }
+        },
+        {"target": "ads.daily_orders.dt", "sources": []}
       ],
       "columnUsages": [
         {
           "type": "WHERE",
           "column": "dwd.orders.dt"
-        }
+        },
+        {"type": "TABLE_MODEL", "column": "ads.daily_orders.dt"}
       ],
       "description": "Flink INSERT OVERWRITE static partition with target column mapping"
     },
@@ -7087,8 +7110,10 @@
           "sources": [
             "dwd.orders.amount"
           ]
-        }
+        },
+        {"target": "ads.order_sink.dt", "sources": []}
       ],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "ads.order_sink.dt"}],
       "description": "Flink Hive-compatible INSERT OVERWRITE TABLE static partition lineage"
     },
     {
@@ -7167,7 +7192,8 @@
       "outputTables": [
         "ods.raw_orders"
       ],
-      "columnLineage": [],
+      "columnLineage": [{"target": "ods.raw_orders.dt", "sources": []}],
+      "columnUsages": [{"type": "TABLE_MODEL", "column": "ods.raw_orders.dt"}],
       "description": "Flink Hive-compatible LOAD DATA partition target table lineage"
     },
     {

@@ -131,6 +131,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         branchVisitor.visit(ctx.querySpecification());
         branchVisitor.refreshColumnLineage();
         branchVisitor.retargetColumnLineage(target);
+        branchVisitor.recordPartitionWrites(target, ctx.partitionSpec());
         result.getColumnLineage().addAll(branchResult.getColumnLineage());
         LineageModelUtils.mergeColumnUsages(result, branchResult);
     }
@@ -163,6 +164,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 result.setColumnLineage(LineageModelUtils.retargetColumnLineage(lineages, target, insertTargetColumns));
             }
             suppressColumnLineage = true;
+        }
+        if (ctx.partitionSpec() != null) {
+            suppressColumnLineage = true;
+            recordPartitionWrites(target, ctx.partitionSpec());
         }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -211,10 +216,28 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitLoadDataStatement(FlinkParser.LoadDataStatementContext ctx) {
-        outputTables.add(tableRef(ctx.multipartIdentifier()));
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        outputTables.add(target);
+        recordPartitionWrites(target, ctx.partitionSpec());
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void recordPartitionWrites(TableRef target, FlinkParser.PartitionSpecContext partition) {
+        if (partition == null) {
+            return;
+        }
+        List<ColumnRef> keys = new ArrayList<>();
+        for (FlinkParser.PartitionSpecItemContext item : partition.partitionSpecItem()) {
+            String column = cleanIdentifier(item.identifier());
+            keys.add(new ColumnRef(target, column));
+            if (item.expression() != null) {
+                result.getColumnLineage().add(LineageModelUtils.columnLineage(
+                        target, column, Collections.emptyList(), item.expression().getText()));
+            }
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, keys);
     }
 
     @Override
