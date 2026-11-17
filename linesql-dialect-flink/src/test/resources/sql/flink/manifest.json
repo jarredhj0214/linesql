@@ -9700,6 +9700,543 @@
       ],
       "columnUsages": [],
       "description": "Flink preserves unknown set operands as wildcard evidence without assuming a matching column layout"
+    },
+    {
+      "id": "script_materialized_table_query_layout",
+      "file": "cases/script_materialized_table_query_layout.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "input.events",
+        "live.metrics",
+        "external.metrics"
+      ],
+      "outputTables": [
+        "live.metrics"
+      ],
+      "description": "Known materialized table positions follow CREATE and ALTER AS, and are removed when the table is dropped",
+      "columnLineage": [
+        {
+          "target": "live.metrics.key_id",
+          "sources": [
+            "input.events.key_id"
+          ]
+        },
+        {
+          "target": "live.metrics.event_time",
+          "sources": [
+            "input.events.event_time"
+          ]
+        },
+        {
+          "target": "key_id",
+          "sources": [
+            "live.metrics.key_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "live.metrics.event_time"
+          ]
+        },
+        {
+          "target": "live.metrics.key_id",
+          "sources": [
+            "input.events.key_id"
+          ]
+        },
+        {
+          "target": "live.metrics.event_time",
+          "sources": [
+            "input.events.event_time"
+          ]
+        },
+        {
+          "target": "live.metrics.event_date",
+          "sources": [
+            "input.events.event_date"
+          ]
+        },
+        {
+          "target": "key_id",
+          "sources": [
+            "live.metrics.key_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "live.metrics.event_time"
+          ]
+        },
+        {
+          "target": "event_date",
+          "sources": [
+            "live.metrics.event_date"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "live.metrics.region"
+          ]
+        },
+        {
+          "target": "key_id",
+          "sources": [
+            "live.metrics.key_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "live.metrics.event_time"
+          ]
+        },
+        {
+          "target": "event_date",
+          "sources": [
+            "live.metrics.event_date"
+          ]
+        },
+        {
+          "target": "key_id",
+          "sources": [
+            "live.metrics.key_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "live.metrics.event_time"
+          ]
+        },
+        {
+          "target": "region",
+          "sources": [
+            "live.metrics.region"
+          ]
+        },
+        {
+          "target": "event_date",
+          "sources": [
+            "live.metrics.event_date"
+          ]
+        },
+        {
+          "target": "key_id",
+          "sources": [
+            "live.metrics.key_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "live.metrics.event_time"
+          ]
+        },
+        {
+          "target": "event_date",
+          "sources": [
+            "live.metrics.event_date"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "live.metrics.*"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "input.events"
+          ],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [
+            {
+              "target": "live.metrics.key_id",
+              "sources": [
+                "input.events.key_id"
+              ]
+            },
+            {
+              "target": "live.metrics.event_time",
+              "sources": [
+                "input.events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "live.metrics"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "key_id",
+              "sources": [
+                "live.metrics.key_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "live.metrics.event_time"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "live.metrics.event_time"
+            }
+          ]
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [
+            "input.events"
+          ],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [
+            {
+              "target": "live.metrics.key_id",
+              "sources": [
+                "input.events.key_id"
+              ]
+            },
+            {
+              "target": "live.metrics.event_time",
+              "sources": [
+                "input.events.event_time"
+              ]
+            },
+            {
+              "target": "live.metrics.event_date",
+              "sources": [
+                "input.events.event_date"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "live.metrics"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "key_id",
+              "sources": [
+                "live.metrics.key_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "live.metrics.event_time"
+              ]
+            },
+            {
+              "target": "event_date",
+              "sources": [
+                "live.metrics.event_date"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "live.metrics.event_date"
+            }
+          ]
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "live.metrics"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "region",
+              "sources": [
+                "live.metrics.region"
+              ]
+            },
+            {
+              "target": "key_id",
+              "sources": [
+                "live.metrics.key_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "live.metrics.event_time"
+              ]
+            },
+            {
+              "target": "event_date",
+              "sources": [
+                "live.metrics.event_date"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "live.metrics.region"
+            }
+          ]
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "live.metrics"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "key_id",
+              "sources": [
+                "live.metrics.key_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "live.metrics.event_time"
+              ]
+            },
+            {
+              "target": "region",
+              "sources": [
+                "live.metrics.region"
+              ]
+            },
+            {
+              "target": "event_date",
+              "sources": [
+                "live.metrics.event_date"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "live.metrics.region"
+            }
+          ]
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "live.metrics"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "key_id",
+              "sources": [
+                "live.metrics.key_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "live.metrics.event_time"
+              ]
+            },
+            {
+              "target": "event_date",
+              "sources": [
+                "live.metrics.event_date"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "live.metrics.event_date"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_LIKE",
+          "inputTables": [
+            "external.metrics"
+          ],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "live.metrics"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "*",
+              "sources": [
+                "live.metrics.*"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
+    },
+    {
+      "id": "script_replace_materialized_table_unknown_layout",
+      "file": "cases/script_replace_materialized_table_unknown_layout.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "input.events",
+        "live.metrics"
+      ],
+      "outputTables": [
+        "live.metrics"
+      ],
+      "description": "An unknown materialized-table replacement does not retain stale positions",
+      "columnLineage": [
+        {
+          "target": "live.metrics.key_id",
+          "sources": [
+            "input.events.key_id"
+          ]
+        },
+        {
+          "target": "live.metrics.event_time",
+          "sources": [
+            "input.events.event_time"
+          ]
+        },
+        {
+          "target": "live.metrics.*",
+          "sources": [
+            "input.events.*"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "live.metrics.*"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "input.events"
+          ],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [
+            {
+              "target": "live.metrics.key_id",
+              "sources": [
+                "input.events.key_id"
+              ]
+            },
+            {
+              "target": "live.metrics.event_time",
+              "sources": [
+                "input.events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "input.events"
+          ],
+          "outputTables": [
+            "live.metrics"
+          ],
+          "columnLineage": [
+            {
+              "target": "live.metrics.*",
+              "sources": [
+                "input.events.*"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "live.metrics"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "*",
+              "sources": [
+                "live.metrics.*"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

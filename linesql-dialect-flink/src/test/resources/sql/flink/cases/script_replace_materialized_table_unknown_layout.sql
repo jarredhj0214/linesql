@@ -1,0 +1,5 @@
+CREATE MATERIALIZED TABLE live.metrics FRESHNESS = INTERVAL '30' SECOND
+AS SELECT s.key_id, s.event_time FROM input.events s;
+CREATE OR ALTER MATERIALIZED TABLE live.metrics FRESHNESS = INTERVAL '30' SECOND
+AS SELECT * FROM input.events;
+SELECT * FROM live.metrics ORDER BY 2;
