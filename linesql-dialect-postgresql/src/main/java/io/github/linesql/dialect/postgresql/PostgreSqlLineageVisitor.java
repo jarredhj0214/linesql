@@ -2038,7 +2038,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                         sources.addAll(sourceColumns(option.expression()));
                     }
                 }
-                List<ColumnRef> resolved = columnUsageRefs(sources);
+                List<ColumnRef> resolved = columnRefs(sources);
                 if (resolved != null) {
                     refs = LineageModelUtils.mergeColumnRefs(Collections.emptyList(), resolved);
                 }
@@ -2094,7 +2094,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             for (PostgreSqlParser.JsonQueryBehaviorContext behavior : column.jsonQueryBehavior()) {
                 sources.addAll(sourceColumns(behavior));
             }
-            List<ColumnRef> refs = columnUsageRefs(sources);
+            List<ColumnRef> refs = columnRefs(sources);
             columns.put(cleanIdentifier(column.name), refs == null
                     ? Collections.emptyList()
                     : LineageModelUtils.mergeColumnRefs(Collections.emptyList(), refs));
@@ -2132,7 +2132,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (names.isEmpty() || tableAliasColumnNames(ctx.tableAlias()).size() > names.size() + (withOrdinality ? 1 : 0)) {
             return false;
         }
-        List<ColumnRef> refs = columnUsageRefs(sources);
+        List<ColumnRef> refs = columnRefs(sources);
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         for (String name : names) {
             columns.put(name, refs == null ? Collections.emptyList() : refs);
@@ -2163,7 +2163,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         for (int i = 0; i < valueCount; i++) {
             String column = i < aliasColumns.size() ? aliasColumns.get(i) : defaultColumn;
-            List<ColumnRef> refs = columnUsageRefs(sourceColumns(arguments.get(i).expression()));
+            List<ColumnRef> refs = columnRefs(sourceColumns(arguments.get(i).expression()));
             columns.merge(column, refs == null ? Collections.emptyList() : refs, LineageModelUtils::mergeColumnRefs);
         }
         if (withOrdinality) {
@@ -2192,7 +2192,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 knownShape = false;
                 continue;
             }
-            List<ColumnRef> refs = columnUsageRefs(itemSources);
+            List<ColumnRef> refs = columnRefs(itemSources);
             for (String name : names) {
                 String column = index < aliasColumns.size() ? aliasColumns.get(index) : name;
                 columns.merge(column, refs == null ? Collections.emptyList() : refs,
@@ -3044,7 +3044,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return;
         }
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
-        List<ColumnRef> refs = columnUsageRefs(sources);
+        List<ColumnRef> refs = columnRefs(sources);
         for (int i = 0; i < aliasColumns.size(); i++) {
             boolean ordinalityColumn = withOrdinality && i == aliasColumns.size() - 1;
             columns.put(aliasColumns.get(i), ordinalityColumn || refs == null ? new ArrayList<>() : new ArrayList<>(refs));
@@ -3184,17 +3184,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
-        List<ColumnRef> refs = columnUsageRefs(sourceColumns, type == ColumnUsageType.ORDER_BY);
+        List<ColumnRef> refs = type == ColumnUsageType.GROUP_BY || type == ColumnUsageType.ORDER_BY
+                ? outputAwareColumnRefs(sourceColumns, type == ColumnUsageType.ORDER_BY)
+                : columnRefs(sourceColumns);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
         }
     }
 
-    private List<ColumnRef> columnUsageRefs(List<SourceColumn> sourceColumns) {
-        return columnUsageRefs(sourceColumns, false);
-    }
-
-    private List<ColumnRef> columnUsageRefs(List<SourceColumn> sourceColumns, boolean preferOutputAlias) {
+    private List<ColumnRef> outputAwareColumnRefs(List<SourceColumn> sourceColumns, boolean preferOutputAlias) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sourceColumn : sourceColumns) {
             if (!preferOutputAlias && sourceColumn.resolvedRef == null && sourceColumn.qualifier == null) {

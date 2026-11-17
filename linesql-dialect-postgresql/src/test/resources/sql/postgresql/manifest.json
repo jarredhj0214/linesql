@@ -6879,6 +6879,22 @@
       "description": "The GROUP BY name refers to the known input and ORDER BY resolves the bare output alias"
     },
     {
+      "id": "select_predicates_ignore_output_alias",
+      "file": "cases/select_predicates_ignore_output_alias.sql",
+      "statementType": "SELECT",
+      "inputTables": ["sales.orders"],
+      "outputTables": [],
+      "columnLineage": [{"target": "qty", "sources": ["sales.orders.total"]}],
+      "columnUsages": [
+        {"type": "WHERE", "column": "sales.orders.qty"},
+        {"type": "GROUP_BY", "column": "sales.orders.qty"},
+        {"type": "HAVING", "column": "sales.orders.qty"},
+        {"type": "ORDER_BY", "column": "sales.orders.qty"},
+        {"type": "ORDER_BY", "column": "sales.orders.total"}
+      ],
+      "description": "WHERE and HAVING use the input column even when the SELECT list defines an identical alias"
+    },
+    {
       "id": "select_order_expression_uses_input_scope",
       "file": "cases/select_order_expression_uses_input_scope.sql",
       "statementType": "SELECT",
