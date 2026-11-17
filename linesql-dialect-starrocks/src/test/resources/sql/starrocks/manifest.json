@@ -12595,6 +12595,119 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "select_catalog_qualified_same_name",
+      "file": "cases/select_catalog_qualified_same_name.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "c1.db.orders",
+        "c2.db.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "first_id",
+          "sources": [
+            "c1.db.orders.id"
+          ]
+        },
+        {
+          "target": "second_id",
+          "sources": [
+            "c2.db.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "c1.db.orders.user_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "c2.db.orders.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "c1.db.orders.x"
+        },
+        {
+          "type": "WHERE",
+          "column": "c2.db.orders.y"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "c2.db.orders.day_id"
+        }
+      ],
+      "description": "Catalog-qualified projections and predicates keep two same-named inputs distinct"
+    },
+    {
+      "id": "select_schema_qualified_same_name_star",
+      "file": "cases/select_schema_qualified_same_name_star.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.orders",
+        "archive.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.orders.*"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "archive.orders.*"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.orders.id"
+        }
+      ],
+      "description": "Schema-qualified stars in a join expand independently"
+    },
+    {
+      "id": "update_catalog_qualified_same_name",
+      "file": "cases/update_catalog_qualified_same_name.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "default_catalog.mart.orders",
+        "historical.mart.orders"
+      ],
+      "outputTables": [
+        "default_catalog.mart.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "default_catalog.mart.orders.total",
+          "sources": [
+            "historical.mart.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "default_catalog.mart.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "historical.mart.orders.id"
+        }
+      ],
+      "description": "Source and target namespaces survive StarRocks UPDATE predicates"
     }
   ]
 }

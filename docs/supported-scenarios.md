@@ -1236,6 +1236,7 @@ Implemented StarRocks column-level lineage scenarios:
 | CREATE VIEW output columns over CTE | `create view ads.v as with q as (...) select q.c1 from q` | `create_view_with_cte` |
 | Wildcard projection without metadata | `select * from ods.users` | `representsTableStarColumnLineageWithoutMetadata` |
 | Qualified wildcard over derived query | `select q.* from (select id as user_id, name from ods.users) q` | `expandsAliasedSubqueryStarColumnLineage` |
+| Same-named StarRocks tables in separate namespaces | Catalog and schema qualifiers distinguish projection sources, stars, predicates and UPDATE references when inputs share a table name. | `select_catalog_qualified_same_name`, `select_schema_qualified_same_name_star`, `update_catalog_qualified_same_name` |
 | Qualified columns through derived wildcard | `select q.id from (select * from ods.users) q` | `resolvesQualifiedColumnsFromDerivedSelectStar` |
 | StarRocks `EXCLUDE` wildcard safety | `select * exclude (email) from ods.users` | `select_star_exclude` |
 | StarRocks known-schema `EXCLUDE` expansion | `create table ods.t (...); select t.* exclude (email) from ods.t t` | `parseScriptExpandsKnownQualifiedStarExclude` |

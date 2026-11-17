@@ -14,6 +14,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.IdentityHashMap;
@@ -941,11 +942,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-        String alias = tableAlias(ctx.tableAlias());
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
-        }
+        bindTable(target, tableAlias(ctx.tableAlias()));
         if (ctx.relationList() != null) {
             visitRelationList(ctx.relationList());
         }
@@ -976,11 +973,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-        String alias = tableAlias(ctx.tableAlias());
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), target);
-        }
+        bindTable(target, tableAlias(ctx.tableAlias()));
         if (ctx.relationList() != null) {
             visitRelationList(ctx.relationList());
         }
@@ -1008,11 +1001,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         currentDmlTarget = target;
         inputTables.add(target);
         outputTables.add(target);
-        tableAliases.put(target.getName().toLowerCase(Locale.ROOT), target);
-        String targetAlias = tableAlias(ctx.tableAlias(0));
-        if (targetAlias != null) {
-            tableAliases.put(targetAlias.toLowerCase(Locale.ROOT), target);
-        }
+        bindTable(target, tableAlias(ctx.tableAlias(0)));
 
         if (ctx.multipartIdentifier().size() > 1) {
             StarRocksParser.MultipartIdentifierContext sourceIdentifier = ctx.multipartIdentifier(1);
@@ -1022,11 +1011,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             } else {
                 TableRef source = tableRef(sourceIdentifier);
                 inputTables.add(source);
-                tableAliases.put(source.getName().toLowerCase(Locale.ROOT), source);
-                String sourceAlias = tableAlias(ctx.tableAlias(1));
-                if (sourceAlias != null) {
-                    tableAliases.put(sourceAlias.toLowerCase(Locale.ROOT), source);
-                }
+                bindTable(source, tableAlias(ctx.tableAlias(1)));
             }
         } else if (ctx.query() != null) {
             String alias = tableAlias(ctx.tableAlias(1));
@@ -2052,13 +2037,30 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             visibleRelations.add(VisibleRelation.table(table));
         }
         inputTables.add(table);
-        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
-        String alias = tableAlias(aliasCtx);
-        if (alias != null) {
-            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        if (visibleRelation) {
+            bindTable(table, tableAlias(aliasCtx));
+        } else {
+            tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
         }
         result.setInputTables(new ArrayList<>(inputTables));
         refreshColumnLineage();
+    }
+
+    private void bindTable(TableRef table, String alias) {
+        tableAliases.put(table.getName().toLowerCase(Locale.ROOT), table);
+        if (alias != null) {
+            tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        } else if (table.getSchema() != null) {
+            tableAliases.put(qualifiedTableKey(Arrays.asList(table.getSchema(), table.getName())), table);
+            if (table.getCatalog() != null) {
+                tableAliases.put(qualifiedTableKey(Arrays.asList(table.getCatalog(), table.getSchema(), table.getName())),
+                        table);
+            }
+        }
+    }
+
+    private static String qualifiedTableKey(List<String> parts) {
+        return ("\0" + String.join("\0", parts)).toLowerCase(Locale.ROOT);
     }
 
     private void addDerivedReference(String rawName, StarRocksParser.TableAliasContext aliasCtx) {
@@ -2755,6 +2757,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         if (sourceColumn.resolvedRef != null) {
             return sourceColumn;
         }
+        String qualifier = sourceColumn.qualifier;
+        if (qualifier != null && qualifier.startsWith("\0") && !"*".equals(sourceColumn.name)
+                && !tableAliases.containsKey(qualifier)) {
+            // Keep the existing field dereference fallback when this is not a bound table prefix.
+            return new SourceColumn(qualifier.substring(qualifier.lastIndexOf('\0') + 1), sourceColumn.name);
+        }
         if (sourceColumn.qualifier != null || !sourceColumn.name.contains(".")) {
             return sourceColumn;
         }
@@ -3008,8 +3016,10 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         String columnName = parts.get(parts.size() - 1);
         TableRef table = defaultTarget;
         if (parts.size() >= 2) {
-            String qualifier = parts.get(parts.size() - 2).toLowerCase(Locale.ROOT);
-            TableRef resolved = tableAliases.get(qualifier);
+            List<String> qualifier = parts.subList(0, parts.size() - 1);
+            String key = qualifier.size() == 1 ? qualifier.get(0).toLowerCase(Locale.ROOT)
+                    : qualifiedTableKey(qualifier);
+            TableRef resolved = tableAliases.get(key);
             if (resolved != null) {
                 table = resolved;
             }
@@ -3448,7 +3458,8 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
             StarRocksParser.DereferenceContext deref = (StarRocksParser.DereferenceContext) tree;
             List<String> parts = collectDereferenceParts(deref);
             if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2);
+                String qualifier = parts.size() == 2 ? parts.get(0)
+                        : qualifiedTableKey(parts.subList(0, parts.size() - 1));
                 String name = parts.get(parts.size() - 1);
                 columns.add(new SourceColumn(qualifier, name));
             } else if (parts.size() == 1) {
@@ -3676,7 +3687,7 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
         for (StarRocksParser.IdentifierContext id : ctx.identifier()) {
             parts.add(cleanIdentifier(id));
         }
-        return String.join(".", parts);
+        return parts.size() == 1 ? parts.get(0) : qualifiedTableKey(parts);
     }
 
     private static TableRef tableRefFromLiteral(String text) {
