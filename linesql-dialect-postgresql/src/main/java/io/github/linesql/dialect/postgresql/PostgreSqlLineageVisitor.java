@@ -48,6 +48,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private Map<String, List<ColumnRef>> unqualifiedJoinKeys = Collections.emptyMap();
     private TableRef currentDmlTarget;
     private boolean returningSourcesForCte;
+    private int returningColumnCount = -1;
     private int visibleRelationCount;
     private int setColumnCount = -1;
     private int selectedColumnCount = -1;
@@ -302,6 +303,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         List<ColumnLineage> lineages = new ArrayList<>(result.getColumnLineage());
         Map<String, List<ColumnRef>> writtenSources = new LinkedHashMap<>();
         if (returningSourcesForCte) {
+            if (returning.returningItem().stream().noneMatch(item -> item.STAR() != null)) {
+                returningColumnCount = returning.returningItem().size();
+            }
             for (ColumnLineage lineage : lineages) {
                 if (lineage.getTarget() != null && lineage.getTarget().getTable() != null) {
                     writtenSources.merge(LineageModelUtils.columnKey(lineage.getTarget()), lineage.getSources(),
@@ -341,6 +345,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             String targetColumn = item.alias == null
                     ? returningTargetColumn(item.expression().getText(), sourceColumns)
                     : cleanIdentifier(item.alias);
+            if (targetColumn == null && returningSourcesForCte) {
+                targetColumn = defaultSetColumnName(item.expression());
+            }
             if (targetColumn == null) {
                 continue;
             }
@@ -3126,6 +3133,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             returnIndex++;
         }
         derivedColumnLineage.put(name, columns);
+        if (returnIndex == relationVisitor.returningColumnCount && columns.size() == returnIndex) {
+            knownColumnRelations.add(name);
+        } else {
+            knownColumnRelations.remove(name);
+        }
         for (TableRef table : relationResult.getInputTables()) {
             addInputTable(table, false);
         }

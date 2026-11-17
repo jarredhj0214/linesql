@@ -8607,6 +8607,108 @@
       ],
       "columnUsages": [],
       "description": "TABLE over a CTE forwards its unknown star source to the set result"
+    },
+    {
+      "id": "select_star_dml_cte_known_returning",
+      "file": "cases/select_star_dml_cte_known_returning.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.settings"
+      ],
+      "outputTables": [
+        "public.settings"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "public.settings.id"
+          ]
+        },
+        {
+          "target": "current_value",
+          "sources": [
+            "public.settings.value"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "public.settings.enabled"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.settings.value"
+        }
+      ],
+      "description": "An explicit UPDATE RETURNING list supplies the ordered CTE output"
+    },
+    {
+      "id": "table_dml_cte_known_returning",
+      "file": "cases/table_dml_cte_known_returning.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.users"
+      ],
+      "outputTables": [
+        "public.users"
+      ],
+      "columnLineage": [
+        {
+          "target": "customer_id",
+          "sources": [
+            "public.users.id"
+          ]
+        },
+        {
+          "target": "last_seen",
+          "sources": [
+            "public.users.updated_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "public.users.inactive"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.users.updated_at"
+        }
+      ],
+      "description": "TABLE uses the DELETE RETURNING layout and aliases to resolve positional ordering"
+    },
+    {
+      "id": "select_star_dml_cte_returning_constant",
+      "file": "cases/select_star_dml_cte_returning_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.settings"
+      ],
+      "outputTables": [
+        "public.settings"
+      ],
+      "columnLineage": [
+        {
+          "target": "event_kind",
+          "sources": []
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "public.settings.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.settings.observed_at"
+        }
+      ],
+      "description": "An unnamed constant keeps its RETURNING position when the CTE supplies a name"
     }
   ]
 }
