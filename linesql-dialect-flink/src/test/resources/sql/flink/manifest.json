@@ -8239,6 +8239,98 @@
         }
       ],
       "description": "Flink traces inherited window keys in projections and QUALIFY"
+    },
+    {
+      "id": "cte_column_aliases_after_constant",
+      "file": "cases/cte_column_aliases_after_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "batch_id",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.id"
+        }
+      ],
+      "description": "A constant output keeps its position when explicit derived column names are applied"
+    },
+    {
+      "id": "derived_column_aliases_after_constant",
+      "file": "cases/derived_column_aliases_after_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "batch_id",
+          "sources": []
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.events.id"
+        }
+      ],
+      "description": "A constant output keeps its position when explicit derived column names are applied"
+    },
+    {
+      "id": "cte_window_clause_usages",
+      "file": "cases/cte_window_clause_usages.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WINDOW_PARTITION_BY",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WINDOW_ORDER_BY",
+          "column": "ods.events.event_time"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.events.user_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.events.event_time"
+        }
+      ],
+      "description": "CTE window clauses and the outer filter retain the definition\u2019s source keys"
     }
   ]
 }

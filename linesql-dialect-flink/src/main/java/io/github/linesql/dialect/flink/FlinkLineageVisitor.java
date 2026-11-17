@@ -45,7 +45,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
-    private FlinkParser.SelectClauseContext setBranchSelect;
+    private FlinkParser.SelectClauseContext positionalProjectionSelect;
     private FlinkParser.SelectClauseContext positionalInsertSelect;
     private Map<FlinkParser.QueryContext, LineageResult> projectionSubqueries;
     private boolean correlatedQuery;
@@ -144,7 +144,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         if (ctx.query() != null) {
             positionalInsertSelect = insertTargetColumns.isEmpty()
-                    ? null : explicitBranchSelect(ctx.query().queryTerm());
+                    ? null : explicitSelectClause(ctx.query().queryTerm());
             try {
                 visit(ctx.query());
             } finally {
@@ -1834,8 +1834,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
+        if (!columnAliases.isEmpty()) {
+            relationVisitor.positionalProjectionSelect = explicitSelectClause(query.queryTerm());
+        }
         relationVisitor.visit(query);
-        relationVisitor.refreshColumnLineage();
+        relationVisitor.finalizeResult();
 
         Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
         List<ColumnLineage> lineages = relationResult.getColumnLineage();
@@ -1860,19 +1863,19 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.setBranchSelect = explicitBranchSelect(queryTerm);
+        queryVisitor.positionalProjectionSelect = explicitSelectClause(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
         return queryResult;
     }
 
-    private static FlinkParser.SelectClauseContext explicitBranchSelect(FlinkParser.QueryTermContext term) {
+    private static FlinkParser.SelectClauseContext explicitSelectClause(FlinkParser.QueryTermContext term) {
         if (!(term instanceof FlinkParser.QueryTermDefaultContext)) {
             return null;
         }
         FlinkParser.QueryPrimaryContext primary = ((FlinkParser.QueryTermDefaultContext) term).queryPrimary();
         if (primary instanceof FlinkParser.SubqueryPrimaryContext) {
-            return explicitBranchSelect(((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm());
+            return explicitSelectClause(((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm());
         }
         if (primary instanceof FlinkParser.QueryPrimaryDefaultContext) {
             FlinkParser.SelectClauseContext select =
@@ -2089,7 +2092,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
-                if (setBranchSelect == null) {
+                if (positionalProjectionSelect == null) {
                     continue;
                 }
                 sources = Collections.emptyList();
@@ -2700,7 +2703,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 FlinkParser.SelectExpressionContext selected = (FlinkParser.SelectExpressionContext) item;
                 boolean positional = ctx == positionalInsertSelect && i < insertTargetColumns.size();
                 Projection projection = projection(selected, i, positional);
-                if (projection == null && ctx == setBranchSelect) {
+                if (projection == null && ctx == positionalProjectionSelect) {
                     FlinkParser.ExpressionContext expression = selected.expression();
                     projection = new Projection(sourceColumns(expression), "EXPR$" + i, expression.getText(), i);
                 }
