@@ -12728,6 +12728,106 @@
           ]
         }
       ]
+    },
+    {
+      "id": "script_prepare_known_sql_variable",
+      "file": "cases/script_prepare_known_sql_variable.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.orders",
+        "config.runtime"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        }
+      ],
+      "description": "MySQL tracks literal SQL assigned to a user variable until SELECT INTO or a runtime expression replaces it",
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "ods.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "ods.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "config.runtime"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "command_text",
+              "sources": [
+                "config.runtime.command_text"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

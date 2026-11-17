@@ -1088,7 +1088,7 @@ cursorStatement
     ;
 
 prepareStatement
-    : PREPARE identifier FROM (literalSql=string | .+?)
+    : PREPARE identifier FROM (literalSql=string | sqlVariable=USER_VARIABLE | .+?)
     ;
 
 executeStatement
