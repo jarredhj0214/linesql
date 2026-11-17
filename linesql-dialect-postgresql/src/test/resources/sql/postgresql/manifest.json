@@ -1375,6 +1375,26 @@
       "description": "A left join retains the coalesced key of a parenthesized full join"
     },
     {
+      "id": "select_join_using_case_distinct_keys",
+      "file": "cases/select_join_using_case_distinct_keys.sql",
+      "statementType": "SELECT",
+      "inputTables": ["ods.orders", "ops.invoices"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "canonical_id", "sources": ["ods.orders.order_id"]},
+        {"target": "version_id", "sources": ["ods.orders.version_id"]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "ods.orders.order_id"},
+        {"type": "JOIN_ON", "column": "ops.invoices.invoice_order_id"},
+        {"type": "JOIN_ON", "column": "ods.orders.version_id"},
+        {"type": "JOIN_ON", "column": "ops.invoices.invoice_version"},
+        {"type": "WHERE", "column": "ods.orders.order_id"},
+        {"type": "ORDER_BY", "column": "ods.orders.version_id"}
+      ],
+      "description": "JOIN USING distinguishes quoted keys while predicates keep both inputs and the left join keeps left outputs"
+    },
+    {
       "id": "select_join_using_alias",
       "file": "cases/select_join_using_alias.sql",
       "statementType": "SELECT",

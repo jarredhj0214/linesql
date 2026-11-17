@@ -131,6 +131,9 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\bdelete\\s+from\\s+" + POSTGRES_RELATION + "\\s+as\\s+" + POSTGRES_NAME + "\\s+using\\b");
     private static final Pattern POSTGRES_DATA_MODIFYING_CTE = Pattern.compile(
             "^\\s*with\\b[^;]*\\bas\\s*\\(\\s*(?:delete\\s+from|insert\\s+into|update|merge\\s+into)\\b");
+    private static final Pattern POSTGRES_JOIN_USING_ALIAS = Pattern.compile(
+            "\\bjoin\\b[^;]*\\busing\\s*\\(\\s*" + POSTGRES_NAME
+                    + "(?:\\s*,\\s*" + POSTGRES_NAME + ")*\\s*\\)\\s+as\\s+" + POSTGRES_NAME);
     private static final Pattern POSTGRES_ROWS_FROM = Pattern.compile(
             "(?:\\b(?:from|join)\\b|,)\\s*(?:lateral\\s+)?rows\\s+from\\s*\\(");
 
@@ -465,6 +468,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 && POSTGRES_DML_TARGET.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL inherited DML target"));
+        } else if (unquotedSyntax.contains("join") && unquotedSyntax.contains("using")
+                && POSTGRES_JOIN_USING_ALIAS.matcher(
+                        QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL alias for JOIN USING columns"));
         } else if (POSTGRES_RECURSIVE_CTE_OPTIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL recursive CTE search or cycle options"));
         } else if (POSTGRES_JSON_SYNTAX.matcher(unquotedSyntax).find()

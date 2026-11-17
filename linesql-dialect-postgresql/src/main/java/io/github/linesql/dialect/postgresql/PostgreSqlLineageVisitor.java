@@ -2042,7 +2042,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             PostgreSqlParser.JoinCriteriaContext criteria = join.joinCriteria();
             if (criteria != null && criteria.identifierList() != null) {
                 Map<String, List<ColumnRef>> renamed = new LinkedHashMap<>();
-                List<String> keys = identifierNames(criteria.identifierList());
+                List<String> keys = normalizedIdentifierNames(criteria.identifierList());
                 for (int index = 0; index < keys.size(); index++) {
                     String key = keys.get(index);
                     String name = index < aliases.size() ? aliases.get(index) : key;
@@ -2378,8 +2378,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         List<SourceColumn> resolved = new ArrayList<>();
         for (SourceColumn source : sources) {
-            List<ColumnRef> key = source.resolvedRef == null && source.qualifier == null
-                    ? joinKeys.get(source.name) : null;
+            List<ColumnRef> key = source.resolvedRef == null && source.qualifier == null && source.path.size() <= 1
+                    ? joinKeys.get(columnBindingName(source)) : null;
             if (key == null) {
                 resolved.add(source);
             } else {
@@ -2406,7 +2406,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 List<VisibleRelation> right = visibleRelations.subList(rightStart, visibleRelations.size());
                 List<String> columns = criteria == null
                         ? naturalJoinColumns(left, right, keys, rightKeys)
-                        : identifierNames(criteria.identifierList());
+                        : normalizedIdentifierNames(criteria.identifierList());
                 Map<String, List<ColumnRef>> merged = collectMergedJoinKeys(
                         joinDirection(join), columns, left, right, keys, rightKeys);
                 if (criteria != null) {
@@ -2701,7 +2701,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         List<SourceColumn> sources = sourceColumns(expression);
         if (primaryExpression(expression) instanceof PostgreSqlParser.ColumnReferenceContext && !sources.isEmpty()) {
             SourceColumn column = sources.get(0);
-            List<ColumnRef> input = unqualifiedJoinKeys.get(column.name);
+            List<ColumnRef> input = unqualifiedJoinKeys.get(columnBindingName(column));
             if (input == null) {
                 input = unqualifiedDerivedColumnRefs(column);
             }
@@ -3206,13 +3206,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private static List<String> tableAliasColumnNames(PostgreSqlParser.TableAliasContext ctx) {
-        List<String> names = new ArrayList<>();
-        if (ctx != null && ctx.identifierList() != null) {
-            for (PostgreSqlParser.IdentifierContext identifier : ctx.identifierList().identifier()) {
-                names.add(normalizedIdentifier(identifier));
-            }
-        }
-        return names;
+        return normalizedIdentifierNames(ctx == null ? null : ctx.identifierList());
     }
 
     private void addDerivedInputTables(String derivedName) {
@@ -3351,7 +3345,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sourceColumn : sourceColumns) {
             if (!preferOutputAlias && sourceColumn.resolvedRef == null && sourceColumn.qualifier == null) {
-                List<ColumnRef> joinRefs = unqualifiedJoinKeys.get(sourceColumn.name);
+                List<ColumnRef> joinRefs = unqualifiedJoinKeys.get(columnBindingName(sourceColumn));
                 if (joinRefs != null) {
                     refs.addAll(joinRefs);
                     continue;
@@ -3404,7 +3398,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return;
         }
         Map<String, List<ColumnRef>> joinColumns = new LinkedHashMap<>();
-        for (String columnName : identifierNames(ctx.identifierList())) {
+        for (String columnName : normalizedIdentifierNames(ctx.identifierList())) {
             List<ColumnRef> refs = new ArrayList<>();
             for (VisibleRelation relation : relations) {
                 refs.addAll(usingColumnRefs(relation, columnName));
@@ -3418,10 +3412,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private void registerUsingAlias(PostgreSqlParser.JoinCriteriaContext ctx,
                                     Map<String, List<ColumnRef>> joinColumns) {
         if (ctx.usingAlias != null) {
-            String alias = cleanIdentifier(ctx.usingAlias.getText()).toLowerCase(Locale.ROOT);
+            String rawAlias = ctx.usingAlias.getText();
             String name = "$join_using_" + derivedColumnLineage.size();
             derivedColumnLineage.put(name, joinColumns);
-            derivedAliases.put(alias, name);
+            derivedAliases.put(singleIdentifierKey(rawAlias), name);
             knownColumnRelations.add(name);
         }
     }
@@ -3543,7 +3537,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 continue;
             }
             List<ColumnRef> joinRefs = sourceColumn.qualifier == null
-                    ? unqualifiedJoinKeys.get(sourceColumn.name) : null;
+                    ? unqualifiedJoinKeys.get(columnBindingName(sourceColumn)) : null;
             if (joinRefs != null) {
                 refs.addAll(joinRefs);
                 continue;
@@ -4078,7 +4072,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 refs.add(col.resolvedRef);
                 continue;
             }
-            List<ColumnRef> joinRefs = col.qualifier == null ? unqualifiedJoinKeys.get(col.name) : null;
+            List<ColumnRef> joinRefs = col.qualifier == null ? unqualifiedJoinKeys.get(columnBindingName(col)) : null;
             if (joinRefs != null) {
                 refs.addAll(joinRefs);
                 continue;
@@ -4555,13 +4549,17 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private static List<String> cteColumnAliases(PostgreSqlParser.NamedQueryContext ctx) {
-        List<String> aliases = new ArrayList<>();
-        if (ctx.columnAliases != null) {
-            for (PostgreSqlParser.IdentifierContext id : ctx.columnAliases.identifier()) {
-                aliases.add(normalizedIdentifier(id));
+        return normalizedIdentifierNames(ctx.columnAliases);
+    }
+
+    private static List<String> normalizedIdentifierNames(PostgreSqlParser.IdentifierListContext ctx) {
+        List<String> names = new ArrayList<>();
+        if (ctx != null) {
+            for (PostgreSqlParser.IdentifierContext identifier : ctx.identifier()) {
+                names.add(normalizedIdentifier(identifier));
             }
         }
-        return aliases;
+        return names;
     }
 
     private static List<String> identifierNames(PostgreSqlParser.IdentifierListContext ctx) {

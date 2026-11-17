@@ -925,6 +925,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresAliasForJoinUsingColumns() {
+        LineageResult result = LineSql.parse("SELECT \"Join keys\".id FROM ods.orders "
+                + "LEFT JOIN ods.invoices USING (ID) AS \"Join keys\"");
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals(2, result.getColumnUsages().size());
+        assertEquals(new TableRef(null, "ods", "orders"),
+                result.getColumnLineage().get(0).getSources().get(0).getTable());
+        assertDialect(SqlDialect.SPARK, "SELECT id FROM ods.orders JOIN ods.invoices USING (id)");
+        assertDialect(SqlDialect.SPARK, "SELECT 'JOIN a USING (id) AS keys' AS note");
+    }
+
+    @Test
     public void usesPostgresDiscardToIdentifyTemporaryViewScripts() {
         List<LineageResult> results = LineSql.parseScript(
                 "CREATE TEMP VIEW recent_orders AS SELECT id FROM sales.orders WHERE is_recent; "
