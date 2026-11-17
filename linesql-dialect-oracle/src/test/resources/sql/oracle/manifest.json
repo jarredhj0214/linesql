@@ -2945,6 +2945,38 @@
       "description": "Oracle MERGE not-matched INSERT WHERE keeps insert value lineage and WHEN predicate usage"
     },
     {
+      "id": "update_correlated_scalar_returning",
+      "file": "cases/update_correlated_scalar_returning.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "ods.flags"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.latest_flag", "sources": ["ods.flags.change_flag", "mart.orders.current_flag"]},
+        {"target": ":updated_flag", "sources": ["ods.flags.change_flag", "mart.orders.current_flag"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "mart.orders.order_id"},
+        {"type": "WHERE", "column": "mart.orders.keep_flag"}
+      ],
+      "description": "Oracle RETURNING propagates a scalar assignment and its fallback into the output bind variable"
+    },
+    {
+      "id": "merge_correlated_scalar_assignment",
+      "file": "cases/merge_correlated_scalar_assignment.sql",
+      "statementType": "MERGE",
+      "inputTables": ["mart.orders", "ods.delta", "ods.flags"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [{"target": "mart.orders.latest_flag", "sources": ["ods.flags.change_flag"]}],
+      "columnUsages": [
+        {"type": "MERGE_ON", "column": "mart.orders.id"},
+        {"type": "MERGE_ON", "column": "ods.delta.id"},
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "ods.delta.id"}
+      ],
+      "description": "Oracle MERGE follows a scalar matched assignment and correlated references into the source row"
+    },
+    {
       "id": "update_with_subquery",
       "file": "cases/update_with_subquery.sql",
       "statementType": "UPDATE",
@@ -2956,7 +2988,9 @@
       "outputTables": [
         "ads.users"
       ],
-      "columnLineage": [],
+      "columnLineage": [
+        {"target": "ads.users.latest_flag", "sources": ["ods.user_flags.flag"]}
+      ],
       "columnUsages": [
         {
           "type": "WHERE",
@@ -2967,7 +3001,7 @@
           "column": "ods.active_users.user_id"
         }
       ],
-      "description": "Oracle UPDATE target table with SET and WHERE subquery source tables and predicate columns"
+      "description": "Oracle UPDATE target table with SET value lineage and WHERE predicate columns"
     },
     {
       "id": "delete_with_subquery",

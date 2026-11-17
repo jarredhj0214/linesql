@@ -911,7 +911,7 @@ Implemented Oracle table-level lineage scenarios:
 | DELETE target table lineage | `delete from ads.t where ...` | `delete_where` |
 | MERGE target and source tables | `merge into ads.t using ods.s on (...) when matched then update ...`, `when matched then update ... where ...`, `when matched then update ... delete where ...`, `when not matched then insert ... where ...` | `merge_into`, `merge_update_where`, `merge_update_delete_where`, `merge_insert_where` |
 | MERGE source subquery tables | `merge into ads.t using (select ... from ods.s) q on (...)` | `merge_using_subquery` |
-| UPDATE with subquery sources | `update ads.t set c = (select ... from ods.s1) where id in (select ... from ods.s2)` | `update_with_subquery` |
+| Scalar subqueries in UPDATE assignments | UPDATE and MERGE assignments follow scalar values and correlated WHERE columns. UPDATE RETURNING INTO follows the assigned value when populating a bind variable. | `update_with_subquery`, `update_correlated_scalar_returning`, `merge_correlated_scalar_assignment` |
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | DROP TABLE affected table | `drop table mart.t`, `drop table mart.t cascade constraints purge` | `drop_table`, `drop_table_cascade_purge` |
 | DROP VIEW affected view | `drop view mart.v` | `drop_view` |

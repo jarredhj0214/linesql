@@ -291,6 +291,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         for (OracleParser.MergeClauseContext clause : ctx.mergeClause()) {
             if (clause.mergeMatchedAction() != null) {
                 OracleParser.MergeMatchedActionContext action = clause.mergeMatchedAction();
+                collectSubqueryInputs(action.assignmentList());
                 List<ColumnLineage> assignments = readAssignments(action.assignmentList(), target);
                 lineages.addAll(assignments);
                 if (ctx.returningClause() != null) {
@@ -2219,9 +2220,6 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private List<ColumnLineage> readAssignments(OracleParser.AssignmentListContext ctx, TableRef defaultTarget) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (OracleParser.AssignmentContext assignment : ctx.assignment()) {
-            if (containsSubquery(assignment.expression())) {
-                continue;
-            }
             List<String> parts = identifierParts(assignment.multipartIdentifier());
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
