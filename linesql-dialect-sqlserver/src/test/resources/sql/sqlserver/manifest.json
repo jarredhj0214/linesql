@@ -7891,6 +7891,81 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "select_database_schema_qualified_columns",
+      "file": "cases/select_database_schema_qualified_columns.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "prod.live.orders",
+        "prod.archive.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "live_id",
+          "sources": [
+            "prod.live.orders.id"
+          ]
+        },
+        {
+          "target": "history_id",
+          "sources": [
+            "prod.archive.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "prod.live.orders.link_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "prod.archive.orders.link_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "prod.live.orders.status"
+        }
+      ],
+      "description": "SQL Server resolves explicit database and schema column qualifiers before ambiguous short names"
+    },
+    {
+      "id": "update_database_schema_qualified_columns",
+      "file": "cases/update_database_schema_qualified_columns.sql",
+      "statementType": "UPDATE",
+      "inputTables": [
+        "prod.live.orders",
+        "prod.archive.orders"
+      ],
+      "outputTables": [
+        "prod.live.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "prod.live.orders.status",
+          "sources": [
+            "prod.live.orders.status",
+            "prod.archive.orders.status"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "prod.live.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "prod.archive.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "prod.live.orders.active"
+        }
+      ],
+      "description": "SQL Server resolves explicit database and schema column qualifiers before ambiguous short names"
     }
   ]
 }

@@ -542,6 +542,7 @@ Implemented SQL Server table-level lineage scenarios:
 
 | Scenario | Example shape | Case id |
 | --- | --- | --- |
+| Database- and schema-qualified columns | Explicit table paths in SELECT, join filters, and UPDATE assignments distinguish same-named tables from other schemas and their aliases. | `select_database_schema_qualified_columns`, `update_database_schema_qualified_columns` |
 | Basic SELECT source table | `select ... from ods.users` | `select_basic` |
 | Local/global temporary tables, table variables, and scalar variables | `select ... from #t`, `create table #t (...)`, `insert into ##t select ...`, `declare @t table (...)`, `declare @d date = ...`, `set @v = (select ... from t)`, `select @v = t.c from t`, `select ... from @t`, `insert into @t select ...` | `select_local_temp_table`, `create_local_temp_table`, `insert_global_temp_table`, `declare_table_variable`, `declare_scalar_variables`, `set_variable_scalar_subquery`, `select_variable_assignment`, `select_table_variable`, `insert_table_variable` |
 | Automatic SQL Server table-variable detection | `DECLARE @t [AS] TABLE` and references such as `FROM @t` or `INSERT INTO @t` identify SQL Server. | `declare_table_variable_as`, `select_table_variable`, `insert_table_variable`, `table_variable_batch.sql` |

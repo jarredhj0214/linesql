@@ -182,6 +182,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         String alias = tableAlias(ctx.tableAlias());
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), declaredTarget);
+        } else {
+            bindQualifiedTable(declaredTarget);
         }
 
         // Visit FROM clause if present (SQL Server UPDATE ... FROM syntax)
@@ -570,6 +572,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             String alias = tableAlias(tableName.tableAlias());
             if (alias != null) {
                 tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+            } else {
+                bindQualifiedTable(table);
             }
             return;
         }
@@ -1829,9 +1833,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
                 }
             } else if (item instanceof SqlServerParser.SelectQualifiedStarContext) {
                 SqlServerParser.SelectQualifiedStarContext star = (SqlServerParser.SelectQualifiedStarContext) item;
-                List<SqlServerParser.IdentifierContext> parts = star.qualifiedName().identifier();
-                String qualifier = cleanIdentifier(parts.get(parts.size() - 1));
-                projections.add(new Projection(Collections.singletonList(new SourceColumn(qualifier, "*")),
+                List<String> parts = new ArrayList<>();
+                for (SqlServerParser.IdentifierContext part : star.qualifiedName().identifier()) {
+                    parts.add(cleanIdentifier(part));
+                }
+                SourceColumn wildcard = qualifiedSourceColumn(parts, "*");
+                projections.add(new Projection(Collections.singletonList(wildcard),
                         "*", item.getText(), i));
             } else if (item instanceof SqlServerParser.SelectStarContext) {
                 projections.add(new Projection(Collections.singletonList(new SourceColumn(null, "*")),
@@ -2017,6 +2024,8 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         String alias = tableAlias(aliasCtx);
         if (alias != null) {
             tableAliases.put(alias.toLowerCase(Locale.ROOT), table);
+        } else if (visibleRelation) {
+            bindQualifiedTable(table);
         }
         if (visibleRelation && correlatedScope) {
             derivedAliases.remove(table.getName().toLowerCase(Locale.ROOT));
@@ -2353,6 +2362,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (sourceColumn.resolvedRef != null) {
             return sourceColumn;
         }
+        if (sourceColumn.qualifiedKey != null && tableAliases.containsKey(sourceColumn.qualifiedKey)) {
+            return new SourceColumn(sourceColumn.qualifiedKey, sourceColumn.name);
+        }
         if (sourceColumn.qualifier != null || !sourceColumn.name.contains(".")) {
             return sourceColumn;
         }
@@ -2362,6 +2374,31 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             return new SourceColumn(sourceColumn.name.substring(0, dot), sourceColumn.name.substring(dot + 1));
         }
         return sourceColumn;
+    }
+
+    private void bindQualifiedTable(TableRef table) {
+        if (table.getSchema() == null) {
+            return;
+        }
+        List<String> parts = new ArrayList<>();
+        parts.add(table.getSchema());
+        parts.add(table.getName());
+        tableAliases.put(qualifiedBindingKey(parts), table);
+        if (table.getCatalog() != null) {
+            parts.add(0, table.getCatalog());
+            tableAliases.put(qualifiedBindingKey(parts), table);
+        }
+    }
+
+    private static SourceColumn qualifiedSourceColumn(List<String> path, String name) {
+        String key = path.size() <= 1 ? null
+                : qualifiedBindingKey(path.subList(Math.max(0, path.size() - 3), path.size()));
+        return new SourceColumn(path.get(path.size() - 1), name, key);
+    }
+
+    private static String qualifiedBindingKey(List<String> parts) {
+        // Keep bracketed identifier components distinct even when they contain dots.
+        return ("\0" + String.join("\0", parts)).toLowerCase(Locale.ROOT);
     }
 
     private boolean hasSingleTableWithXmlNodes() {
@@ -2675,10 +2712,9 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             SqlServerParser.DereferenceContext deref = (SqlServerParser.DereferenceContext) tree;
             List<String> parts = collectDereferenceParts(deref);
             if (parts.size() >= 2) {
-                String qualifier = parts.get(parts.size() - 2);
                 String name = parts.get(parts.size() - 1);
                 if (!isSqlServerGeneratedExpression(name)) {
-                    columns.add(new SourceColumn(qualifier, name));
+                    columns.add(qualifiedSourceColumn(parts.subList(0, parts.size() - 1), name));
                 }
             } else if (parts.size() == 1) {
                 String column = parts.get(0);
@@ -3118,19 +3154,25 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         final ColumnRef resolvedRef;
         final String qualifier;
         final String name;
+        final String qualifiedKey;
 
         SourceColumn(String qualifier, String name) {
-            this(null, qualifier, name);
+            this(qualifier, name, null);
         }
 
-        private SourceColumn(ColumnRef resolvedRef, String qualifier, String name) {
+        SourceColumn(String qualifier, String name, String qualifiedKey) {
+            this(null, qualifier, name, qualifiedKey);
+        }
+
+        private SourceColumn(ColumnRef resolvedRef, String qualifier, String name, String qualifiedKey) {
             this.resolvedRef = resolvedRef;
             this.qualifier = qualifier;
             this.name = name;
+            this.qualifiedKey = qualifiedKey;
         }
 
         static SourceColumn resolved(ColumnRef ref) {
-            return new SourceColumn(ref, null, ref.getName());
+            return new SourceColumn(ref, null, ref.getName(), null);
         }
 
         @Override
@@ -3144,12 +3186,13 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
             SourceColumn that = (SourceColumn) other;
             return Objects.equals(resolvedRef, that.resolvedRef)
                     && Objects.equals(qualifier, that.qualifier)
-                    && Objects.equals(name, that.name);
+                    && Objects.equals(name, that.name)
+                    && Objects.equals(qualifiedKey, that.qualifiedKey);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(resolvedRef, qualifier, name);
+            return Objects.hash(resolvedRef, qualifier, name, qualifiedKey);
         }
     }
 
