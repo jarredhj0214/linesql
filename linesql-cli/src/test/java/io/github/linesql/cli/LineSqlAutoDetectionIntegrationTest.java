@@ -719,6 +719,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresMaterializationDataOptions() {
+        LineageResult table = LineSql.parse("CREATE TEMPORARY TABLE cache (id) AS "
+                + "SELECT e.event_id FROM ods.events e WITH NO DATA");
+        assertEquals(SqlDialect.POSTGRESQL, table.getDialect());
+        assertEquals(StatementType.CREATE_TABLE_AS_SELECT, table.getStatementType());
+        assertEquals("event_id", table.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.POSTGRESQL,
+                "CREATE MATERIALIZED VIEW mart.snapshot AS SELECT event_id FROM ods.events WITH DATA");
+        assertDialect(SqlDialect.POSTGRESQL, "REFRESH MATERIALIZED VIEW CONCURRENTLY mart.snapshot");
+        assertDialect(SqlDialect.POSTGRESQL, "REFRESH MATERIALIZED VIEW mart.snapshot WITH NO DATA");
+        assertDialect(SqlDialect.POSTGRESQL, "CREATE UNLOGGED TABLE mart.snapshot AS SELECT event_id FROM ods.events");
+        assertDialect(SqlDialect.SPARK, "CREATE TABLE snapshot AS SELECT 'WITH NO DATA' AS label");
+        assertDialect(SqlDialect.SPARK, "CREATE TABLE snapshot AS SELECT event_id FROM ods.events /* WITH DATA */");
+    }
+
+    @Test
     public void detectsPostgresUnicodePredicateOutsideQuotedText() {
         LineageResult result = LineSql.parse("SELECT NORMALIZE(name, NFKC) AS clean_name "
                 + "FROM ods.contacts WHERE name IS NOT NFKC NORMALIZED");

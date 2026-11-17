@@ -85,6 +85,15 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|^\\s*alter\\s+type\\b[^;]*\\b(?:add|rename)\\s+value\\b"
                     + "|^\\s*alter\\s+domain\\b[^;]*\\b(?:validate\\s+constraint"
                     + "|(?:set|drop)\\s+(?:default|not\\s+null)|not\\s+valid)\\b");
+    private static final Pattern POSTGRES_DATA_MATERIALIZATION = Pattern.compile(
+            "^\\s*create\\s+unlogged\\s+table\\b"
+                    + "|^\\s*refresh\\s+materialized\\s+view\\s+concurrently\\b");
+    private static final Pattern POSTGRES_DATA_OPTION_STATEMENT = Pattern.compile(
+            "^\\s*create\\s+(?:(?:(?:global|local)\\s+)?(?:temporary|temp)\\s+)?"
+                    + "(?:table|materialized\\s+view)\\b[^;]*\\bas\\b"
+                    + "|^\\s*refresh\\s+materialized\\s+view\\b");
+    private static final Pattern POSTGRES_DATA_OPTION_END = Pattern.compile(
+            "\\bwith\\s+(?:no\\s+)?data\\s*;?\\s*$");
     private static final Pattern POSTGRES_DML_TARGET = Pattern.compile(
             "\\b(?:delete\\s+from\\s+|update\\s+(?!set\\b))(?:only\\s+(?:\\(\\s*" + POSTGRES_RELATION + "\\s*\\)"
                     + "|" + POSTGRES_RELATION + "(?=\\s+(?:as|using|where|set|returning)\\b|\\s*(?:;|$)))"
@@ -422,6 +431,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("prepare")
                         && hasStatementInScript(unwrapped, SqlDialect.POSTGRESQL, POSTGRES_PREPARED_STATEMENT))) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL prepared statement control"));
+        } else if (POSTGRES_DATA_MATERIALIZATION.matcher(unquotedSyntax).find()
+                || (POSTGRES_DATA_OPTION_END.matcher(unquotedSyntax).find()
+                        && POSTGRES_DATA_OPTION_STATEMENT.matcher(unquotedSyntax).find())) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL table or materialized view data options"));
         } else if (POSTGRES_SCHEMA_CONTROL.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL schema search path control"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
