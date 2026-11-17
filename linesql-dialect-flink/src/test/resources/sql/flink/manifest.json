@@ -7753,6 +7753,79 @@
         }
       ],
       "description": "An ORDER BY ordinal resolves to source columns at the selected output position"
+    },
+    {
+      "id": "select_filter_group_and_having_use_input_name",
+      "file": "cases/select_filter_group_and_having_use_input_name.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "ods.events.channel"
+          ]
+        },
+        {
+          "target": "n",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.events.channel"
+        },
+        {
+          "type": "HAVING",
+          "column": "ods.events.region"
+        }
+      ],
+      "description": "An input name keeps its physical source when a SELECT output uses the same name"
+    },
+    {
+      "id": "select_order_ordinal_uses_projection_input_scope",
+      "file": "cases/select_order_ordinal_uses_projection_input_scope.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "amount",
+          "sources": []
+        },
+        {
+          "target": "total",
+          "sources": [
+            "ods.orders.amount",
+            "ods.orders.tax"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.amount"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.tax"
+        }
+      ],
+      "description": "An input name keeps its physical source when a SELECT output uses the same name"
     }
   ]
 }

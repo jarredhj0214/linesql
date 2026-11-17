@@ -1356,7 +1356,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitWhereClause(FlinkParser.WhereClauseContext ctx) {
-        addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
+        addInputColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.expression()));
         collectSubqueryInputs(ctx.expression());
         return null;
     }
@@ -1375,14 +1375,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     @Override
     public Void visitGroupByClause(FlinkParser.GroupByClauseContext ctx) {
         for (FlinkParser.GroupingElementContext element : ctx.groupingElement()) {
-            addColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(element));
+            addInputColumnUsages(ColumnUsageType.GROUP_BY, sourceColumns(element));
         }
         return visitChildren(ctx);
     }
 
     @Override
     public Void visitHavingClause(FlinkParser.HavingClauseContext ctx) {
-        addColumnUsages(ColumnUsageType.HAVING, sourceColumns(ctx.expression()));
+        addInputColumnUsages(ColumnUsageType.HAVING, sourceColumns(ctx.expression()));
         collectSubqueryInputs(ctx.expression());
         return null;
     }
@@ -1449,7 +1449,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (index < items.size() && items.subList(0, index + 1).stream()
                 .allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)) {
             FlinkParser.SelectExpressionContext item = (FlinkParser.SelectExpressionContext) items.get(index);
-            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(item.expression()));
+            addInputColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(item.expression()));
         }
     }
 
@@ -1861,6 +1861,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private void addColumnUsages(ColumnUsageType type, List<SourceColumn> sourceColumns) {
         List<ColumnRef> refs = columnUsageRefs(sourceColumns);
+        if (refs != null) {
+            LineageModelUtils.addColumnUsages(result, type, refs);
+        }
+    }
+
+    private void addInputColumnUsages(ColumnUsageType type, List<SourceColumn> sources) {
+        List<ColumnRef> refs = columnRefs(sources);
         if (refs != null) {
             LineageModelUtils.addColumnUsages(result, type, refs);
         }
