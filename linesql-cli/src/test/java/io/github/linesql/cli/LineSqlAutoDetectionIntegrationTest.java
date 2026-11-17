@@ -430,6 +430,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void usesStarRocksPreparedQueryEvidenceForEarlierSessionCommands() {
+        String script = "USE CATALOG lake; USE staging; PREPARE lookup FROM "
+                + "SELECT id FROM events WHERE kind = ?; USE reporting; EXECUTE lookup USING @kind; "
+                + "PREPARE another FROM 'SELECT id FROM snapshots'; EXECUTE another";
+        List<LineageResult> results = LineSql.parseScript(script);
+        assertEquals(7, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.STARROCKS, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertEquals(new TableRef("lake", "staging", "events"), results.get(4).getInputTables().get(0));
+        assertEquals("kind", results.get(4).getColumnUsages().get(0).getColumn().getName());
+        assertEquals(new TableRef("lake", "reporting", "snapshots"), results.get(6).getInputTables().get(0));
+        assertDialect(SqlDialect.MYSQL, "PREPARE stmt FROM 'SELECT id FROM app.users'");
+        List<LineageResult> literal = LineSql.parseScript(
+                "SELECT 'x; PREPARE stmt FROM SELECT id FROM app.users;'; SELECT id FROM app.users");
+        assertEquals(SqlDialect.SPARK, literal.get(1).getDialect());
+    }
+
+    @Test
     public void usesFlinkConnectorSyntaxWithoutClaimingStringData() {
         assertDialect(SqlDialect.POSTGRESQL, "INSERT INTO app.events(id, note) VALUES(1, 'connector')"
                 + " ON CONFLICT DO NOTHING");

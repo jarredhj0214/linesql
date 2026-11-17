@@ -473,8 +473,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bwith\\s+connector\\b.*")) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink connector, hint, catalog, JSON, watermark, plan, model, job, or procedure syntax"));
         }
-        if (STARROCKS_PREPARED_QUERY.matcher(normalized).find()) {
-            candidates.add(candidate(SqlDialect.STARROCKS, 0.98, "StarRocks direct PREPARE query"));
+        if (STARROCKS_PREPARED_QUERY.matcher(normalized).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("prepare")
+                        && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_PREPARED_QUERY))) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks direct PREPARE query"));
         } else if (STARROCKS_RECURSION_SETTINGS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks recursive CTE settings"));
         } else if (unquotedSyntax.contains("temporary") && unquotedSyntax.contains("partition")
