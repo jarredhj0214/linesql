@@ -43,6 +43,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private final Map<FlinkParser.RelationContext, Map<String, List<ColumnRef>>> relationJoinKeys =
             new IdentityHashMap<>();
     private Map<String, List<ColumnRef>> usingJoinKeys = Collections.emptyMap();
+    private boolean hasNonConcatenatingJoin;
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
     private int setOutputWidth = -1;
@@ -1232,6 +1233,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             visit(lateralView);
         }
         for (FlinkParser.JoinRelationContext join : ctx.joinRelation()) {
+            FlinkParser.JoinTypeContext type = join.joinType();
+            hasNonConcatenatingJoin |= join.NATURAL() != null
+                    || (type != null && (type.SEMI_JOIN() != null || type.ANTI() != null));
             int rightStart = visibleRelations.size();
             visit(join.relationPrimary());
             if (join.temporalClause() != null) {
@@ -1571,7 +1575,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return;
         }
         if (queryPrimary(term) instanceof FlinkParser.TableQueryContext) {
-            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcardProjection(null, "*", 0));
+            List<Map.Entry<String, List<ColumnRef>>> columns = knownOrdinalWildcard(wildcardProjection(null, "*", 0));
             if (columns != null) {
                 addOrdinalWildcardUsage(columns, index);
             }
@@ -1590,7 +1594,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             if (wildcard == null) {
                 return;
             }
-            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcard);
+            List<Map.Entry<String, List<ColumnRef>>> columns = knownOrdinalWildcard(wildcard);
             if (columns == null) {
                 return;
             }
@@ -1602,17 +1606,18 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
     }
 
-    private Map<String, List<ColumnRef>> knownOrdinalWildcard(Projection wildcard) {
+    private List<Map.Entry<String, List<ColumnRef>>> knownOrdinalWildcard(Projection wildcard) {
+        if (wildcard.sourceColumns.size() == 1 && wildcard.sourceColumns.get(0).qualifier == null
+                && canCombineWildcardInputs()) {
+            return concatenatedWildcardEntries();
+        }
         Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(wildcard, true);
-        return columns == null || columns.containsKey("*") ? null : columns;
+        return columns == null || columns.containsKey("*") ? null : new ArrayList<>(columns.entrySet());
     }
 
-    private void addOrdinalWildcardUsage(Map<String, List<ColumnRef>> columns, int index) {
-        for (List<ColumnRef> sources : columns.values()) {
-            if (index-- == 0) {
-                LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, sources);
-                return;
-            }
+    private void addOrdinalWildcardUsage(List<Map.Entry<String, List<ColumnRef>>> columns, int index) {
+        if (index < columns.size()) {
+            LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, columns.get(index).getValue());
         }
     }
 
@@ -1626,7 +1631,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return explicitWidth;
         }
         if (queryPrimary(unwrapped) instanceof FlinkParser.TableQueryContext) {
-            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcardProjection(null, "*", 0));
+            List<Map.Entry<String, List<ColumnRef>>> columns = knownOrdinalWildcard(wildcardProjection(null, "*", 0));
             return columns == null ? -1 : columns.size();
         }
         List<FlinkParser.SelectItemContext> items = selectItems(unwrapped);
@@ -1639,7 +1644,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 width++;
                 continue;
             }
-            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcardProjection(item, -1));
+            List<Map.Entry<String, List<ColumnRef>>> columns = knownOrdinalWildcard(wildcardProjection(item, -1));
             if (columns == null) {
                 return -1;
             }
@@ -2363,9 +2368,47 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         String derivedName = null;
         if (wildcard.qualifier != null) {
             derivedName = derivedAliases.get(wildcard.qualifier.toLowerCase(Locale.ROOT));
-        } else if (visibleRelations.size() == 1 && visibleRelations.get(0).derivedName != null) {
+        } else if (visibleRelations.size() == 1) {
             derivedName = visibleRelations.get(0).derivedName;
+        } else if (canCombineWildcardInputs()) {
+            return concatenatedWildcardColumns();
         }
+        return relationWildcardColumns(derivedName, complete);
+    }
+
+    private boolean canCombineWildcardInputs() {
+        return visibleRelations.size() > 1 && relationJoinKeys.isEmpty() && !hasNonConcatenatingJoin;
+    }
+
+    private Map<String, List<ColumnRef>> concatenatedWildcardColumns() {
+        List<Map.Entry<String, List<ColumnRef>>> entries = concatenatedWildcardEntries();
+        if (entries == null) {
+            return null;
+        }
+        Map<String, List<ColumnRef>> combined = new LinkedHashMap<>();
+        Set<String> names = new LinkedHashSet<>();
+        for (Map.Entry<String, List<ColumnRef>> column : entries) {
+            if (!names.add(column.getKey().toLowerCase(Locale.ROOT))) {
+                return null;
+            }
+            combined.put(column.getKey(), column.getValue());
+        }
+        return combined;
+    }
+
+    private List<Map.Entry<String, List<ColumnRef>>> concatenatedWildcardEntries() {
+        List<Map.Entry<String, List<ColumnRef>>> combined = new ArrayList<>();
+        for (VisibleRelation relation : visibleRelations) {
+            Map<String, List<ColumnRef>> columns = relationWildcardColumns(relation.derivedName, true);
+            if (columns == null || columns.containsKey("*")) {
+                return null;
+            }
+            combined.addAll(columns.entrySet());
+        }
+        return combined;
+    }
+
+    private Map<String, List<ColumnRef>> relationWildcardColumns(String derivedName, boolean complete) {
         if (derivedName == null || (complete && incompleteDerivedSchemas.contains(derivedName))) {
             return null;
         }
