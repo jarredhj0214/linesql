@@ -2838,6 +2838,58 @@
       ]
     },
     {
+      "id": "merge_using_derived_columns",
+      "file": "cases/merge_using_derived_columns.sql",
+      "statementType": "MERGE",
+      "inputTables": [
+        "mart.totals",
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.totals"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.totals.amount",
+          "sources": [
+            "mart.totals.amount",
+            "ods.events.amount"
+          ]
+        },
+        {
+          "target": "mart.totals.id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "mart.totals.amount",
+          "sources": [
+            "ods.events.amount"
+          ]
+        }
+      ],
+      "description": "Flink MERGE source aliases preserve projected lineage and source predicates",
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.is_current"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "mart.totals.id"
+        },
+        {
+          "type": "MERGE_ON",
+          "column": "ods.events.id"
+        },
+        {
+          "type": "MERGE_WHEN",
+          "column": "ods.events.is_valid"
+        }
+      ]
+    },
+    {
       "id": "temporal_join",
       "file": "cases/temporal_join.sql",
       "statementType": "SELECT",

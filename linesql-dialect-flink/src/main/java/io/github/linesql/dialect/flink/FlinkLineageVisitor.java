@@ -245,9 +245,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
         }
         if (ctx.query() != null) {
-            // USING (subquery) alias - collect input tables from the subquery
-            LineageResult subResult = lineageForQuery(ctx.query());
-            inputTables.addAll(subResult.getInputTables());
+            addDerivedQueryReference(ctx.query(), ctx.tableAlias(1));
         }
         addColumnUsages(ColumnUsageType.MERGE_ON, sourceColumns(ctx.expression()));
 
@@ -1196,11 +1194,15 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAliasedQuery(FlinkParser.AliasedQueryContext ctx) {
-        String alias = tableAlias(ctx.tableAlias());
-        String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
-        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), ctx.query(), tableAliasColumnAliases(ctx.tableAlias()));
-        addDerivedReference(relationName, ctx.tableAlias());
+        addDerivedQueryReference(ctx.query(), ctx.tableAlias());
         return null;
+    }
+
+    private void addDerivedQueryReference(FlinkParser.QueryContext query, FlinkParser.TableAliasContext aliasCtx) {
+        String alias = tableAlias(aliasCtx);
+        String relationName = alias == null ? "$subquery" + derivedColumnLineage.size() : alias;
+        registerDerivedRelation(relationName.toLowerCase(Locale.ROOT), query, tableAliasColumnAliases(aliasCtx));
+        addDerivedReference(relationName, aliasCtx);
     }
 
     private void addJoinPredicateUsages(ParseTree predicate, Map<String, List<ColumnRef>> joinKeys) {
