@@ -1790,6 +1790,7 @@ Implemented MySQL table-level lineage scenarios:
 | --- | --- | --- |
 | Same-named MySQL tables in separate schemas | Database qualifiers distinguish projection columns, wildcard sources, predicates and the targets of UPDATE and DELETE. | `select_schema_qualified_same_name`, `select_schema_qualified_same_name_stars`, `update_schema_qualified_same_name`, `delete_schema_qualified_same_name` |
 | MySQL derived column alias positions | Explicit column alias lists on CTEs and derived tables retain positions occupied by unnamed constants. Projection, clauses, and INSERT sources use the corresponding names. | `select_cte_alias_positions_with_constant`, `select_derived_alias_positions_with_constant`, `insert_cte_alias_positions_with_constant` |
+| MySQL INSERT wildcard positions | A known CTE, derived query, or JSON_TABLE wildcard expands into explicit destination columns and preserves trailing expression positions. An unknown wildcard retains its source and earlier exact mappings. | `insert_known_cte_star_preserves_positions`, `insert_known_derived_star_and_expression_positions`, `insert_unknown_star_retains_only_known_positions`, `insert_json_table_star_uses_declared_positions` |
 | Basic SELECT source table | `select ... from app.users` | `select_basic` |
 | TABLE statement source table | `table app.users order by id limit 10` | `table_statement` |
 | HANDLER table access syntax | `handler app.users open`, `handler app.users read idx = (...) where ...`, `handler app.users close` | `handler_open`, `handler_read_index_range`, `handler_close` |

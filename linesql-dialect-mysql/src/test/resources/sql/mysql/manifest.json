@@ -13181,6 +13181,118 @@
       ],
       "columnUsages": [],
       "description": "A named INSERT source follows the second CTE alias after an unnamed constant"
+    },
+    {
+      "id": "insert_known_cte_star_preserves_positions",
+      "file": "cases/insert_known_cte_star_preserves_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.event_type",
+          "sources": []
+        },
+        {
+          "target": "audit.summary.observed_at",
+          "sources": [
+            "ods.events.observed_at"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A complete CTE wildcard keeps the constant slot and applies both destination names"
+    },
+    {
+      "id": "insert_known_derived_star_and_expression_positions",
+      "file": "cases/insert_known_derived_star_and_expression_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "audit.summary.next_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A trailing unnamed expression maps after a known derived wildcard"
+    },
+    {
+      "id": "insert_unknown_star_retains_only_known_positions",
+      "file": "cases/insert_unknown_star_retains_only_known_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.source_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "audit.summary.*",
+          "sources": [
+            "ods.events.*"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "An unknown star retains source evidence without choosing subsequent target positions"
+    },
+    {
+      "id": "insert_json_table_star_uses_declared_positions",
+      "file": "cases/insert_json_table_star_uses_declared_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "audit.items"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.items.item_id",
+          "sources": [
+            "ods.events.payload"
+          ]
+        },
+        {
+          "target": "audit.items.amount",
+          "sources": [
+            "ods.events.payload"
+          ]
+        },
+        {
+          "target": "audit.items.event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "JSON_TABLE declares both star positions before the trailing INSERT dependency"
     }
   ]
 }

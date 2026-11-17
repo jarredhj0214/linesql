@@ -31,6 +31,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
     private final Set<String> cteNames = new LinkedHashSet<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
+    private final Set<String> knownDerivedSchemas = new LinkedHashSet<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
     private final Set<String> insertRowAliases = new LinkedHashSet<>();
@@ -1891,6 +1892,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             relationVisitor.derivedReferences.addAll(derivedReferences);
         }
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        relationVisitor.knownDerivedSchemas.addAll(knownDerivedSchemas);
         relationVisitor.derivedAliases.putAll(derivedAliases);
         if (!columnAliases.isEmpty()) {
             MySqlParser.QueryTermContext term = unwrapSetBranch(query.queryTerm());
@@ -1910,6 +1912,12 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             columns.put(columnName, lineage.getSources());
         }
         derivedColumnLineage.put(name, columns);
+        int width = explicitOutputWidth(query.queryTerm());
+        if (width > 0 && lineages.size() == width && columns.size() == width) {
+            knownDerivedSchemas.add(name);
+        } else {
+            knownDerivedSchemas.remove(name);
+        }
         for (TableRef table : relationResult.getInputTables()) {
             addInputTable(table, false);
         }
@@ -1926,6 +1934,11 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             collectJsonTableColumns(column, jsonSourceRefs, columns);
         }
         derivedColumnLineage.put(name, columns);
+        if (columns.isEmpty()) {
+            knownDerivedSchemas.remove(name);
+        } else {
+            knownDerivedSchemas.add(name);
+        }
     }
 
     private void collectJsonTableColumns(
@@ -2016,6 +2029,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.knownDerivedSchemas.addAll(knownDerivedSchemas);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         MySqlParser.QueryTermContext branch = unwrapSetBranch(queryTerm);
@@ -2088,7 +2102,10 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
     private void visitWriteQuery(MySqlParser.QueryContext query, TableRef target) {
         MySqlParser.QueryTermContext term = unwrapSetBranch(query.queryTerm());
         if (!insertTargetColumns.isEmpty() && term instanceof MySqlParser.QueryTermDefaultContext) {
-            positionalWriteSelect = explicitBranchSelect(((MySqlParser.QueryTermDefaultContext) term).queryPrimary());
+            MySqlParser.QueryPrimaryContext primary = ((MySqlParser.QueryTermDefaultContext) term).queryPrimary();
+            if (primary instanceof MySqlParser.QueryPrimaryDefaultContext) {
+                positionalWriteSelect = ((MySqlParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
+            }
         }
         try {
             visit(query);
@@ -2162,8 +2179,36 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             return;
         }
         List<ColumnLineage> columnLineage = new ArrayList<>();
-        for (int i = 0; i < projections.size(); i++) {
-            Projection projection = projections.get(i);
+        boolean mapWritePositions = targetTable != null && !insertTargetColumns.isEmpty();
+        boolean knownPosition = true;
+        int expandedColumns = 0;
+        for (Projection projection : projections) {
+            int ordinal = projection.ordinal + expandedColumns;
+            if (mapWritePositions && projection.wildcard()) {
+                Map<String, List<ColumnRef>> columns = knownWildcardColumns(projection.sourceColumns.get(0));
+                if (knownPosition && columns != null) {
+                    int position = ordinal;
+                    for (Map.Entry<String, List<ColumnRef>> column : columns.entrySet()) {
+                        String name = position < insertTargetColumns.size()
+                                ? insertTargetColumns.get(position) : column.getKey();
+                        columnLineage.add(LineageModelUtils.columnLineage(
+                                targetTable, name, column.getValue(), projection.expression));
+                        position++;
+                    }
+                    expandedColumns += columns.size() - 1;
+                } else {
+                    knownPosition = false;
+                    List<ColumnRef> sources = columnRefs(projection);
+                    if (sources != null && !sources.isEmpty()) {
+                        columnLineage.add(LineageModelUtils.columnLineage(targetTable, "*", sources,
+                                projection.expression));
+                    }
+                }
+                continue;
+            }
+            if (!knownPosition) {
+                continue;
+            }
             List<ColumnRef> sources = columnRefs(projection);
             if (sources == null) {
                 if (positionalOutputSelect == null) {
@@ -2171,10 +2216,17 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
                 }
                 sources = Collections.emptyList();
             }
-            String targetColumn = targetColumn(projection, projection.ordinal);
+            String targetColumn = targetColumn(projection, ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
+    }
+
+    private Map<String, List<ColumnRef>> knownWildcardColumns(SourceColumn wildcard) {
+        String relation = wildcard.qualifier == null
+                ? visibleRelations.size() == 1 ? visibleRelations.get(0).derivedName : null
+                : derivedAliases.get(wildcard.qualifier.toLowerCase(Locale.ROOT));
+        return knownDerivedSchemas.contains(relation) ? derivedColumnLineage.get(relation) : null;
     }
 
     private void flushPendingColumnUsages() {
@@ -2697,6 +2749,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.knownDerivedSchemas.addAll(knownDerivedSchemas);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
@@ -2867,6 +2920,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.knownDerivedSchemas.addAll(knownDerivedSchemas);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
@@ -3143,6 +3197,9 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
             this.expression = expression;
             this.expressionTree = expressionTree;
             this.ordinal = ordinal;
+        }
+        boolean wildcard() {
+            return expressionTree == null && "*".equals(targetColumn);
         }
     }
 
