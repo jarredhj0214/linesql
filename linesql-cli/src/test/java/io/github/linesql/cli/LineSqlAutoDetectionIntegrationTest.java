@@ -939,6 +939,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresTwoPhaseTransactionsWithDeferredConstraints() {
+        List<LineageResult> results = LineSql.parseScript("BEGIN; SET CONSTRAINTS accounting.invoice_fk DEFERRED; "
+                + "INSERT INTO accounting.audit (id) SELECT id FROM staging.events WHERE accepted; "
+                + "PREPARE TRANSACTION 'batch;42'; COMMIT PREPARED 'batch;42';");
+        assertEquals(5, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertEquals(StatementType.CONTROL, results.get(1).getStatementType());
+        assertEquals(StatementType.INSERT, results.get(2).getStatementType());
+        assertEquals("accepted", results.get(2).getColumnUsages().get(0).getColumn().getName());
+        assertEquals(StatementType.CONTROL, results.get(3).getStatementType());
+        assertEquals(StatementType.CONTROL, results.get(4).getStatementType());
+        assertDialect(SqlDialect.POSTGRESQL, "ROLLBACK PREPARED 'batch;42'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'COMMIT PREPARED batch' AS note");
+    }
+
+    @Test
     public void usesPostgresDiscardToIdentifyTemporaryViewScripts() {
         List<LineageResult> results = LineSql.parseScript(
                 "CREATE TEMP VIEW recent_orders AS SELECT id FROM sales.orders WHERE is_recent; "

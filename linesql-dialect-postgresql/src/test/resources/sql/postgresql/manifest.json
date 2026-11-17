@@ -4043,6 +4043,86 @@
       "description": "PostgreSQL BEGIN TRANSACTION is classified as transaction control"
     },
     {
+      "id": "script_two_phase_transaction_constraints",
+      "file": "cases/script_two_phase_transaction_constraints.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "staging.invoice_events"
+      ],
+      "outputTables": [
+        "accounting.invoice_audit"
+      ],
+      "columnLineage": [
+        {
+          "target": "accounting.invoice_audit.id",
+          "sources": [
+            "staging.invoice_events.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "staging.invoice_events"
+          ],
+          "outputTables": [
+            "accounting.invoice_audit"
+          ],
+          "columnLineage": [
+            {
+              "target": "accounting.invoice_audit.id",
+              "sources": [
+                "staging.invoice_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "staging.invoice_events.accepted"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ],
+      "description": "PostgreSQL deferred constraint commands and two-phase commit preserve the intervening insert"
+    },
+    {
       "id": "begin_transaction_modes",
       "file": "cases/begin_transaction_modes.sql",
       "statementType": "CONTROL",

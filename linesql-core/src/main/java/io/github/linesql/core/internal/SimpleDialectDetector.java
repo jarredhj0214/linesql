@@ -285,6 +285,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_SCHEMA_CONTROL = Pattern.compile(
             "^\\s*(?:set\\s+(?:(?:session|local)\\s+)?(?:search_path\\s*(?:to\\b|=)"
                     + "|schema\\s+" + SINGLE_QUOTED_STRING + ")|reset\\s+search_path\\b)");
+    private static final Pattern POSTGRES_TWO_PHASE_TRANSACTION = Pattern.compile(
+            "^\\s*(?:prepare\\s+transaction|(?:commit|rollback)\\s+prepared)\\s+e?"
+                    + SINGLE_QUOTED_STRING + "\\s*;?\\s*$");
     private static final Pattern POSTGRES_PREPARED_STATEMENT = Pattern.compile(
             "^\\s*prepare\\s+(?:[a-z_][\\w$]*|" + DOUBLE_QUOTED_IDENTIFIER + ")"
                     + "(?:\\s*\\([^;]*\\)\\s*|\\s+)as\\s+(?:select|values|table|with|insert|update|delete|merge)\\b");
@@ -514,6 +517,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (POSTGRES_DATA_OPTION_END.matcher(unquotedSyntax).find()
                         && POSTGRES_DATA_OPTION_STATEMENT.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL table or materialized view data options"));
+        } else if (POSTGRES_TWO_PHASE_TRANSACTION.matcher(normalized).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("prepar")
+                        && hasStatementInScript(unwrapped, SqlDialect.POSTGRESQL, POSTGRES_TWO_PHASE_TRANSACTION))) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL two-phase transaction command"));
         } else if (POSTGRES_DISCARD.matcher(unquotedSyntax).find()
                 || (containsStatementSeparator && unquotedSyntax.contains("discard")
                         && hasStatementInScript(unwrapped, SqlDialect.POSTGRESQL, POSTGRES_DISCARD))) {
