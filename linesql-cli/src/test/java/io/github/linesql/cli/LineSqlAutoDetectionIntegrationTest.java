@@ -939,6 +939,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresTemporalRowOverlapExpressions() {
+        LineageResult result = LineSql.parse("SELECT (a.start_time, a.end_time) OVERLAPS "
+                + "(b.start_time, b.end_time) AS overlaps_window "
+                + "FROM ops.windows a JOIN ops.requests b ON (a.id, a.kind) = (b.id, b.kind)");
+        assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals(4, result.getColumnLineage().get(0).getSources().size());
+        assertEquals(4, result.getColumnUsages().size());
+        assertDialect(SqlDialect.SPARK, "SELECT '(a, b) OVERLAPS (c, d)' AS sample");
+    }
+
+    @Test
     public void detectsPostgresRowLockStrengthsAndTableInheritance() {
         LineageResult locks = LineSql.parse("SELECT q.id, p.owner FROM queue.pending q "
                 + "JOIN queue.partitions p ON q.partition_id = p.id WHERE q.ready "

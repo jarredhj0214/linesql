@@ -165,11 +165,11 @@ relationPrimary
     | LATERAL? XMLTABLE LPAREN (xmlNamespaces COMMA)? rowPath=expression
       PASSING xmlPassingMode? document=expression xmlPassingMode?
       COLUMNS xmlTableColumn (COMMA xmlTableColumn)* RPAREN tableAlias #xmlTableRelation
+    | LATERAL? LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
     | LATERAL? functionName LPAREN functionArguments? RPAREN
       (AS recordAlias=strictIdentifier? LPAREN recordColumn (COMMA recordColumn)* RPAREN
       | (WITH ORDINALITY)? tableAlias)                               #tableFunction
     | LATERAL? ROWS FROM LPAREN rowsFromItem (COMMA rowsFromItem)* RPAREN (WITH ORDINALITY)? tableAlias #rowsFromTableFunction
-    | LATERAL? LPAREN VALUES valuesClause (COMMA valuesClause)* RPAREN tableAlias #valuesTable
     | LPAREN query RPAREN tableAlias                                 #aliasedQuery
     | LPAREN relation RPAREN tableAlias                              #aliasedRelation
     | LATERAL LPAREN query RPAREN tableAlias                         #lateralQuery
@@ -367,6 +367,7 @@ predicate
     | NOTNULL
     | IS NOT? (NULL | TRUE | FALSE | UNKNOWN)
     | IS NOT? DISTINCT FROM valueExpression
+    | OVERLAPS valueExpression
     | IS NOT? JSON (VALUE | SCALAR | ARRAY | OBJECT)? jsonUniqueKeys?
     | IS NOT? DOCUMENT
     | IS NOT? unicodeNormalForm? NORMALIZED
@@ -439,6 +440,7 @@ primaryExpression
     | functionName LPAREN setQuantifier? functionArguments aggregateOrderBy? functionSeparator? RPAREN aggregateSuffix?  #functionCall
     | functionName LPAREN RPAREN aggregateSuffix?                    #functionCallEmpty
     | LPAREN query RPAREN                                            #scalarSubquery
+    | LPAREN expression COMMA expressionList RPAREN                  #implicitRowConstructor
     | LPAREN expression RPAREN                                       #parenthesizedExpression
     | primaryExpression LBRACKET expression? (COLON expression?)? RBRACKET #subscriptExpression
     | primaryExpression DOT identifier                                #dereference

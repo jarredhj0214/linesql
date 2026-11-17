@@ -1559,6 +1559,32 @@
       "description": "PostgreSQL SELECT FOR UPDATE OF table SKIP LOCKED keeps query lineage and clause usage"
     },
     {
+      "id": "select_implicit_row_comparisons_and_overlaps",
+      "file": "cases/select_implicit_row_comparisons_and_overlaps.sql",
+      "statementType": "SELECT",
+      "inputTables": ["mart.bookings", "staging.proposed_bookings"],
+      "outputTables": [],
+      "columnLineage": [
+        {"target": "booking_id", "sources": ["mart.bookings.booking_id"]},
+        {"target": "conflicts", "sources": [
+          "mart.bookings.starts_at", "mart.bookings.ends_at",
+          "staging.proposed_bookings.starts_at", "staging.proposed_bookings.ends_at"
+        ]}
+      ],
+      "columnUsages": [
+        {"type": "JOIN_ON", "column": "mart.bookings.hotel_id"},
+        {"type": "JOIN_ON", "column": "mart.bookings.room_id"},
+        {"type": "JOIN_ON", "column": "staging.proposed_bookings.hotel_id"},
+        {"type": "JOIN_ON", "column": "staging.proposed_bookings.room_id"},
+        {"type": "WHERE", "column": "mart.bookings.room_id"},
+        {"type": "WHERE", "column": "mart.bookings.status"},
+        {"type": "WHERE", "column": "staging.proposed_bookings.room_id"},
+        {"type": "WHERE", "column": "staging.proposed_bookings.status"},
+        {"type": "ORDER_BY", "column": "mart.bookings.booking_id"}
+      ],
+      "description": "Implicit PostgreSQL row constructors preserve temporal bounds and tuple predicate operands"
+    },
+    {
       "id": "select_for_multiple_row_lock_strengths",
       "file": "cases/select_for_multiple_row_lock_strengths.sql",
       "statementType": "SELECT",
