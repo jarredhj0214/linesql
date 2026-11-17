@@ -12828,6 +12828,145 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "script_execute_prepared_database_and_lifetime",
+      "file": "cases/script_execute_prepared_database_and_lifetime.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "raw_db.orders",
+        "raw_db.orders",
+        "mart_db.archived",
+        "mart_db.archived"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "raw_db.orders.id"
+          ]
+        }
+      ],
+      "description": "MySQL EXECUTE uses the prepared database and respects runtime replacements and deallocation",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "raw_db.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "raw_db.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw_db.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "raw_db.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "raw_db.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw_db.orders.status"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "mart_db.archived"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "mart_db.archived.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "mart_db.archived"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "mart_db.archived.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

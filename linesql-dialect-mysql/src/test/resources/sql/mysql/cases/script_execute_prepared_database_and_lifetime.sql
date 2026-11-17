@@ -1,0 +1,10 @@
+USE raw_db;
+PREPARE `Read_Orders` FROM 'SELECT id FROM orders WHERE status = ?';
+USE mart_db;
+EXECUTE READ_ORDERS USING @status;
+PREPARE read_orders FROM @runtime_sql;
+EXECUTE read_orders;
+PREPARE read_orders FROM 'SELECT id FROM archived';
+EXECUTE read_orders;
+DEALLOCATE PREPARE read_orders;
+EXECUTE read_orders;

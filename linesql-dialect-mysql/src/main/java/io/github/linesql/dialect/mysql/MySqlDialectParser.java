@@ -4,7 +4,9 @@ import io.github.linesql.core.model.Diagnostic;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
+import io.github.linesql.core.model.PreparedSql;
 import io.github.linesql.core.model.SqlDialect;
+import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.spi.DialectParser;
 import io.github.linesql.core.util.MySqlPreparedSql;
 import io.github.linesql.core.util.MySqlExecutableComments;
@@ -63,21 +65,60 @@ public class MySqlDialectParser implements DialectParser {
         visitor.setContext(context);
         visitor.visit(statement);
         visitor.finalizeResult();
-        if (expandPreparedSql && statement.statement() instanceof MySqlParser.PrepareStmtContext) {
-            MySqlParser.PrepareStatementContext prepare =
-                    ((MySqlParser.PrepareStmtContext) statement.statement()).prepareStatement();
-            String preparedSql = null;
-            if (prepare.literalSql != null) {
-                preparedSql = MySqlPreparedSql.decodeLiteral(prepare.literalSql.getText());
-            } else if (prepare.sqlVariable != null) {
-                preparedSql = variables.get(variableKey(prepare.sqlVariable));
-            }
-            if (preparedSql != null) {
-                LineageResult prepared = parse(preparedSql, MySqlPreparedSql.snapshot(context), false);
-                MySqlPreparedSql.recordLineage(result, prepared);
-            }
+        if (expandPreparedSql && (context != null || statement.statement() instanceof MySqlParser.PrepareStmtContext)) {
+            applyPreparedStatementLineage(statement.statement(), context == null ? new ParseContext() : context,
+                    variables, result);
         }
         return result;
+    }
+
+    private void applyPreparedStatementLineage(MySqlParser.StatementContext statement, ParseContext context,
+                                               Map<String, String> variables, LineageResult result) {
+        if (statement instanceof MySqlParser.PrepareStmtContext) {
+            Map<String, PreparedSql> preparedStatements = context.getPreparedStatements(SqlDialect.MYSQL);
+            MySqlParser.PrepareStatementContext prepare = ((MySqlParser.PrepareStmtContext) statement).prepareStatement();
+            String key = preparedName(prepare.identifier());
+            preparedStatements.remove(key);
+            String text = preparedSqlText(prepare, variables);
+            if (text != null) {
+                PreparedSql prepared = new PreparedSql(text, context.getDefaultCatalog(), context.getDefaultSchema());
+                LineageResult lineage = analyzePreparedSql(prepared, context);
+                MySqlPreparedSql.recordLineage(result, lineage);
+                if (lineage.getStatementType() != StatementType.UNKNOWN) {
+                    preparedStatements.put(key, prepared);
+                }
+            }
+        } else if (statement instanceof MySqlParser.ExecuteStmtContext) {
+            MySqlParser.ExecuteStatementContext execute = ((MySqlParser.ExecuteStmtContext) statement).executeStatement();
+            PreparedSql prepared = context.getPreparedStatements(SqlDialect.MYSQL).get(preparedName(execute.identifier()));
+            if (prepared != null) {
+                MySqlPreparedSql.recordLineage(result, analyzePreparedSql(prepared, context));
+            }
+        } else if (statement instanceof MySqlParser.DeallocatePrepareStmtContext) {
+            MySqlParser.IdentifierContext name = ((MySqlParser.DeallocatePrepareStmtContext) statement)
+                    .deallocatePrepareStatement().identifier();
+            context.getPreparedStatements(SqlDialect.MYSQL).remove(preparedName(name));
+        } else if (statement instanceof MySqlParser.CallStmtContext) {
+            context.getPreparedStatements(SqlDialect.MYSQL).clear();
+        }
+    }
+
+    private LineageResult analyzePreparedSql(PreparedSql prepared, ParseContext context) {
+        ParseContext snapshot = MySqlPreparedSql.snapshot(context);
+        snapshot.setDefaultCatalog(prepared.getCatalog());
+        snapshot.setDefaultSchema(prepared.getSchema());
+        return parse(prepared.getSql(), snapshot, false);
+    }
+
+    private static String preparedSqlText(MySqlParser.PrepareStatementContext statement, Map<String, String> variables) {
+        if (statement.literalSql != null) {
+            return MySqlPreparedSql.decodeLiteral(statement.literalSql.getText());
+        }
+        return statement.sqlVariable == null ? null : variables.get(variableKey(statement.sqlVariable));
+    }
+
+    private static String preparedName(MySqlParser.IdentifierContext identifier) {
+        return MySqlLineageVisitor.cleanIdentifier(identifier).toLowerCase(Locale.ROOT);
     }
 
     private static void trackUserVariables(MySqlParser.StatementContext statement, Map<String, String> variables) {

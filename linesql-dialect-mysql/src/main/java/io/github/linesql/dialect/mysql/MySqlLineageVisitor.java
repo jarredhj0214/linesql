@@ -3063,7 +3063,7 @@ class MySqlLineageVisitor extends MySqlParserBaseVisitor<Void> {
         return names;
     }
 
-    private static String cleanIdentifier(MySqlParser.IdentifierContext ctx) {
+    static String cleanIdentifier(MySqlParser.IdentifierContext ctx) {
         return cleanIdentifier(ctx.getText());
     }
 

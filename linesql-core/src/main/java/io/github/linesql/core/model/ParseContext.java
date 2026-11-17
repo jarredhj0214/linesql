@@ -10,6 +10,8 @@ public class ParseContext {
     private Map<String, LineageResult> temporaryRelations = new LinkedHashMap<String, LineageResult>();
     private final Map<SqlDialect, Map<String, LineageResult>> sessionTemporaryRelations =
             new EnumMap<>(SqlDialect.class);
+    private final Map<SqlDialect, Map<String, PreparedSql>> preparedStatements =
+            new EnumMap<>(SqlDialect.class);
     private final Map<SqlDialect, Map<String, String>> sessionStringVariables = new EnumMap<>(SqlDialect.class);
 
     public String getDefaultCatalog() {
@@ -40,6 +42,10 @@ public class ParseContext {
     /** Temporary definitions isolated from persistent metadata supplied by the caller. */
     public Map<String, LineageResult> getSessionTemporaryRelations(SqlDialect dialect) {
         return sessionTemporaryRelations.computeIfAbsent(dialect, ignored -> new LinkedHashMap<>());
+    }
+
+    public Map<String, PreparedSql> getPreparedStatements(SqlDialect dialect) {
+        return preparedStatements.computeIfAbsent(dialect, ignored -> new LinkedHashMap<>());
     }
 
     /** Session string values tracked by the dialect parser. A null value represents an unresolved value. */
