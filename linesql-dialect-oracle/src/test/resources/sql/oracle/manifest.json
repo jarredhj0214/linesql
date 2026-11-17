@@ -2945,6 +2945,46 @@
       "description": "Oracle MERGE not-matched INSERT WHERE keeps insert value lineage and WHEN predicate usage"
     },
     {
+      "id": "update_row_union_positions",
+      "file": "cases/update_row_union_positions.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "ods.current_values", "ods.archive_values"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.priority", "sources": []},
+        {
+          "target": "mart.orders.amount",
+          "sources": ["ods.current_values.base_amount", "ods.current_values.tax_amount", "ods.archive_values.amount"]
+        }
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.current_values.order_id"},
+        {"type": "WHERE", "column": "mart.orders.order_id"},
+        {"type": "WHERE", "column": "mart.orders.use_archive"},
+        {"type": "WHERE", "column": "ods.archive_values.order_id"},
+        {"type": "WHERE", "column": "mart.orders.keep_flag"}
+      ],
+      "description": "Row assignments merge matching set positions and keep the outer aliases in each branch"
+    },
+    {
+      "id": "update_row_subquery_positions",
+      "file": "cases/update_row_subquery_positions.sql",
+      "statementType": "UPDATE",
+      "inputTables": ["mart.orders", "ods.flags"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.latest_flag", "sources": []},
+        {"target": "mart.orders.amount", "sources": ["ods.flags.base_amount", "ods.flags.tax_amount"]},
+        {"target": ":updated_amount", "sources": ["ods.flags.base_amount", "ods.flags.tax_amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "ods.flags.order_id"},
+        {"type": "WHERE", "column": "mart.orders.order_id"},
+        {"type": "WHERE", "column": "mart.orders.keep_flag"}
+      ],
+      "description": "Oracle row assignments follow explicit subquery positions including unnamed constants and calculations"
+    },
+    {
       "id": "update_correlated_scalar_returning",
       "file": "cases/update_correlated_scalar_returning.sql",
       "statementType": "UPDATE",

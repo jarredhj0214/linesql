@@ -665,6 +665,7 @@ assignmentList
 
 assignment
     : multipartIdentifier EQ expression
+    | LPAREN identifierList RPAREN EQ LPAREN query RPAREN
     ;
 
 // ============ DDL Statements ============

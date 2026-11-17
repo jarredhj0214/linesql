@@ -1905,6 +1905,7 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
         LineageResult queryResult = new LineageResult();
         OracleLineageVisitor queryVisitor = new OracleLineageVisitor(queryResult);
         queryVisitor.cteNames.addAll(cteNames);
+        queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
@@ -2220,6 +2221,10 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     private List<ColumnLineage> readAssignments(OracleParser.AssignmentListContext ctx, TableRef defaultTarget) {
         List<ColumnLineage> lineages = new ArrayList<>();
         for (OracleParser.AssignmentContext assignment : ctx.assignment()) {
+            if (assignment.query() != null) {
+                lineages.addAll(readRowAssignment(assignment, defaultTarget));
+                continue;
+            }
             List<String> parts = identifierParts(assignment.multipartIdentifier());
             String columnName = parts.get(parts.size() - 1);
             TableRef table = defaultTarget;
@@ -2239,6 +2244,37 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
             lineage.setTarget(new ColumnRef(table, columnName));
             lineage.setSources(sources);
             lineages.add(lineage);
+        }
+        return lineages;
+    }
+
+    private List<ColumnLineage> readRowAssignment(OracleParser.AssignmentContext assignment, TableRef target) {
+        OracleParser.QueryContext query = assignment.query();
+        List<String> targets = identifierNames(assignment.identifierList());
+        if (explicitOutputWidth(query.queryTerm()) != targets.size()) {
+            return Collections.emptyList();
+        }
+        OracleLineageVisitor sourceVisitor = subqueryVisitor(query);
+        OracleParser.SelectClauseContext select = explicitBranchSelect(query.queryTerm());
+        List<ColumnLineage> lineages = new ArrayList<>();
+        if (select != null) {
+            List<OracleParser.SelectItemContext> items = select.selectItemList().selectItem();
+            for (int i = 0; i < targets.size(); i++) {
+                OracleParser.ExpressionContext expression =
+                        ((OracleParser.SelectExpressionContext) items.get(i)).expression();
+                List<ColumnRef> sources = sourceVisitor.columnRefs(sourceVisitor.sourceColumns(expression));
+                lineages.add(LineageModelUtils.columnLineage(target, targets.get(i),
+                        sources == null ? Collections.emptyList() : sources, expression.getText()));
+            }
+        } else {
+            List<ColumnLineage> outputs = sourceVisitor.result.getColumnLineage();
+            if (outputs.size() == targets.size()) {
+                for (int i = 0; i < targets.size(); i++) {
+                    ColumnLineage output = outputs.get(i);
+                    lineages.add(LineageModelUtils.columnLineage(target, targets.get(i),
+                            output.getSources(), output.getExpression()));
+                }
+            }
         }
         return lineages;
     }
@@ -2369,6 +2405,13 @@ class OracleLineageVisitor extends OracleParserBaseVisitor<Void> {
     }
 
     private void collectSubqueryInputs(ParseTree tree) {
+        if (tree instanceof OracleParser.AssignmentContext) {
+            OracleParser.QueryContext query = ((OracleParser.AssignmentContext) tree).query();
+            if (query != null) {
+                mergeSubqueryDependencies(query);
+                return;
+            }
+        }
         if (tree instanceof OracleParser.ScalarSubqueryContext) {
             OracleParser.ScalarSubqueryContext subquery = (OracleParser.ScalarSubqueryContext) tree;
             mergeSubqueryDependencies(subquery.query());
