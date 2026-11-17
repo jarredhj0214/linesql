@@ -895,7 +895,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             } else {
                 result.setStatementType(ctx.CREATE() != null ? StatementType.CREATE_TABLE : StatementType.ALTER_TABLE);
                 outputTables.add(tableRef(ctx.multipartIdentifier()));
+                if (ctx.foreignPartitionOf() != null) {
+                    inputTables.add(tableRef(ctx.foreignPartitionOf().multipartIdentifier()));
+                }
+                addInheritanceInputs(ctx.inheritsClause());
             }
+            result.setInputTables(new ArrayList<>(inputTables));
             result.setOutputTables(new ArrayList<>(outputTables));
             return null;
         }
@@ -934,12 +939,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (ctx.partitionParent != null) {
             inputTables.add(tableRef(ctx.partitionParent));
         }
-        if (ctx.inheritsClause() != null) {
-            for (PostgreSqlParser.MultipartIdentifierContext inherited :
-                    ctx.inheritsClause().multipartIdentifierList().multipartIdentifier()) {
-                inputTables.add(tableRef(inherited));
-            }
-        }
+        addInheritanceInputs(ctx.inheritsClause());
         if (ctx.query() != null) {
             result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
             visit(ctx.query());
@@ -960,6 +960,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
+    }
+
+    private void addInheritanceInputs(PostgreSqlParser.InheritsClauseContext inherits) {
+        if (inherits != null) {
+            for (PostgreSqlParser.MultipartIdentifierContext inherited :
+                    inherits.multipartIdentifierList().multipartIdentifier()) {
+                inputTables.add(tableRef(inherited));
+            }
+        }
     }
 
     @Override

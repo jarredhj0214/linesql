@@ -953,7 +953,9 @@ subscriptionStatement
     ;
 
 foreignDataStatement
-    : CREATE FOREIGN TABLE (IF NOT EXISTS)? multipartIdentifier (LPAREN tableElementList RPAREN)? SERVER identifier foreignOptions?
+    : CREATE FOREIGN TABLE (IF NOT EXISTS)? multipartIdentifier
+      ((LPAREN tableElementList? RPAREN)? inheritsClause? | foreignPartitionOf)
+      SERVER identifier foreignOptions?
     | ALTER FOREIGN TABLE (IF EXISTS)? multipartIdentifier .+?
     | DROP FOREIGN TABLE (IF EXISTS)? multipartIdentifierList (CASCADE | RESTRICT)?
     | IMPORT FOREIGN SCHEMA identifier importForeignSchemaFilter? FROM SERVER identifier INTO importTargetSchema=identifier foreignOptions?
@@ -966,6 +968,17 @@ foreignDataStatement
     | CREATE USER MAPPING (IF NOT EXISTS)? FOR .+? SERVER identifier foreignOptions?
     | ALTER USER MAPPING FOR .+? SERVER identifier .+?
     | DROP USER MAPPING (IF EXISTS)? FOR .+? SERVER identifier
+    ;
+
+foreignPartitionOf
+    : PARTITION OF multipartIdentifier
+      (LPAREN foreignPartitionElement (COMMA foreignPartitionElement)* RPAREN)?
+      partitionBound
+    ;
+
+foreignPartitionElement
+    : identifier (WITH OPTIONS)? columnConstraint*
+    | tableConstraint
     ;
 
 importForeignSchemaFilter

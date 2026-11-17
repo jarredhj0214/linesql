@@ -5638,6 +5638,46 @@
       "description": "PostgreSQL CREATE USER MAPPING is accepted as foreign data wrapper control"
     },
     {
+      "id": "create_foreign_partition_range",
+      "file": "cases/create_foreign_partition_range.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "mart.events"
+      ],
+      "outputTables": [
+        "ext.events_2026"
+      ],
+      "columnLineage": [],
+      "description": "A range-bounded foreign partition keeps its local parent and child tables"
+    },
+    {
+      "id": "create_foreign_partition_default",
+      "file": "cases/create_foreign_partition_default.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "mart.events"
+      ],
+      "outputTables": [
+        "ext.events_other"
+      ],
+      "columnLineage": [],
+      "description": "A default foreign partition accepts inherited column options and identifies its parent"
+    },
+    {
+      "id": "create_foreign_table_inherits",
+      "file": "cases/create_foreign_table_inherits.sql",
+      "statementType": "CREATE_TABLE",
+      "inputTables": [
+        "mart.events",
+        "mart.audit_fields"
+      ],
+      "outputTables": [
+        "ext.enriched_events"
+      ],
+      "columnLineage": [],
+      "description": "A foreign table with INHERITS records each source of its column definitions"
+    },
+    {
       "id": "create_foreign_table_spaced",
       "file": "cases/create_foreign_table_spaced.sql",
       "statementType": "CREATE_TABLE",
