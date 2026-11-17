@@ -5230,6 +5230,306 @@
           ]
         }
       ]
+    },
+    {
+      "id": "script_alter_temporary_view",
+      "file": "cases/script_alter_temporary_view.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "raw.old_events",
+        "raw.new_events",
+        "events_view"
+      ],
+      "outputTables": [
+        "events_view",
+        "events_latest"
+      ],
+      "columnLineage": [
+        {
+          "target": "events_view.id",
+          "sources": [
+            "raw.old_events.id"
+          ]
+        },
+        {
+          "target": "events_view.id",
+          "sources": [
+            "raw.new_events.id"
+          ]
+        },
+        {
+          "target": "updated_id",
+          "sources": [
+            "raw.new_events.id"
+          ]
+        },
+        {
+          "target": "renamed_id",
+          "sources": [
+            "raw.new_events.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "raw.old_events"
+          ],
+          "outputTables": [
+            "events_view"
+          ],
+          "columnLineage": [
+            {
+              "target": "events_view.id",
+              "sources": [
+                "raw.old_events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_VIEW",
+          "inputTables": [
+            "raw.new_events"
+          ],
+          "outputTables": [
+            "events_view"
+          ],
+          "columnLineage": [
+            {
+              "target": "events_view.id",
+              "sources": [
+                "raw.new_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw.new_events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "raw.new_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "updated_id",
+              "sources": [
+                "raw.new_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw.new_events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "RENAME_TABLE",
+          "inputTables": [
+            "events_view"
+          ],
+          "outputTables": [
+            "events_latest"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "raw.new_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "renamed_id",
+              "sources": [
+                "raw.new_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw.new_events.active"
+            }
+          ]
+        }
+      ],
+      "description": "Spark updates the temporary view definition and moves it within its original namespace"
+    },
+    {
+      "id": "script_alter_global_temporary_view",
+      "file": "cases/script_alter_global_temporary_view.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "raw.old_events",
+        "raw.new_events",
+        "global_temp.events_view"
+      ],
+      "outputTables": [
+        "global_temp.events_view",
+        "global_temp.events_latest"
+      ],
+      "columnLineage": [
+        {
+          "target": "global_temp.events_view.id",
+          "sources": [
+            "raw.old_events.id"
+          ]
+        },
+        {
+          "target": "global_temp.events_view.id",
+          "sources": [
+            "raw.new_events.id"
+          ]
+        },
+        {
+          "target": "updated_id",
+          "sources": [
+            "raw.new_events.id"
+          ]
+        },
+        {
+          "target": "renamed_id",
+          "sources": [
+            "raw.new_events.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "raw.old_events"
+          ],
+          "outputTables": [
+            "global_temp.events_view"
+          ],
+          "columnLineage": [
+            {
+              "target": "global_temp.events_view.id",
+              "sources": [
+                "raw.old_events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_VIEW",
+          "inputTables": [
+            "raw.new_events"
+          ],
+          "outputTables": [
+            "global_temp.events_view"
+          ],
+          "columnLineage": [
+            {
+              "target": "global_temp.events_view.id",
+              "sources": [
+                "raw.new_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw.new_events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "raw.new_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "updated_id",
+              "sources": [
+                "raw.new_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw.new_events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "RENAME_TABLE",
+          "inputTables": [
+            "global_temp.events_view"
+          ],
+          "outputTables": [
+            "global_temp.events_latest"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "raw.new_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "renamed_id",
+              "sources": [
+                "raw.new_events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "raw.new_events.active"
+            }
+          ]
+        }
+      ],
+      "description": "Spark updates the temporary view definition and moves it within its original namespace"
+    },
+    {
+      "id": "rename_table_preserves_namespace",
+      "file": "cases/rename_table_preserves_namespace.sql",
+      "statementType": "RENAME_TABLE",
+      "inputTables": [
+        "raw.orders"
+      ],
+      "outputTables": [
+        "raw.orders_archive"
+      ],
+      "description": "An unqualified Spark rename target keeps the old schema"
     }
   ]
 }

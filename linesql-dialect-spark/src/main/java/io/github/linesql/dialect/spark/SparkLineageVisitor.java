@@ -21,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
@@ -452,8 +453,15 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitAlterViewQuery(SqlBaseParser.AlterViewQueryContext ctx) {
         result.setStatementType(StatementType.ALTER_VIEW);
-        addOutput(ctx.identifierReference());
-        return visitChildren(ctx);
+        TableRef rawTarget = rawTableRef(ctx.identifierReference().getText());
+        boolean temporary = registeredTemporaryRelation(rawTarget) != null;
+        TableRef target = temporary ? rawTarget : qualifyTable(rawTarget);
+        addOutput(target, null);
+        visitChildren(ctx);
+        if (temporary) {
+            registerTemporaryRelation(target);
+        }
+        return null;
     }
 
     @Override
@@ -497,9 +505,21 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitRenameTable(SqlBaseParser.RenameTableContext ctx) {
         result.setStatementType(StatementType.RENAME_TABLE);
-        addInput(ctx.from);
-        addOutput(ctx.to);
-        unregisterTemporaryRelation(ctx.from);
+        TableRef rawSource = rawTableRef(ctx.from.getText());
+        LineageResult temporary = ctx.VIEW() == null ? null : registeredTemporaryRelation(rawSource);
+        TableRef source = temporary == null ? qualifyTable(rawSource) : rawSource;
+        TableRef rawTarget = rawTableRef(ctx.to.getText());
+        TableRef target = rawTarget.getCatalog() == null && rawTarget.getSchema() == null
+                ? new TableRef(source.getCatalog(), source.getSchema(), rawTarget.getName())
+                : qualifyTable(rawTarget);
+        if (temporary == null) {
+            addInput(ctx.from);
+            unregisterTemporaryRelation(ctx.from);
+        } else {
+            addInputTable(source, false);
+            renameTemporaryRelation(source, target, temporary);
+        }
+        addOutput(target, null);
         return null;
     }
 
@@ -2425,6 +2445,24 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return tableKey + "." + columnRef.getName();
     }
 
+
+    private LineageResult registeredTemporaryRelation(TableRef table) {
+        return context == null ? null : context.getTemporaryRelations().get(relationKey(table));
+    }
+
+    private void renameTemporaryRelation(TableRef source, TableRef target, LineageResult previous) {
+        if (!Objects.equals(source.getCatalog(), target.getCatalog())
+                || !Objects.equals(source.getSchema(), target.getSchema())
+                || registeredTemporaryRelation(target) != null) {
+            return;
+        }
+        LineageResult renamed = copyResult(previous);
+        renamed.setOutputTables(Collections.singletonList(target));
+        renamed.setColumnLineage(LineageModelUtils.retargetColumnLineage(
+                renamed.getColumnLineage(), target, Collections.emptyList()));
+        context.getTemporaryRelations().put(relationKey(target), renamed);
+        context.getTemporaryRelations().remove(relationKey(source));
+    }
 
     private void registerTemporaryRelation(TableRef table) {
         if (context == null) {
