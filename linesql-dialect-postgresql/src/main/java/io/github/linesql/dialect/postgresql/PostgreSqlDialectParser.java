@@ -44,7 +44,7 @@ public class PostgreSqlDialectParser implements DialectParser {
 
         PostgreSqlParser.QueryContext preparedQuery = context == null
                 ? null : preparedTableQuery(statement.statement(), context);
-        PostgreSqlLineageVisitor visitor = new PostgreSqlLineageVisitor(result, preparedQuery);
+        PostgreSqlLineageVisitor visitor = new PostgreSqlLineageVisitor(result, preparedQuery, context);
         visitor.visit(statement);
         visitor.finalizeResult();
         if (context != null) {
@@ -120,9 +120,15 @@ public class PostgreSqlDialectParser implements DialectParser {
                 copyPreparedExecution(explained.executePreparedStatement(), options,
                         context.getPreparedStatements(SqlDialect.POSTGRESQL), result, true);
             }
-        } else if (statement instanceof PostgreSqlParser.DiscardStmtContext
-                && ((PostgreSqlParser.DiscardStmtContext) statement).discardStatement().ALL() != null) {
-            context.getPreparedStatements(SqlDialect.POSTGRESQL).clear();
+        } else if (statement instanceof PostgreSqlParser.DiscardStmtContext) {
+            PostgreSqlParser.DiscardStatementContext discard =
+                    ((PostgreSqlParser.DiscardStmtContext) statement).discardStatement();
+            if (discard.ALL() != null) {
+                context.getPreparedStatements(SqlDialect.POSTGRESQL).clear();
+            }
+            if (discard.ALL() != null || discard.TEMP() != null || discard.TEMPORARY() != null) {
+                context.getSessionTemporaryRelations(SqlDialect.POSTGRESQL).clear();
+            }
         }
     }
 

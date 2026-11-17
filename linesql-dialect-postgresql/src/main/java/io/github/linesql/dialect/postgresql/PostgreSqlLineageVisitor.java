@@ -4,6 +4,8 @@ import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
+import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
@@ -58,14 +60,18 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private boolean suppressColumnLineage;
     private PostgreSqlParser.SelectClauseContext positionalSelect;
     private final PostgreSqlParser.QueryContext preparedTableQuery;
+    private final ParseContext context;
+    private PostgreSqlParser.CreateViewStatementContext temporaryViewToRegister;
 
-    PostgreSqlLineageVisitor(LineageResult result) {
-        this(result, null);
+    PostgreSqlLineageVisitor(LineageResult result, ParseContext context) {
+        this(result, null, context);
     }
 
-    PostgreSqlLineageVisitor(LineageResult result, PostgreSqlParser.QueryContext preparedTableQuery) {
+    PostgreSqlLineageVisitor(LineageResult result, PostgreSqlParser.QueryContext preparedTableQuery,
+                             ParseContext context) {
         this.result = result;
         this.preparedTableQuery = preparedTableQuery;
+        this.context = context;
     }
 
     @Override
@@ -446,7 +452,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (sources.size() != 1 || !isDirectColumnExpression(expression, sources.get(0))) {
             return null;
         }
-        return unqualifiedName(sources.get(0).name);
+        return directColumnName(sources.get(0));
     }
 
     @Override
@@ -735,7 +741,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 continue;
             }
             LineageResult step = new LineageResult();
-            PostgreSqlLineageVisitor visitor = new PostgreSqlLineageVisitor(step);
+            PostgreSqlLineageVisitor visitor = new PostgreSqlLineageVisitor(step, context);
             visitor.visit(statement.cteBody());
             visitor.finalizeResult();
             inputTables.addAll(step.getInputTables());
@@ -991,6 +997,10 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return visit(ctx.createMaterializedViewStatement());
         }
         visitQueryBackedRelation(ctx.multipartIdentifier(), ctx.viewColumnList, ctx.query());
+        if (context != null && (ctx.TEMP() != null || ctx.TEMPORARY() != null
+                || isTemporaryViewSchema(ctx.multipartIdentifier()))) {
+            temporaryViewToRegister = ctx;
+        }
         return null;
     }
 
@@ -1044,6 +1054,12 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitDropViewStatement(PostgreSqlParser.DropViewStatementContext ctx) {
         for (PostgreSqlParser.MultipartIdentifierContext identifier : ctx.multipartIdentifierList().multipartIdentifier()) {
+            if (context != null && ctx.MATERIALIZED() == null) {
+                String temporaryName = temporaryViewName(identifier);
+                if (temporaryName != null) {
+                    temporaryViews().remove(temporaryName);
+                }
+            }
             outputTables.add(tableRef(identifier));
         }
         result.setOutputTables(new ArrayList<>(outputTables));
@@ -1089,6 +1105,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterViewRename(PostgreSqlParser.AlterViewRenameContext ctx) {
+        if (context != null) {
+            String temporaryName = temporaryViewName(ctx.source);
+            String targetName = sessionIdentifier(ctx.target);
+            if (temporaryName != null && temporaryViews().containsKey(temporaryName)
+                    && !temporaryViews().containsKey(targetName)) {
+                temporaryViews().put(targetName, temporaryViews().remove(temporaryName));
+            }
+        }
         TableRef source = tableRef(ctx.source);
         inputTables.add(source);
         outputTables.add(renamedTable(ctx.source, cleanIdentifier(ctx.target)));
@@ -1920,6 +1944,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         TableRef table = tableRef(name);
         if (isCteReference(table)) {
             addCteReference(table.getName(), ctx.tableAlias());
+            return null;
+        }
+        LineageResult view = temporaryView(name);
+        if (view != null) {
+            addTemporaryViewReference(name, ctx.tableAlias(), view);
             return null;
         }
         if (tableAlias(ctx.tableAlias()) == null) {
@@ -2946,6 +2975,81 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (result.getOutputTables().isEmpty()) {
             result.setOutputTables(new ArrayList<>(outputTables));
         }
+        if (temporaryViewToRegister != null) {
+            rememberTemporaryView(temporaryViewToRegister);
+        }
+    }
+
+    private Map<String, LineageResult> temporaryViews() {
+        return context.getSessionTemporaryRelations(SqlDialect.POSTGRESQL);
+    }
+
+    private void rememberTemporaryView(PostgreSqlParser.CreateViewStatementContext creation) {
+        String name = temporaryViewName(creation.multipartIdentifier());
+        if (name == null || (creation.REPLACE() == null && temporaryViews().containsKey(name))) {
+            return;
+        }
+        int width = knownOutputWidth(creation.query().queryTerm());
+        List<ColumnLineage> columns = result.getColumnLineage();
+        if (width <= 0 || width != columns.size() || columns.stream().anyMatch(
+                column -> "*".equals(column.getTarget().getName()))) {
+            temporaryViews().put(name, null);
+            return;
+        }
+        LineageResult definition = new LineageResult();
+        definition.setInputTables(new ArrayList<>(result.getInputTables()));
+        definition.setColumnLineage(new ArrayList<>(columns));
+        definition.setColumnUsages(new ArrayList<>(result.getColumnUsages()));
+        temporaryViews().put(name, definition);
+    }
+
+    private LineageResult temporaryView(PostgreSqlParser.MultipartIdentifierContext relation) {
+        String name = temporaryViewName(relation);
+        return context == null || name == null ? null : temporaryViews().get(name);
+    }
+
+    private static String temporaryViewName(PostgreSqlParser.MultipartIdentifierContext relation) {
+        List<PostgreSqlParser.IdentifierContext> identifiers = relation.identifier();
+        if (identifiers.size() != 1 && !isTemporaryViewSchema(relation)) {
+            return null;
+        }
+        return sessionIdentifier(identifiers.get(identifiers.size() - 1));
+    }
+
+    private static boolean isTemporaryViewSchema(PostgreSqlParser.MultipartIdentifierContext relation) {
+        return relation.identifier().size() == 2 && "pg_temp".equals(sessionIdentifier(relation.identifier(0)));
+    }
+
+    private static String sessionIdentifier(PostgreSqlParser.IdentifierContext identifier) {
+        String raw = identifier.getText();
+        return raw.startsWith("\"") ? cleanIdentifier(raw) : cleanIdentifier(raw).toLowerCase(Locale.ROOT);
+    }
+
+    private void addTemporaryViewReference(PostgreSqlParser.MultipartIdentifierContext name,
+                                           PostgreSqlParser.TableAliasContext alias, LineageResult view) {
+        String binding = "$temporary_view" + derivedColumnLineage.size();
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        for (ColumnLineage output : view.getColumnLineage()) {
+            columns.put(output.getTarget().getName(), output.getSources());
+        }
+        derivedColumnLineage.put(binding, columns);
+        knownColumnRelations.add(binding);
+        if (tableAlias(alias) == null) {
+            TableRef table = tableRef(name);
+            derivedAliases.put(table.getName().toLowerCase(Locale.ROOT), binding);
+            if (name.identifier().size() > 1) {
+                List<String> parts = new ArrayList<>();
+                for (PostgreSqlParser.IdentifierContext identifier : name.identifier()) {
+                    parts.add(identifier.getText());
+                }
+                derivedAliases.put(qualifiedTableKey(parts), binding);
+            }
+        }
+        for (TableRef source : view.getInputTables()) {
+            addInputTable(source, false);
+        }
+        LineageModelUtils.mergeColumnUsages(result, view);
+        addCteReference(binding, alias);
     }
 
     private TableRef firstOutputTable() {
@@ -3085,7 +3189,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private void registerDerivedRelation(String name, PostgreSqlParser.QueryContext query, List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
-        PostgreSqlLineageVisitor relationVisitor = new PostgreSqlLineageVisitor(relationResult);
+        PostgreSqlLineageVisitor relationVisitor = new PostgreSqlLineageVisitor(relationResult, context);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -3129,7 +3233,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             PostgreSqlParser.CteBodyContext body,
             List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
-        PostgreSqlLineageVisitor relationVisitor = new PostgreSqlLineageVisitor(relationResult);
+        PostgreSqlLineageVisitor relationVisitor = new PostgreSqlLineageVisitor(relationResult, context);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.tableAliases.putAll(tableAliases);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -3167,7 +3271,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private PostgreSqlLineageVisitor analyzeSetOperand(PostgreSqlParser.QueryTermContext queryTerm) {
         LineageResult queryResult = new LineageResult();
-        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult);
+        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult, context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -3459,13 +3563,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             return null;
         }
         String qualifier = qualifiedTableKey(path.subList(0, path.size() - 1));
-        return tableAliases.containsKey(qualifier) ? new SourceColumn(qualifier, cleanIdentifier(path.get(path.size() - 1))) : null;
+        return tableAliases.containsKey(qualifier) || derivedAliases.containsKey(qualifier)
+                ? new SourceColumn(qualifier, cleanIdentifier(path.get(path.size() - 1))) : null;
     }
 
     private List<ColumnRef> derivedColumnRefs(SourceColumn sourceColumn) {
         String derivedName = null;
         if (sourceColumn.qualifier != null) {
-            derivedName = derivedAliases.get(sourceColumn.qualifier.toLowerCase(Locale.ROOT));
+            String qualifier = sourceColumn.qualifier;
+            derivedName = derivedAliases.get(qualifier.startsWith("\0") ? qualifier : qualifier.toLowerCase(Locale.ROOT));
         } else if (visibleRelationCount == 1 && derivedReferences.size() == 1) {
             derivedName = derivedReferences.iterator().next();
         }
@@ -3540,7 +3646,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
             PostgreSqlParser.AssignmentContext assignment,
             TableRef defaultTarget) {
         LineageResult queryResult = new LineageResult();
-        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult);
+        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult, context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -3998,7 +4104,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private PostgreSqlLineageVisitor analyzeSubquery(PostgreSqlParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
-        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult);
+        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult, context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -4013,7 +4119,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
 
     private void applyInsertQueryLineage(PostgreSqlParser.QueryContext query, TableRef target) {
         LineageResult queryResult = new LineageResult();
-        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult);
+        PostgreSqlLineageVisitor queryVisitor = new PostgreSqlLineageVisitor(queryResult, context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         queryVisitor.knownColumnRelations.addAll(knownColumnRelations);
@@ -4104,7 +4210,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         String expression = ctx.expression().getText();
         List<SourceColumn> sourceColumns = sourceColumns(ctx.expression());
         String directColumn = sourceColumns.size() == 1 && isDirectColumnExpression(expression, sourceColumns.get(0))
-                ? unqualifiedName(sourceColumns.get(0).name)
+                ? directColumnName(sourceColumns.get(0))
                 : null;
         if (sourceColumns.isEmpty() && ctx.alias == null) {
             return null;
@@ -4147,12 +4253,20 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     private static boolean isDirectColumnExpression(String expression, SourceColumn column) {
+        if (!column.path.isEmpty() && expression.equals(String.join(".", column.path))) {
+            return true;
+        }
         String raw = column.qualifier != null ? column.qualifier + "." + column.name : column.name;
         String cleaned = cleanIdentifier(expression);
         return expression.equals(raw)
                 || cleaned.equals(raw)
                 || expression.endsWith("." + column.name)
                 || cleaned.endsWith("." + column.name);
+    }
+
+    private static String directColumnName(SourceColumn column) {
+        return column.path.isEmpty() ? unqualifiedName(column.name)
+                : cleanIdentifier(column.path.get(column.path.size() - 1));
     }
 
     private static String unqualifiedName(String raw) {

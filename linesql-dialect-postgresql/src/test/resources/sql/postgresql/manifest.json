@@ -1847,6 +1847,319 @@
       "description": "PostgreSQL CREATE VIEW source and output lineage"
     },
     {
+      "id": "script_temporary_view_lifecycle",
+      "file": "cases/script_temporary_view_lifecycle.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "pg_temp.daily.snapshot",
+        "current_snapshot"
+      ],
+      "outputTables": [
+        "daily.snapshot",
+        "pg_temp.current_snapshot",
+        "mart.summary",
+        "current_snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "daily.snapshot.event_key",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "event_key",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "mart.summary.event_key",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "event_key",
+          "sources": [
+            "current_snapshot.event_key"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "daily.snapshot"
+          ],
+          "columnLineage": [
+            {
+              "target": "daily.snapshot.event_key",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_key",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "ALTER_VIEW",
+          "inputTables": [
+            "pg_temp.daily.snapshot"
+          ],
+          "outputTables": [
+            "pg_temp.current_snapshot"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.summary.event_key",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.active"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_VIEW",
+          "inputTables": [],
+          "outputTables": [
+            "current_snapshot"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "current_snapshot"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_key",
+              "sources": [
+                "current_snapshot.event_key"
+              ]
+            }
+          ]
+        }
+      ],
+      "description": "A PostgreSQL temporary view follows its defining query through a qualified reference, rename, insert and drop"
+    },
+    {
+      "id": "script_temporary_view_replace_discard",
+      "file": "cases/script_temporary_view_replace_discard.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "ods.archive",
+        "ops.pending",
+        "public.cache",
+        "cache"
+      ],
+      "outputTables": [
+        "cache"
+      ],
+      "columnLineage": [
+        {
+          "target": "cache.event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "cache.event_id",
+          "sources": [
+            "ods.archive.event_id"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.archive.event_id"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "ops.pending.event_id"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "public.cache.event_id"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "cache.event_id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "cache"
+          ],
+          "columnLineage": [
+            {
+              "target": "cache.event_id",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.archive"
+          ],
+          "outputTables": [
+            "cache"
+          ],
+          "columnLineage": [
+            {
+              "target": "cache.event_id",
+              "sources": [
+                "ods.archive.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.archive"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "ods.archive.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ops.pending"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "ops.pending.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "public.cache"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "public.cache.event_id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "cache"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "cache.event_id"
+              ]
+            }
+          ]
+        }
+      ],
+      "description": "Replacement updates temporary lineage, a local CTE and a qualified permanent table keep their own scope, and DISCARD TEMP clears the temporary definition"
+    },
+    {
       "id": "create_temporary_view",
       "file": "cases/create_temporary_view.sql",
       "statementType": "CREATE_VIEW",

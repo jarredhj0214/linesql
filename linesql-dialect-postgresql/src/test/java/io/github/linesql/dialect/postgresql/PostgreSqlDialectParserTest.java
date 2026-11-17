@@ -113,6 +113,20 @@ public class PostgreSqlDialectParserTest {
     }
 
     @Test
+    public void appliesTemporaryViewBindingsInAutoDetectedScripts() throws IOException {
+        List<LineageResult> results = LineSql.parseScript(
+                resource("/sql/postgresql/cases/script_temporary_view_lifecycle.sql"));
+        assertEquals(7, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertEquals("events", results.get(2).getInputTables().get(0).getName());
+        assertEquals("events", results.get(4).getInputTables().get(0).getName());
+        assertEquals("current_snapshot", results.get(6).getInputTables().get(0).getName());
+    }
+
+    @Test
     public void manifestCasesMatchExpectedLineage() throws IOException {
         JsonNode manifest = new ObjectMapper().readTree(resource("/sql/postgresql/manifest.json"));
 
