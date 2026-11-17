@@ -1,9 +1,7 @@
 package io.github.linesql.core.util;
 
-import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
-import io.github.linesql.core.model.StatementType;
 
 import java.util.LinkedHashMap;
 
@@ -58,13 +56,6 @@ public final class MySqlPreparedSql {
     }
 
     public static void recordLineage(LineageResult target, LineageResult prepared) {
-        if (prepared.getStatementType() == StatementType.UNKNOWN || prepared.getDiagnostics().stream()
-                .anyMatch(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.ERROR)) {
-            return;
-        }
-        target.setInputTables(prepared.getInputTables());
-        target.setOutputTables(prepared.getOutputTables());
-        target.setColumnLineage(prepared.getColumnLineage());
-        target.setColumnUsages(prepared.getColumnUsages());
+        LineageModelUtils.copySuccessfulLineage(target, prepared);
     }
 }

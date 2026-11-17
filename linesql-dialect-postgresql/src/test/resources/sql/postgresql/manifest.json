@@ -6881,6 +6881,224 @@
       "columnLineage": [],
       "columnUsages": [],
       "description": "PostgreSQL schema search path statement keeps control classification"
+    },
+    {
+      "id": "script_execute_prepared_statement_lifecycle",
+      "file": "cases/script_execute_prepared_statement_lifecycle.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "mart.jobs",
+        "ods.accounts"
+      ],
+      "outputTables": [
+        "mart.jobs"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.jobs.attempts",
+          "sources": [
+            "mart.jobs.attempts"
+          ]
+        }
+      ],
+      "description": "PostgreSQL execution respects prepared names, compiled-plan discards, deallocation and session reset",
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.id"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "mart.jobs"
+          ],
+          "outputTables": [
+            "mart.jobs"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.jobs.attempts",
+              "sources": [
+                "mart.jobs.attempts"
+              ]
+            },
+            {
+              "target": "id",
+              "sources": [
+                "mart.jobs.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "mart.jobs.id"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.id"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "mart.jobs"
+          ],
+          "outputTables": [
+            "mart.jobs"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.jobs.attempts",
+              "sources": [
+                "mart.jobs.attempts"
+              ]
+            },
+            {
+              "target": "id",
+              "sources": [
+                "mart.jobs.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "mart.jobs.id"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "mart.jobs"
+          ],
+          "outputTables": [
+            "mart.jobs"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.jobs.attempts",
+              "sources": [
+                "mart.jobs.attempts"
+              ]
+            },
+            {
+              "target": "id",
+              "sources": [
+                "mart.jobs.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "mart.jobs.id"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "ods.accounts"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "name",
+              "sources": [
+                "ods.accounts.name"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

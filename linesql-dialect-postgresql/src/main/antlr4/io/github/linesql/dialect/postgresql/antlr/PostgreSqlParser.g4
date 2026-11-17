@@ -1244,7 +1244,7 @@ routineControlStatement
     : CALL .+?
     | PREPARE identifier (LPAREN dataTypeList? RPAREN)? AS preparedStatement=cteBody
     | EXECUTE identifier (LPAREN expressionList? RPAREN)?
-    | DEALLOCATE PREPARE? identifier
+    | DEALLOCATE PREPARE? (identifier | ALL)
     | DECLARE identifier cursorOption* CURSOR cursorHold? FOR cursorQuery=query
     | FETCH fetchDirection? ((FROM | IN) identifier)?
     | MOVE fetchDirection? ((FROM | IN) identifier)?

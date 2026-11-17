@@ -4,7 +4,9 @@ import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.ColumnUsageType;
+import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 
 import java.util.ArrayList;
@@ -17,6 +19,17 @@ import java.util.function.Supplier;
 
 public final class LineageModelUtils {
     private LineageModelUtils() {
+    }
+
+    public static void copySuccessfulLineage(LineageResult target, LineageResult source) {
+        if (source.getStatementType() == StatementType.UNKNOWN || source.getDiagnostics().stream()
+                .anyMatch(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.ERROR)) {
+            return;
+        }
+        target.setInputTables(source.getInputTables());
+        target.setOutputTables(source.getOutputTables());
+        target.setColumnLineage(source.getColumnLineage());
+        target.setColumnUsages(source.getColumnUsages());
     }
 
     public static ColumnLineage columnLineage(TableRef targetTable,
