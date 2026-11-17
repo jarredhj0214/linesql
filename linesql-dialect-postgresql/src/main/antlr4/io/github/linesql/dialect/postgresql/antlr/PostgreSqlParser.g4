@@ -1130,23 +1130,27 @@ alterTableStatement
     | ALTER TABLE (IF EXISTS)? parent=multipartIdentifier DETACH PARTITION child=multipartIdentifier (CONCURRENTLY | FINALIZE)?                  #alterTableDetachPartition
     | ALTER TABLE target=multipartIdentifier RENAME COLUMN sourceColumn=identifier TO targetColumn=identifier #alterTableRenameColumn
     | ALTER TABLE multipartIdentifier RENAME (TO | AS)? multipartIdentifier   #alterTableRename
-    | ALTER TABLE target=multipartIdentifier DROP COLUMN (IF EXISTS)? dropColumn=identifier (CASCADE | RESTRICT)? #alterTableDropColumn
-    | ALTER TABLE (IF EXISTS)? ONLY? target=multipartIdentifier ALTER COLUMN? alterColumn=identifier
-      SET EXPRESSION AS LPAREN generatedExpression=expression RPAREN #alterTableSetGeneratedExpression
-    | ALTER TABLE (IF EXISTS)? ONLY? target=multipartIdentifier ALTER COLUMN? alterColumn=identifier
-      DROP EXPRESSION (IF EXISTS)? #alterTableDropGeneratedExpression
-    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier SET DEFAULT expression #alterTableAlterColumnSetDefault
-    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier DROP DEFAULT #alterTableAlterColumnDropDefault
-    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier SET NOT NULL #alterTableAlterColumnSetNotNull
-    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier DROP NOT NULL #alterTableAlterColumnDropNotNull
-    | ALTER TABLE target=multipartIdentifier ALTER COLUMN? alterColumn=identifier TYPE dataType (USING usingExpression=expression)? #alterTableAlterColumnType
     | ALTER TABLE (IF EXISTS)? ONLY? target=multipartIdentifier STAR?
-      ADD (CONSTRAINT identifier)? FOREIGN KEY LPAREN localColumns=identifierList RPAREN REFERENCES refTable=multipartIdentifier
+      alterTableCommand (COMMA alterTableCommand)*                     #alterTableCommands
+    | ALTER TABLE (IF EXISTS)? ONLY? multipartIdentifier STAR? alterTableAction #alterTableOther
+    ;
+
+alterTableCommand
+    : DROP COLUMN? (IF EXISTS)? dropColumn=identifier (CASCADE | RESTRICT)? #alterTableDropColumn
+    | ALTER COLUMN? alterColumn=identifier
+      SET EXPRESSION AS LPAREN generatedExpression=expression RPAREN #alterTableSetGeneratedExpression
+    | ALTER COLUMN? alterColumn=identifier DROP EXPRESSION (IF EXISTS)? #alterTableDropGeneratedExpression
+    | ALTER COLUMN? alterColumn=identifier SET DEFAULT expression #alterTableAlterColumnSetDefault
+    | ALTER COLUMN? alterColumn=identifier DROP DEFAULT #alterTableAlterColumnDropDefault
+    | ALTER COLUMN? alterColumn=identifier SET NOT NULL #alterTableAlterColumnSetNotNull
+    | ALTER COLUMN? alterColumn=identifier DROP NOT NULL #alterTableAlterColumnDropNotNull
+    | ALTER COLUMN? alterColumn=identifier (SET DATA)? TYPE dataType (COLLATE qualifiedName)?
+      (USING usingExpression=expression)? #alterTableAlterColumnType
+    | ADD (CONSTRAINT identifier)? FOREIGN KEY LPAREN localColumns=identifierList RPAREN REFERENCES refTable=multipartIdentifier
       (LPAREN refColumns=identifierList RPAREN)? foreignKeyOptions (NOT VALID)? #alterTableAddForeignKey
-    | ALTER TABLE target=multipartIdentifier ADD (CONSTRAINT identifier)? CHECK LPAREN checkExpression=expression RPAREN #alterTableAddCheck
-    | ALTER TABLE (IF EXISTS)? multipartIdentifier ADD COLUMN? (IF NOT EXISTS)?
-      columnName=identifier dataType (COLLATE qualifiedName)? columnConstraint* #alterTableAddColumn
-    | ALTER TABLE multipartIdentifier alterTableAction                        #alterTableOther
+    | ADD (CONSTRAINT identifier)? CHECK LPAREN checkExpression=expression RPAREN (NOT VALID)? #alterTableAddCheck
+    | ADD COLUMN? (IF NOT EXISTS)? columnName=identifier dataType (COLLATE qualifiedName)?
+      columnConstraint* #alterTableAddColumn
     ;
 
 alterTableAction

@@ -3452,6 +3452,28 @@
       "description": "PostgreSQL foreign-key actions and deferral keep local and referenced columns"
     },
     {
+      "id": "alter_table_multiple_column_and_constraint_actions",
+      "file": "cases/alter_table_multiple_column_and_constraint_actions.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": ["raw.orders"],
+      "outputTables": ["mart.orders"],
+      "columnLineage": [
+        {"target": "mart.orders.gross", "sources": ["mart.orders.amount", "mart.orders.fee"]},
+        {"target": "mart.orders.tax", "sources": ["mart.orders.amount", "mart.orders.tax_rate"]}
+      ],
+      "columnUsages": [
+        {"type": "TABLE_MODEL", "column": "mart.orders.gross"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.amount"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.conversion_fee"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.source_id"},
+        {"type": "TABLE_MODEL", "column": "raw.orders.id"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.tax"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.tax_rate"},
+        {"type": "TABLE_MODEL", "column": "mart.orders.ignored"}
+      ],
+      "description": "Every supported subcommand retains its lineage in a comma-separated PostgreSQL ALTER TABLE"
+    },
+    {
       "id": "alter_table_add_foreign_key",
       "file": "cases/alter_table_add_foreign_key.sql",
       "statementType": "ALTER_TABLE",

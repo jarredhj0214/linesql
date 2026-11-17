@@ -1246,113 +1246,93 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitAlterTableAddColumn(PostgreSqlParser.AlterTableAddColumnContext ctx) {
-        TableRef table = tableRef(ctx.multipartIdentifier());
-        String column = cleanIdentifier(ctx.columnName);
-        currentDmlTarget = table;
-        recordAlterColumnUsage(table, column);
-        List<ColumnLineage> generated = new ArrayList<>();
-        for (PostgreSqlParser.ColumnConstraintContext constraint : ctx.columnConstraint()) {
-            collectColumnConstraint(constraint, table, column, generated);
-        }
-        result.setColumnLineage(generated);
+    public Void visitAlterTableCommands(PostgreSqlParser.AlterTableCommandsContext ctx) {
+        currentDmlTarget = tableRef(ctx.target);
+        outputTables.add(currentDmlTarget);
+        visitChildren(ctx);
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
     @Override
+    public Void visitAlterTableAddColumn(PostgreSqlParser.AlterTableAddColumnContext ctx) {
+        String column = cleanIdentifier(ctx.columnName);
+        recordAlterColumnUsage(column);
+        List<ColumnLineage> generated = new ArrayList<>();
+        for (PostgreSqlParser.ColumnConstraintContext constraint : ctx.columnConstraint()) {
+            collectColumnConstraint(constraint, currentDmlTarget, column, generated);
+        }
+        result.getColumnLineage().addAll(generated);
+        return null;
+    }
+
+    @Override
     public Void visitAlterTableDropColumn(PostgreSqlParser.AlterTableDropColumnContext ctx) {
-        TableRef table = tableRef(ctx.target);
-        outputTables.add(table);
-        LineageModelUtils.addColumnUsages(result,
-                ColumnUsageType.TABLE_MODEL,
-                java.util.Collections.singletonList(new ColumnRef(table, cleanIdentifier(ctx.dropColumn))));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordAlterColumnUsage(cleanIdentifier(ctx.dropColumn));
         return null;
     }
 
     @Override
     public Void visitAlterTableSetGeneratedExpression(PostgreSqlParser.AlterTableSetGeneratedExpressionContext ctx) {
-        TableRef table = tableRef(ctx.target);
         String column = cleanIdentifier(ctx.alterColumn);
-        currentDmlTarget = table;
-        recordAlterColumnUsage(table, column);
-        ColumnLineage lineage = generatedColumnLineage(table, column, ctx.generatedExpression);
-        result.setColumnLineage(Collections.singletonList(lineage));
+        recordAlterColumnUsage(column);
+        ColumnLineage lineage = generatedColumnLineage(currentDmlTarget, column, ctx.generatedExpression);
+        result.getColumnLineage().add(lineage);
         LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, lineage.getSources());
         return null;
     }
 
     @Override
     public Void visitAlterTableDropGeneratedExpression(PostgreSqlParser.AlterTableDropGeneratedExpressionContext ctx) {
-        recordAlterColumnUsage(tableRef(ctx.target), cleanIdentifier(ctx.alterColumn));
+        recordAlterColumnUsage(cleanIdentifier(ctx.alterColumn));
         return null;
     }
 
     @Override
     public Void visitAlterTableAlterColumnSetDefault(PostgreSqlParser.AlterTableAlterColumnSetDefaultContext ctx) {
-        recordAlterColumnUsage(tableRef(ctx.target), cleanIdentifier(ctx.alterColumn));
+        recordAlterColumnUsage(cleanIdentifier(ctx.alterColumn));
         addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.expression()));
-        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
     @Override
     public Void visitAlterTableAlterColumnDropDefault(PostgreSqlParser.AlterTableAlterColumnDropDefaultContext ctx) {
-        recordAlterColumnUsage(tableRef(ctx.target), cleanIdentifier(ctx.alterColumn));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordAlterColumnUsage(cleanIdentifier(ctx.alterColumn));
         return null;
     }
 
     @Override
     public Void visitAlterTableAlterColumnSetNotNull(PostgreSqlParser.AlterTableAlterColumnSetNotNullContext ctx) {
-        recordAlterColumnUsage(tableRef(ctx.target), cleanIdentifier(ctx.alterColumn));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordAlterColumnUsage(cleanIdentifier(ctx.alterColumn));
         return null;
     }
 
     @Override
     public Void visitAlterTableAlterColumnDropNotNull(PostgreSqlParser.AlterTableAlterColumnDropNotNullContext ctx) {
-        recordAlterColumnUsage(tableRef(ctx.target), cleanIdentifier(ctx.alterColumn));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        recordAlterColumnUsage(cleanIdentifier(ctx.alterColumn));
         return null;
     }
 
     @Override
     public Void visitAlterTableAlterColumnType(PostgreSqlParser.AlterTableAlterColumnTypeContext ctx) {
-        TableRef table = tableRef(ctx.target);
-        recordAlterColumnUsage(table, cleanIdentifier(ctx.alterColumn));
+        recordAlterColumnUsage(cleanIdentifier(ctx.alterColumn));
         if (ctx.usingExpression != null) {
-            TableRef previousTarget = currentDmlTarget;
-            currentDmlTarget = table;
             addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.usingExpression));
-            currentDmlTarget = previousTarget;
         }
-        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
     @Override
     public Void visitAlterTableAddForeignKey(PostgreSqlParser.AlterTableAddForeignKeyContext ctx) {
-        TableRef table = tableRef(ctx.target);
-        outputTables.add(table);
-        addIdentifierListUsages(table, ctx.localColumns, ColumnUsageType.TABLE_MODEL);
-        collectForeignKeyReference(table, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
-        result.setInputTables(new ArrayList<>(inputTables));
-        result.setOutputTables(new ArrayList<>(outputTables));
+        addIdentifierListUsages(currentDmlTarget, ctx.localColumns, ColumnUsageType.TABLE_MODEL);
+        collectForeignKeyReference(currentDmlTarget, ctx.refTable, ctx.refColumns, ctx.foreignKeyOptions());
         return null;
     }
 
     @Override
     public Void visitAlterTableAddCheck(PostgreSqlParser.AlterTableAddCheckContext ctx) {
-        TableRef target = tableRef(ctx.target);
-        TableRef previousTarget = currentDmlTarget;
-        currentDmlTarget = target;
-        outputTables.add(target);
         addColumnUsages(ColumnUsageType.TABLE_MODEL, sourceColumns(ctx.checkExpression));
-        currentDmlTarget = previousTarget;
-        result.setOutputTables(new ArrayList<>(outputTables));
         return null;
     }
 
@@ -1363,11 +1343,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         return null;
     }
 
-    private void recordAlterColumnUsage(TableRef table, String columnName) {
-        outputTables.add(table);
-        LineageModelUtils.addColumnUsages(result,
-                ColumnUsageType.TABLE_MODEL,
-                java.util.Collections.singletonList(new ColumnRef(table, columnName)));
+    private void recordAlterColumnUsage(String columnName) {
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL,
+                Collections.singletonList(new ColumnRef(currentDmlTarget, columnName)));
     }
 
     private void restoreAlias(String alias, TableRef previous) {
