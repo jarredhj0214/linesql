@@ -8436,6 +8436,132 @@
         }
       ],
       "description": "Flink TABLE queries resolve relations and ordering the same way as SELECT *"
+    },
+    {
+      "id": "script_insert_known_wildcard_positions",
+      "file": "cases/script_insert_known_wildcard_positions.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "ods.events",
+        "mart.selected"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.selected.event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "mart.selected.event_kind",
+          "sources": [
+            "ods.events.kind"
+          ]
+        },
+        {
+          "target": "mart.selected.calculated",
+          "sources": [
+            "ods.events.id",
+            "ods.events.kind"
+          ]
+        }
+      ],
+      "description": "Flink INSERT assigns wildcard columns by position when the input layout is known",
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.selected"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.selected.event_id",
+              "sources": [
+                "ods.events.id"
+              ]
+            },
+            {
+              "target": "mart.selected.event_kind",
+              "sources": [
+                "ods.events.kind"
+              ]
+            },
+            {
+              "target": "mart.selected.calculated",
+              "sources": [
+                "ods.events.id",
+                "ods.events.kind"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.kind"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "insert_unresolved_wildcard_target_positions",
+      "file": "cases/insert_unresolved_wildcard_target_positions.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.selected"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.selected.*",
+          "sources": [
+            "ods.events.*"
+          ]
+        }
+      ],
+      "description": "Flink INSERT assigns wildcard columns by position when the input layout is known"
+    },
+    {
+      "id": "insert_table_query_target_columns",
+      "file": "cases/insert_table_query_target_columns.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.selected"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.selected.event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "mart.selected.event_kind",
+          "sources": [
+            "ods.events.kind"
+          ]
+        }
+      ],
+      "description": "Flink INSERT assigns wildcard columns by position when the input layout is known"
     }
   ]
 }

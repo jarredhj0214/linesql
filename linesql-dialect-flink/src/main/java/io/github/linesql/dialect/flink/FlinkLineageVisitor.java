@@ -144,7 +144,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         if (ctx.query() != null) {
             positionalInsertSelect = insertTargetColumns.isEmpty()
-                    ? null : explicitSelectClause(ctx.query().queryTerm());
+                    ? null : selectClause(ctx.query().queryTerm());
             try {
                 visit(ctx.query());
             } finally {
@@ -1881,20 +1881,24 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private static FlinkParser.SelectClauseContext explicitSelectClause(FlinkParser.QueryTermContext term) {
+        FlinkParser.SelectClauseContext select = selectClause(term);
+        if (select != null && select.selectItemList() != null && select.selectItemList().selectItem().stream()
+                .allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)) {
+            return select;
+        }
+        return null;
+    }
+
+    private static FlinkParser.SelectClauseContext selectClause(FlinkParser.QueryTermContext term) {
         if (!(term instanceof FlinkParser.QueryTermDefaultContext)) {
             return null;
         }
         FlinkParser.QueryPrimaryContext primary = ((FlinkParser.QueryTermDefaultContext) term).queryPrimary();
         if (primary instanceof FlinkParser.SubqueryPrimaryContext) {
-            return explicitSelectClause(((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm());
+            return selectClause(((FlinkParser.SubqueryPrimaryContext) primary).query().queryTerm());
         }
         if (primary instanceof FlinkParser.QueryPrimaryDefaultContext) {
-            FlinkParser.SelectClauseContext select =
-                    ((FlinkParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
-            if (select.selectItemList() != null && select.selectItemList().selectItem().stream()
-                    .allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)) {
-                return select;
-            }
+            return ((FlinkParser.QueryPrimaryDefaultContext) primary).querySpecification().selectClause();
         }
         return null;
     }
@@ -2096,9 +2100,24 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return;
         }
         List<ColumnLineage> columnLineage = new ArrayList<>();
-        for (int i = 0; i < projections.size(); i++) {
-            Projection projection = projections.get(i);
-            if (projection.wildcard && expandWildcardProjectionLineage(targetTable, projection, columnLineage)) {
+        int expandedColumns = 0;
+        boolean knownPosition = true;
+        for (Projection projection : projections) {
+            int ordinal = knownPosition && projection.ordinal >= 0 ? projection.ordinal + expandedColumns : -1;
+            if (projection.wildcard) {
+                Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(projection);
+                if (columns != null && !columns.containsKey("*")) {
+                    addWildcardProjectionLineage(targetTable, projection, columns, ordinal, columnLineage);
+                    expandedColumns += columns.size() - 1;
+                    continue;
+                }
+                knownPosition = false;
+                if (columns != null) {
+                    addWildcardProjectionLineage(targetTable, projection, columns, -1, columnLineage);
+                    continue;
+                }
+            } else if (!knownPosition && !insertTargetColumns.isEmpty()) {
+                // A preceding wildcard has no known width, so a target column cannot be assigned by position.
                 continue;
             }
             List<ColumnRef> sources = columnRefs(projection);
@@ -2108,31 +2127,31 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 }
                 sources = Collections.emptyList();
             }
-            String targetColumn = targetColumn(projection, projection.ordinal);
+            String targetColumn = targetColumn(projection, ordinal);
             columnLineage.add(LineageModelUtils.columnLineage(targetTable, targetColumn, sources, projection.expression));
         }
         result.setColumnLineage(columnLineage);
     }
 
-    private boolean expandWildcardProjectionLineage(
+    private void addWildcardProjectionLineage(
             TableRef targetTable,
             Projection projection,
+            Map<String, List<ColumnRef>> columns,
+            int firstOrdinal,
             List<ColumnLineage> columnLineage) {
-        Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(projection);
-        if (columns == null) {
-            return false;
-        }
+        int ordinal = firstOrdinal;
         for (Map.Entry<String, List<ColumnRef>> entry : columns.entrySet()) {
             if ("*".equals(entry.getKey()) && entry.getValue().stream().noneMatch(ref -> "*".equals(ref.getName()))) {
                 continue;
             }
+            String targetColumn = ordinal >= 0 && ordinal < insertTargetColumns.size()
+                    ? insertTargetColumns.get(ordinal) : entry.getKey();
             columnLineage.add(LineageModelUtils.columnLineage(
-                    targetTable,
-                    entry.getKey(),
-                    entry.getValue(),
-                    projection.expression));
+                    targetTable, targetColumn, entry.getValue(), projection.expression));
+            if (ordinal >= 0) {
+                ordinal++;
+            }
         }
-        return true;
     }
 
     private Map<String, List<ColumnRef>> wildcardProjectionColumns(Projection projection) {
