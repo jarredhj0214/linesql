@@ -4814,6 +4814,103 @@
       ],
       "columnUsages": [],
       "description": "Later Spark lateral relations can trace both an earlier lateral projection and the base table"
+    },
+    {
+      "id": "script_use_database_and_temporary_view",
+      "file": "cases/script_use_database_and_temporary_view.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "input_db.daily",
+        "report_db.live"
+      ],
+      "outputTables": [
+        "stage",
+        "report_db.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "report_db.summary.id",
+          "sources": [
+            "input_db.daily.id"
+          ]
+        }
+      ],
+      "description": "USE qualifies physical tables while temporary views stay in session scope and CTEs still shadow them",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "input_db.daily"
+          ],
+          "outputTables": [
+            "stage"
+          ],
+          "columnLineage": [
+            {
+              "target": "stage.id",
+              "sources": [
+                "input_db.daily.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "input_db.daily.active"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "input_db.daily"
+          ],
+          "outputTables": [
+            "report_db.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "report_db.summary.id",
+              "sources": [
+                "input_db.daily.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "input_db.daily.active"
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "report_db.live"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "report_db.live.id"
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }

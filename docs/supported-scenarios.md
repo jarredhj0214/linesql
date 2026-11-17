@@ -2205,6 +2205,7 @@ Implemented Spark table-level lineage scenarios:
 | Bad SQL recovery in scripts | `bad sql; select ... from ods.s` | `script_bad_sql_recovery` |
 | Temporary view drop lifecycle | `create temporary view v as ...; drop view v; select ... from v` | `script_drop_temp_view` |
 | EXECUTE IMMEDIATE with literal SQL | A direct Spark string literal identifies Spark and contributes the embedded statement's type, table references, column mappings, and clause usages. Variable SQL and `USING` bindings report `DYNAMIC_SQL_NOT_EXPANDED`. | `execute_immediate_dynamic_sql`, `execute_immediate_literal_insert`, `execute_immediate_raw_literal`, `execute_immediate_sql_variable` |
+| Spark script database resolution | `USE database` and `USE DATABASE database` qualify physical sources and targets in later statements. Temporary views retain their original dependencies across switches, and local CTEs can shadow them. | `script_use_database_and_temporary_view` |
 | Non-lineage session statements classified as control/schema | `use db`, `set catalog c`, `reset key` | `use_database`, `set_catalog`, `reset_configuration` |
 | Namespace DDL classified as schema statements | `create namespace mart`, `drop namespace mart` | `create_namespace`, `drop_namespace` |
 | Table-free metadata reads | `show namespaces`, `show catalogs`, `analyze tables` | `show_namespaces`, `show_catalogs`, `analyze_tables` |

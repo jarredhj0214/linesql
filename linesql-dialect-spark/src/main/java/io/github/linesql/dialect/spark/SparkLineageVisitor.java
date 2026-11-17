@@ -419,7 +419,11 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitCreateView(SqlBaseParser.CreateViewContext ctx) {
         result.setStatementType(StatementType.CREATE_VIEW);
-        addOutput(ctx.identifierReference());
+        if (ctx.TEMPORARY() == null) {
+            addOutput(ctx.identifierReference());
+        } else {
+            addOutput(rawTableRef(ctx.identifierReference().getText()), null);
+        }
         addViewTargetColumns(ctx.identifierCommentList());
         visitChildren(ctx);
         if (ctx.TEMPORARY() != null) {
@@ -442,7 +446,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitCreateTempViewUsing(SqlBaseParser.CreateTempViewUsingContext ctx) {
         result.setStatementType(StatementType.CREATE_VIEW);
-        addOutput(ctx.tableIdentifier());
+        addOutput(rawTableRef(ctx.tableIdentifier().getText()), null);
         return null;
     }
 
@@ -471,7 +475,11 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitCacheTable(SqlBaseParser.CacheTableContext ctx) {
         result.setStatementType(StatementType.CACHE_TABLE);
-        addOutput(ctx.identifierReference());
+        if (ctx.query() == null) {
+            addOutput(ctx.identifierReference());
+        } else {
+            addOutput(rawTableRef(ctx.identifierReference().getText()), null);
+        }
         visitChildren(ctx);
         if (ctx.query() != null) {
             registerTemporaryRelation(ctx.identifierReference());
@@ -914,15 +922,29 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitUse(SqlBaseParser.UseContext ctx) {
-        result.setStatementType(StatementType.USE_SCHEMA);
-        suppressMissingColumnLineageDiagnostic = true;
-        return null;
+        return useNamespace(ctx.identifierReference());
     }
 
     @Override
     public Void visitUseNamespace(SqlBaseParser.UseNamespaceContext ctx) {
+        return useNamespace(ctx.identifierReference());
+    }
+
+    private Void useNamespace(SqlBaseParser.IdentifierReferenceContext identifier) {
         result.setStatementType(StatementType.USE_SCHEMA);
         suppressMissingColumnLineageDiagnostic = true;
+        if (context != null) {
+            List<String> parts = identifier.multipartIdentifier() == null
+                    ? Collections.emptyList() : splitIdentifier(identifier.getText());
+            if (parts.size() == 1) {
+                context.setDefaultSchema(parts.get(0));
+            } else if (parts.size() == 2 && parts.get(0).equals(context.getDefaultCatalog())) {
+                context.setDefaultSchema(parts.get(1));
+            } else {
+                context.setDefaultCatalog(null);
+                context.setDefaultSchema(null);
+            }
+        }
         return null;
     }
 
@@ -1303,7 +1325,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     public Void visitTableName(SqlBaseParser.TableNameContext ctx) {
         SqlBaseParser.IdentifierReferenceContext identifier =
                 ctx.temporalTableIdentifierReference().identifierReference();
-        TableRef table = tableRef(identifier.getText());
+        TableRef table = rawTableRef(identifier.getText());
         if (isCteReference(table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
             return null;
@@ -1313,7 +1335,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             addTemporaryRelationReference(temporaryRelationName, ctx.tableAlias());
             return null;
         }
-        addInputTable(table, ctx.tableAlias(), true);
+        addInputTable(qualifyTable(table), ctx.tableAlias(), true);
         return null;
     }
 
@@ -2123,13 +2145,13 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private void addInput(SqlBaseParser.IdentifierReferenceContext ctx, SqlBaseParser.TableAliasContext aliasContext) {
-        TableRef table = tableRef(ctx.getText());
+        TableRef table = rawTableRef(ctx.getText());
         if (table.getCatalog() == null
                 && table.getSchema() == null
                 && cteNames.contains(table.getName().toLowerCase(java.util.Locale.ROOT))) {
             return;
         }
-        addInputTable(table, aliasContext, true);
+        addInputTable(qualifyTable(table), aliasContext, true);
     }
 
     private void addInput(SqlBaseParser.MultipartIdentifierContext ctx, SqlBaseParser.TableAliasContext aliasContext) {
@@ -2407,14 +2429,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             return;
         }
         finalizeResult();
-        context.getTemporaryRelations().put(relationKey(tableRef(identifier.getText())), copyResult(result));
+        context.getTemporaryRelations().put(relationKey(rawTableRef(identifier.getText())), copyResult(result));
     }
 
     private void unregisterTemporaryRelation(SqlBaseParser.IdentifierReferenceContext identifier) {
         if (context == null) {
             return;
         }
-        context.getTemporaryRelations().remove(relationKey(tableRef(identifier.getText())));
+        context.getTemporaryRelations().remove(relationKey(rawTableRef(identifier.getText())));
     }
 
     private void addTemporaryRelationReference(String relationName, SqlBaseParser.TableAliasContext aliasContext) {
@@ -2474,7 +2496,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private void addOutput(SqlBaseParser.IdentifierReferenceContext ctx, SqlBaseParser.TableAliasContext aliasContext) {
-        TableRef table = tableRef(ctx.getText());
+        addOutput(tableRef(ctx.getText()), aliasContext);
+    }
+
+    private void addOutput(TableRef table, SqlBaseParser.TableAliasContext aliasContext) {
         outputTables.add(table);
         tableAliases.put(table.getName().toLowerCase(java.util.Locale.ROOT), table);
         String alias = tableAlias(aliasContext);
@@ -3518,7 +3543,19 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
     }
 
-    private static TableRef tableRef(String raw) {
+    private TableRef tableRef(String raw) {
+        return qualifyTable(rawTableRef(raw));
+    }
+
+    private TableRef qualifyTable(TableRef table) {
+        if (context == null || table.getCatalog() != null) {
+            return table;
+        }
+        String schema = table.getSchema() == null ? context.getDefaultSchema() : table.getSchema();
+        return new TableRef(context.getDefaultCatalog(), schema, table.getName());
+    }
+
+    private static TableRef rawTableRef(String raw) {
         List<String> partsList = splitIdentifier(raw);
         String[] parts = partsList.toArray(new String[0]);
         if (parts.length >= 3) {
