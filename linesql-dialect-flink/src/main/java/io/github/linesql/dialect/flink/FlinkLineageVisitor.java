@@ -1720,6 +1720,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         String binding = alias == null ? name : alias.toLowerCase(Locale.ROOT);
         tableAliases.put(binding, table);
+        if (visibleRelation && alias == null) {
+            for (String qualified : qualifiedTableBindings(table)) {
+                tableAliases.put(qualified, table);
+                derivedAliases.remove(qualified);
+            }
+        }
         if (correlatedQuery && visibleRelation) {
             derivedAliases.remove(binding);
         }
@@ -2158,7 +2164,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (projection.sourceColumns.size() != 1) {
             return null;
         }
-        SourceColumn wildcard = projection.sourceColumns.get(0);
+        SourceColumn wildcard = scopedSourceColumn(projection.sourceColumns.get(0));
         if (!"*".equals(wildcard.name)) {
             return null;
         }
@@ -2343,6 +2349,11 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (sourceColumn.resolvedRef != null) {
             return sourceColumn;
         }
+        if (sourceColumn.qualifiedKey != null
+                && (tableAliases.containsKey(sourceColumn.qualifiedKey)
+                    || derivedAliases.containsKey(sourceColumn.qualifiedKey))) {
+            return new SourceColumn(sourceColumn.qualifiedKey, sourceColumn.name);
+        }
         if (sourceColumn.qualifier != null || !sourceColumn.name.contains(".")) {
             return sourceColumn;
         }
@@ -2501,6 +2512,12 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         String alias = tableAlias(aliasCtx);
         String visibleName = alias == null ? table.getName() : alias;
         derivedAliases.put(visibleName.toLowerCase(Locale.ROOT), relationName);
+        if (alias == null) {
+            for (String qualified : qualifiedTableBindings(table)) {
+                derivedAliases.put(qualified, relationName);
+                tableAliases.remove(qualified);
+            }
+        }
         Map<String, List<ColumnRef>> columns = temporaryRelationColumns(relation);
         derivedColumnLineage.put(relationName, columns);
         for (TableRef source : relation.getInputTables()) {
@@ -2843,7 +2860,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private static Projection wildcardProjection(FlinkParser.SelectItemContext item, int ordinal) {
         if (item instanceof FlinkParser.SelectQualifiedStarContext) {
             FlinkParser.SelectQualifiedStarContext star = (FlinkParser.SelectQualifiedStarContext) item;
-            return wildcardProjection(qualifiedName(star.qualifiedName()), star.getText(), ordinal);
+            List<String> parts = new ArrayList<>();
+            for (FlinkParser.IdentifierContext id : star.qualifiedName().identifier()) {
+                parts.add(cleanIdentifier(id));
+            }
+            String qualifier = String.join(".", parts);
+            String qualified = parts.size() < 2 ? null : qualifiedBindingKey(parts);
+            return new Projection(Collections.singletonList(new SourceColumn(qualifier, "*", qualified)),
+                    "*", star.getText(), true, ordinal);
         }
         if (item instanceof FlinkParser.SelectStarContext) {
             return wildcardProjection(null, item.getText(), ordinal);
@@ -2970,7 +2994,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             if (parts.size() >= 2) {
                 String qualifier = parts.get(parts.size() - 2);
                 String name = parts.get(parts.size() - 1);
-                columns.add(new SourceColumn(qualifier, name));
+                String qualified = parts.size() < 3 ? null
+                        : qualifiedBindingKey(parts.subList(0, parts.size() - 1));
+                columns.add(new SourceColumn(qualifier, name, qualified));
             } else if (parts.size() == 1) {
                 columns.add(new SourceColumn(null, parts.get(0)));
             }
@@ -3094,12 +3120,25 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return parts;
     }
 
-    private static String qualifiedName(FlinkParser.QualifiedNameContext ctx) {
-        List<String> parts = new ArrayList<>();
-        for (FlinkParser.IdentifierContext id : ctx.identifier()) {
-            parts.add(cleanIdentifier(id));
+    private static List<String> qualifiedTableBindings(TableRef table) {
+        if (table.getSchema() == null) {
+            return Collections.emptyList();
         }
-        return String.join(".", parts);
+        List<String> parts = new ArrayList<>();
+        parts.add(table.getSchema());
+        parts.add(table.getName());
+        List<String> bindings = new ArrayList<>();
+        bindings.add(qualifiedBindingKey(parts));
+        if (table.getCatalog() != null) {
+            parts.add(0, table.getCatalog());
+            bindings.add(qualifiedBindingKey(parts));
+        }
+        return bindings;
+    }
+
+    private static String qualifiedBindingKey(List<String> parts) {
+        // Dots inside quoted identifiers do not separate relation name components.
+        return ("\0" + String.join("\0", parts)).toLowerCase(Locale.ROOT);
     }
 
     private static String relationKey(TableRef table) {
@@ -3210,26 +3249,33 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         final ColumnRef resolvedRef;
         final String qualifier;
         final String name;
+        final String qualifiedKey;
         final boolean inputOnly;
 
         SourceColumn(String qualifier, String name) {
-            this(null, qualifier, name, false);
+            this(qualifier, name, null);
         }
 
-        private SourceColumn(ColumnRef resolvedRef, String qualifier, String name, boolean inputOnly) {
+        SourceColumn(String qualifier, String name, String qualifiedKey) {
+            this(null, qualifier, name, qualifiedKey, false);
+        }
+
+        private SourceColumn(ColumnRef resolvedRef, String qualifier, String name, String qualifiedKey,
+                             boolean inputOnly) {
             this.resolvedRef = resolvedRef;
             this.qualifier = qualifier;
             this.name = name;
+            this.qualifiedKey = qualifiedKey;
             this.inputOnly = inputOnly;
         }
 
         static SourceColumn resolved(ColumnRef ref) {
-            return new SourceColumn(ref, null, ref.getName(), false);
+            return new SourceColumn(ref, null, ref.getName(), null, false);
         }
 
         SourceColumn inInputScope() {
             return inputOnly || resolvedRef != null || qualifier != null
-                    ? this : new SourceColumn(null, null, name, true);
+                    ? this : new SourceColumn(null, null, name, qualifiedKey, true);
         }
 
         @Override
@@ -3244,12 +3290,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             return inputOnly == that.inputOnly
                     && Objects.equals(resolvedRef, that.resolvedRef)
                     && Objects.equals(qualifier, that.qualifier)
-                    && Objects.equals(name, that.name);
+                    && Objects.equals(name, that.name)
+                    && Objects.equals(qualifiedKey, that.qualifiedKey);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(resolvedRef, qualifier, name, inputOnly);
+            return Objects.hash(resolvedRef, qualifier, name, qualifiedKey, inputOnly);
         }
     }
 

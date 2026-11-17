@@ -8562,6 +8562,80 @@
         }
       ],
       "description": "Flink INSERT assigns wildcard columns by position when the input layout is known"
+    },
+    {
+      "id": "select_catalog_qualified_same_name",
+      "file": "cases/select_catalog_qualified_same_name.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "lake.live.orders",
+        "archive.history.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "live_id",
+          "sources": [
+            "lake.live.orders.id"
+          ]
+        },
+        {
+          "target": "history_id",
+          "sources": [
+            "archive.history.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "lake.live.orders.link_id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "archive.history.orders.link_id"
+        },
+        {
+          "type": "WHERE",
+          "column": "lake.live.orders.status"
+        }
+      ],
+      "description": "Flink resolves catalog and schema-qualified columns and wildcards to their explicit source relation"
+    },
+    {
+      "id": "select_schema_qualified_wildcards",
+      "file": "cases/select_schema_qualified_wildcards.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.orders",
+        "history.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.orders.*"
+          ]
+        },
+        {
+          "target": "*",
+          "sources": [
+            "history.orders.*"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "live.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "history.orders.id"
+        }
+      ],
+      "description": "Flink resolves catalog and schema-qualified columns and wildcards to their explicit source relation"
     }
   ]
 }
