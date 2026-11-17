@@ -6781,6 +6781,45 @@
         }
       ],
       "description": "A sort expression sees the input namespace and a parenthesized position resolves the output"
+    },
+    {
+      "id": "select_group_by_prefers_known_join_input_name",
+      "file": "cases/select_group_by_prefers_known_join_input_name.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders",
+        "ods.limits"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "region",
+          "sources": [
+            "ods.orders.channel"
+          ]
+        },
+        {
+          "target": "cap",
+          "sources": [
+            "ods.limits.cap"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.region"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "ods.orders.channel"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.channel"
+        }
+      ],
+      "description": "A bare grouping name resolves to the unique known input across a join even when the output has the same alias"
     }
   ]
 }

@@ -2438,7 +2438,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         List<SourceColumn> sources = sourceColumns(expression);
         if (primaryExpression(expression) instanceof PostgreSqlParser.ColumnReferenceContext && !sources.isEmpty()) {
-            List<ColumnRef> input = derivedColumnRefs(sources.get(0));
+            List<ColumnRef> input = groupingInputColumnRefs(sources.get(0));
             if (input != null) {
                 LineageModelUtils.addColumnUsages(result, ColumnUsageType.GROUP_BY, input);
             } else {
@@ -2447,6 +2447,30 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         } else {
             addInputColumnUsages(ColumnUsageType.GROUP_BY, sources);
         }
+    }
+
+    private List<ColumnRef> groupingInputColumnRefs(SourceColumn column) {
+        List<ColumnRef> joined = unqualifiedJoinKeys.get(column.name);
+        if (joined != null) {
+            return joined;
+        }
+        if (visibleRelations.size() <= 1) {
+            return derivedColumnRefs(column);
+        }
+        List<ColumnRef> matching = null;
+        for (VisibleRelation relation : visibleRelations) {
+            if (!knownColumnRelations.contains(relation.derivedName)) {
+                return null;
+            }
+            List<ColumnRef> refs = derivedColumnLineage.get(relation.derivedName).get(column.name);
+            if (refs != null) {
+                if (matching != null) {
+                    return null;
+                }
+                matching = refs;
+            }
+        }
+        return matching;
     }
 
     @Override
