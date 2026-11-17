@@ -4412,6 +4412,106 @@
         }
       ],
       "description": "A nonrecursive definition reads the same-named physical table, and later CTEs read the completed definition"
+    },
+    {
+      "id": "script_use_database_and_default",
+      "file": "cases/script_use_database_and_default.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "source_db.events",
+        "source_db.historical",
+        "default.landing",
+        "shared.events"
+      ],
+      "outputTables": [
+        "default.daily_totals"
+      ],
+      "columnLineage": [
+        {
+          "target": "default.daily_totals.id",
+          "sources": [
+            "default.landing.id"
+          ]
+        }
+      ],
+      "description": "Hive USE and USE DEFAULT apply to set branches and nested queries while CTEs remain lexical",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "source_db.events",
+            "source_db.historical"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "source_db.events.id",
+                "source_db.historical.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "source_db.events.active"
+            },
+            {
+              "type": "WHERE",
+              "column": "source_db.historical.active"
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "default.landing"
+          ],
+          "outputTables": [
+            "default.daily_totals"
+          ],
+          "columnLineage": [
+            {
+              "target": "default.daily_totals.id",
+              "sources": [
+                "default.landing.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "shared.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "shared.events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

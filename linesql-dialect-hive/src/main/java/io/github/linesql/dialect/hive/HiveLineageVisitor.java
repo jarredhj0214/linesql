@@ -4,6 +4,7 @@ import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.model.TableRef;
 import io.github.linesql.core.util.LineageModelUtils;
@@ -23,6 +24,7 @@ import java.util.Set;
 
 class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     private final LineageResult result;
+    private final ParseContext context;
     private final Set<TableRef> inputTables = new LinkedHashSet<>();
     private final Set<TableRef> outputTables = new LinkedHashSet<>();
     private final Map<String, TableRef> tableAliases = new LinkedHashMap<>();
@@ -41,8 +43,9 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     private int visibleRelationCount;
     private boolean suppressColumnLineage;
 
-    HiveLineageVisitor(LineageResult result) {
+    HiveLineageVisitor(LineageResult result, ParseContext context) {
         this.result = result;
+        this.context = context;
     }
 
     @Override
@@ -716,6 +719,11 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     @Override
     public Void visitUseStmt(HiveParser.UseStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
+        if (context != null) {
+            HiveParser.IdentifierContext database = ctx.useStatement().identifier();
+            context.setDefaultSchema(database.getStart().getType() == HiveParser.DEFAULT
+                    ? "default" : cleanIdentifier(database));
+        }
         return null;
     }
 
@@ -993,7 +1001,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitTableName(HiveParser.TableNameContext ctx) {
-        TableRef table = tableRef(ctx.multipartIdentifier());
+        TableRef table = rawTableRef(ctx.multipartIdentifier());
         if (isCteReference(table)) {
             addDerivedReference(table.getName(), ctx.tableAlias());
             if (ctx.tableSampleClause() != null) {
@@ -1001,7 +1009,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             }
             return null;
         }
-        addInputTable(table, ctx.tableAlias(), true);
+        addInputTable(qualifyTable(table), ctx.tableAlias(), true);
         if (ctx.tableSampleClause() != null) {
             visit(ctx.tableSampleClause());
         }
@@ -1321,7 +1329,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     private HiveLineageVisitor branchVisitor() {
-        HiveLineageVisitor branch = new HiveLineageVisitor(new LineageResult());
+        HiveLineageVisitor branch = new HiveLineageVisitor(new LineageResult(), context);
         branch.inputTables.addAll(inputTables);
         branch.tableAliases.putAll(tableAliases);
         branch.cteNames.addAll(cteNames);
@@ -1383,7 +1391,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     private void registerDerivedRelation(String name, HiveParser.QueryContext query, List<String> columnAliases) {
         LineageResult relationResult = new LineageResult();
-        HiveLineageVisitor relationVisitor = new HiveLineageVisitor(relationResult);
+        HiveLineageVisitor relationVisitor = new HiveLineageVisitor(relationResult, context);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
         relationVisitor.derivedAliases.putAll(derivedAliases);
@@ -1407,7 +1415,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     private LineageResult lineageForQueryTerm(HiveParser.QueryTermContext queryTerm, boolean explicitOutput) {
         LineageResult queryResult = new LineageResult();
-        HiveLineageVisitor queryVisitor = new HiveLineageVisitor(queryResult);
+        HiveLineageVisitor queryVisitor = new HiveLineageVisitor(queryResult, context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -1891,7 +1899,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     private LineageResult lineageForQuery(HiveParser.QueryContext query) {
         LineageResult queryResult = new LineageResult();
-        HiveLineageVisitor queryVisitor = new HiveLineageVisitor(queryResult);
+        HiveLineageVisitor queryVisitor = new HiveLineageVisitor(queryResult, context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -1997,7 +2005,7 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     private List<ColumnRef> scalarSubqueryProjectionRefs(HiveParser.QueryContext query) {
-        HiveLineageVisitor queryVisitor = new HiveLineageVisitor(new LineageResult());
+        HiveLineageVisitor queryVisitor = new HiveLineageVisitor(new LineageResult(), context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
@@ -2131,7 +2139,19 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     // ============ Utility ============
 
-    private static TableRef tableRef(HiveParser.MultipartIdentifierContext ctx) {
+    private TableRef tableRef(HiveParser.MultipartIdentifierContext ctx) {
+        return qualifyTable(rawTableRef(ctx));
+    }
+
+    private TableRef qualifyTable(TableRef table) {
+        if (context == null || context.getDefaultSchema() == null || table.getSchema() != null
+                || table.getCatalog() != null) {
+            return table;
+        }
+        return new TableRef(null, context.getDefaultSchema(), table.getName());
+    }
+
+    private static TableRef rawTableRef(HiveParser.MultipartIdentifierContext ctx) {
         List<String> parts = identifierParts(ctx);
         return LineageModelUtils.tableRefFromParts(parts);
     }

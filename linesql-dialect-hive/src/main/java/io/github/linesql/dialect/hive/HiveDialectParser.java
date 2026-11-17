@@ -42,7 +42,7 @@ public class HiveDialectParser implements DialectParser {
             return result;
         }
 
-        HiveLineageVisitor visitor = new HiveLineageVisitor(result);
+        HiveLineageVisitor visitor = new HiveLineageVisitor(result, context);
         visitor.visit(statement);
         visitor.finalizeResult();
         return result;
