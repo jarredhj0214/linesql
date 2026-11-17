@@ -348,6 +348,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void tracksPostgreSqlPreparedStatementsDuringAutomaticDetection() {
+        List<LineageResult> results = LineSql.parseScript(
+                "SELECT id FROM public.accounts; PREPARE lookup(integer) AS "
+                        + "SELECT id FROM ods.events WHERE id = $1; EXECUTE lookup(2); "
+                        + "DEALLOCATE ALL; EXECUTE lookup(3)");
+        assertEquals(5, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        LineageResult execute = results.get(2);
+        assertEquals("events", execute.getInputTables().get(0).getName());
+        assertEquals("id", execute.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(results.get(4).getInputTables().isEmpty());
+        assertDialect(SqlDialect.POSTGRESQL, "PREPARE \"CaseSensitive\" (numeric(10,2)) AS SELECT $1");
+        assertDialect(SqlDialect.SPARK, "SELECT 'a; PREPARE test AS SELECT 1;' AS note");
+    }
+
+    @Test
     public void detectsPostgreSqlSearchPathCommands() {
         assertDialect(SqlDialect.POSTGRESQL, "SET SCHEMA 'reporting'");
         assertDialect(SqlDialect.POSTGRESQL, "SET LOCAL search_path TO app, public");

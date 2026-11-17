@@ -211,6 +211,11 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_SCHEMA_CONTROL = Pattern.compile(
             "^\\s*(?:set\\s+(?:(?:session|local)\\s+)?(?:search_path\\s*(?:to\\b|=)"
                     + "|schema\\s+" + SINGLE_QUOTED_STRING + ")|reset\\s+search_path\\b)");
+    private static final Pattern POSTGRES_PREPARED_STATEMENT = Pattern.compile(
+            "^\\s*prepare\\s+(?:[a-z_][\\w$]*|" + DOUBLE_QUOTED_IDENTIFIER + ")"
+                    + "(?:\\s*\\([^;]*\\)\\s*|\\s+)as\\s+(?:select|values|table|with|insert|update|delete|merge)\\b");
+    private static final Pattern POSTGRES_PREPARED_RESET = Pattern.compile(
+            "^\\s*(?:deallocate\\s+(?:prepare\\s+)?all|discard\\s+(?:all|plans))\\b");
     private static final Pattern SQL_SERVER_VECTOR_METRIC_OR_QUOTE = Pattern.compile(
             "(\\bvector_distance\\s*\\(\\s*n?'(?:cosine|dot|euclidean)'\\s*,)|"
                     + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
@@ -269,7 +274,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+" + TSQL_LOCAL_VARIABLE + ").*");
 
         boolean mysqlPrepare = MYSQL_PREPARED_LITERAL.matcher(normalized).find()
-                || hasMySqlPrepareInScript(unwrapped, unquotedSyntax);
+                || hasPreparedStatementInScript(unwrapped, unquotedSyntax, SqlDialect.MYSQL, MYSQL_PREPARED_LITERAL);
         if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
         } else if (mysqlPrepare) {
@@ -378,6 +383,11 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL Unicode normalization predicate"));
         } else if (POSTGRES_ROWS_FROM.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL ROWS FROM relation"));
+        } else if (POSTGRES_PREPARED_STATEMENT.matcher(normalized).find()
+                || POSTGRES_PREPARED_RESET.matcher(unquotedSyntax).find()
+                || hasPreparedStatementInScript(unwrapped, unquotedSyntax, SqlDialect.POSTGRESQL,
+                        POSTGRES_PREPARED_STATEMENT)) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL prepared statement control"));
         } else if (POSTGRES_SCHEMA_CONTROL.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL schema search path control"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
@@ -704,13 +714,14 @@ public class SimpleDialectDetector implements DialectDetector {
         return rewriteLexicalText(sql, false).text;
     }
 
-    private static boolean hasMySqlPrepareInScript(String sql, String unquotedSyntax) {
-        if (!unquotedSyntax.contains(";") || !unquotedSyntax.contains("prepare") || !unquotedSyntax.contains("from")) {
+    private static boolean hasPreparedStatementInScript(String sql, String unquotedSyntax, SqlDialect dialect,
+                                                        Pattern prepareSyntax) {
+        if (!unquotedSyntax.contains(";") || !unquotedSyntax.contains("prepare")) {
             return false;
         }
-        for (String statement : new SimpleStatementSplitter().split(sql, SqlDialect.MYSQL)) {
+        for (String statement : new SimpleStatementSplitter().split(sql, dialect)) {
             String normalized = stripComments(statement).toLowerCase(Locale.ROOT);
-            if (MYSQL_PREPARED_LITERAL.matcher(normalized).find()) {
+            if (prepareSyntax.matcher(normalized).find()) {
                 return true;
             }
         }
