@@ -1,0 +1,3 @@
+COPY mart.orders FROM STDIN
+WITH CSV HEADER DELIMITER AS ',' FORCE NOT NULL status, note
+WHERE id > 0;

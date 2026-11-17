@@ -1,0 +1,2 @@
+COPY mart.orders TO STDOUT
+WITH CSV HEADER ESCAPE AS '~' FORCE QUOTE status, note;

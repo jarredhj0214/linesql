@@ -241,6 +241,7 @@ WAL: W A L;
 CSV: C S V;
 HEADER: H E A D E R;
 DELIMITER: D E L I M I T E R;
+QUOTE: Q U O T E;
 OR: O R;
 AND: A N D;
 NOT: N O T;

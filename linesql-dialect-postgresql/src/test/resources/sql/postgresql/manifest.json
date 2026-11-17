@@ -3223,6 +3223,50 @@
       "description": "PostgreSQL ALTER TABLE ADD CHECK records predicate columns as table-model usage"
     },
     {
+      "id": "copy_legacy_csv_from",
+      "file": "cases/copy_legacy_csv_from.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "mart.orders.id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.status"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.note"
+        }
+      ],
+      "description": "Legacy PostgreSQL COPY CSV import accepts space-separated options and FORCE column lists"
+    },
+    {
+      "id": "copy_legacy_csv_to",
+      "file": "cases/copy_legacy_csv_to.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "mart.orders.status"
+        },
+        {
+          "type": "READ_METADATA",
+          "column": "mart.orders.note"
+        }
+      ],
+      "description": "Legacy PostgreSQL COPY CSV export accepts space-separated options and FORCE column lists"
+    },
+    {
       "id": "copy_to_csv_force_quote",
       "file": "cases/copy_to_csv_force_quote.sql",
       "statementType": "SELECT",

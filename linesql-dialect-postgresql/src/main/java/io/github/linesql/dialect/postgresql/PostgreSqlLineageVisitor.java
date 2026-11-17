@@ -1487,22 +1487,32 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         if (options == null) {
             return;
         }
+        for (PostgreSqlParser.LegacyCopyOptionContext option : options.legacyCopyOption()) {
+            if (option.FORCE() != null) {
+                addCopyOptionColumnUsages(table, type, option.identifierList(), option.STAR() != null);
+            }
+        }
         for (PostgreSqlParser.CopyOptionContext option : options.copyOption()) {
             String name = cleanIdentifier(option.identifier()).toLowerCase(Locale.ROOT);
             switch (name) {
                 case "force_quote":
                 case "force_not_null":
                 case "force_null":
-                    if (option.identifierList() != null) {
-                        addIdentifierListUsages(table, option.identifierList(), type);
-                    } else if (option.STAR() != null) {
-                        LineageModelUtils.addColumnUsages(result, type,
-                                Collections.singletonList(new ColumnRef(table, "*")));
-                    }
+                    addCopyOptionColumnUsages(table, type, option.identifierList(), option.STAR() != null);
                     break;
                 default:
                     break;
             }
+        }
+    }
+
+    private void addCopyOptionColumnUsages(TableRef table, ColumnUsageType type,
+                                           PostgreSqlParser.IdentifierListContext columns, boolean wildcard) {
+        if (columns != null) {
+            addIdentifierListUsages(table, columns, type);
+        } else if (wildcard) {
+            LineageModelUtils.addColumnUsages(result, type,
+                    Collections.singletonList(new ColumnRef(table, "*")));
         }
     }
 
