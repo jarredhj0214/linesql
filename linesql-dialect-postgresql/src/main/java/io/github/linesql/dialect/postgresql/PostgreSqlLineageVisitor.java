@@ -1875,8 +1875,14 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 lineages.add(LineageModelUtils.columnLineage(null, column.getKey(), column.getValue(), column.getKey()));
             }
             result.setColumnLineage(lineages);
+            if (!knownColumnRelations.contains(name)) {
+                firstUnknownStarOrdinal = 0;
+                unresolvedStarSources.addAll(derivedWildcardSources(name));
+            }
         } else {
             addInputTable(table, false);
+            firstUnknownStarOrdinal = 0;
+            addUnresolvedTableStar(table);
         }
         return null;
     }

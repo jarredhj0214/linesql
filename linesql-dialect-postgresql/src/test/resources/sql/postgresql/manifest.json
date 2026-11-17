@@ -8485,6 +8485,74 @@
         }
       ],
       "description": "Nested sets retain the exact prefix and aggregate remaining references"
+    },
+    {
+      "id": "union_physical_table_left",
+      "file": "cases/union_physical_table_left.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "live.events",
+        "archive.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.events.*",
+            "archive.events.id",
+            "archive.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "TABLE on the left retains physical wildcard dependencies without guessing its positions"
+    },
+    {
+      "id": "union_physical_table_right",
+      "file": "cases/union_physical_table_right.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "archive.events",
+        "live.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "live.events.*",
+            "archive.events.id",
+            "archive.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "TABLE ONLY on the right retains its physical wildcard alongside explicit columns"
+    },
+    {
+      "id": "insert_union_physical_table",
+      "file": "cases/insert_union_physical_table.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "live.events",
+        "archive.events"
+      ],
+      "outputTables": [
+        "analytics.snapshot"
+      ],
+      "columnLineage": [
+        {
+          "target": "analytics.snapshot.*",
+          "sources": [
+            "live.events.*",
+            "archive.events.id",
+            "archive.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "INSERT from TABLE and SELECT preserves the unresolved wildcard target"
     }
   ]
 }
