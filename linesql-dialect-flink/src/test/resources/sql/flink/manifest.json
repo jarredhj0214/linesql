@@ -11683,6 +11683,147 @@
       "description": "USE CATALOG reads the configured default database and keeps quoted namespace components"
     },
     {
+      "id": "script_case_distinct_temporary_views",
+      "file": "cases/script_case_distinct_temporary_views.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.LiveRates",
+        "ods.ArchivedRates"
+      ],
+      "outputTables": [
+        "lake.ops.Rates",
+        "lake.ops.rates"
+      ],
+      "columnLineage": [
+        {
+          "target": "lake.ops.Rates.amount",
+          "sources": [
+            "ods.LiveRates.amount"
+          ]
+        },
+        {
+          "target": "lake.ops.rates.amount",
+          "sources": [
+            "ods.ArchivedRates.amount"
+          ]
+        },
+        {
+          "target": "current_amount",
+          "sources": [
+            "ods.LiveRates.amount"
+          ]
+        },
+        {
+          "target": "historical_amount",
+          "sources": [
+            "ods.ArchivedRates.amount"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.ArchivedRates.amount"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.LiveRates"
+          ],
+          "outputTables": [
+            "lake.ops.Rates"
+          ],
+          "columnLineage": [
+            {
+              "target": "lake.ops.Rates.amount",
+              "sources": [
+                "ods.LiveRates.amount"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": [
+            "ods.ArchivedRates"
+          ],
+          "outputTables": [
+            "lake.ops.rates"
+          ],
+          "columnLineage": [
+            {
+              "target": "lake.ops.rates.amount",
+              "sources": [
+                "ods.ArchivedRates.amount"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.LiveRates",
+            "ods.ArchivedRates"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "current_amount",
+              "sources": [
+                "ods.LiveRates.amount"
+              ]
+            },
+            {
+              "target": "historical_amount",
+              "sources": [
+                "ods.ArchivedRates.amount"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "JOIN_ON",
+              "column": "ods.LiveRates.amount"
+            },
+            {
+              "type": "JOIN_ON",
+              "column": "ods.ArchivedRates.amount"
+            }
+          ]
+        },
+        {
+          "statementType": "DROP_VIEW",
+          "inputTables": [],
+          "outputTables": [
+            "lake.ops.Rates"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "ods.ArchivedRates"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "amount",
+              "sources": [
+                "ods.ArchivedRates.amount"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ],
+      "description": "Flink keeps case-distinct temporary view definitions and qualified reads separate"
+    },
+    {
       "id": "script_catalog_default_database_changes",
       "file": "cases/script_catalog_default_database_changes.sql",
       "statementType": "MULTI",

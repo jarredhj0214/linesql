@@ -113,6 +113,27 @@ public class FlinkDialectParserTest {
     }
 
     @Test
+    public void separatesCaseDistinctRelationsFromLegacyRegistryEntries() {
+        ParseContext context = new ParseContext();
+        LineageResult legacy = LineSql.parse("CREATE VIEW lake.ops.Rates AS SELECT amount FROM ods.LiveRates",
+                SqlDialect.FLINK);
+        context.getTemporaryRelations().put("lake.ops.rates", legacy);
+        LineageResult upper = LineSql.parse("SELECT amount FROM lake.ops.Rates", SqlDialect.FLINK, context);
+        assertEquals("LiveRates", upper.getInputTables().get(0).getName());
+
+        LineageResult lower = LineSql.parse("SELECT amount FROM lake.ops.rates", SqlDialect.FLINK, context);
+        assertEquals("rates", lower.getInputTables().get(0).getName());
+        LineSql.parse("CREATE VIEW lake.ops.rates AS SELECT amount FROM ods.ArchivedRates", SqlDialect.FLINK, context);
+        LineageResult both = LineSql.parse("SELECT lake.ops.Rates.amount AS recent, lake.ops.rates.amount AS archived "
+                + "FROM lake.ops.Rates CROSS JOIN lake.ops.rates", SqlDialect.FLINK, context);
+        assertEquals("LiveRates", both.getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertEquals("ArchivedRates", both.getColumnLineage().get(1).getSources().get(0).getTable().getName());
+        LineSql.parse("DROP VIEW lake.ops.Rates", SqlDialect.FLINK, context);
+        LineageResult retained = LineSql.parse("SELECT amount FROM lake.ops.rates", SqlDialect.FLINK, context);
+        assertEquals("ArchivedRates", retained.getInputTables().get(0).getName());
+    }
+
+    @Test
     public void readsLegacyDottedRegistryKeyWhenStoredViewIdentifiesItsTarget() {
         ParseContext context = new ParseContext();
         LineageResult legacy = LineSql.parse("CREATE VIEW `sales.daily`.events AS SELECT id FROM ods.raw_events",

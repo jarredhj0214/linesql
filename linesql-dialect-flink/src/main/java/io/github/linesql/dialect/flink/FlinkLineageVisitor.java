@@ -2944,7 +2944,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         if (ifNotExists && relations.get(storedKey) != null) {
             return;
         }
-        String key = relationKey(table);
+        String key = currentRelationKey(table, relations);
         if (!key.equals(storedKey)) {
             relations.remove(storedKey);
         }
@@ -3172,7 +3172,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         view.setOutputTables(Collections.singletonList(target));
         view.setColumnLineage(LineageModelUtils.retargetColumnLineage(
                 view.getColumnLineage(), target, Collections.emptyList()));
-        views.put(relationKey(target), view);
+        views.put(currentRelationKey(target, views), view);
         views.remove(sourceKey);
     }
 
@@ -3898,35 +3898,66 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     private static String qualifiedBindingKey(List<String> parts) {
         // Dots inside quoted identifiers do not separate relation name components.
-        return ("\0" + String.join("\0", parts)).toLowerCase(Locale.ROOT);
+        return "\0" + String.join("\0", parts);
     }
 
     private String storedRelationKey(TableRef table, boolean temporary) {
         Map<String, LineageResult> relations = registeredRelations(temporary);
-        String key = relationKey(table);
+        String key = currentRelationKey(table, relations);
         if (!key.startsWith("\0") || relations.containsKey(key)) {
             return key;
         }
-        // A legacy dotted key can match more than one quoted path.
-        String legacyKey = dottedRelationKey(table);
-        LineageResult legacy = relations.get(legacyKey);
-        if (legacy != null && (legacy.getOutputTables().contains(table)
-                || (legacy.getStatementType() == StatementType.CREATE_TABLE
-                    && legacy.getInputTables().equals(Collections.singletonList(table))))) {
-            return legacyKey;
+        String folded = structuralRelationParts(table).toLowerCase(Locale.ROOT);
+        if (identifiesRegisteredTable(relations.get(folded), table)) {
+            return folded;
+        }
+        // Older dotted keys can also identify a different case or path.
+        String legacy = dottedRelationKey(table).toLowerCase(Locale.ROOT);
+        return identifiesRegisteredTable(relations.get(legacy), table) ? legacy : key;
+    }
+
+    private static String currentRelationKey(TableRef table, Map<String, LineageResult> relations) {
+        String key = relationKey(table);
+        if (!key.startsWith("\0")) {
+            String structural = structuralRelationKey(table);
+            if (relations.containsKey(structural)) {
+                return structural;
+            }
+            LineageResult stored = relations.get(key);
+            if (stored != null && (!stored.getOutputTables().isEmpty()
+                    || (stored.getStatementType() == StatementType.CREATE_TABLE && stored.getInputTables().size() == 1))
+                    && !identifiesRegisteredTable(stored, table)) {
+                return structural;
+            }
         }
         return key;
     }
 
+    private static boolean identifiesRegisteredTable(LineageResult relation, TableRef table) {
+        return relation != null && (relation.getOutputTables().contains(table)
+                || (relation.getStatementType() == StatementType.CREATE_TABLE
+                    && relation.getInputTables().equals(Collections.singletonList(table))));
+    }
+
     private static String relationKey(TableRef table) {
+        String dotted = dottedRelationKey(table);
         String catalog = table.getCatalog() == null ? "" : table.getCatalog();
         String schema = table.getSchema() == null ? "" : table.getSchema();
-        String name = table.getName();
-        if ((!catalog.isEmpty() && schema.isEmpty()) || catalog.contains(".") || schema.contains(".")
-                || name.contains(".")) {
-            return ("\0" + catalog + "\0" + schema + "\0" + name).toLowerCase(Locale.ROOT);
+        if (!dotted.equals(dotted.toLowerCase(Locale.ROOT)) || (!catalog.isEmpty() && schema.isEmpty())
+                || catalog.contains(".") || schema.contains(".") || table.getName().contains(".")) {
+            return structuralRelationKey(table);
         }
-        return dottedRelationKey(table);
+        return dotted;
+    }
+
+    private static String structuralRelationKey(TableRef table) {
+        return "\0relation" + structuralRelationParts(table);
+    }
+
+    private static String structuralRelationParts(TableRef table) {
+        String catalog = table.getCatalog() == null ? "" : table.getCatalog();
+        String schema = table.getSchema() == null ? "" : table.getSchema();
+        return "\0" + catalog + "\0" + schema + "\0" + table.getName();
     }
 
     private static String dottedRelationKey(TableRef table) {
@@ -3938,7 +3969,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             parts.add(table.getSchema());
         }
         parts.add(table.getName());
-        return String.join(".", parts).toLowerCase(Locale.ROOT);
+        return String.join(".", parts);
     }
 
     private static String tableAlias(FlinkParser.TableAliasContext ctx) {
