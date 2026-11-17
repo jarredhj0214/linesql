@@ -7690,6 +7690,69 @@
           "columnUsages": []
         }
       ]
+    },
+    {
+      "id": "select_order_by_output_ordinal",
+      "file": "cases/select_order_by_output_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "total",
+          "sources": [
+            "ods.orders.amount",
+            "ods.orders.tax"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.amount"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.tax"
+        }
+      ],
+      "description": "An ORDER BY ordinal resolves to source columns at the selected output position"
+    },
+    {
+      "id": "union_order_by_output_ordinal",
+      "file": "cases/union_order_by_output_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders",
+        "ods.archived"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "code",
+          "sources": []
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.orders.amount",
+            "ods.archived.total"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.amount"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.archived.total"
+        }
+      ],
+      "description": "An ORDER BY ordinal resolves to source columns at the selected output position"
     }
   ]
 }

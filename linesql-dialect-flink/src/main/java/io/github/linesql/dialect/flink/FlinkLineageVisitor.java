@@ -1413,16 +1413,63 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitQueryOrganization(FlinkParser.QueryOrganizationContext ctx) {
-        boolean setQuery = ctx.getParent() instanceof FlinkParser.QueryContext
-                && ((FlinkParser.QueryContext) ctx.getParent()).queryTerm() instanceof FlinkParser.SetOperationContext;
+        FlinkParser.QueryTermContext term = ((FlinkParser.QueryContext) ctx.getParent()).queryTerm();
+        boolean setQuery = term instanceof FlinkParser.SetOperationContext;
         for (FlinkParser.SortItemContext sortItem : ctx.sortItem()) {
-            if (setQuery) {
-                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(sortItem.expression().getText()));
+            String key = sortItem.expression().getText();
+            if (key.matches("[0-9]+")) {
+                addOrdinalOrderByUsage(term, key);
+            } else if (setQuery) {
+                LineageModelUtils.addSetOrderByUsage(result, cleanIdentifier(key));
             } else {
                 addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(sortItem.expression()));
             }
         }
         return visitChildren(ctx);
+    }
+
+    private void addOrdinalOrderByUsage(FlinkParser.QueryTermContext term, String key) {
+        int index;
+        try {
+            index = Integer.parseInt(key) - 1;
+        } catch (NumberFormatException ignored) {
+            return;
+        }
+        if (index < 0) {
+            return;
+        }
+        if (term instanceof FlinkParser.SetOperationContext) {
+            List<ColumnLineage> columns = result.getColumnLineage();
+            if (index < columns.size() && columns.size() == explicitSetOutputWidth(term)) {
+                LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, columns.get(index).getSources());
+            }
+            return;
+        }
+        List<FlinkParser.SelectItemContext> items = selectItems(term);
+        if (index < items.size() && items.subList(0, index + 1).stream()
+                .allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)) {
+            FlinkParser.SelectExpressionContext item = (FlinkParser.SelectExpressionContext) items.get(index);
+            addColumnUsages(ColumnUsageType.ORDER_BY, sourceColumns(item.expression()));
+        }
+    }
+
+    private static int explicitSetOutputWidth(FlinkParser.QueryTermContext term) {
+        if (term instanceof FlinkParser.SetOperationContext) {
+            FlinkParser.SetOperationContext set = (FlinkParser.SetOperationContext) term;
+            int width = explicitSetOutputWidth(set.left);
+            return width == explicitSetOutputWidth(set.right) ? width : -1;
+        }
+        List<FlinkParser.SelectItemContext> items = selectItems(term);
+        return items.stream().allMatch(item -> item instanceof FlinkParser.SelectExpressionContext)
+                ? items.size() : -1;
+    }
+
+    private static List<FlinkParser.SelectItemContext> selectItems(FlinkParser.QueryTermContext term) {
+        FlinkParser.QuerySpecificationContext query = topLevelQuerySpecification(term);
+        if (query == null || query.selectClause().selectItemList() == null) {
+            return Collections.emptyList();
+        }
+        return query.selectClause().selectItemList().selectItem();
     }
 
     @Override
@@ -2629,11 +2676,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private static FlinkParser.QuerySpecificationContext topLevelQuerySpecification(FlinkParser.QueryContext query) {
-        if (!(query.queryTerm() instanceof FlinkParser.QueryTermDefaultContext)) {
+        return topLevelQuerySpecification(query.queryTerm());
+    }
+
+    private static FlinkParser.QuerySpecificationContext topLevelQuerySpecification(FlinkParser.QueryTermContext term) {
+        if (!(term instanceof FlinkParser.QueryTermDefaultContext)) {
             return null;
         }
-        FlinkParser.QueryPrimaryContext primary =
-                ((FlinkParser.QueryTermDefaultContext) query.queryTerm()).queryPrimary();
+        FlinkParser.QueryPrimaryContext primary = ((FlinkParser.QueryTermDefaultContext) term).queryPrimary();
         if (!(primary instanceof FlinkParser.QueryPrimaryDefaultContext)) {
             return null;
         }
