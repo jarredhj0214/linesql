@@ -289,9 +289,17 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
     private static final String FLINK_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final String FLINK_QUALIFIED_IDENTIFIER =
+            FLINK_IDENTIFIER + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*";
+    private static final String FLINK_STRING_OPTION_START = "\\s*\\(\\s*" + SINGLE_QUOTED_STRING;
     private static final Pattern FLINK_ALTER_STRING_OPTIONS = Pattern.compile(
-            "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_IDENTIFIER
-                    + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*\\s+(?:set|reset)\\s*\\(\\s*" + SINGLE_QUOTED_STRING);
+            "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
+                    + "\\s+(?:set|reset)" + FLINK_STRING_OPTION_START
+                    + "|^\\s*alter\\s+database\\s+" + FLINK_QUALIFIED_IDENTIFIER + "\\s+set"
+                    + FLINK_STRING_OPTION_START
+                    + "|^\\s*alter\\s+catalog\\s+" + FLINK_IDENTIFIER
+                    + "\\s+(?:(?:set|reset)" + FLINK_STRING_OPTION_START
+                    + "|comment\\s+" + SINGLE_QUOTED_STRING + ")");
     private static final Pattern FLINK_HINT_OR_IGNORED_TOKEN = Pattern.compile(
             "(/\\*\\+\\s*options\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern()
                     + "|--[^\\r\\n]*|(?s:/\\*.*?(?:\\*/|$))");

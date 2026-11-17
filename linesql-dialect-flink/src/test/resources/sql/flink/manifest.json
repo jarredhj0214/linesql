@@ -7382,6 +7382,15 @@
       "description": "Flink DESC MODEL EXTENDED metadata read"
     },
     {
+      "id": "alter_catalog_quoted_name_options",
+      "file": "cases/alter_catalog_quoted_name_options.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink ALTER CATALOG preserves quoted names and native SET option syntax"
+    },
+    {
       "id": "alter_catalog_set_properties",
       "file": "cases/alter_catalog_set_properties.sql",
       "statementType": "CONTROL",

@@ -700,6 +700,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkCatalogAndDatabaseOptions() {
+        assertDialect(SqlDialect.FLINK, "ALTER CATALOG `prod.catalog` SET ('default-database' = 'analytics')");
+        assertDialect(SqlDialect.FLINK, "ALTER CATALOG production RESET ('default-database')");
+        assertDialect(SqlDialect.FLINK, "ALTER CATALOG production COMMENT 'production catalog'");
+        LineageResult database = LineSql.parse(
+                "ALTER DATABASE production.analytics SET ('location' = 'file:///warehouse/analytics')");
+        assertEquals(SqlDialect.FLINK, database.getDialect());
+        assertTrue(database.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER CATALOG production COMMENT' AS notes");
+    }
+
+    @Test
     public void detectsFlinkExplainDetailsAndJarManagement() {
         LineageResult plan = LineSql.parse("EXPLAIN CHANGELOG_MODE, JSON_EXECUTION_PLAN "
                 + "INSERT INTO mart.rollup SELECT id FROM ods.events WHERE active");
