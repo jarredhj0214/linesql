@@ -7795,6 +7795,114 @@
         }
       ],
       "description": "Row assignment from a set uses both sets of sources when star width is known"
+    },
+    {
+      "id": "table_cte_explicit_aliases_with_constant",
+      "file": "cases/table_cte_explicit_aliases_with_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "kind",
+          "sources": []
+        },
+        {
+          "target": "payload",
+          "sources": [
+            "public.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.event_time"
+        }
+      ],
+      "description": "The CTE alias list keeps the position of an unnamed constant"
+    },
+    {
+      "id": "select_derived_explicit_aliases_with_constant",
+      "file": "cases/select_derived_explicit_aliases_with_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "payload",
+          "sources": [
+            "public.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.event_time"
+        }
+      ],
+      "description": "A subquery alias list keeps the position of an unnamed constant"
+    },
+    {
+      "id": "insert_cte_explicit_aliases_with_constant",
+      "file": "cases/insert_cte_explicit_aliases_with_constant.sql",
+      "statementType": "INSERT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [
+        "audit.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "audit.summary.payload",
+          "sources": [
+            "public.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "A forwarded CTE constant does not shift the INSERT source positions"
+    },
+    {
+      "id": "table_cte_explicit_aliases_with_expression",
+      "file": "cases/table_cte_explicit_aliases_with_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "public.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "kind",
+          "sources": [
+            "public.events.event_time",
+            "public.events.time_delta"
+          ]
+        },
+        {
+          "target": "payload",
+          "sources": [
+            "public.events.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "public.events.time_delta"
+        }
+      ],
+      "description": "The CTE alias list names an unaliased expression and retains all its sources"
     }
   ]
 }
