@@ -64,6 +64,15 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|^\\s*alter\\s+table\\b[^;]*\\b(?:add|drop|modify|with)\\s+temporary\\s+partitions?\\b");
     private static final Pattern HIVE_TABLE_VALUES = Pattern.compile(
             "\\b(?:from|lateral)\\s+table\\s*\\(\\s*values\\s*\\(");
+    private static final String FLINK_SESSION_KEY =
+            "(?:execution\\.runtime-mode|pipeline\\.(?:name|max-parallelism)"
+                    + "|sql-client\\.execution\\.result-mode|table\\.local-time-zone|table\\.exec\\.[a-z0-9.-]+)";
+    private static final String FLINK_SESSION_KEY_TOKEN =
+            "(?:'" + FLINK_SESSION_KEY + "'|\"" + FLINK_SESSION_KEY + "\"|" + FLINK_SESSION_KEY + ")";
+    private static final Pattern FLINK_SESSION_OPTION = Pattern.compile(
+            "^\\s*(?:set\\s+" + FLINK_SESSION_KEY_TOKEN + "\\s*="
+                    + "|reset\\s+" + FLINK_SESSION_KEY_TOKEN + "(?=\\s*(?:;|$)))");
+    private static final Pattern SESSION_OPTION_COMMAND = Pattern.compile("\\b(?:set|reset)\\b");
     private static final Pattern FLINK_MATERIALIZED_TABLE = Pattern.compile(
             "^\\s*(?:(?:show\\s+)?create(?:\\s+or\\s+alter)?|alter|drop)\\s+materialized\\s+table\\b"
                     + "|^\\s*show\\s+materialized\\s+tables\\b");
@@ -277,8 +286,10 @@ public class SimpleDialectDetector implements DialectDetector {
         boolean sqlServerTemporalQuery = unquotedSyntax.matches("(?s).*\\bfor\\s+system_time\\s+"
                 + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+" + TSQL_LOCAL_VARIABLE + ").*");
 
+        boolean containsStatementSeparator = unquotedSyntax.indexOf(';') >= 0;
         boolean mysqlPrepare = MYSQL_PREPARED_LITERAL.matcher(normalized).find()
-                || hasPreparedStatementInScript(unwrapped, unquotedSyntax, SqlDialect.MYSQL, MYSQL_PREPARED_LITERAL);
+                || (containsStatementSeparator && unquotedSyntax.contains("prepare")
+                        && hasStatementInScript(unwrapped, SqlDialect.MYSQL, MYSQL_PREPARED_LITERAL));
         if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
         } else if (mysqlPrepare) {
@@ -393,8 +404,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL EXPLAIN plan options"));
         } else if (POSTGRES_PREPARED_STATEMENT.matcher(normalized).find()
                 || POSTGRES_PREPARED_RESET.matcher(unquotedSyntax).find()
-                || hasPreparedStatementInScript(unwrapped, unquotedSyntax, SqlDialect.POSTGRESQL,
-                        POSTGRES_PREPARED_STATEMENT)) {
+                || (containsStatementSeparator && unquotedSyntax.contains("prepare")
+                        && hasStatementInScript(unwrapped, SqlDialect.POSTGRESQL, POSTGRES_PREPARED_STATEMENT))) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL prepared statement control"));
         } else if (POSTGRES_SCHEMA_CONTROL.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL schema search path control"));
@@ -426,7 +437,11 @@ public class SimpleDialectDetector implements DialectDetector {
         if (SPARK_RECURSION_LEVEL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark recursive CTE level limit"));
         }
-        if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)
+        if (FLINK_SESSION_OPTION.matcher(normalized).find()
+                || (containsStatementSeparator && SESSION_OPTION_COMMAND.matcher(unquotedSyntax).find()
+                        && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_SESSION_OPTION))) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink SQL session option"));
+        } else if (SimpleStatementSplitter.containsFlinkStatementSet(unquotedSyntax)
                 || hasFlinkOptionsHint(rawNormalized)
                 || hasFlinkConnectorOptions(normalized)
                 || FLINK_ALTER_STRING_OPTIONS.matcher(normalized).find()
@@ -722,14 +737,10 @@ public class SimpleDialectDetector implements DialectDetector {
         return rewriteLexicalText(sql, false).text;
     }
 
-    private static boolean hasPreparedStatementInScript(String sql, String unquotedSyntax, SqlDialect dialect,
-                                                        Pattern prepareSyntax) {
-        if (!unquotedSyntax.contains(";") || !unquotedSyntax.contains("prepare")) {
-            return false;
-        }
+    private static boolean hasStatementInScript(String sql, SqlDialect dialect, Pattern statementSyntax) {
         for (String statement : new SimpleStatementSplitter().split(sql, dialect)) {
             String normalized = stripComments(statement).toLowerCase(Locale.ROOT);
-            if (prepareSyntax.matcher(normalized).find()) {
+            if (statementSyntax.matcher(normalized).find()) {
                 return true;
             }
         }

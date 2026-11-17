@@ -8331,6 +8331,57 @@
         }
       ],
       "description": "CTE window clauses and the outer filter retain the definition\u2019s source keys"
+    },
+    {
+      "id": "script_session_option_conflict",
+      "file": "cases/script_session_option_conflict.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.events"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.events.id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "description": "Flink SQL session options provide context for shared ON CONFLICT syntax",
+      "statements": [
+        {
+          "statementType": "SELECT",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.events"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.events.id",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -450,6 +450,30 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void usesFlinkSessionOptionsToResolveSharedConflictSyntax() {
+        String insert = "INSERT INTO mart.events SELECT id FROM ods.events ON CONFLICT DO NOTHING";
+        List<LineageResult> results = LineSql.parseScript("SELECT 1;"
+                + " SET 'execution.runtime-mode' = 'streaming'; " + insert + "; "
+                + "INSERT INTO mart.events VALUES (2) ON CONFLICT DO NOTHING RETURNING id");
+        assertEquals(4, results.size());
+        assertEquals(SqlDialect.FLINK, results.get(1).getDialect());
+        LineageResult write = results.get(2);
+        assertEquals(SqlDialect.FLINK, write.getDialect());
+        assertEquals(StatementType.INSERT, write.getStatementType());
+        assertTrue(write.getDiagnostics().isEmpty());
+        assertEquals("events", write.getInputTables().get(0).getName());
+        assertEquals("id", write.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals(SqlDialect.POSTGRESQL, results.get(3).getDialect());
+
+        assertDialect(SqlDialect.FLINK, "SET 'sql-client.execution.result-mode' = 'tableau'");
+        assertDialect(SqlDialect.FLINK, "RESET 'table.local-time-zone'");
+        assertDialect(SqlDialect.POSTGRESQL, insert);
+        List<LineageResult> literal = LineSql.parseScript(
+                "SELECT 'note; SET ''execution.runtime-mode'' = ''streaming'';'; " + insert);
+        assertEquals(SqlDialect.POSTGRESQL, literal.get(1).getDialect());
+    }
+
+    @Test
     public void distinguishesOracleUsecaseDomainDropFromPostgresIdentifiers() {
         assertDialect(SqlDialect.ORACLE, "DROP USECASE DOMAIN IF EXISTS workflow.ticket_status");
         assertDialect(SqlDialect.ORACLE, "DROP DOMAIN \"workflow\".\"force\" FORCE PRESERVE");
