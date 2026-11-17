@@ -364,14 +364,14 @@ Initial PostgreSQL extension focus:
 - PostgreSQL typed `DATE`, `TIME`, `TIMESTAMP`, and `INTERVAL` literals are accepted without losing surrounding expression lineage.
 - PostgreSQL result limiting covers `LIMIT ALL`, `OFFSET ... ROW/ROWS`, `FETCH FIRST/NEXT ... ROW/ROWS ONLY`, and `WITH TIES`, including pagination inside derived queries.
 - PostgreSQL relation coverage includes `NATURAL`, `NATURAL INNER`, and `NATURAL LEFT/RIGHT/FULL [OUTER]` joins. When both inputs expose known column names, the parser records matching keys and follows the join direction for merged columns.
-- PostgreSQL `EXPLAIN` and `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` wrappers preserve the wrapped SELECT/DML/MERGE lineage.
+- PostgreSQL `EXPLAIN` preserves lineage for queries, DML, cursor queries, prepared execution, CTAS and materialized view definitions. `GENERIC_PLAN`, `MEMORY`, and `SERIALIZE` are recognized as PostgreSQL options.
 - PostgreSQL `DISTINCT ON`, `ORDER BY ... NULLS FIRST/LAST`, aggregate `FILTER`, ordered-set aggregates with `WITHIN GROUP`, analytic window frames, JSON operators, and array subscripts are covered for baseline SELECT lineage.
 - PostgreSQL NULL-safe comparison with `IS [NOT] DISTINCT FROM` preserves both operands in projection lineage and predicate/join usages.
 - PostgreSQL native expressions include `ARRAY[...]`, `ROW(...)`, quantified comparisons against array constructors, `AT TIME ZONE`, and `COLLATE`, with operand dependencies preserved.
 - PostgreSQL SQL/JSON predicates, variadic and query-backed constructors, and path operators preserve input expressions, check columns, and filter references.
 - PostgreSQL keyword function forms include `EXTRACT`, `POSITION`, `SUBSTRING ... FROM ... FOR`, `TRIM ... FROM`, and `OVERLAY ... PLACING ... FROM ... FOR` with all semantic operands preserved.
 - PostgreSQL `MERGE` covers inherited relations, `BY SOURCE` update/delete actions, `BY TARGET` insert actions, explicit and default insert values, and merge predicate usages.
-- PostgreSQL cursor and prepared-statement controls are accepted; `DECLARE CURSOR FOR SELECT` and `PREPARE ... AS SELECT` preserve the embedded query lineage while `FETCH`, `MOVE`, `CLOSE`, `EXECUTE`, and `DEALLOCATE PREPARE` remain control statements. Standard `ALTER TABLE ... ALTER COLUMN` default/nullability/type changes are tracked as table-model maintenance.
+- PostgreSQL cursor and prepared-statement controls are accepted; `DECLARE CURSOR FOR SELECT` and `PREPARE ... AS SELECT` preserve the embedded query lineage and `EXECUTE` follows a known prepared binding through deallocation. `CREATE TABLE ... AS EXECUTE` maps the prepared query to target columns by position. `FETCH`, `MOVE`, `CLOSE`, and `DEALLOCATE PREPARE` are classified as control statements. Standard `ALTER TABLE ... ALTER COLUMN` default/nullability/type changes are tracked as table-model maintenance.
 - PostgreSQL session configuration inspection/control accepts `SET search_path`, `SHOW search_path`, `SHOW ALL`, `RESET search_path`, and `RESET ALL` without producing unsupported lineage guesses.
 - PostgreSQL principal configuration controls accept `ALTER ROLE ... SET/RESET` and `ALTER USER ... SET` as non-lineage control statements.
 

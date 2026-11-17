@@ -1017,7 +1017,7 @@ createTableAsStatement
     : CREATE (TEMPORARY | TEMP | UNLOGGED)? TABLE (IF NOT EXISTS)? multipartIdentifier
       (LPAREN identifierList RPAREN)?
       tableOption* createTableStorageClause
-      AS query withDataClause?
+      AS (query | executePreparedStatement) withDataClause?
     ;
 
 createTableStorageClause

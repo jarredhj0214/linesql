@@ -7314,6 +7314,125 @@
         }
       ],
       "description": "EXPLAIN preserves the source columns, target names, and query clauses of the described relation"
+    },
+    {
+      "id": "script_create_table_as_prepared_query",
+      "file": "cases/script_create_table_as_prepared_query.sql",
+      "description": "CTAS and EXPLAIN CTAS use the known prepared query, preserving positional target names",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [
+        "mart.events",
+        "mart.planned",
+        "mart.unresolved"
+      ],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "mart.events.event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        },
+        {
+          "target": "mart.planned.event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.kind"
+            }
+          ]
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.events"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.events.event_id",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.kind"
+            }
+          ]
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.planned"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.planned.event_id",
+              "sources": [
+                "ods.events.id"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "WHERE",
+              "column": "ods.events.kind"
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [],
+          "outputTables": [
+            "mart.unresolved"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        }
+      ]
     }
   ]
 }

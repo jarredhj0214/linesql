@@ -51,9 +51,15 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     private int firstUnknownStarOrdinal = Integer.MAX_VALUE;
     private boolean suppressColumnLineage;
     private PostgreSqlParser.SelectClauseContext setBranchSelect;
+    private final PostgreSqlParser.QueryContext preparedTableQuery;
 
     PostgreSqlLineageVisitor(LineageResult result) {
+        this(result, null);
+    }
+
+    PostgreSqlLineageVisitor(LineageResult result, PostgreSqlParser.QueryContext preparedTableQuery) {
         this.result = result;
+        this.preparedTableQuery = preparedTableQuery;
     }
 
     @Override
@@ -917,7 +923,8 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
     @Override
     public Void visitCreateTableAsStatement(PostgreSqlParser.CreateTableAsStatementContext ctx) {
         result.setStatementType(StatementType.CREATE_TABLE_AS_SELECT);
-        visitQueryBackedRelation(ctx.multipartIdentifier(), ctx.identifierList(), ctx.query());
+        PostgreSqlParser.QueryContext query = ctx.query() != null ? ctx.query() : preparedTableQuery;
+        visitQueryBackedRelation(ctx.multipartIdentifier(), ctx.identifierList(), query);
         return null;
     }
 
@@ -953,9 +960,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 insertTargetColumns.add(cleanIdentifier(id));
             }
         }
-        visit(query);
-        refreshColumnLineage();
-        retargetColumnLineage(target);
+        if (query != null) {
+            visit(query);
+            refreshColumnLineage();
+            retargetColumnLineage(target);
+        }
         result.setInputTables(new ArrayList<>(inputTables));
         result.setOutputTables(new ArrayList<>(outputTables));
     }

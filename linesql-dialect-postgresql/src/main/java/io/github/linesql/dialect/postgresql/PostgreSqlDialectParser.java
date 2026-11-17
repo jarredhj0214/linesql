@@ -36,6 +36,25 @@ public class PostgreSqlDialectParser implements DialectParser {
 
         CollectingErrorListener errorListener = new CollectingErrorListener();
         CharStream source = CharStreams.fromString(sql);
+        PostgreSqlParser.SingleStatementContext statement = parseTree(source, errorListener);
+        if (errorListener.hasErrors()) {
+            result.getDiagnostics().add(Diagnostic.error("POSTGRESQL_PARSE_ERROR", errorListener.message()));
+            return result;
+        }
+
+        PostgreSqlParser.QueryContext preparedQuery = context == null
+                ? null : preparedTableQuery(statement.statement(), context);
+        PostgreSqlLineageVisitor visitor = new PostgreSqlLineageVisitor(result, preparedQuery);
+        visitor.visit(statement);
+        visitor.finalizeResult();
+        if (context != null) {
+            applyPreparedStatementLineage(statement.statement(), source, options, context, result);
+        }
+        return result;
+    }
+
+    private static PostgreSqlParser.SingleStatementContext parseTree(CharStream source,
+                                                                      CollectingErrorListener errorListener) {
         PostgreSqlLineageLexer lexer = new PostgreSqlLineageLexer(source);
         lexer.removeErrorListeners();
         lexer.addErrorListener(errorListener);
@@ -44,19 +63,34 @@ public class PostgreSqlDialectParser implements DialectParser {
         parser.removeErrorListeners();
         parser.addErrorListener(errorListener);
 
-        PostgreSqlParser.SingleStatementContext statement = parser.singleStatement();
-        if (errorListener.hasErrors() || parser.getNumberOfSyntaxErrors() > 0) {
-            result.getDiagnostics().add(Diagnostic.error("POSTGRESQL_PARSE_ERROR", errorListener.message()));
-            return result;
-        }
+        return parser.singleStatement();
+    }
 
-        PostgreSqlLineageVisitor visitor = new PostgreSqlLineageVisitor(result);
-        visitor.visit(statement);
-        visitor.finalizeResult();
-        if (context != null) {
-            applyPreparedStatementLineage(statement.statement(), source, options, context, result);
+    private static PostgreSqlParser.QueryContext preparedTableQuery(PostgreSqlParser.StatementContext statement,
+                                                                    ParseContext context) {
+        PostgreSqlParser.CreateTableAsStatementContext create = null;
+        if (statement instanceof PostgreSqlParser.CreateTableStmtContext) {
+            create = ((PostgreSqlParser.CreateTableStmtContext) statement)
+                    .createTableStatement().createTableAsStatement();
+        } else if (statement instanceof PostgreSqlParser.ExplainStmtContext) {
+            create = ((PostgreSqlParser.ExplainStmtContext) statement)
+                    .explainStatement().explainedStatement().createTableAsStatement();
         }
-        return result;
+        if (create == null || create.executePreparedStatement() == null) {
+            return null;
+        }
+        String name = preparedName(create.executePreparedStatement().identifier());
+        PreparedSql prepared = context.getPreparedStatements(SqlDialect.POSTGRESQL).get(name);
+        if (prepared == null) {
+            return null;
+        }
+        CollectingErrorListener listener = new CollectingErrorListener();
+        PostgreSqlParser.StatementContext body = parseTree(CharStreams.fromString(prepared.getSql()), listener)
+                .statement();
+        if (listener.hasErrors() || !(body instanceof PostgreSqlParser.StatementDefaultContext)) {
+            return null;
+        }
+        return ((PostgreSqlParser.StatementDefaultContext) body).query();
     }
 
     private void applyPreparedStatementLineage(PostgreSqlParser.StatementContext statement, CharStream source,
