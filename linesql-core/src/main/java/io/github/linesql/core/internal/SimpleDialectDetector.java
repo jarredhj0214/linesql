@@ -124,8 +124,13 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\bwith\\s+(?:no\\s+)?data\\s*;?\\s*$");
     private static final Pattern POSTGRES_DML_TARGET = Pattern.compile(
             "\\b(?:delete\\s+from\\s+|update\\s+(?!set\\b))(?:only\\s+(?:\\(\\s*" + POSTGRES_RELATION + "\\s*\\)"
-                    + "|" + POSTGRES_RELATION + "(?=\\s+(?:as|using|where|set|returning)\\b|\\s*(?:;|$)))"
+                    + "|" + POSTGRES_RELATION + "(?:\\s+(?:as\\s+)?" + POSTGRES_NAME + ")?"
+                    + "(?=\\s+(?:using|where|set|returning)\\b|\\s*(?:[;)]|$)))"
                     + "|" + POSTGRES_RELATION + "\\s*\\*(?=\\s|;|$))");
+    private static final Pattern POSTGRES_ALIASED_DELETE_USING = Pattern.compile(
+            "\\bdelete\\s+from\\s+" + POSTGRES_RELATION + "\\s+as\\s+" + POSTGRES_NAME + "\\s+using\\b");
+    private static final Pattern POSTGRES_DATA_MODIFYING_CTE = Pattern.compile(
+            "^\\s*with\\b[^;]*\\bas\\s*\\(\\s*(?:delete\\s+from|insert\\s+into|update|merge\\s+into)\\b");
     private static final Pattern POSTGRES_ROWS_FROM = Pattern.compile(
             "(?:\\b(?:from|join)\\b|,)\\s*(?:lateral\\s+)?rows\\s+from\\s*\\(");
 
@@ -449,6 +454,11 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.99, "PostgreSQL COPY FROM STDIN"));
         } else if (POSTGRES_COPY_COMMAND.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL COPY table or query"));
+        } else if (POSTGRES_DATA_MODIFYING_CTE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL data-modifying common table expression"));
+        } else if (unquotedSyntax.contains("delete") && POSTGRES_ALIASED_DELETE_USING.matcher(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL DELETE USING with a target alias"));
         } else if ((unquotedSyntax.contains("delete") || unquotedSyntax.contains("update"))
                 && POSTGRES_DML_TARGET.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {

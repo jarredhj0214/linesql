@@ -2849,6 +2849,23 @@
       "description": "PostgreSQL WITH before DELETE USING resolves CTE predicates and RETURNING lineage"
     },
     {
+      "id": "data_modifying_cte_inherited_delete_insert",
+      "file": "cases/data_modifying_cte_inherited_delete_insert.sql",
+      "statementType": "INSERT",
+      "inputTables": ["staging.expired_orders", "sales.orders"],
+      "outputTables": ["sales.orders", "archive.orders"],
+      "columnLineage": [
+        {"target": "archive.orders.id", "sources": ["sales.orders.id"]},
+        {"target": "archive.orders.amount", "sources": ["sales.orders.amount"]}
+      ],
+      "columnUsages": [
+        {"type": "WHERE", "column": "staging.expired_orders.purge_enabled"},
+        {"type": "WHERE", "column": "sales.orders.id"},
+        {"type": "WHERE", "column": "staging.expired_orders.order_key"}
+      ],
+      "description": "A later data-modifying CTE and aliased ONLY target keep both writes and their dependencies"
+    },
+    {
       "id": "data_modifying_cte_delete_insert",
       "file": "cases/data_modifying_cte_delete_insert.sql",
       "statementType": "INSERT",

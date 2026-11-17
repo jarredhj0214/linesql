@@ -925,6 +925,31 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsPostgresAliasedDmlAndDataModifyingCtes() {
+        LineageResult delete = LineSql.parse("DELETE FROM ONLY sales.orders o USING staging.expired e "
+                + "WHERE o.id = e.order_id");
+        assertEquals(SqlDialect.POSTGRESQL, delete.getDialect());
+        assertEquals(StatementType.DELETE, delete.getStatementType());
+        assertTrue(delete.getDiagnostics().isEmpty());
+        assertTrue(delete.getInputTables().contains(new TableRef(null, "staging", "expired")));
+        assertEquals(new TableRef(null, "sales", "orders"), delete.getOutputTables().get(0));
+        assertDialect(SqlDialect.POSTGRESQL, "DELETE FROM sales.orders AS \"target orders\" "
+                + "USING staging.expired WHERE \"target orders\".id = expired.id");
+        assertDialect(SqlDialect.POSTGRESQL, "UPDATE ONLY sales.orders o SET amount = o.amount + 1");
+        assertDialect(SqlDialect.MYSQL, "DELETE FROM o USING sales.orders o JOIN staging.expired e ON o.id = e.id");
+        assertDialect(SqlDialect.SPARK, "WITH note AS (SELECT 'DELETE FROM t' AS value) SELECT value FROM note");
+
+        LineageResult moved = LineSql.parse("WITH moved AS (DELETE FROM sales.orders RETURNING id) "
+                + "INSERT INTO archive.orders (id) SELECT id FROM moved");
+        assertEquals(SqlDialect.POSTGRESQL, moved.getDialect());
+        assertEquals(StatementType.INSERT, moved.getStatementType());
+        assertTrue(moved.getDiagnostics().isEmpty());
+        assertEquals(2, moved.getOutputTables().size());
+        assertEquals(new TableRef(null, "sales", "orders"),
+                moved.getColumnLineage().get(0).getSources().get(0).getTable());
+    }
+
+    @Test
     public void detectsPostgresMaintenanceWithNativeOptions() {
         LineageResult analyze = LineSql.parse("ANALYSE (SKIP_LOCKED, BUFFER_USAGE_LIMIT '128kB') "
                 + "\"ops.archive\".\"daily.events\" (\"event.id\")");
