@@ -33,6 +33,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private final Map<String, FlinkParser.WindowSpecContext> namedWindows = new LinkedHashMap<>();
     private final Set<FlinkParser.WindowSpecContext> activeWindows = new LinkedHashSet<>();
     private final Map<String, Map<String, List<ColumnRef>>> derivedColumnLineage = new LinkedHashMap<>();
+    private final Set<String> incompleteDerivedSchemas = new LinkedHashSet<>();
     private final Map<String, String> derivedAliases = new LinkedHashMap<>();
     private final Set<String> derivedReferences = new LinkedHashSet<>();
     private final List<Projection> projections = new ArrayList<>();
@@ -44,6 +45,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private Map<String, List<ColumnRef>> usingJoinKeys = Collections.emptyMap();
     private TableRef currentDmlTarget;
     private int visibleRelationCount;
+    private int setOutputWidth = -1;
     private boolean suppressColumnLineage;
     private FlinkParser.SelectClauseContext positionalProjectionSelect;
     private FlinkParser.SelectClauseContext positionalInsertSelect;
@@ -114,6 +116,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         branchVisitor.inputTables.addAll(inputTables);
         branchVisitor.tableAliases.putAll(tableAliases);
         branchVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        branchVisitor.incompleteDerivedSchemas.addAll(incompleteDerivedSchemas);
         branchVisitor.derivedAliases.putAll(derivedAliases);
         branchVisitor.derivedReferences.addAll(derivedReferences);
         branchVisitor.visibleRelationCount = visibleRelationCount;
@@ -964,6 +967,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         branchVisitor.cteNames.addAll(cteNames);
         branchVisitor.tableAliases.putAll(tableAliases);
         branchVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        branchVisitor.incompleteDerivedSchemas.addAll(incompleteDerivedSchemas);
         branchVisitor.derivedAliases.putAll(derivedAliases);
         branchVisitor.derivedReferences.addAll(derivedReferences);
         branchVisitor.visibleRelationCount = visibleRelationCount;
@@ -990,8 +994,14 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitSetOperation(FlinkParser.SetOperationContext ctx) {
-        LineageResult leftResult = lineageForQueryTerm(ctx.left);
-        LineageResult rightResult = lineageForQueryTerm(ctx.right);
+        FlinkLineageVisitor left = analyzeSetOperand(ctx.left);
+        FlinkLineageVisitor right = analyzeSetOperand(ctx.right);
+        LineageResult leftResult = left.result;
+        LineageResult rightResult = right.result;
+        int width = left.knownQueryOutputWidth(ctx.left);
+        setOutputWidth = width >= 0 && width == right.knownQueryOutputWidth(ctx.right)
+                && width == leftResult.getColumnLineage().size() && width == rightResult.getColumnLineage().size()
+                ? width : -1;
         for (TableRef table : leftResult.getInputTables()) {
             addInputTable(table, false);
         }
@@ -1083,6 +1093,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         String normalizedAlias = alias.toLowerCase(Locale.ROOT);
         derivedColumnLineage.put(normalizedAlias, columns);
+        incompleteDerivedSchemas.add(normalizedAlias);
         derivedReferences.add(normalizedAlias);
         derivedAliases.put(normalizedAlias, normalizedAlias);
         visibleRelationCount++;
@@ -1494,7 +1505,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         if (term instanceof FlinkParser.SetOperationContext) {
             List<ColumnLineage> columns = result.getColumnLineage();
-            if (index < columns.size() && columns.size() == explicitSetOutputWidth(term)) {
+            if (index < columns.size() && columns.size() == setOutputWidth) {
                 LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, columns.get(index).getSources());
             }
             return;
@@ -1532,7 +1543,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private Map<String, List<ColumnRef>> knownOrdinalWildcard(Projection wildcard) {
-        Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(wildcard);
+        Map<String, List<ColumnRef>> columns = wildcardProjectionColumns(wildcard, true);
         return columns == null || columns.containsKey("*") ? null : columns;
     }
 
@@ -1543,6 +1554,38 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
                 return;
             }
         }
+    }
+
+    private int knownQueryOutputWidth(FlinkParser.QueryTermContext term) {
+        FlinkParser.QueryTermContext unwrapped = unwrappedQueryTerm(term);
+        if (unwrapped instanceof FlinkParser.SetOperationContext) {
+            return setOutputWidth;
+        }
+        int explicitWidth = explicitSetOutputWidth(unwrapped);
+        if (explicitWidth >= 0) {
+            return explicitWidth;
+        }
+        if (queryPrimary(unwrapped) instanceof FlinkParser.TableQueryContext) {
+            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcardProjection(null, "*", 0));
+            return columns == null ? -1 : columns.size();
+        }
+        List<FlinkParser.SelectItemContext> items = selectItems(unwrapped);
+        if (items.isEmpty()) {
+            return -1;
+        }
+        int width = 0;
+        for (FlinkParser.SelectItemContext item : items) {
+            if (item instanceof FlinkParser.SelectExpressionContext) {
+                width++;
+                continue;
+            }
+            Map<String, List<ColumnRef>> columns = knownOrdinalWildcard(wildcardProjection(item, -1));
+            if (columns == null) {
+                return -1;
+            }
+            width += columns.size();
+        }
+        return width;
     }
 
     private static int explicitSetOutputWidth(FlinkParser.QueryTermContext term) {
@@ -1858,6 +1901,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     private void registerGeneratedRelation(String alias, Map<String, List<ColumnRef>> columns) {
         String normalizedAlias = alias.toLowerCase(Locale.ROOT);
         derivedColumnLineage.put(normalizedAlias, columns);
+        incompleteDerivedSchemas.remove(normalizedAlias);
         derivedReferences.add(normalizedAlias);
         derivedAliases.put(normalizedAlias, normalizedAlias);
         visibleRelationCount++;
@@ -1920,6 +1964,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         relationVisitor.setContext(context);
         relationVisitor.cteNames.addAll(cteNames);
         relationVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        relationVisitor.incompleteDerivedSchemas.addAll(incompleteDerivedSchemas);
         relationVisitor.derivedAliases.putAll(derivedAliases);
         relationVisitor.positionalProjectionSelect = explicitSelectClause(query.queryTerm());
         relationVisitor.visit(query);
@@ -1933,25 +1978,31 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             columns.put(columnName, lineage.getSources());
         }
         derivedColumnLineage.put(name, columns);
+        if (relationVisitor.knownQueryOutputWidth(query.queryTerm()) == columns.size()) {
+            incompleteDerivedSchemas.remove(name);
+        } else {
+            incompleteDerivedSchemas.add(name);
+        }
         for (TableRef table : relationResult.getInputTables()) {
             addInputTable(table, false);
         }
         LineageModelUtils.mergeColumnUsages(result, relationResult);
     }
 
-    private LineageResult lineageForQueryTerm(FlinkParser.QueryTermContext queryTerm) {
+    private FlinkLineageVisitor analyzeSetOperand(FlinkParser.QueryTermContext queryTerm) {
         LineageResult queryResult = new LineageResult();
         FlinkLineageVisitor queryVisitor = new FlinkLineageVisitor(queryResult);
         queryVisitor.setContext(context);
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.incompleteDerivedSchemas.addAll(incompleteDerivedSchemas);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
-        queryVisitor.positionalProjectionSelect = explicitSelectClause(queryTerm);
+        queryVisitor.positionalProjectionSelect = selectClause(queryTerm);
         queryVisitor.visit(queryTerm);
         queryVisitor.finalizeResult();
-        return queryResult;
+        return queryVisitor;
     }
 
     private static FlinkParser.SelectClauseContext explicitSelectClause(FlinkParser.QueryTermContext term) {
@@ -2238,6 +2289,10 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     private Map<String, List<ColumnRef>> wildcardProjectionColumns(Projection projection) {
+        return wildcardProjectionColumns(projection, false);
+    }
+
+    private Map<String, List<ColumnRef>> wildcardProjectionColumns(Projection projection, boolean complete) {
         if (projection.sourceColumns.size() != 1) {
             return null;
         }
@@ -2251,7 +2306,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         } else if (visibleRelations.size() == 1 && visibleRelations.get(0).derivedName != null) {
             derivedName = visibleRelations.get(0).derivedName;
         }
-        if (derivedName == null) {
+        if (derivedName == null || (complete && incompleteDerivedSchemas.contains(derivedName))) {
             return null;
         }
         Map<String, List<ColumnRef>> columns = derivedColumnLineage.get(derivedName);
@@ -2803,6 +2858,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         }
         Map<String, List<ColumnRef>> columns = temporaryRelationColumns(relation);
         derivedColumnLineage.put(relationName, columns);
+        incompleteDerivedSchemas.remove(relationName);
         for (TableRef source : relation.getInputTables()) {
             addInputTable(source, false);
         }
@@ -2996,6 +3052,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.incompleteDerivedSchemas.addAll(incompleteDerivedSchemas);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);
@@ -3219,6 +3276,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         queryVisitor.cteNames.addAll(cteNames);
         queryVisitor.tableAliases.putAll(tableAliases);
         queryVisitor.derivedColumnLineage.putAll(derivedColumnLineage);
+        queryVisitor.incompleteDerivedSchemas.addAll(incompleteDerivedSchemas);
         queryVisitor.derivedAliases.putAll(derivedAliases);
         queryVisitor.derivedReferences.addAll(derivedReferences);
         queryVisitor.visit(query);

@@ -9511,6 +9511,121 @@
         }
       ],
       "description": "Ordering the result of a parenthesized Flink set query retains both positional dependencies"
+    },
+    {
+      "id": "union_table_order_by_ordinal",
+      "file": "cases/union_table_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.live.id",
+            "ods.history.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.live.event_time",
+            "ods.history.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.live.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.history.event_time"
+        }
+      ],
+      "description": "A positional set ORDER BY traces known TABLE and wildcard projections on both sides"
+    },
+    {
+      "id": "union_known_wildcard_order_by_ordinal",
+      "file": "cases/union_known_wildcard_order_by_ordinal.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.live.id",
+            "ods.history.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.live.event_time",
+            "ods.history.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.live.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.history.event_time"
+        }
+      ],
+      "description": "A positional set ORDER BY traces known TABLE and wildcard projections on both sides"
+    },
+    {
+      "id": "union_known_wildcard_ordinal_after_constant",
+      "file": "cases/union_known_wildcard_ordinal_after_constant.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.live",
+        "ods.history"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "EXPR$0",
+          "sources": []
+        },
+        {
+          "target": "id",
+          "sources": [
+            "ods.live.id",
+            "ods.history.id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "ods.live.event_time",
+            "ods.history.event_time"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.live.event_time"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "ods.history.event_time"
+        }
+      ],
+      "description": "A positional set ORDER BY traces known TABLE and wildcard projections on both sides"
     }
   ]
 }
