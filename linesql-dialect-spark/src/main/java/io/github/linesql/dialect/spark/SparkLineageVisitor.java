@@ -937,7 +937,9 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             List<String> parts = identifier.multipartIdentifier() == null
                     ? Collections.emptyList() : splitIdentifier(identifier.getText());
             if (parts.size() == 1) {
-                context.setDefaultSchema(parts.get(0));
+                if (!parts.get(0).equals(context.getDefaultCatalog())) {
+                    context.setDefaultSchema(parts.get(0));
+                }
             } else if (parts.size() == 2 && parts.get(0).equals(context.getDefaultCatalog())) {
                 context.setDefaultSchema(parts.get(1));
             } else {
@@ -3548,11 +3550,15 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private TableRef qualifyTable(TableRef table) {
-        if (context == null || table.getCatalog() != null) {
+        if (context == null || table.getCatalog() != null || "global_temp".equalsIgnoreCase(table.getSchema())) {
             return table;
         }
+        String catalog = context.getDefaultCatalog();
         String schema = table.getSchema() == null ? context.getDefaultSchema() : table.getSchema();
-        return new TableRef(context.getDefaultCatalog(), schema, table.getName());
+        if (catalog != null && catalog.equals(table.getSchema())) {
+            schema = null;
+        }
+        return new TableRef(catalog, schema, table.getName());
     }
 
     private static TableRef rawTableRef(String raw) {

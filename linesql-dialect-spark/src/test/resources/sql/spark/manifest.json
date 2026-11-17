@@ -4911,6 +4911,176 @@
           ]
         }
       ]
+    },
+    {
+"id": "script_set_catalog_literal_and_variable",
+      "file": "cases/script_set_catalog_literal_and_variable.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "lake_house.raw_data.orders",
+        "reporting.orders",
+        "reporting.warehouse.orders",
+        "reporting.root_table",
+        "global_temp.shared_view",
+        "reporting.upstream.orders"
+      ],
+      "outputTables": [
+        "reporting.curated.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "reporting.curated.summary.id",
+          "sources": [
+            "reporting.upstream.orders.id"
+          ]
+        }
+      ],
+      "description": "A known Spark catalog change resets the default namespace while a same-catalog command preserves it",
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake_house.raw_data.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake_house.raw_data.orders.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake_house.raw_data.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "lake_house.raw_data.orders.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "reporting.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "reporting.orders.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "reporting.warehouse.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "reporting.warehouse.orders.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "reporting.root_table"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "reporting.root_table.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "global_temp.shared_view"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "id",
+              "sources": [
+                "global_temp.shared_view.id"
+              ]
+            }
+          ]
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "INSERT",
+          "inputTables": [
+            "reporting.upstream.orders"
+          ],
+          "outputTables": [
+            "reporting.curated.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "reporting.curated.summary.id",
+              "sources": [
+                "reporting.upstream.orders.id"
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }

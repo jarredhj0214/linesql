@@ -64,6 +64,14 @@ public class SparkDialectParser implements DialectParser {
         boolean originalLiterals = sql.equals(normalizedSql);
         Map<String, String> variables = context == null ? null : context.getSessionStringVariables(SqlDialect.SPARK);
         trackSessionVariables(statement, variables, originalLiterals);
+        if (context != null && statement.statement() instanceof SqlBaseParser.SetCatalogContext) {
+            SqlBaseParser.SetCatalogContext command = (SqlBaseParser.SetCatalogContext) statement.statement();
+            String catalog = originalLiterals ? staticCatalogName(command.expression(), variables) : null;
+            if (catalog == null || !catalog.equals(context.getDefaultCatalog())) {
+                context.setDefaultCatalog(catalog);
+                context.setDefaultSchema(null);
+            }
+        }
         if (statement.statement() instanceof SqlBaseParser.VisitExecuteImmediateContext) {
             SqlBaseParser.ExecuteImmediateContext execute =
                     ((SqlBaseParser.VisitExecuteImmediateContext) statement.statement()).executeImmediate();
@@ -159,6 +167,23 @@ public class SparkDialectParser implements DialectParser {
         String literal = stringLiteral(execute.queryParam);
         return literal != null || variables == null
                 ? literal : variables.get(sessionVariableName(execute.queryParam.getText()));
+    }
+
+    private static String staticCatalogName(SqlBaseParser.ExpressionContext expression,
+                                            Map<String, String> variables) {
+        String literal = stringLiteral(expression);
+        if (literal != null) {
+            return literal;
+        }
+        String name = sessionVariableName(expression.getText());
+        if (name == null) {
+            return null;
+        }
+        if (variables.containsKey(name)) {
+            return variables.get(name);
+        }
+        List<String> parts = SparkLineageVisitor.splitIdentifier(expression.getText());
+        return parts.size() == 1 ? parts.get(0) : null;
     }
 
     private static String stringLiteral(SqlBaseParser.ExpressionContext expression) {

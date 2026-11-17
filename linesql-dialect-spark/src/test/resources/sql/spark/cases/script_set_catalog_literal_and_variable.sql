@@ -1,0 +1,13 @@
+SET CATALOG 'lake_house';
+USE lake_house.raw_data;
+SELECT id FROM orders;
+SET CATALOG lake_house;
+SELECT id FROM orders;
+DECLARE VARIABLE selected_catalog STRING DEFAULT 'reporting';
+SET CATALOG selected_catalog;
+SELECT id FROM orders;
+SELECT id FROM warehouse.orders;
+SELECT id FROM reporting.root_table;
+SELECT id FROM global_temp.shared_view;
+USE curated;
+INSERT INTO summary (id) SELECT id FROM upstream.orders;
