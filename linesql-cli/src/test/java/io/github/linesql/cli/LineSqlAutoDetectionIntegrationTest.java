@@ -925,6 +925,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void usesPostgresDiscardToIdentifyTemporaryViewScripts() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TEMP VIEW recent_orders AS SELECT id FROM sales.orders WHERE is_recent; "
+                + "SELECT id FROM recent_orders; DISCARD TEMP; SELECT id FROM recent_orders;");
+        assertEquals(4, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.POSTGRESQL, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertEquals(new TableRef(null, "sales", "orders"), results.get(1).getInputTables().get(0));
+        assertEquals("is_recent", results.get(1).getColumnUsages().get(0).getColumn().getName());
+        assertEquals(StatementType.CONTROL, results.get(2).getStatementType());
+        assertEquals(new TableRef(null, null, "recent_orders"), results.get(3).getInputTables().get(0));
+        assertTrue(results.get(3).getColumnUsages().isEmpty());
+        assertDialect(SqlDialect.POSTGRESQL, "DISCARD SEQUENCES");
+        assertDialect(SqlDialect.SPARK, "SELECT 'x; DISCARD TEMP; y' AS note");
+    }
+
+    @Test
     public void detectsPostgresAliasedDmlAndDataModifyingCtes() {
         LineageResult delete = LineSql.parse("DELETE FROM ONLY sales.orders o USING staging.expired e "
                 + "WHERE o.id = e.order_id");

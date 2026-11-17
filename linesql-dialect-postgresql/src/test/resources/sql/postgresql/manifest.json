@@ -2019,6 +2019,49 @@
       "description": "TABLE and prepared query routes use known session view output columns while the definition exists"
     },
     {
+      "id": "script_temporary_view_discard_detection",
+      "file": "cases/script_temporary_view_discard_detection.sql",
+      "statementType": "MULTI",
+      "inputTables": ["sales.orders", "recent_orders"],
+      "outputTables": ["recent_orders"],
+      "columnLineage": [
+        {"target": "recent_orders.id", "sources": ["sales.orders.id"]},
+        {"target": "id", "sources": ["sales.orders.id"]},
+        {"target": "id", "sources": ["recent_orders.id"]}
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_VIEW",
+          "inputTables": ["sales.orders"],
+          "outputTables": ["recent_orders"],
+          "columnLineage": [{"target": "recent_orders.id", "sources": ["sales.orders.id"]}],
+          "columnUsages": [{"type": "WHERE", "column": "sales.orders.is_recent"}]
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": ["sales.orders"],
+          "outputTables": [],
+          "columnLineage": [{"target": "id", "sources": ["sales.orders.id"]}],
+          "columnUsages": [{"type": "WHERE", "column": "sales.orders.is_recent"}]
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": ["recent_orders"],
+          "outputTables": [],
+          "columnLineage": [{"target": "id", "sources": ["recent_orders.id"]}],
+          "columnUsages": []
+        }
+      ],
+      "description": "A script-local DISCARD identifies PostgreSQL and removes the temporary view before subsequent reads"
+    },
+    {
       "id": "script_temporary_view_lifecycle",
       "file": "cases/script_temporary_view_lifecycle.sql",
       "statementType": "MULTI",

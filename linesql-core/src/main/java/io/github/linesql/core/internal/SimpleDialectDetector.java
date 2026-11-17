@@ -277,6 +277,8 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s*\\(\\s*" + POSTGRES_COPY_IDENTIFIER
                     + "(?:\\s*,\\s*" + POSTGRES_COPY_IDENTIFIER + ")*\\s*\\))?"
                     + "\\s+(?:from|to)\\s+(?:(?:program|stdin|stdout)\\b|" + SINGLE_QUOTED_STRING + "))");
+    private static final Pattern POSTGRES_DISCARD = Pattern.compile(
+            "^\\s*discard\\s+(?:all|plans|sequences|temp(?:orary)?)\\s*;?\\s*$");
     private static final Pattern POSTGRES_SCHEMA_CONTROL = Pattern.compile(
             "^\\s*(?:set\\s+(?:(?:session|local)\\s+)?(?:search_path\\s*(?:to\\b|=)"
                     + "|schema\\s+" + SINGLE_QUOTED_STRING + ")|reset\\s+search_path\\b)");
@@ -505,6 +507,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (POSTGRES_DATA_OPTION_END.matcher(unquotedSyntax).find()
                         && POSTGRES_DATA_OPTION_STATEMENT.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL table or materialized view data options"));
+        } else if (POSTGRES_DISCARD.matcher(unquotedSyntax).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("discard")
+                        && hasStatementInScript(unwrapped, SqlDialect.POSTGRESQL, POSTGRES_DISCARD))) {
+            candidates.add(candidate(SqlDialect.POSTGRESQL, 0.98, "PostgreSQL DISCARD session command"));
         } else if (POSTGRES_SCHEMA_CONTROL.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.97, "PostgreSQL schema search path control"));
         } else if (literals.dollarQuoted && normalized.matches("(?s)^\\s*do\\s+''.*")) {
