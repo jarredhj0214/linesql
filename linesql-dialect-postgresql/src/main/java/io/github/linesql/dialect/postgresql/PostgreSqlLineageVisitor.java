@@ -2438,7 +2438,11 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
         List<SourceColumn> sources = sourceColumns(expression);
         if (primaryExpression(expression) instanceof PostgreSqlParser.ColumnReferenceContext && !sources.isEmpty()) {
-            List<ColumnRef> input = groupingInputColumnRefs(sources.get(0));
+            SourceColumn column = sources.get(0);
+            List<ColumnRef> input = unqualifiedJoinKeys.get(column.name);
+            if (input == null) {
+                input = unqualifiedDerivedColumnRefs(column);
+            }
             if (input != null) {
                 LineageModelUtils.addColumnUsages(result, ColumnUsageType.GROUP_BY, input);
             } else {
@@ -2449,11 +2453,7 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
         }
     }
 
-    private List<ColumnRef> groupingInputColumnRefs(SourceColumn column) {
-        List<ColumnRef> joined = unqualifiedJoinKeys.get(column.name);
-        if (joined != null) {
-            return joined;
-        }
+    private List<ColumnRef> unqualifiedDerivedColumnRefs(SourceColumn column) {
         if (visibleRelations.size() <= 1) {
             return derivedColumnRefs(column);
         }
@@ -3107,7 +3107,9 @@ class PostgreSqlLineageVisitor extends PostgreSqlParserBaseVisitor<Void> {
                 refs.addAll(joinRefs);
                 continue;
             }
-            List<ColumnRef> derivedRefs = derivedColumnRefs(sourceColumn);
+            List<ColumnRef> derivedRefs = sourceColumn.qualifier == null
+                    ? unqualifiedDerivedColumnRefs(sourceColumn)
+                    : derivedColumnRefs(sourceColumn);
             if (derivedRefs != null) {
                 refs.addAll(derivedRefs);
                 continue;

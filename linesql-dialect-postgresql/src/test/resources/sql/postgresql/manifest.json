@@ -6820,6 +6820,37 @@
         }
       ],
       "description": "A bare grouping name resolves to the unique known input across a join even when the output has the same alias"
+    },
+    {
+      "id": "select_unique_unqualified_join_input_expression",
+      "file": "cases/select_unique_unqualified_join_input_expression.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders",
+        "ods.limits"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "normalized",
+          "sources": [
+            "ods.orders.region"
+          ]
+        },
+        {
+          "target": "cap",
+          "sources": [
+            "ods.limits.cap"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "ods.orders.region"
+        }
+      ],
+      "description": "An unqualified name in a projection and sort expression resolves across inputs with complete column lists"
     }
   ]
 }
