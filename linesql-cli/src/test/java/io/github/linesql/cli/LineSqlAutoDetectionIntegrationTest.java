@@ -374,6 +374,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void carriesMySqlSessionStateToPreparedSqlDuringAutomaticDetection() {
+        List<LineageResult> results = LineSql.parseScript(
+                "USE sales; SET @statement_text = 'SELECT id FROM orders WHERE state = ?'; "
+                        + "PREPARE read_orders FROM @statement_text");
+        assertEquals(3, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.MYSQL, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        LineageResult prepared = results.get(2);
+        TableRef source = prepared.getInputTables().get(0);
+        assertEquals("sales", source.getSchema());
+        assertEquals("orders", source.getName());
+        assertEquals("id", prepared.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("state", prepared.getColumnUsages().get(0).getColumn().getName());
+        assertDialect(SqlDialect.SPARK, "SELECT 'text; PREPARE stmt FROM @fake;' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 1 /* PREPARE stmt FROM @fake; */");
+    }
+
+    @Test
     public void detectsPreparedSqlForms() {
         assertDialect(SqlDialect.MYSQL, "PREPARE stmt FROM 'SELECT id FROM app.users WHERE status = ?'");
         assertDialect(SqlDialect.MYSQL, "PREPARE stmt FROM @runtime_sql");

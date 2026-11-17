@@ -268,7 +268,8 @@ public class SimpleDialectDetector implements DialectDetector {
         boolean sqlServerTemporalQuery = unquotedSyntax.matches("(?s).*\\bfor\\s+system_time\\s+"
                 + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+" + TSQL_LOCAL_VARIABLE + ").*");
 
-        boolean mysqlPrepare = MYSQL_PREPARED_LITERAL.matcher(normalized).find();
+        boolean mysqlPrepare = MYSQL_PREPARED_LITERAL.matcher(normalized).find()
+                || hasMySqlPrepareInScript(unwrapped, unquotedSyntax);
         if (SimpleStatementSplitter.containsMySqlDelimiterDirective(sql)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.99, "MySQL client DELIMITER directive"));
         } else if (mysqlPrepare) {
@@ -701,6 +702,19 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static String stripComments(String sql) {
         return rewriteLexicalText(sql, false).text;
+    }
+
+    private static boolean hasMySqlPrepareInScript(String sql, String unquotedSyntax) {
+        if (!unquotedSyntax.contains(";") || !unquotedSyntax.contains("prepare") || !unquotedSyntax.contains("from")) {
+            return false;
+        }
+        for (String statement : new SimpleStatementSplitter().split(sql, SqlDialect.MYSQL)) {
+            String normalized = stripComments(statement).toLowerCase(Locale.ROOT);
+            if (MYSQL_PREPARED_LITERAL.matcher(normalized).find()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasFlinkOptionsHint(String sql) {
