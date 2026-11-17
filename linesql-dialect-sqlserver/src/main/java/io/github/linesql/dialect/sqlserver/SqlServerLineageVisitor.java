@@ -189,7 +189,7 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         // Visit FROM clause if present (SQL Server UPDATE ... FROM syntax)
         if (ctx.fromClause() != null) {
             visitRelationListForInputs(ctx.fromClause().relationList());
-            target = resolveUpdateTarget(declaredTarget);
+            target = resolveDmlTarget(ctx.multipartIdentifier(), declaredTarget);
             if (!target.equals(declaredTarget)) {
                 inputTables.remove(declaredTarget);
             }
@@ -216,12 +216,11 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         return null;
     }
 
-    private TableRef resolveUpdateTarget(TableRef declaredTarget) {
-        if (declaredTarget == null || declaredTarget.getSchema() != null || declaredTarget.getCatalog() != null) {
-            return declaredTarget;
+    private TableRef resolveDmlTarget(SqlServerParser.MultipartIdentifierContext name, TableRef declared) {
+        if (name.identifier().size() != 1) {
+            return declared;
         }
-        TableRef aliasTarget = tableAliases.get(declaredTarget.getName().toLowerCase(Locale.ROOT));
-        return aliasTarget == null ? declaredTarget : aliasTarget;
+        return tableAliases.getOrDefault(declared.getName().toLowerCase(Locale.ROOT), declared);
     }
 
     @Override
@@ -262,15 +261,12 @@ class SqlServerLineageVisitor extends SqlServerParserBaseVisitor<Void> {
         if (ctx.ctes() != null) {
             visit(ctx.ctes());
         }
-        // The first multipartIdentifier after DELETE might be an alias
-        String deleteTarget = identifierParts(ctx.multipartIdentifier()).get(0).toLowerCase(Locale.ROOT);
-        // Visit the relation list to populate tableAliases
+        SqlServerParser.MultipartIdentifierContext name = ctx.multipartIdentifier();
         visitRelationListForInputs(ctx.relationList());
-        // Resolve: find the relation whose alias matches the delete target
-        TableRef target = tableAliases.get(deleteTarget);
-        if (target != null) {
-            outputTables.add(target);
-        }
+        TableRef target = resolveDmlTarget(name, tableRef(name));
+        inputTables.add(target);
+        outputTables.add(target);
+        bindQualifiedTable(target);
         addOutputIntoTable(ctx.outputClause());
         if (ctx.whereClause() != null) {
             addColumnUsages(ColumnUsageType.WHERE, sourceColumns(ctx.whereClause().expression()));

@@ -450,7 +450,7 @@ updateStatement
 
 deleteStatement
     : ctes? DELETE topClause? FROM multipartIdentifier tableAlias outputClause? (whereClause | cursorWhereClause)? queryHintClause? #deleteSimple
-    | ctes? DELETE topClause? multipartIdentifier outputClause? FROM relationList (whereClause | cursorWhereClause)? queryHintClause? #deleteFromJoin
+    | ctes? DELETE topClause? FROM? multipartIdentifier outputClause? FROM relationList (whereClause | cursorWhereClause)? queryHintClause? #deleteFromJoin
     ;
 
 outputClause

@@ -7966,6 +7966,114 @@
         }
       ],
       "description": "SQL Server resolves explicit database and schema column qualifiers before ambiguous short names"
+    },
+    {
+      "id": "script_use_update_target_alias",
+      "file": "cases/script_use_update_target_alias.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "warehouse.dbo.summary",
+        "warehouse.dbo.delta"
+      ],
+      "outputTables": [
+        "warehouse.dbo.summary"
+      ],
+      "columnLineage": [
+        {
+          "target": "warehouse.dbo.summary.total",
+          "sources": [
+            "warehouse.dbo.delta.total"
+          ]
+        },
+        {
+          "target": "written_total",
+          "sources": [
+            "warehouse.dbo.delta.total"
+          ]
+        }
+      ],
+      "description": "USE preserves the physical table behind an unqualified UPDATE target alias",
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "UPDATE",
+          "inputTables": [
+            "warehouse.dbo.summary",
+            "warehouse.dbo.delta"
+          ],
+          "outputTables": [
+            "warehouse.dbo.summary"
+          ],
+          "columnLineage": [
+            {
+              "target": "warehouse.dbo.summary.total",
+              "sources": [
+                "warehouse.dbo.delta.total"
+              ]
+            },
+            {
+              "target": "written_total",
+              "sources": [
+                "warehouse.dbo.delta.total"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "JOIN_ON",
+              "column": "warehouse.dbo.summary.id"
+            },
+            {
+              "type": "JOIN_ON",
+              "column": "warehouse.dbo.delta.id"
+            },
+            {
+              "type": "WHERE",
+              "column": "warehouse.dbo.delta.active"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delete_from_qualified_target_join",
+      "file": "cases/delete_from_qualified_target_join.sql",
+      "statementType": "DELETE",
+      "inputTables": [
+        "prod.live.orders",
+        "prod.archive.orders"
+      ],
+      "outputTables": [
+        "prod.live.orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "removed_id",
+          "sources": [
+            "prod.live.orders.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "prod.live.orders.id"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "prod.archive.orders.id"
+        },
+        {
+          "type": "WHERE",
+          "column": "prod.archive.orders.purge_requested"
+        }
+      ],
+      "description": "An explicit DELETE FROM target with a joined FROM clause preserves DELETE output lineage"
     }
   ]
 }
