@@ -795,6 +795,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOracleJsonTableColumnTypesWithinNestedColumns() {
+        LineageResult result = LineSql.parse(
+                "SELECT j.amount, j.\"Display Name\" AS display_name FROM ods.events e, "
+                        + "JSON_TABLE(e.payload, '$' COLUMNS (NESTED PATH '$.items[*]' COLUMNS "
+                        + "(amount NUMBER PATH '$.amount', \"Display Name\" VARCHAR2(100) PATH '$.name'))) j");
+        assertEquals(SqlDialect.ORACLE, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("payload", result.getColumnLineage().get(1).getSources().get(0).getName());
+        assertFalse(result.getDiagnostics().stream().anyMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR));
+
+        assertDialect(SqlDialect.MYSQL,
+                "SELECT jt.label FROM ods.events e, JSON_TABLE(e.payload, '$' COLUMNS "
+                        + "(label VARCHAR(100) PATH '$.\"label NUMBER\"')) jt");
+    }
+
+    @Test
     public void detectsPostgreSqlGeneratedExpressionChanges() {
         LineageResult result = LineSql.parse(
                 "ALTER TABLE mart.metrics ALTER COLUMN net SET EXPRESSION AS (amount - discount)");

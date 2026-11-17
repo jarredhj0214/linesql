@@ -121,6 +121,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "(?s)^\\s*create\\s+vector\\s+index\\b.*?\\borganization\\s+(?:inmemory|neighbor|partitions)\\b"
                     + "|(?s)^\\s*(?:create|alter)\\s+table\\b.*?\\bvector\\s*\\(\\s*(?:\\*|[0-9]+)\\s*,"
                     + "\\s*(?:float32|float64|int8|binary|\\*\\s*,\\s*(?:dense|sparse))\\b");
+    private static final Pattern JSON_TABLE_CALL = Pattern.compile("\\bjson_table\\s*\\(");
+    private static final Pattern JSON_TABLE_STRUCTURE = Pattern.compile("\\bcolumns\\s*\\(|[();]");
+    private static final Pattern ORACLE_JSON_TABLE_COLUMN_TYPE = Pattern.compile(
+            "[,(]\\s*" + ORACLE_NAME + "\\s+(?:number|varchar2|nvarchar2|binary_float|binary_double)\\b");
     private static final Pattern ORACLE_JSON_AGGREGATE = Pattern.compile("\\bjson_(?:arrayagg|objectagg)\\s*\\(");
     private static final Pattern ORACLE_JSON_AGGREGATE_OPTION = Pattern.compile(
             "\\breturning\\s+(?:clob|blob|varchar2)\\b|\\bstrict\\s*(?:with\\s+unique\\s+keys\\s*)?\\)");
@@ -282,6 +286,8 @@ public class SimpleDialectDetector implements DialectDetector {
         String relationSyntax = normalized.replaceAll(SINGLE_QUOTED_STRING, " ");
 
         String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
+        boolean oracleJsonTableType = unquotedSyntax.contains("json_table") && hasOracleJsonTableType(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier"));
 
         boolean sqlServerTemporalQuery = unquotedSyntax.matches("(?s).*\\bfor\\s+system_time\\s+"
                 + "(?:(?:all|between|from|contained\\s+in)\\b|as\\s+of\\s+" + TSQL_LOCAL_VARIABLE + ").*");
@@ -310,7 +316,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s)^\\s*delete\\s+.*\\b(low_priority|quick|ignore)\\b.*")
                 || normalized.matches("(?s)^\\s*alter\\s+algorithm\\b.*\\bview\\b.*")
                 || normalized.matches("(?s).*\\binto\\s+(out|dump)file\\b.*")
-                || (!sparkJsonTableSignal && normalized.matches("(?s).*\\bjson_table\\s*\\(.*"))
+                || (!sparkJsonTableSignal && !oracleJsonTableType && JSON_TABLE_CALL.matcher(unquotedSyntax).find())
                 || MYSQL_DUPLICATE_KEY_UPDATE.matcher(unquotedSyntax).find()
                 || hasMySqlJsonArrowSignal(normalized)
                 || (!sparkSignal && weakMySqlExpressionSignal)) {
@@ -515,6 +521,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle partitioned join"));
         } else if (ORACLE_RECURSIVE_CTE_OPTIONS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle recursive factoring search or cycle options"));
+        } else if (oracleJsonTableType) {
+            candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle JSON_TABLE column type"));
         } else if (ORACLE_JSON_AGGREGATE.matcher(unquotedSyntax).find()
                 && ORACLE_JSON_AGGREGATE_OPTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.99, "Oracle SQL/JSON aggregate options"));
@@ -717,6 +725,36 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static boolean hasMySqlJsonArrowSignal(String sql) {
         return sql.matches("(?s).*->>?\\s*['\"]\\$\\..*");
+    }
+
+    private static boolean hasOracleJsonTableType(String sql) {
+        Matcher calls = JSON_TABLE_CALL.matcher(sql);
+        while (calls.find()) {
+            Matcher structure = JSON_TABLE_STRUCTURE.matcher(sql).region(calls.end(), sql.length());
+            int depth = 1;
+            int columnsStart = -1;
+            while (structure.find()) {
+                char token = sql.charAt(structure.start());
+                if (token == ';') {
+                    break;
+                }
+                if (token == 'c') {
+                    if (depth == 1) {
+                        columnsStart = structure.end() - 1;
+                    }
+                    depth++;
+                } else if (token == '(') {
+                    depth++;
+                } else if (--depth == 0) {
+                    if (columnsStart >= 0
+                            && ORACLE_JSON_TABLE_COLUMN_TYPE.matcher(sql).region(columnsStart, structure.start()).find()) {
+                        return true;
+                    }
+                    break;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean hasSparkJsonTableSignal(String sql) {

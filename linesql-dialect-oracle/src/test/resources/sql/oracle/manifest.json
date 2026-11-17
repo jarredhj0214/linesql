@@ -6357,6 +6357,36 @@
         }
       ],
       "description": "An Oracle UPDATE FROM records source and target schema predicates separately"
+    },
+    {
+      "id": "json_table_oracle_column_types",
+      "file": "cases/json_table_oracle_column_types.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "item_id",
+          "sources": [
+            "ods.events.payload"
+          ]
+        },
+        {
+          "target": "display_name",
+          "sources": [
+            "ods.events.payload"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.events.payload"
+        }
+      ],
+      "description": "Oracle-specific nested JSON_TABLE types preserve the document dependency"
     }
   ]
 }

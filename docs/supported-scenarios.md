@@ -33,6 +33,7 @@ Known conflict guards:
 | --- | --- |
 | Spark `MERGE INTO` is not classified as Oracle | `MERGE INTO` is shared across engines and is not a safe Oracle-only anchor. |
 | JSON path array wildcard `[*]` is not classified as SQL Server | The detector checks the relation syntax outside strings. JSON_TABLE without stronger dialect evidence supplies a MySQL anchor. |
+| Oracle JSON_TABLE column types | Types such as `NUMBER` and `VARCHAR2` inside a JSON_TABLE column list signal Oracle, including in nested column lists such as `json_table_oracle_column_types`. |
 | MySQL `ON DUPLICATE KEY` is not classified as StarRocks | StarRocks key anchors are scoped to `CREATE TABLE` statements. |
 | MySQL executable version comments are not dropped as ordinary comments | `/*!80000 ... */` carries MySQL SQL and is treated as a MySQL dialect anchor. |
 
