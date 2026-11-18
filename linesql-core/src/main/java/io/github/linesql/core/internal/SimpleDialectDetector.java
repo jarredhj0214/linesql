@@ -624,6 +624,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:(?:add|drop|rename)\\s+rollup|swap\\s+with|(?:split|merge)\\s+tablets?)\\b");
     private static final String FLINK_QUALIFIED_IDENTIFIER =
             SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*";
+    private static final Pattern FLINK_SHOW_NAME_PATTERN = Pattern.compile(
+            "^\\s*show\\s+(?:catalogs\\s+(?:(?:not\\s+)?ilike|not\\s+like)"
+                    + "|(?:databases|procedures|(?:user\\s+)?functions)"
+                    + "(?:\\s+(?:from|in)\\s+" + FLINK_QUALIFIED_IDENTIFIER + ")?"
+                    + "\\s+(?:not\\s+)?ilike)\\s+" + SINGLE_QUOTED_STRING + "(?=\\s*(?:;|$))");
     private static final Pattern FLINK_BARE_COLUMN_RENAME = Pattern.compile(
             "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
                     + "\\s+rename\\s+" + SQL_IDENTIFIER + "\\s+to\\s+" + SQL_IDENTIFIER);
@@ -965,7 +970,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("database")
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_CREATE_DATABASE_OPTIONS))) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink CREATE DATABASE string properties"));
-        } else if (FLINK_FILTERED_METADATA.matcher(unquotedSyntax).find()) {
+        } else if (FLINK_FILTERED_METADATA.matcher(unquotedSyntax).find()
+                || FLINK_SHOW_NAME_PATTERN.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink filtered metadata syntax"));
         } else if (FLINK_JVM_FUNCTION.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink function language and class syntax"));

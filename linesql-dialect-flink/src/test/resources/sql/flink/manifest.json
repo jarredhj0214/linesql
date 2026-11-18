@@ -7667,6 +7667,15 @@
       "description": "Flink SHOW MODELS with database and NOT LIKE filter"
     },
     {
+      "id": "show_procedures_ilike",
+      "file": "cases/show_procedures_ilike.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW PROCEDURES ILIKE 'REFRESH_%'"
+    },
+    {
       "id": "show_procedures_from_database_like",
       "file": "cases/show_procedures_from_database_like.sql",
       "statementType": "READ_METADATA",
@@ -7784,6 +7793,15 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Flink ALTER MODEL IF EXISTS RENAME control statement"
+    },
+    {
+      "id": "show_catalogs_not_like",
+      "file": "cases/show_catalogs_not_like.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Flink SHOW CATALOGS NOT LIKE 'temporary_%'"
     },
     {
       "id": "show_catalogs_ilike",

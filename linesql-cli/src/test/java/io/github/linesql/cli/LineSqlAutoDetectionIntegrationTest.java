@@ -1496,6 +1496,15 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertTrue(columns.getDiagnostics().isEmpty());
         assertDialect(SqlDialect.FLINK, "SHOW VIEWS FROM prod_catalog.dwd NOT LIKE 'tmp_%'");
         assertDialect(SqlDialect.FLINK, "SHOW PROCEDURES FROM prod_catalog.ops_db LIKE 'refresh_%'");
+        assertDialect(SqlDialect.FLINK, "SHOW CATALOGS NOT LIKE 'temporary_%'");
+        assertDialect(SqlDialect.FLINK, "SHOW DATABASES IN `prod` NOT ILIKE 'temporary_%'");
+        assertDialect(SqlDialect.FLINK, "SHOW PROCEDURES ILIKE 'REFRESH_%'");
+        LineageResult functions = LineSql.parse("SHOW USER FUNCTIONS IN `prod`.`ops` ILIKE 'REFRESH_%'");
+        assertEquals(SqlDialect.FLINK, functions.getDialect());
+        assertEquals(StatementType.READ_METADATA, functions.getStatementType());
+        assertTrue(functions.getInputTables().isEmpty());
+        assertTrue(functions.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT id FROM logs WHERE payload ILIKE 'REFRESH_%'");
         assertDialect(SqlDialect.SPARK, "SHOW PROCEDURES IN system");
         assertDialect(SqlDialect.SPARK, "SELECT 'SHOW VIEWS NOT LIKE tmp' AS message");
     }
