@@ -44,6 +44,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|admin\\s+(?:check\\s+tablet|set\\s+(?:frontend\\s+config|replica\\s+status|partition\\s+version)"
                     + "|skip\\s+committed\\s+transaction)|show\\s+usage\\s+resource\\s+groups)\\b");
 
+    private static final Pattern STARROCKS_DICTIONARY_DDL = Pattern.compile(
+            "^\\s*(?:create|show|drop|(?:cancel\\s+)?refresh)\\s+dictionary\\b");
+
     private static final Pattern STARROCKS_PIPE_OR_STORAGE_VOLUME = Pattern.compile(
             "^\\s*(?:(?:create(?:\\s+or\\s+replace)?|alter|drop)\\s+pipe"
                     + "|show\\s+pipes|(?:create|alter|drop|desc(?:ribe)?)\\s+storage\\s+volume"
@@ -80,6 +83,7 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*alter\\s+table\\b[^;]+\\b(?:drop\\s+watermark\\s*(?:;|$)"
                     + "|(?:add|modify)\\s+distribution\\b[^;]*\\binto\\s+[0-9]+\\s+buckets\\b)");
     private static final Pattern FLINK_SHOW_CURRENT_CATALOG = Pattern.compile("^\\s*show\\s+current\\s+catalog\\b");
+    private static final Pattern FLINK_DROP_TEMPORARY_VIEW = Pattern.compile("^\\s*drop\\s+temporary\\s+view\\b");
     private static final Pattern FLINK_FUNCTION_ARTIFACT = Pattern.compile(
             "^\\s*create\\s+(?:temporary\\s+(?:system\\s+)?)?function\\b[^;]*\\busing\\s+artifact\\b");
     private static final Pattern HIVE_TABLE_VALUES = Pattern.compile(
@@ -640,6 +644,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && SESSION_OPTION_COMMAND.matcher(unquotedSyntax).find()
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_SESSION_OPTION))) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink SQL session option"));
+        } else if (FLINK_DROP_TEMPORARY_VIEW.matcher(unquotedSyntax).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("temporary")
+                        && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_DROP_TEMPORARY_VIEW))) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink DROP TEMPORARY VIEW syntax"));
         } else if (FLINK_EXECUTE_QUERY.matcher(unquotedSyntax).find()
                 || (containsStatementSeparator && unquotedSyntax.contains("execute")
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_EXECUTE_QUERY))) {
@@ -704,6 +712,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 && STARROCKS_TEMPORARY_PARTITION.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks temporary partition syntax"));
+        } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
         } else if (STARROCKS_CLUSTER_ADMIN.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks cluster administration syntax"));
         } else if (STARROCKS_PIPE_OR_STORAGE_VOLUME.matcher(unquotedSyntax).find()) {

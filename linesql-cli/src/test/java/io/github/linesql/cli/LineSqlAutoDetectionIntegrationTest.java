@@ -712,6 +712,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksDictionaryLifecycleAndColumnLineage() {
+        LineageResult dictionary = LineSql.parse("CREATE DICTIONARY user_dictionary USING dim.v_users "
+                + "(user_id KEY, user_name VALUE)");
+        assertEquals(SqlDialect.STARROCKS, dictionary.getDialect());
+        assertEquals("v_users", dictionary.getInputTables().get(0).getName());
+        assertEquals("user_dictionary", dictionary.getOutputTables().get(0).getName());
+        assertEquals("user_name", dictionary.getColumnLineage().get(1).getSources().get(0).getName());
+        assertTrue(dictionary.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "CANCEL REFRESH DICTIONARY user_dictionary");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW DICTIONARY' AS message");
+    }
+
+    @Test
     public void detectsStarRocksClusterAdministration() {
         LineageResult scale = LineSql.parse("ALTER SYSTEM ADD COMPUTE NODE 'cn.example.com:9050'");
         assertEquals(SqlDialect.STARROCKS, scale.getDialect());
@@ -803,6 +816,23 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.HIVE, "RELOAD FUNCTION");
         assertDialect(SqlDialect.MYSQL, "LOCK TABLES mart.orders READ");
         assertDialect(SqlDialect.SPARK, "SELECT 'LOCK TABLE mart.orders SHARED' AS note");
+    }
+
+    @Test
+    public void detectsFlinkTemporaryViewLifecycleWithLaterDropEvidence() {
+        List<LineageResult> results = LineSql.parseScript(
+                "CREATE TEMPORARY VIEW lake.ops.Rates AS SELECT amount FROM ods.LiveRates; "
+                        + "CREATE TEMPORARY VIEW lake.ops.rates AS SELECT amount FROM ods.ArchivedRates; "
+                        + "DROP TEMPORARY VIEW lake.ops.Rates; SELECT amount FROM lake.ops.rates;");
+        assertEquals(4, results.size());
+        for (LineageResult result : results) {
+            assertEquals(SqlDialect.FLINK, result.getDialect());
+            assertTrue(result.getDiagnostics().isEmpty());
+        }
+        assertEquals(StatementType.DROP_VIEW, results.get(2).getStatementType());
+        assertEquals("ArchivedRates", results.get(3).getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertDialect(SqlDialect.SPARK, "DROP VIEW IF EXISTS rates");
+        assertDialect(SqlDialect.SPARK, "SELECT 'DROP TEMPORARY VIEW lake.ops.Rates' AS note");
     }
 
     @Test
