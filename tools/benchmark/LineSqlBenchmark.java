@@ -1,3 +1,5 @@
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.linesql.core.LineSql;
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
@@ -12,6 +14,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -41,6 +44,8 @@ public final class LineSqlBenchmark {
             runNoColumn(args);
         } else if ("debug".equals(command)) {
             runDebug(args);
+        } else if ("manifest-auto".equals(command)) {
+            runManifestAuto(args);
         } else {
             usage();
             throw new IllegalArgumentException("Unknown command: " + command);
@@ -54,8 +59,65 @@ public final class LineSqlBenchmark {
         System.out.println("  eval <input.tsv> <report.md> <failures.tsv> [--dialect DIALECT]");
         System.out.println("  no-column <input.tsv> [samples.tsv]");
         System.out.println("  debug <sql-file> [--dialect DIALECT]");
+        System.out.println("  manifest-auto <repo-root>");
         System.out.println();
         System.out.println("Input TSV columns: taskRow<TAB>scriptIndex<TAB>sqlBase64");
+    }
+
+    private static void runManifestAuto(String[] args) throws IOException {
+        if (args.length != 2) {
+            throw new IllegalArgumentException("manifest-auto requires <repo-root>");
+        }
+        Path root = Paths.get(args[1]);
+        ObjectMapper mapper = new ObjectMapper();
+        Map<SqlDialect, ManifestAutoStats> byDialect = new TreeMap<>();
+        ManifestAutoStats total = new ManifestAutoStats();
+        String modulePrefix = "linesql-dialect-";
+        try (DirectoryStream<Path> modules = Files.newDirectoryStream(root, modulePrefix + "*")) {
+            for (Path module : modules) {
+                String family = module.getFileName().toString().substring(modulePrefix.length());
+                Path manifest = module.resolve("src/test/resources/sql").resolve(family).resolve("manifest.json");
+                if (!Files.isRegularFile(manifest)) {
+                    continue;
+                }
+                JsonNode document = mapper.readTree(manifest.toFile());
+                SqlDialect expected = SqlDialect.valueOf(document.path("dialect").asText());
+                ManifestAutoStats stats = byDialect.computeIfAbsent(expected, ignored -> new ManifestAutoStats());
+                for (JsonNode sqlCase : document.path("cases")) {
+                    Path sqlPath = manifest.getParent().resolve(sqlCase.path("file").asText());
+                    String sql = new String(Files.readAllBytes(sqlPath), StandardCharsets.UTF_8);
+                    evaluateAutomaticSql(sql, expected, stats);
+                }
+            }
+        }
+        byDialect.values().forEach(total::add);
+        if (total.cases == 0) {
+            throw new IllegalArgumentException("No SQL case manifests found under " + root);
+        }
+
+        System.out.println("| Dialect | Cases | Automatic parse success | Automatic dialect match |");
+        System.out.println("| --- | ---: | ---: | ---: |");
+        for (Map.Entry<SqlDialect, ManifestAutoStats> entry : byDialect.entrySet()) {
+            entry.getValue().print(entry.getKey().name());
+        }
+        total.print("Total");
+    }
+
+    private static void evaluateAutomaticSql(String sql, SqlDialect expected, ManifestAutoStats stats) {
+        stats.cases++;
+        List<LineageResult> results;
+        try {
+            results = LineSql.parseScript(sql);
+        } catch (RuntimeException | StackOverflowError error) {
+            return;
+        }
+        if (!results.isEmpty() && results.stream().allMatch(result ->
+                result.getStatementType() != null && result.getStatementType() != StatementType.UNKNOWN && !hasError(result))) {
+            stats.parseSuccess++;
+            if (results.stream().allMatch(result -> result.getDialect() == expected)) {
+                stats.dialectMatch++;
+            }
+        }
     }
 
     private static void runEval(String[] args) throws IOException {
@@ -363,6 +425,23 @@ public final class LineSqlBenchmark {
                 ? table.getName()
                 : table.getSchema() + "." + table.getName();
         return prefix + "." + column.getName();
+    }
+
+    private static final class ManifestAutoStats {
+        long cases;
+        long parseSuccess;
+        long dialectMatch;
+
+        void add(ManifestAutoStats other) {
+            cases += other.cases;
+            parseSuccess += other.parseSuccess;
+            dialectMatch += other.dialectMatch;
+        }
+
+        void print(String label) {
+            System.out.printf(Locale.ROOT, "| %s | %d | %d (%s) | %d (%s) |%n",
+                    label, cases, parseSuccess, pct(parseSuccess, cases), dialectMatch, pct(dialectMatch, cases));
+        }
     }
 
     private static final class CorpusRow {

@@ -18,8 +18,8 @@ if [[ -z "$JHOME" || ! -x "$JHOME/bin/java" ]]; then
 fi
 
 cd "$ROOT_DIR"
-"$ROOT_DIR/scripts/mvn-jdk11" -q -pl linesql-all -am -DskipTests compile
-"$ROOT_DIR/scripts/mvn-jdk11" -q -pl linesql-all -DincludeScope=runtime \
+"$ROOT_DIR/scripts/mvn-jdk11" -q -pl linesql-cli -am -DskipTests compile
+"$ROOT_DIR/scripts/mvn-jdk11" -q -pl linesql-cli -DincludeScope=runtime \
   -Dmdep.outputFile="$ROOT_DIR/target/benchmark-deps.classpath" \
   dependency:build-classpath
 

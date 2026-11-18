@@ -74,6 +74,16 @@ docs/supported-scenarios.md
 docs/grammar-coverage-matrix.md
 ```
 
+## Automatic Dialect Benchmark
+
+Run the automatic parser against the public SQL case manifests.
+
+```bash
+./scripts/benchmark-corpus manifest-auto .
+```
+
+A case parses successfully when every statement has a known type and no error diagnostics. A dialect match also requires every statement to use the dialect named in the manifest. The command reports both rates by dialect and for the entire corpus. Use the same manifest checkout when comparing parser versions. Identical SQL can appear under multiple dialect labels, including MySQL and OceanBase or Oracle and OceanBase. These cases can produce useful lineage even when automatic detection chooses a different compatible dialect.
+
 ## Production SQL Benchmark Policy
 
 Production SQL benchmarks are useful only when sensitive names are anonymized and the methodology is clear.
