@@ -1493,6 +1493,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkTemporaryViewIfAbsentAndKeepsViewLineage() {
+        LineageResult view = LineSql.parse("CREATE TEMPORARY VIEW IF NOT EXISTS tmp.v_orders "
+                + "COMMENT 'recent orders' AS SELECT order_id FROM ods.orders");
+        assertEquals(SqlDialect.FLINK, view.getDialect());
+        assertEquals(StatementType.CREATE_VIEW, view.getStatementType());
+        assertEquals("v_orders", view.getOutputTables().get(0).getName());
+        assertEquals("order_id", view.getColumnLineage().get(0).getSources().get(0).getName());
+        assertTrue(view.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.SPARK, "CREATE TEMPORARY VIEW v_orders AS SELECT order_id FROM ods.orders");
+        assertDialect(SqlDialect.SPARK, "CREATE VIEW IF NOT EXISTS v_orders AS SELECT order_id FROM ods.orders");
+    }
+
+    @Test
     public void detectsFlinkDistributionWatermarkAndCurrentCatalog() {
         LineageResult distribution = LineSql.parse(
                 "ALTER TABLE ods.orders ADD DISTRIBUTION BY HASH(order_id) INTO 4 BUCKETS");

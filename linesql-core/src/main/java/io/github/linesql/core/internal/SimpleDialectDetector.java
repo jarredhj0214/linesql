@@ -130,6 +130,8 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*(?:lock\\s+table\\b[^;]+\\b(?:shared|exclusive)\\s*(?:;|$)"
                     + "|unlock\\s+table\\b|show\\s+(?:locks|compactions)\\b|reload\\s+function\\b)");
     private static final Pattern FLINK_SHOW_CURRENT_CATALOG = Pattern.compile("^\\s*show\\s+current\\s+catalog\\b");
+    private static final Pattern FLINK_CREATE_TEMPORARY_VIEW_IF_ABSENT =
+            Pattern.compile("^\\s*create\\s+temporary\\s+view\\s+if\\s+not\\s+exists\\b");
     private static final Pattern FLINK_DROP_TEMPORARY_VIEW = Pattern.compile("^\\s*drop\\s+temporary\\s+view\\b");
     private static final Pattern FLINK_PARTITION_OPTIONS = Pattern.compile(
             "^\\s*alter\\s+table\\b[^;]*\\badd\\s+(?:if\\s+not\\s+exists\\s+)?"
@@ -982,6 +984,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && SESSION_OPTION_COMMAND.matcher(unquotedSyntax).find()
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_SESSION_OPTION))) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink SQL session option"));
+        } else if (FLINK_CREATE_TEMPORARY_VIEW_IF_ABSENT.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink temporary view creation with IF NOT EXISTS"));
         } else if (FLINK_DROP_TEMPORARY_VIEW.matcher(unquotedSyntax).find()
                 || (containsStatementSeparator && unquotedSyntax.contains("temporary")
                         && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_DROP_TEMPORARY_VIEW))) {
