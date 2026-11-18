@@ -672,7 +672,11 @@ showStatement
     | SHOW CURRENT? ROLES                                            #showGenericMetadata
     | SHOW ROLE GRANT (USER | ROLE) identifier                       #showGenericMetadata
     | SHOW PRINCIPALS                                                #showGenericMetadata
-    | SHOW COMPACTIONS                                               #showGenericMetadata
+    | SHOW COMPACTIONS
+      (COMPACTIONID EQ number
+      | ((DATABASE | SCHEMA) identifier | table=multipartIdentifier (PARTITION partitionSpec)?)?
+        (POOL string)? (TYPE string)? (STATUS string)?
+        (ORDER BY sortItem (COMMA sortItem)*)? (LIMIT number)?)        #showCompactionMetadata
     | SHOW TRANSACTIONS                                              #showGenericMetadata
     | SHOW CONF string                                               #showGenericMetadata
     | SHOW CONNECTORS                                                #showGenericMetadata
@@ -859,7 +863,7 @@ nonReservedKeyword
     | DATE | DBPROPERTIES | DFS | DIV | FIRST | LAST | NULLS | FUNCTION | FUNCTIONS | GRANT | IF | INPUTFORMAT | INTERVAL | ITEMS | JAR | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | LOCK | LOCKS | MAP | NULL | OF | OPTION | OWNER | OUT
     | EXPORT | FOLLOWING | IMPORT | INDEX | INDEXES | MATERIALIZED | MATCHED | MERGE | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PRECEDING | PURGE | RANGE | REDUCE | RENAME | REWRITE
     | COMPACT | COMPACTIONS | CONCATENATE | CONF | CURRENT | EXCHANGE | OUTPUTFORMAT | PRINCIPALS | PRIVILEGES | REGEXP | RELOAD | REPAIR | REPLACE | RESET | RESTRICT | REVOKE | RLIKE | ROLE | ROLES | ROW | SCHEMA | SCHEMAS | SEMI_KW | SERDE | SERDEPROPERTIES | SET | SHARED | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TABLES | TBLPROPERTIES | TRANSACTIONS
-    | CONNECTOR | CONNECTORS | DCPROPERTIES | TYPE | URL | REMOTE
+    | CONNECTOR | CONNECTORS | DCPROPERTIES | TYPE | URL | REMOTE | COMPACTIONID | POOL | STATUS
     | SYSTEM_TIME | SYSTEM_VERSION | EXECUTE | ROLLBACK | EXPIRE_SNAPSHOTS | SET_CURRENT_SNAPSHOT
     | FAST_FORWARD | CHERRY_PICK | ORPHAN_FILES | RETAIN | OLDER | THAN
     | DAY | HOUR | MONTH | SPEC | YEAR | BUCKET | BUCKETS | CLUSTERED | DIRECTORIES | DISABLE | ENABLE | KEY | NORELY | NOVALIDATE | ORDERED | WRITE | LOCALLY | ZORDER | PERCENT_KW | RELY | ROWS | SKEWED | SORTED | TABLESAMPLE | TEMPORARY | TERMINATED | TIMESTAMP | TO | TOUCH | TRANSFORM | TRUE | TRUNCATE | UNARCHIVE | UNBOUNDED | UNLOCK | UNSET | USE | USER | VALIDATE | VALUES | VIEW | WAIT | WINDOW

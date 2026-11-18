@@ -4170,6 +4170,56 @@
       "description": "Hive SHOW FUNCTIONS LIKE is classified as metadata inspection"
     },
     {
+      "id": "show_compactions_filtered_partition",
+      "file": "cases/show_compactions_filtered_partition.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "sales.orders.ds"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "cq_table"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "cq_state"
+        }
+      ],
+      "description": "Hive compactions distinguish partition keys from result metadata sort columns"
+    },
+    {
+      "id": "show_compactions_database_filter",
+      "file": "cases/show_compactions_database_filter.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "ORDER_BY",
+          "column": "cq_state"
+        }
+      ],
+      "description": "Hive database compaction filtering has no table reference and retains metadata ordering"
+    },
+    {
+      "id": "show_compactions_id",
+      "file": "cases/show_compactions_id.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive compaction id filtering has no table lineage"
+    },
+    {
       "id": "show_compactions",
       "file": "cases/show_compactions.sql",
       "statementType": "READ_METADATA",

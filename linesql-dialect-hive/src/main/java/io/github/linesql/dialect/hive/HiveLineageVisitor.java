@@ -838,6 +838,25 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitShowCompactionMetadata(HiveParser.ShowCompactionMetadataContext ctx) {
+        if (ctx.table != null) {
+            TableRef table = tableRef(ctx.table);
+            addInputTable(table, false);
+            Set<String> columns = new LinkedHashSet<>();
+            collectPartitionColumns(ctx, columns);
+            addMetadataColumns(table, columns);
+        }
+        List<ColumnRef> metadataSortKeys = new ArrayList<>();
+        for (HiveParser.SortItemContext sort : ctx.sortItem()) {
+            for (SourceColumn column : sourceColumns(sort.expression())) {
+                metadataSortKeys.add(new ColumnRef(null, column.name));
+            }
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.ORDER_BY, metadataSortKeys);
+        return null;
+    }
+
+    @Override
     public Void visitShowLockMetadata(HiveParser.ShowLockMetadataContext ctx) {
         if (ctx.target != null) {
             inputTables.add(tableRef(ctx.target));
