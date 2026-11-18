@@ -2942,6 +2942,141 @@
       "description": "Pipe WHERE followed by SELECT preserves source and column lineage"
     },
     {
+      "id": "pipe_set_following_filter_lineage",
+      "file": "cases/pipe_set_following_filter_lineage.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "total",
+          "sources": [
+            "ods.orders.price",
+            "ods.orders.qty"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.qty"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.orders.price"
+        }
+      ],
+      "description": "Pipe SET updates later predicate and projection dependencies"
+    },
+    {
+      "id": "pipe_set_simultaneous_assignments",
+      "file": "cases/pipe_set_simultaneous_assignments.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "units",
+          "sources": [
+            "ods.orders.qty"
+          ]
+        },
+        {
+          "target": "unit_price",
+          "sources": [
+            "ods.orders.price"
+          ]
+        }
+      ],
+      "description": "Pipe SET reads all assignment values from the same input stage"
+    },
+    {
+      "id": "pipe_set_cte_chained_assignments",
+      "file": "cases/pipe_set_cte_chained_assignments.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.sales"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "total",
+          "sources": [
+            "ods.sales.net",
+            "ods.sales.extra"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.sales.net"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.sales.extra"
+        }
+      ],
+      "description": "Successive Pipe SET updates preserve original CTE dependencies through a new SELECT alias"
+    },
+    {
+      "id": "pipe_set_terminal_projection",
+      "file": "cases/pipe_set_terminal_projection.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "unit_price",
+          "sources": [
+            "ods.orders.price"
+          ]
+        },
+        {
+          "target": "qty",
+          "sources": [
+            "ods.orders.qty"
+          ]
+        },
+        {
+          "target": "amount",
+          "sources": [
+            "ods.orders.price",
+            "ods.orders.qty"
+          ]
+        }
+      ],
+      "description": "Terminal Pipe SET replaces a projected column in place"
+    },
+    {
+      "id": "pipe_set_literal_replacement",
+      "file": "cases/pipe_set_literal_replacement.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "amount",
+          "sources": []
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.id"
+        }
+      ],
+      "description": "A constant Pipe SET assignment does not invent a physical reference; a later SELECT after a wildcard keeps the replacement"
+    },
+    {
       "id": "pipe_drop_column_projection",
       "file": "cases/pipe_drop_column_projection.sql",
       "statementType": "SELECT",

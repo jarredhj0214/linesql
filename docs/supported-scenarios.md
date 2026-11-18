@@ -2415,6 +2415,7 @@ Implemented Spark table-level lineage scenarios:
 | Spark range table-valued function generated column | `select id from range(10)` | `table_valued_function_range` |
 | Pipe SELECT source lineage | `from ods.users |> select id` | `pipe_select_column_projection` |
 | Pipe WHERE and SELECT source lineage | `from ods.users |> where ... |> select id` | `pipe_where_select_lineage` |
+| Pipe SET replacement lineage | A pipe stage evaluates all assignments from the previous stage. Updated column dependencies carry through subsequent projections, filters, and assignments, including aliases and CTE sources. | `pipe_set_following_filter_lineage`, `pipe_set_simultaneous_assignments`, `pipe_set_cte_chained_assignments`, `pipe_set_terminal_projection`, `pipe_set_literal_replacement` |
 | Pipe DROP and SELECT source lineage | `from ods.users |> drop name |> select id` | `pipe_drop_column_projection` |
 | Pipe EXTEND source lineage | `from ods.users |> extend upper(name) as name_upper` | `pipe_extend_table_lineage` |
 | Pipe EXTEND generated column lineage | `from ods.users |> extend upper(name) as name_upper |> select name_upper` | `pipe_extend_column_lineage` |

@@ -35,6 +35,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private final Set<String> derivedReferences = new LinkedHashSet<>();
     private final Map<SqlBaseParser.QueryContext, LineageResult> correlatedQueries = new IdentityHashMap<>();
     private final Map<String, List<SourceColumn>> generatedColumns = new LinkedHashMap<>();
+    private final Map<String, List<ColumnRef>> pipeAssignedColumns = new LinkedHashMap<>();
     private final Map<String, List<ColumnRef>> qualifiedColumnHints = new LinkedHashMap<>();
     private final List<Projection> projections = new ArrayList<>();
     private final Map<Projection, Set<String>> projectionWindowReferences = new LinkedHashMap<>();
@@ -67,11 +68,15 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     void finalizeResult() {
+        flushPendingColumnUsages();
+        refreshColumnLineage();
+    }
+
+    private void flushPendingColumnUsages() {
         for (PendingColumnUsage usage : pendingColumnUsages) {
             addColumnUsages(usage.type, usage.sourceColumns);
         }
         pendingColumnUsages.clear();
-        refreshColumnLineage();
     }
 
     @Override
@@ -134,6 +139,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         branch.derivedAliases.putAll(derivedAliases);
         branch.derivedReferences.addAll(derivedReferences);
         branch.generatedColumns.putAll(generatedColumns);
+        branch.pipeAssignedColumns.putAll(pipeAssignedColumns);
         branch.qualifiedColumnHints.putAll(qualifiedColumnHints);
         branch.visibleRelations.addAll(visibleRelations);
         branch.usingJoinKeys = usingJoinKeys;
@@ -1985,6 +1991,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitOperatorPipeRightSide(SqlBaseParser.OperatorPipeRightSideContext ctx) {
+        if (ctx.operatorPipeSetAssignmentSeq() != null) {
+            applyPipeAssignments(ctx.operatorPipeSetAssignmentSeq());
+            return null;
+        }
         if (ctx.extendList != null) {
             for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.extendList.namedExpression()) {
                 Projection projection = projection(namedExpression);
@@ -2028,6 +2038,9 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         if (ctx.selectClause() != null) {
             clearPipeOutputProjections();
+            if (!pipeAssignedColumns.isEmpty()) {
+                return visitPipeSelectionAfterAssignment(ctx);
+            }
         }
         if (ctx.operator != null && ctx.right != null) {
             refreshColumnLineage();
@@ -2043,6 +2056,108 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             return null;
         }
         return visitChildren(ctx);
+    }
+
+    private void applyPipeAssignments(SqlBaseParser.OperatorPipeSetAssignmentSeqContext ctx) {
+        flushPendingColumnUsages();
+        Map<String, List<ColumnRef>> assignments = new LinkedHashMap<>();
+        Map<String, String> expressions = new LinkedHashMap<>();
+        for (int i = 0; i < ctx.ident.size(); i++) {
+            String name = cleanIdentifier(ctx.ident.get(i).getText());
+            SqlBaseParser.ExpressionContext expression = ctx.expression(i);
+            List<SourceColumn> sources = new ArrayList<>(sourceColumnsExcludingSubqueries(expression));
+            sources.addAll(queryProjectionSourceColumns(expression));
+            collectSubqueryInputs(expression);
+            // All assignment expressions read the preceding stage, including assignments to themselves.
+            List<ColumnRef> refs = new ArrayList<>();
+            boolean resolved = true;
+            for (SourceColumn source : sources) {
+                List<ColumnRef> input = columnRefsFromProjection(source);
+                if (input == null) {
+                    input = columnRefs(Collections.singletonList(source), new LinkedHashSet<String>());
+                }
+                if (input == null) {
+                    resolved = false;
+                } else {
+                    refs.addAll(input);
+                }
+            }
+            String key = name.toLowerCase(Locale.ROOT);
+            assignments.put(key, resolved ? refs : null);
+            expressions.put(key, expression.getText());
+        }
+        Map<String, List<ColumnRef>> inputs = new LinkedHashMap<>();
+        for (int i = 0; i < projections.size(); i++) {
+            Projection old = projections.get(i);
+            if (old.star) {
+                continue;
+            }
+            String key = old.targetColumn.toLowerCase(Locale.ROOT);
+            boolean reassigned = assignments.containsKey(key);
+            List<ColumnRef> refs = reassigned ? assignments.get(key) : columnRefs(old);
+            inputs.put(key, refs);
+            List<SourceColumn> sources = refs == null ? Collections.singletonList(new SourceColumn(null, key))
+                    : resolvedSources(refs);
+            projections.set(i, new Projection(sources, old.targetColumn,
+                    reassigned ? expressions.get(key) : old.expression, old.ordinal));
+        }
+        for (int i = 0; i < ctx.ident.size(); i++) {
+            String name = cleanIdentifier(ctx.ident.get(i).getText());
+            String key = name.toLowerCase(Locale.ROOT);
+            List<ColumnRef> refs = assignments.get(key);
+            if (refs != null && !inputs.containsKey(key)) {
+                projections.add(new Projection(resolvedSources(refs), name, expressions.get(key)));
+            }
+        }
+        pipeAssignedColumns.putAll(inputs);
+        pipeAssignedColumns.putAll(assignments);
+        pipeOutputProjectionStart = 0;
+        refreshColumnLineage();
+    }
+
+    private Void visitPipeSelectionAfterAssignment(SqlBaseParser.OperatorPipeRightSideContext ctx) {
+        visitChildren(ctx);
+        flushPendingColumnUsages();
+        pipeOutputProjectionStart = 0;
+        if (projections.stream().anyMatch(projection -> projection.star)) {
+            return null;
+        }
+        Map<String, List<ColumnRef>> selected = new LinkedHashMap<>();
+        for (int i = 0; i < projections.size(); i++) {
+            Projection projection = projections.get(i);
+            List<ColumnRef> refs = columnRefs(projection);
+            selected.put(projection.targetColumn.toLowerCase(Locale.ROOT), refs);
+            if (refs != null) {
+                projections.set(i, new Projection(resolvedSources(refs),
+                        projection.targetColumn, projection.expression, projection.ordinal));
+            }
+        }
+        pipeAssignedColumns.clear();
+        pipeAssignedColumns.putAll(selected);
+        return null;
+    }
+
+    private static List<SourceColumn> resolvedSources(List<ColumnRef> refs) {
+        List<SourceColumn> sources = new ArrayList<>();
+        for (ColumnRef ref : refs) {
+            sources.add(SourceColumn.resolved(ref));
+        }
+        return sources;
+    }
+
+    private String pipeAssignedColumnKey(SourceColumn source) {
+        if (source.resolvedRef != null || pipeAssignedColumns.isEmpty()) {
+            return null;
+        }
+        SourceColumn scoped = scopedSourceColumn(source);
+        if (scoped.qualifier != null) {
+            String qualifier = scoped.qualifier.toLowerCase(Locale.ROOT);
+            if (visibleRelationCount != 1 || !(tableAliases.containsKey(qualifier)
+                    || derivedAliases.containsKey(qualifier))) {
+                return null;
+            }
+        }
+        return scoped.name.toLowerCase(Locale.ROOT);
     }
 
     @Override
@@ -3085,6 +3200,9 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     private void addVisibleSingleTableClauseRef(List<ColumnRef> refs, SourceColumn sourceColumn) {
+        if (pipeAssignedColumns.containsKey(pipeAssignedColumnKey(sourceColumn))) {
+            return;
+        }
         if (sourceColumn.qualifier != null || firstVisibleInputTable == null || sourceColumn.name.contains(".")
                 || usingJoinKeys.containsKey(sourceColumn.name.toLowerCase(Locale.ROOT))) {
             return;
@@ -3131,6 +3249,15 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         for (SourceColumn rawSourceColumn : sourceColumns) {
             if (rawSourceColumn.resolvedRef != null) {
                 refs.add(rawSourceColumn.resolvedRef);
+                continue;
+            }
+            String pipeKey = pipeAssignedColumnKey(rawSourceColumn);
+            if (pipeAssignedColumns.containsKey(pipeKey)) {
+                List<ColumnRef> assigned = pipeAssignedColumns.get(pipeKey);
+                if (assigned == null) {
+                    return null;
+                }
+                refs.addAll(assigned);
                 continue;
             }
             SourceColumn sourceColumn = scopedSourceColumn(rawSourceColumn);
