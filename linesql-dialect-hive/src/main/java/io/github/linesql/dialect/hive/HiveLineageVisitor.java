@@ -770,6 +770,13 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitScheduledQueryStmt(HiveParser.ScheduledQueryStmtContext ctx) {
+        visitChildren(ctx);
+        result.setStatementType(StatementType.CONTROL);
+        return null;
+    }
+
+    @Override
     public Void visitConnectorStmt(HiveParser.ConnectorStmtContext ctx) {
         result.setStatementType(StatementType.CONTROL);
         return null;

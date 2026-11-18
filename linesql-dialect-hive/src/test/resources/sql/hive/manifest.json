@@ -2748,6 +2748,101 @@
       "description": "Hive LOAD DATA LOCAL INPATH OVERWRITE into table lineage"
     },
     {
+      "id": "create_scheduled_query_insert_lineage",
+      "file": "cases/create_scheduled_query_insert_lineage.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [
+        "mart.daily_revenue"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.daily_revenue.account_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        },
+        {
+          "target": "mart.daily_revenue.revenue",
+          "sources": [
+            "dwd.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.order_state"
+        },
+        {
+          "type": "GROUP_BY",
+          "column": "dwd.orders.user_id"
+        }
+      ],
+      "description": "Hive scheduled INSERT retains source table, target columns, aggregate sources and predicate references"
+    },
+    {
+      "id": "alter_scheduled_query_defined_as",
+      "file": "cases/alter_scheduled_query_defined_as.sql",
+      "statementType": "CONTROL",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "account_id",
+          "sources": [
+            "dwd.orders.user_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "dwd.orders.amount"
+        }
+      ],
+      "description": "Replacing a Hive schedule definition retains its inner query lineage"
+    },
+    {
+      "id": "script_scheduled_query_control",
+      "file": "cases/script_scheduled_query_control.sql",
+      "statementType": "MULTI",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        }
+      ],
+      "description": "Hive schedule changes and immediate triggering have no runtime table lineage to infer"
+    },
+    {
       "id": "script_hive_data_connector_lifecycle",
       "file": "cases/script_hive_data_connector_lifecycle.sql",
       "statementType": "MULTI",

@@ -458,6 +458,8 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s+(?:from|in)\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*)?"
                     + "(?:\\s+like\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "))?\\s+where\\b");
     private static final String HIVE_TABLE_IDENTIFIER = "(?:[\\p{L}_][\\p{L}\\p{N}_$]*|" + BACKTICK_IDENTIFIER + ")";
+    private static final Pattern HIVE_SCHEDULED_QUERY =
+            Pattern.compile("^\\s*(?:create|alter|drop)\\s+scheduled\\s+query\\b");
     private static final Pattern HIVE_DATA_CONNECTOR = Pattern.compile(
             "^\\s*(?:(?:create|alter|drop)\\s+connector|desc(?:ribe)?\\s+connector"
                     + "|show\\s+connectors|create\\s+remote\\s+(?:database|schema))\\b");
@@ -804,6 +806,11 @@ public class SimpleDialectDetector implements DialectDetector {
         if (HIVE_EXPLAIN_OR_TRANSACTIONS.matcher(unquotedSyntax).find()
                 || normalized.matches("(?s)^\\s*show\\s+conf\\s+'hive\\..*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive explain details or session metadata syntax"));
+        }
+        if (HIVE_SCHEDULED_QUERY.matcher(unquotedSyntax).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("scheduled")
+                        && hasStatementInScript(unwrapped, SqlDialect.HIVE, HIVE_SCHEDULED_QUERY))) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive scheduled query syntax"));
         }
         if (HIVE_DATA_CONNECTOR.matcher(unquotedSyntax).find()
                 || (containsStatementSeparator && (unquotedSyntax.contains("connector") || unquotedSyntax.contains("remote"))

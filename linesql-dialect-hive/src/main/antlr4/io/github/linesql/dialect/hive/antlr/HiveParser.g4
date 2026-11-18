@@ -27,6 +27,7 @@ statement
     | alterDatabaseStatement                                         #alterDatabaseStmt
     | dropDatabaseStatement                                          #dropDatabaseStmt
     | connectorStatement                                             #connectorStmt
+    | scheduledQueryStatement                                        #scheduledQueryStmt
     | useStatement                                                   #useStmt
     | setStatement                                                   #setStmt
     | resetStatement                                                 #resetStmt
@@ -558,6 +559,29 @@ connectorStatement
     | DROP CONNECTOR (IF EXISTS)? identifier
     ;
 
+scheduledQueryStatement
+    : CREATE SCHEDULED QUERY identifier scheduleSpec scheduleOwner? scheduleEnabled? scheduledDefinition
+    | ALTER SCHEDULED QUERY identifier (scheduleSpec | scheduleOwner | scheduleEnabled | scheduledDefinition | EXECUTE)
+    | DROP SCHEDULED QUERY identifier
+    ;
+
+scheduleSpec
+    : CRON string
+    | EVERY number? (SECOND | MINUTE | HOUR | HOURS | DAY | DAYS) ((AT | OFFSET BY) string)?
+    ;
+
+scheduleOwner
+    : EXECUTED AS string
+    ;
+
+scheduleEnabled
+    : ENABLE | ENABLED | DISABLE | DISABLED
+    ;
+
+scheduledDefinition
+    : DEFINED? AS (explainedStatement | analyzeTableStatement)
+    ;
+
 useStatement
     : USE identifier
     ;
@@ -864,6 +888,7 @@ nonReservedKeyword
     | EXPORT | FOLLOWING | IMPORT | INDEX | INDEXES | MATERIALIZED | MATCHED | MERGE | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PRECEDING | PURGE | RANGE | REDUCE | RENAME | REWRITE
     | COMPACT | COMPACTIONS | CONCATENATE | CONF | CURRENT | EXCHANGE | OUTPUTFORMAT | PRINCIPALS | PRIVILEGES | REGEXP | RELOAD | REPAIR | REPLACE | RESET | RESTRICT | REVOKE | RLIKE | ROLE | ROLES | ROW | SCHEMA | SCHEMAS | SEMI_KW | SERDE | SERDEPROPERTIES | SET | SHARED | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TABLES | TBLPROPERTIES | TRANSACTIONS
     | CONNECTOR | CONNECTORS | DCPROPERTIES | TYPE | URL | REMOTE | COMPACTIONID | POOL | STATUS
+    | SCHEDULED | QUERY | CRON | EVERY | EXECUTED | DEFINED | AT | SECOND | MINUTE | HOURS | DAYS | ENABLED | DISABLED
     | SYSTEM_TIME | SYSTEM_VERSION | EXECUTE | ROLLBACK | EXPIRE_SNAPSHOTS | SET_CURRENT_SNAPSHOT
     | FAST_FORWARD | CHERRY_PICK | ORPHAN_FILES | RETAIN | OLDER | THAN
     | DAY | HOUR | MONTH | SPEC | YEAR | BUCKET | BUCKETS | CLUSTERED | DIRECTORIES | DISABLE | ENABLE | KEY | NORELY | NOVALIDATE | ORDERED | WRITE | LOCALLY | ZORDER | PERCENT_KW | RELY | ROWS | SKEWED | SORTED | TABLESAMPLE | TEMPORARY | TERMINATED | TIMESTAMP | TO | TOUCH | TRANSFORM | TRUE | TRUNCATE | UNARCHIVE | UNBOUNDED | UNLOCK | UNSET | USE | USER | VALIDATE | VALUES | VIEW | WAIT | WINDOW
