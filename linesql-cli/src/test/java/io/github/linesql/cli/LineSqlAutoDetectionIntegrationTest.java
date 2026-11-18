@@ -1374,6 +1374,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsHiveColumnNameGlobWithSeparateDatabase() {
+        LineageResult result = LineSql.parse("SHOW COLUMNS FROM customers IN sales LIKE 'region*'");
+        assertEquals(SqlDialect.HIVE, result.getDialect());
+        assertEquals(StatementType.READ_METADATA, result.getStatementType());
+        assertEquals("sales", result.getInputTables().get(0).getSchema());
+        assertEquals("customers", result.getInputTables().get(0).getName());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.HIVE, "SHOW COLUMNS IN customers FROM sales LIKE 'region|market'");
+        assertTrue(LineSql.parse("SHOW COLUMNS FROM customers IN sales LIKE 'region_%'")
+                .getDialect() != SqlDialect.HIVE);
+    }
+
+    @Test
     public void detectsHiveColumnChangeScopeAndKeepsPartitionReferences() {
         LineageResult changed = LineSql.parse("ALTER TABLE `mart`.`users` PARTITION (dt='2026-11-18') "
                 + "ADD COLUMNS (score DECIMAL(12,2) COMMENT 'may be zero; value is optional') CASCADE");

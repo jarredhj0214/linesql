@@ -487,13 +487,14 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|show\\s+connectors|create\\s+remote\\s+(?:database|schema))\\b");
     private static final Pattern HIVE_SORTED_COLUMNS =
             Pattern.compile("^\\s*show\\s+sorted\\s+columns\\s+(?:from|in)\\b");
-    private static final Pattern HIVE_BARE_COLUMN_FILTER = Pattern.compile(
-            "^\\s*show\\s+columns\\s+(?:from|in)\\s+" + HIVE_TABLE_IDENTIFIER
-                    + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*"
-                    + "(?:\\s+(?:from|in)\\s+" + HIVE_TABLE_IDENTIFIER + ")?"
-                    + "\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + ")(?=\\s*(?:;|$))");
     private static final String HIVE_QUALIFIED_NAME =
             HIVE_TABLE_IDENTIFIER + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*";
+    private static final Pattern HIVE_COLUMN_FILTER = Pattern.compile(
+            "^\\s*show\\s+columns\\s+(?:from|in)\\s+" + HIVE_QUALIFIED_NAME
+                    + "(?:\\s+(?:from|in)\\s+" + HIVE_TABLE_IDENTIFIER + ")?\\s+"
+                    + "(?:(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + ")"
+                    + "|like\\s+(?:'[^'%_\\\\]*[*|][^'%_\\\\]*'|\"[^\"%_\\\\]*[*|][^\"%_\\\\]*\"))"
+                    + "(?=\\s*(?:;|$))");
     private static final String HIVE_PARTITION_SPEC =
             "\\s+partition\\s*\\((?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "|" + BACKTICK_IDENTIFIER
                     + "|[^()'\\\"`;]++)*+\\)";
@@ -938,8 +939,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive managed schema location or metadata cache syntax"));
         }
         if (HIVE_SORTED_COLUMNS.matcher(unquotedSyntax).find()
-                || HIVE_BARE_COLUMN_FILTER.matcher(normalized).find()) {
-            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive sorted columns or bare column pattern syntax"));
+                || HIVE_COLUMN_FILTER.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive sorted columns or column pattern syntax"));
         }
         if (HIVE_FILTERED_PARTITIONS.matcher(normalized).find()
                 || HIVE_DESCRIBE_PARTITION_COLUMN.matcher(normalized).find()) {
