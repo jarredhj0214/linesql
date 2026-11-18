@@ -49,6 +49,7 @@ Implemented script-level public API scenarios:
 | --- | --- | --- |
 | Per-statement auto detection in scripts | Hive DDL; Flink DDL; SQL Server `TOP` query | `LineSqlAutoDetectionIntegrationTest.parseScriptAutoDetectsEachStatementIndependently` |
 | Quoted text in dialect detection | Flink catalog, watermark and JSON signatures and PostgreSQL conflict, RETURNING and cast signatures are matched in SQL syntax outside quoted text. | `select_quoted_dialect_markers`, `LineSqlAutoDetectionIntegrationTest.ignoresFlinkAndPostgresSyntaxInsideQuotedText` |
+| Quoted vendor syntax | Ordinary strings containing Oracle query clauses, SQL Server hints or rowset names, and Hive storage keywords leave the actual SQL syntax available for detection. Brackets inside another quoted identifier are interpreted as part of that identifier. | `LineSqlAutoDetectionIntegrationTest.ignoresStorageAndVendorSyntaxInsideQuotedText` |
 | Partial results after bad SQL | valid SELECT; invalid statement; valid Flink DDL | `LineSqlAutoDetectionIntegrationTest.parseScriptKeepsPartialResultsAfterBadStatement` |
 
 Implemented CLI scenarios:

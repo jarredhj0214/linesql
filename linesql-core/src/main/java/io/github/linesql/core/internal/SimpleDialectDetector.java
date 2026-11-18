@@ -729,11 +729,11 @@ public class SimpleDialectDetector implements DialectDetector {
                 + "(?:rollback|expire_snapshots|set_current_snapshot|fast_forward|cherry_pick|delete\\s+orphan_files)\\b.*")
                 || unquotedSyntax.matches("(?s).*\\bstored\\s+by\\s+iceberg\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive Iceberg storage or snapshot maintenance syntax"));
-        } else if (normalized.matches("(?s).*\\brow\\s+format\\b.*")
-                || normalized.matches("(?s).*\\bstored\\s+as\\b.*")
+        } else if (unquotedSyntax.matches("(?s).*\\brow\\s+format\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bstored\\s+as\\b.*")
                 || relationSyntax.matches("(?s)^\\s*create\\s+(?:(?:temporary|external)\\s+)*table\\b.*\\bstored\\s+by\\b.*")
-                || normalized.matches("(?s).*\\bserdeproperties\\b.*")
-                || normalized.matches("(?s).*\\bclustered\\s+by\\b.*")) {
+                || unquotedSyntax.matches("(?s).*\\bserdeproperties\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bclustered\\s+by\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.90, "Hive storage or table layout syntax"));
         }
         if (SPARK_RECURSION_LEVEL.matcher(unquotedSyntax).find()) {
@@ -914,25 +914,25 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (relationSyntax.indexOf('@') >= 0 && ORACLE_REMOTE_RELATION
                 .matcher(QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.98, "Oracle database link on a relation"));
-        } else if (relationSyntax.matches("(?s).*[,\\s]xmltable\\s*\\(.*")) {
+        } else if (unquotedSyntax.matches("(?s).*[,\\s]xmltable\\s*\\(.*")) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.97, "XMLTABLE relation syntax"));
-        } else if (normalized.matches("(?s).*\\bfrom\\s+dual\\b.*")
-                || normalized.matches("(?s).*\\bconnect\\s+by\\b.*")
-                || (ORACLE_START_WITH.matcher(relationSyntax).find()
-                    && relationSyntax.matches("(?s).*\\bselect\\b[^;]*\\bstart\\s+with\\b.*"))
-                || normalized.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
+        } else if (unquotedSyntax.matches("(?s).*\\bfrom\\s+dual\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bconnect\\s+by\\b.*")
+                || (ORACLE_START_WITH.matcher(unquotedSyntax).find()
+                    && unquotedSyntax.matches("(?s).*\\bselect\\b[^;]*\\bstart\\s+with\\b.*"))
+                || unquotedSyntax.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
                 || (ORACLE_SAMPLE.matcher(unquotedSyntax).find()
                     && unquotedSyntax.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*"))
                 || (ORACLE_PARTITION.matcher(unquotedSyntax).find()
                     && unquotedSyntax.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*"))
-                || normalized.matches("(?s)^\\s*create\\s+(global|private)\\s+temporary\\s+table\\b.*")
-                || normalized.matches("(?s)^\\s*create\\s+table\\b.*\\b(nologging|logging|parallel|noparallel|compress|nocompress)\\b.*\\bas\\s+select\\b.*")
-                || normalized.matches("(?s)^\\s*drop\\s+table\\b.*\\bcascade\\s+constraints\\b.*")
-                || normalized.matches("(?s)^\\s*truncate\\s+(table\\s+)?\\S+\\s+(drop|reuse)\\s+storage\\b.*")
-                || normalized.matches("(?s).*\\breturning\\b.+\\binto\\b.*")
-                || normalized.matches("(?s)^\\s*create\\s+or\\s+replace\\s+trigger\\b.*")
-                || normalized.matches("(?s)^\\s*(create|alter|drop)\\s+(public\\s+)?(sequence|synonym)\\b.*")
-                || normalized.matches("(?s)^\\s*(create|drop)\\s+(public\\s+)?database\\s+link\\b.*")) {
+                || unquotedSyntax.matches("(?s)^\\s*create\\s+(global|private)\\s+temporary\\s+table\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*create\\s+table\\b.*\\b(nologging|logging|parallel|noparallel|compress|nocompress)\\b.*\\bas\\s+select\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*drop\\s+table\\b.*\\bcascade\\s+constraints\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*truncate\\s+(table\\s+)?\\S+\\s+(drop|reuse)\\s+storage\\b.*")
+                || unquotedSyntax.matches("(?s).*\\breturning\\b.+\\binto\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*create\\s+or\\s+replace\\s+trigger\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*(create|alter|drop)\\s+(public\\s+)?(sequence|synonym)\\b.*")
+                || unquotedSyntax.matches("(?s)^\\s*(create|drop)\\s+(public\\s+)?database\\s+link\\b.*")) {
             candidates.add(candidate(SqlDialect.ORACLE, 0.95, "Oracle DUAL, hierarchical, flashback, sequence, synonym, or DBLink syntax"));
         }
         boolean sqlServerGo = SimpleStatementSplitter.containsSqlServerGo(unquotedSyntax);
@@ -986,8 +986,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server FOR JSON or FOR XML output"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()
                 || containsSqlServerBracketIdentifier(relationSyntax)
-                || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")
-                || normalized.matches("(?s).*\\b(openjson|openxml|openquery|openrowset)\\s*\\(.*")) {
+                || unquotedSyntax.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")
+                || unquotedSyntax.matches("(?s).*\\b(openjson|openxml|openquery|openrowset)\\s*\\(.*")) {
             candidates.add(sqlServerGo
                     ? candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server syntax and GO batch delimiter")
                     : candidate(SqlDialect.SQLSERVER, 0.91,
@@ -1085,20 +1085,20 @@ public class SimpleDialectDetector implements DialectDetector {
     }
 
     private static boolean containsSqlServerBracketIdentifier(String sql) {
-        for (int i = 0; i < sql.length(); i++) {
-            if (sql.charAt(i) != '[') {
+        if (sql.indexOf('[') < 0) {
+            return false;
+        }
+        Matcher identifiers = QUOTED_IDENTIFIER.matcher(sql);
+        while (identifiers.find()) {
+            int start = identifiers.start();
+            if (sql.charAt(start) != '[' || identifiers.end() <= start + 2) {
                 continue;
             }
-            char previous = previousAdjacentNonWhitespace(sql, i);
+            char previous = previousAdjacentNonWhitespace(sql, start);
             if (Character.isLetterOrDigit(previous) || previous == '_' || previous == '.' || previous == ')' || previous == '`') {
                 continue;
             }
-            int end = sql.indexOf(']', i + 1);
-            if (end < 0) {
-                return false;
-            }
-            String content = sql.substring(i + 1, end);
-            if (!content.isEmpty() && isIdentifierStart(content.charAt(0))) {
+            if (isIdentifierStart(sql.charAt(start + 1))) {
                 return true;
             }
         }

@@ -713,6 +713,17 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void ignoresStorageAndVendorSyntaxInsideQuotedText() {
+        assertDialect(SqlDialect.SPARK, "SELECT 'FROM dual CONNECT BY parent_id' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'WITH (NOLOCK) and OPENJSON(value)' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'row format delimited and stored as orc' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT \"[warehouse]\" AS note");
+        assertDialect(SqlDialect.ORACLE, "SELECT 1 FROM dual");
+        assertDialect(SqlDialect.SQLSERVER, "SELECT [id] FROM dbo.orders WITH (NOLOCK)");
+        assertDialect(SqlDialect.HIVE, "CREATE TABLE mart.orders (id BIGINT) STORED AS ORC");
+    }
+
+    @Test
     public void ignoresSparkSignaturesInsidePlainStringLiterals() {
         LineageResult literal = LineSql.parse("SELECT 'using and explode(x)' AS note");
         assertEquals(SqlDialect.SPARK, literal.getDialect());
