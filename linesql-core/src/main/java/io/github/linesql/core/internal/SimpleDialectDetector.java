@@ -414,6 +414,9 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*explain\\s+(?:\\([^()]*\\)\\s*)?declare\\b");
     private static final Pattern POSTGRES_PREPARED_RESET = Pattern.compile(
             "^\\s*(?:deallocate\\s+(?:prepare\\s+)?all|discard\\s+(?:all|plans))\\b");
+    private static final Pattern STARROCKS_DICTIONARY_LOOKUP_OR_QUOTE = Pattern.compile(
+            "(\\b(?:dictionary_get|dict_mapping)\\s*\\(\\s*" + SINGLE_QUOTED_STRING + "\\s*,)"
+                    + "|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
     private static final Pattern SQL_SERVER_VECTOR_METRIC_OR_QUOTE = Pattern.compile(
             "(\\bvector_distance\\s*\\(\\s*n?'(?:cosine|dot|euclidean)'\\s*,)|"
                     + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
@@ -813,6 +816,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("external")
                         && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_EXTERNAL_CATALOG))) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks external catalog or catalog properties syntax"));
+        } else if ((unquotedSyntax.contains("dictionary_get") || unquotedSyntax.contains("dict_mapping"))
+                && containsSignatureOutsideQuotes(STARROCKS_DICTIONARY_LOOKUP_OR_QUOTE, normalized)) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary lookup syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
         } else if (STARROCKS_TABLE_MAINTENANCE.matcher(relationSyntax).find()
@@ -923,7 +929,7 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server external model or embedding syntax"));
         } else if (SQL_SERVER_VECTOR_QUERY.matcher(unquotedSyntax).find()
                 || SQL_SERVER_VECTOR_FLOAT16.matcher(unquotedSyntax).find()
-                || (unquotedSyntax.contains("vector_distance") && hasSqlServerVectorMetric(normalized))
+                || (unquotedSyntax.contains("vector_distance") && containsSignatureOutsideQuotes(SQL_SERVER_VECTOR_METRIC_OR_QUOTE, normalized))
                 || (CREATE_VECTOR_INDEX.matcher(unquotedSyntax).find()
                     && !ORACLE_VECTOR_SCHEMA.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.99, "SQL Server vector search or index syntax"));
@@ -1190,8 +1196,8 @@ public class SimpleDialectDetector implements DialectDetector {
         return false;
     }
 
-    private static boolean hasSqlServerVectorMetric(String sql) {
-        Matcher matcher = SQL_SERVER_VECTOR_METRIC_OR_QUOTE.matcher(sql);
+    private static boolean containsSignatureOutsideQuotes(Pattern signatureOrQuote, String sql) {
+        Matcher matcher = signatureOrQuote.matcher(sql);
         while (matcher.find()) {
             if (matcher.group(1) != null) {
                 return true;

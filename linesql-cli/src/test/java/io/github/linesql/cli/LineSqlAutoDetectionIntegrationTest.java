@@ -830,6 +830,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksDictionaryLookupsOutsideQuotedText() {
+        LineageResult result = LineSql.parse("SELECT dictionary_get('product_dict', product_id).ProductName "
+                + "AS product_name FROM dwd.orders");
+        assertEquals(SqlDialect.STARROCKS, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals("product_id", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertDialect(SqlDialect.STARROCKS, "SELECT dictionary_get('product_dict', product_id)[1] FROM dwd.orders");
+        assertDialect(SqlDialect.SPARK, "SELECT 'dictionary_get(''product_dict'', product_id)' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT dictionary_get(column_name) FROM dwd.orders");
+    }
+
+    @Test
     public void detectsStarRocksDictionaryLifecycleAndColumnLineage() {
         LineageResult dictionary = LineSql.parse("CREATE DICTIONARY user_dictionary USING dim.v_users "
                 + "(user_id KEY, user_name VALUE)");
