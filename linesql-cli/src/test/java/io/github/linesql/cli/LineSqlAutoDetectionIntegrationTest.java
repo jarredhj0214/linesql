@@ -804,6 +804,24 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksMaterializedViewOptionsAndRefreshSchedules() {
+        LineageResult properties = LineSql.parse("ALTER MATERIALIZED VIEW `mart`.`orders_mv` "
+                + "SET ('bloom_filter_columns' = 'user_id, order_id')");
+        assertEquals(SqlDialect.STARROCKS, properties.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, properties.getStatementType());
+        assertEquals("orders_mv", properties.getOutputTables().get(0).getName());
+        assertEquals(2, properties.getColumnUsages().size());
+        assertTrue(properties.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "ALTER MATERIALIZED VIEW mart.orders_mv REFRESH SCHEDULE EVERY(INTERVAL 1 DAY)");
+        List<LineageResult> script = LineSql.parseScript("USE mart; ALTER MATERIALIZED VIEW orders_mv INACTIVE;");
+        assertEquals(SqlDialect.STARROCKS, script.get(1).getDialect());
+        assertEquals("mart", script.get(1).getOutputTables().get(0).getSchema());
+        assertTrue(LineSql.parse("ALTER MATERIALIZED VIEW mart.orders_mv SET SCHEMA archive")
+                .getDialect() != SqlDialect.STARROCKS);
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER MATERIALIZED VIEW mart.orders_mv ACTIVE' AS note");
+    }
+
+    @Test
     public void detectsStarRocksMaterializedViewJobAndFilteredMetadata() {
         LineageResult filtered = LineSql.parse("SHOW MATERIALIZED VIEWS WHERE name = 'mv_user_orders'");
         assertEquals(SqlDialect.STARROCKS, filtered.getDialect());
@@ -832,6 +850,23 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.STARROCKS, "SHOW RUNNING QUERIES");
         assertDialect(SqlDialect.SPARK, "SELECT 'SHOW SQLBLACKLIST' AS note");
         assertDialect(SqlDialect.HIVE, "SHOW TRANSACTIONS");
+    }
+
+    @Test
+    public void detectsStarRocksSchemaAndStorageMaintenance() {
+        LineageResult distribution = LineSql.parse("ALTER TABLE `mart`.`orders` "
+                + "DISTRIBUTED BY HASH(account_id) DEFAULT BUCKETS 10");
+        assertEquals(SqlDialect.STARROCKS, distribution.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, distribution.getStatementType());
+        assertEquals("orders", distribution.getOutputTables().get(0).getName());
+        assertTrue(distribution.getColumnUsages().stream()
+                .anyMatch(usage -> "account_id".equals(usage.getColumn().getName())));
+        assertTrue(distribution.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.orders CUMULATIVE COMPACT (p1, p2)");
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.orders DROP PERSISTENT INDEX ON TABLETS (10001)");
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.orders MODIFY COLUMN profile ADD FIELD contact.email VARCHAR(100)");
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.orders DROP COLUMN amount FROM orders_rollup");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER TABLE mart.orders DROP PERSISTENT INDEX ON TABLETS' AS note");
     }
 
     @Test

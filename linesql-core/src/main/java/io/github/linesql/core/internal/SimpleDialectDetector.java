@@ -474,6 +474,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern STARROCKS_BRACKET_JOIN_HINT = Pattern.compile(
             "\\bjoin\\s+\\[\\s*(?:broadcast|shuffle|bucket|colocate)\\s*\\]\\s+"
                     + SQL_IDENTIFIER + "\\s*\\.\\s*" + SQL_IDENTIFIER);
+    private static final Pattern STARROCKS_MATERIALIZED_VIEW_OPTIONS = Pattern.compile(
+            "^\\s*alter\\s+materialized\\s+view\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
+                    + "(?:(?:active|inactive)(?=\\s*(?:;|$))|set\\s*\\("
+                    + "|refresh\\s+(?:(?:immediate|deferred)\\s+)?(?:async|schedule|manual)\\b)");
     private static final Pattern STARROCKS_PARTITION_MAINTENANCE = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
                     + "(?:drop\\s+partitions\\s+(?:if\\s+exists\\s+)?(?:where\\b|start\\s*\\(|\\()"
@@ -482,6 +486,13 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|modify\\s+partition\\s+(?:" + SQL_IDENTIFIER + "|\\([^;)]*\\))\\s+set\\s*\\("
                     + "|partitions\\s+" + SQL_IDENTIFIER + "\\s+distributed\\s+by\\s+(?:hash|random)\\b"
                     + "|recover\\s+partition\\s+" + SQL_IDENTIFIER + ")");
+    private static final Pattern STARROCKS_SCHEMA_MAINTENANCE = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
+                    + "(?:(?:base|cumulative)\\s+compact\\b|drop\\s+persistent\\s+index\\s+on\\s+tablets\\b"
+                    + "|distributed\\s+by\\s+hash\\s*\\([^;)]*\\)\\s+default\\s+buckets\\b"
+                    + "|modify\\s+column\\s+" + SQL_IDENTIFIER + "\\s+(?:add|drop)\\s+field\\b"
+                    + "|drop\\s+column\\s+" + SQL_IDENTIFIER + "\\s+from\\s+" + SQL_IDENTIFIER
+                    + "|order\\s+by\\s*\\([^;)]*\\)\\s+from\\s+" + SQL_IDENTIFIER + ")");
     private static final Pattern STARROCKS_TABLE_MAINTENANCE = Pattern.compile(
             "^\\s*alter\\s+(?:table|materialized\\s+view)\\s+" + SQL_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
@@ -863,8 +874,14 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary lookup syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
+        } else if (STARROCKS_MATERIALIZED_VIEW_OPTIONS.matcher(relationSyntax).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("materialized")
+                        && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_MATERIALIZED_VIEW_OPTIONS))) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks materialized view options or refresh syntax"));
         } else if (STARROCKS_PARTITION_MAINTENANCE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks partition maintenance syntax"));
+        } else if (STARROCKS_SCHEMA_MAINTENANCE.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks schema or storage maintenance syntax"));
         } else if (STARROCKS_TABLE_MAINTENANCE.matcher(relationSyntax).find()
                 || (containsStatementSeparator
                         && (unquotedSyntax.contains("rollup") || unquotedSyntax.contains("swap")
