@@ -804,6 +804,37 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksMaterializedViewJobAndFilteredMetadata() {
+        LineageResult filtered = LineSql.parse("SHOW MATERIALIZED VIEWS WHERE name = 'mv_user_orders'");
+        assertEquals(SqlDialect.STARROCKS, filtered.getDialect());
+        assertEquals(StatementType.READ_METADATA, filtered.getStatementType());
+        assertTrue(filtered.getColumnUsages().stream().anyMatch(usage -> "name".equals(usage.getColumn().getName())));
+        assertTrue(filtered.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "SHOW ALTER MATERIALIZED VIEW IN mart");
+        assertDialect(SqlDialect.STARROCKS, "SHOW MATERIALIZED VIEWS FROM `analytics` WHERE name LIKE 'mv_%'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW MATERIALIZED VIEWS WHERE name = 1' AS note");
+        assertTrue(LineSql.parse("SHOW MATERIALIZED VIEWS FROM analytics LIKE 'mv_where%'")
+                .getDialect() != SqlDialect.STARROCKS);
+    }
+
+    @Test
+    public void detectsStarRocksAdministrativeMetadataAndItsReferences() {
+        LineageResult data = LineSql.parse("SHOW DATA FROM sr_hub.sr_member");
+        assertEquals(SqlDialect.STARROCKS, data.getDialect());
+        assertEquals(StatementType.READ_METADATA, data.getStatementType());
+        assertEquals("sr_member", data.getInputTables().get(0).getName());
+        assertTrue(data.getDiagnostics().isEmpty());
+        LineageResult transaction = LineSql.parse("SHOW TRANSACTION FROM mart WHERE id = 4005");
+        assertEquals(SqlDialect.STARROCKS, transaction.getDialect());
+        assertTrue(transaction.getColumnUsages().stream().anyMatch(usage -> "id".equals(usage.getColumn().getName())));
+        assertTrue(transaction.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "SHOW ALL AUTHENTICATION");
+        assertDialect(SqlDialect.STARROCKS, "SHOW RUNNING QUERIES");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW SQLBLACKLIST' AS note");
+        assertDialect(SqlDialect.HIVE, "SHOW TRANSACTIONS");
+    }
+
+    @Test
     public void detectsStarRocksNamedAndBatchPartitionMaintenance() {
         LineageResult drop = LineSql.parse("ALTER TABLE mart.site_access DROP PARTITIONS "
                 + "WHERE dt < current_date() - INTERVAL 3 MONTH");

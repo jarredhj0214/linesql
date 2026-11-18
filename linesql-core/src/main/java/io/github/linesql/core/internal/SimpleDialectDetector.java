@@ -52,13 +52,18 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*(?:load\\s+label|(?:create|alter|pause|resume|stop)\\s+routine\\s+load)\\b");
 
     private static final Pattern STARROCKS_JOB_METADATA = Pattern.compile(
-            "^\\s*show\\s+(?:alter\\s+table\\s+(?:column|optimize|rollup)|export"
+            "^\\s*show\\s+(?:alter\\s+(?:table\\s+(?:column|optimize|rollup)|materialized\\s+view)|export"
                     + "|analyze\\s+(?:job|status)|all\\s+routine\\s+load)\\b");
 
     private static final Pattern STARROCKS_CLUSTER_METADATA = Pattern.compile(
             "^\\s*show\\s+(?:(?:backend|compute\\s+node)\\s+blacklist"
                     + "|backends|frontends|compute\\s+nodes|broker|resource\\s+groups?|resources"
                     + "|backup|repositories|snapshot\\s+on|restore(?=\\s+(?:from|in)\\b|\\s*(?:;|$)))\\b");
+
+    private static final Pattern STARROCKS_ADMIN_METADATA = Pattern.compile(
+            "^\\s*show\\s+(?:(?:all\\s+)?authentication|(?:multiple\\s+columns\\s+)?stats\\s+meta"
+                    + "|histogram\\s+meta|dynamic\\s+partition\\s+tables|running\\s+queries|sqlblacklist"
+                    + "|transaction|property|data|delete|file)\\b");
 
     private static final Pattern STARROCKS_CLUSTER_ADMIN = Pattern.compile(
             "^\\s*(?:alter\\s+system\\s+(?:(?:add|drop)\\s+(?:backend|compute\\s+node|follower|observer|broker)"
@@ -435,6 +440,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
     private static final String SQL_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern STARROCKS_FILTERED_MATERIALIZED_VIEWS = Pattern.compile(
+            "^\\s*show\\s+materialized\\s+views?"
+                    + "(?:\\s+(?:from|in)\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*)?"
+                    + "(?:\\s+like\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "))?\\s+where\\b");
     private static final String HIVE_TABLE_IDENTIFIER = "(?:[\\p{L}_][\\p{L}\\p{N}_$]*|" + BACKTICK_IDENTIFIER + ")";
     private static final Pattern HIVE_SET_FILEFORMAT = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + HIVE_TABLE_IDENTIFIER
@@ -858,10 +867,13 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("load")
                         && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_LOAD_COMMAND))) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks labeled or routine load syntax"));
-        } else if (STARROCKS_JOB_METADATA.matcher(unquotedSyntax).find()) {
+        } else if (STARROCKS_JOB_METADATA.matcher(unquotedSyntax).find()
+                || STARROCKS_FILTERED_MATERIALIZED_VIEWS.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks job metadata syntax"));
         } else if (STARROCKS_BACKUP_RESTORE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks snapshot or repository syntax"));
+        } else if (STARROCKS_ADMIN_METADATA.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks administrative metadata syntax"));
         } else if (STARROCKS_CLUSTER_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks cluster, resource, or backup metadata syntax"));
         } else if (STARROCKS_CLUSTER_ADMIN.matcher(unquotedSyntax).find()) {
