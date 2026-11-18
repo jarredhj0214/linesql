@@ -444,6 +444,15 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s*\\.\\s*" + ORACLE_RELATION_IDENTIFIER + ")*"
                     + "\\s+(?:(?:sub)?partition|sample(?:\\s+block)?)\\s*\\()"
                     + "|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
+    private static final Pattern STARROCKS_DATABASE_OPTIONS = Pattern.compile(
+            "^\\s*alter\\s+database\\s+" + SQL_IDENTIFIER
+                    + "\\s+(?:set\\s+(?:data|replica)\\s+quota\\b|rename\\s+(?!to\\b)" + SQL_IDENTIFIER
+                    + "(?=\\s*(?:;|$)))");
+    private static final Pattern STARROCKS_NATIVE_METADATA = Pattern.compile(
+            "^\\s*(?:desc(?:ribe)?\\s+files\\s*\\("
+                    + "|show\\s+(?:(?:temporary\\s+)?partitions\\s+from\\b|full\\s+builtin\\s+functions\\b"
+                    + "|catalogs(?:\\s+like\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "))?"
+                    + "\\s*(?:\\\\g(?=\\s*(?:;|$))|\\b(?:order\\s+by|where|limit)\\b)))");
     private static final Pattern STARROCKS_FILTERED_MATERIALIZED_VIEWS = Pattern.compile(
             "^\\s*show\\s+materialized\\s+views?"
                     + "(?:\\s+(?:from|in)\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*)?"
@@ -901,6 +910,9 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks job metadata syntax"));
         } else if (STARROCKS_BACKUP_RESTORE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks snapshot or repository syntax"));
+        } else if (STARROCKS_DATABASE_OPTIONS.matcher(relationSyntax).find()
+                || STARROCKS_NATIVE_METADATA.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks database options or metadata syntax"));
         } else if (STARROCKS_ADMIN_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks administrative metadata syntax"));
         } else if (STARROCKS_CLUSTER_METADATA.matcher(unquotedSyntax).find()) {

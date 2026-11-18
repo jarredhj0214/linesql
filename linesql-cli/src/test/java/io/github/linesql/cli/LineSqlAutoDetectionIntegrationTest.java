@@ -836,6 +836,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksDatabaseOptionsAndNativeMetadata() {
+        LineageResult partitions = LineSql.parse("SHOW PARTITIONS FROM `analytics`.`orders`");
+        assertEquals(SqlDialect.STARROCKS, partitions.getDialect());
+        assertEquals(StatementType.READ_METADATA, partitions.getStatementType());
+        assertEquals("orders", partitions.getInputTables().get(0).getName());
+        assertTrue(partitions.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "SHOW CATALOGS ORDER BY catalog LIMIT 20");
+        assertDialect(SqlDialect.STARROCKS, "SHOW CATALOGS\\G");
+        assertDialect(SqlDialect.STARROCKS, "DESC FILES('path' = 's3://demo/orders', 'format' = 'parquet')");
+        assertDialect(SqlDialect.STARROCKS, "ALTER DATABASE analytics SET DATA QUOTA 100 G");
+        assertDialect(SqlDialect.STARROCKS, "ALTER DATABASE analytics RENAME archive");
+        assertTrue(LineSql.parse("ALTER DATABASE analytics RENAME TO archive").getDialect() != SqlDialect.STARROCKS);
+        assertTrue(LineSql.parse("SHOW CATALOGS LIKE 'where order by'").getDialect() != SqlDialect.STARROCKS);
+    }
+
+    @Test
     public void detectsStarRocksAdministrativeMetadataAndItsReferences() {
         LineageResult data = LineSql.parse("SHOW DATA FROM sr_hub.sr_member");
         assertEquals(SqlDialect.STARROCKS, data.getDialect());
