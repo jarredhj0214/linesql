@@ -543,12 +543,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "\\s+(?:(?:set|reset)" + FLINK_STRING_OPTION_START
                     + "|comment\\s+" + SINGLE_QUOTED_STRING + ")");
     private static final Pattern STARROCKS_VARIABLE_HINT_OR_IGNORED_TOKEN = Pattern.compile(
-            "(/\\*\\+\\s*set_var\\s*\\("
-                    + "(?:\\s*[a-z_][\\w$]*\\s*=\\s*(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER
-                    + "|[^'\\\",();]+)\\s*,)*"
-                    + "\\s*(?:query_timeout|insert_timeout|query_mem_limit|dynamic_overwrite)\\s*=)"
-                    + "|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern()
+            "(/\\*\\+\\s*set_var\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern()
                     + "|--[^\\r\\n]*|(?s:/\\*.*?(?:\\*/|$))");
+    private static final Pattern STARROCKS_VARIABLE_HINT_OPTION = Pattern.compile(
+            "\\s*+([a-z_][\\w$]*)\\s*+=\\s*+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER
+                    + "|[^\\s'\\\",();]++)\\s*+([,)])");
     private static final Pattern FLINK_HINT_OR_IGNORED_TOKEN = Pattern.compile(
             "(/\\*\\+\\s*options\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern()
                     + "|--[^\\r\\n]*|(?s:/\\*.*?(?:\\*/|$))");
@@ -893,8 +892,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("prepare")
                         && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_PREPARED_QUERY))) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks direct PREPARE query"));
-        } else if (rawNormalized.contains("/*+")
-                && containsSignatureOutsideQuotes(STARROCKS_VARIABLE_HINT_OR_IGNORED_TOKEN, rawNormalized)) {
+        } else if (hasStarRocksVariableHint(rawNormalized)) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks statement variable hint"));
         } else if (STARROCKS_RECURSION_SETTINGS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks recursive CTE settings"));
@@ -1284,6 +1282,39 @@ public class SimpleDialectDetector implements DialectDetector {
             if (statementSyntax.matcher(normalized).find()) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    private static boolean hasStarRocksVariableHint(String sql) {
+        if (!sql.contains("/*+")) {
+            return false;
+        }
+        Matcher hints = STARROCKS_VARIABLE_HINT_OR_IGNORED_TOKEN.matcher(sql);
+        Matcher option = STARROCKS_VARIABLE_HINT_OPTION.matcher(sql);
+        while (hints.find()) {
+            if (hints.group(1) == null) {
+                continue;
+            }
+            int end = sql.indexOf("*/", hints.end());
+            if (end < 0) {
+                return false;
+            }
+            boolean nativeOption = false;
+            int start = hints.end();
+            while (option.region(start, end).lookingAt()) {
+                String key = option.group(1);
+                nativeOption |= "query_timeout".equals(key) || "insert_timeout".equals(key)
+                        || "query_mem_limit".equals(key) || "dynamic_overwrite".equals(key);
+                if (")".equals(option.group(2))) {
+                    if (nativeOption) {
+                        return true;
+                    }
+                    break;
+                }
+                start = option.end();
+            }
+            hints.region(end + 2, sql.length());
         }
         return false;
     }

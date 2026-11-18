@@ -865,6 +865,16 @@ public class LineSqlAutoDetectionIntegrationTest {
                 .getDialect() != SqlDialect.STARROCKS);
     }
 
+    @Test(timeout = 5000)
+    public void scansLongAndMalformedStarRocksVariableHintsWithoutBacktracking() {
+        String list = String.join("", java.util.Collections.nCopies(1500, "batch_size = 10, "));
+        assertDialect(SqlDialect.STARROCKS,
+                "SELECT /*+ SET_VAR(" + list + "query_timeout = 60) */ id FROM ods.events");
+        String padding = String.join("", java.util.Collections.nCopies(9000, " "));
+        assertDialect(SqlDialect.SPARK,
+                "SELECT /*+ SET_VAR(batch_size =" + padding + ") */ id FROM ods.events");
+    }
+
     @Test
     public void detectsStarRocksDatabaseOptionsAndNativeMetadata() {
         LineageResult partitions = LineSql.parse("SHOW PARTITIONS FROM `analytics`.`orders`");
