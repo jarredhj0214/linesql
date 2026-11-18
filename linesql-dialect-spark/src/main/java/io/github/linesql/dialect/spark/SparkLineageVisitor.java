@@ -2190,6 +2190,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private void applyPipeAssignments(SqlBaseParser.OperatorPipeSetAssignmentSeqContext ctx) {
         flushPendingColumnUsages();
         pipeRetainsInputColumns |= projections.isEmpty();
+        Map<String, List<ColumnRef>> inputs = new LinkedHashMap<>();
+        for (Projection projection : projections) {
+            if (!projection.star) {
+                inputs.put(projection.targetColumn.toLowerCase(Locale.ROOT), columnRefs(projection));
+            }
+        }
+        pipeAssignedColumns.putAll(inputs);
+
         Map<String, List<ColumnRef>> assignments = new LinkedHashMap<>();
         Map<String, String> expressions = new LinkedHashMap<>();
         for (int i = 0; i < ctx.ident.size(); i++) {
@@ -2198,25 +2206,13 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             List<SourceColumn> sources = new ArrayList<>(sourceColumnsExcludingSubqueries(expression));
             sources.addAll(queryProjectionSourceColumns(expression));
             collectSubqueryInputs(expression);
-            // All assignment expressions read the preceding stage, including assignments to themselves.
-            List<ColumnRef> refs = new ArrayList<>();
-            boolean resolved = true;
-            for (SourceColumn source : sources) {
-                List<ColumnRef> input = columnRefsFromProjection(source);
-                if (input == null) {
-                    input = columnRefs(Collections.singletonList(source), new LinkedHashSet<String>());
-                }
-                if (input == null) {
-                    resolved = false;
-                } else {
-                    refs.addAll(input);
-                }
-            }
+            List<ColumnRef> refs = columnRefs(sources, new LinkedHashSet<String>());
             String key = name.toLowerCase(Locale.ROOT);
-            assignments.put(key, resolved ? refs : null);
+            assignments.put(key, refs);
             expressions.put(key, expression.getText());
+            // Later assignments read the latest unqualified column values.
+            pipeAssignedColumns.put(key, refs);
         }
-        Map<String, List<ColumnRef>> inputs = new LinkedHashMap<>();
         for (int i = 0; i < projections.size(); i++) {
             Projection old = projections.get(i);
             if (old.star) {
@@ -2224,23 +2220,21 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             }
             String key = old.targetColumn.toLowerCase(Locale.ROOT);
             boolean reassigned = assignments.containsKey(key);
-            List<ColumnRef> refs = reassigned ? assignments.get(key) : columnRefs(old);
-            inputs.put(key, refs);
+            List<ColumnRef> refs = reassigned ? assignments.get(key) : inputs.get(key);
             List<SourceColumn> sources = refs == null ? Collections.singletonList(new SourceColumn(null, key))
                     : resolvedSources(refs);
             projections.set(i, new Projection(sources, old.targetColumn,
                     reassigned ? expressions.get(key) : old.expression, old.ordinal));
         }
+        Set<String> outputKeys = new LinkedHashSet<>(inputs.keySet());
         for (int i = 0; i < ctx.ident.size(); i++) {
             String name = cleanIdentifier(ctx.ident.get(i).getText());
             String key = name.toLowerCase(Locale.ROOT);
             List<ColumnRef> refs = assignments.get(key);
-            if (refs != null && !inputs.containsKey(key)) {
+            if (refs != null && outputKeys.add(key)) {
                 projections.add(new Projection(resolvedSources(refs), name, expressions.get(key)));
             }
         }
-        pipeAssignedColumns.putAll(inputs);
-        pipeAssignedColumns.putAll(assignments);
         pipeOutputProjectionStart = 0;
         refreshColumnLineage();
     }
@@ -2280,14 +2274,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             return null;
         }
         SourceColumn scoped = scopedSourceColumn(source);
-        if (scoped.qualifier != null) {
-            String qualifier = scoped.qualifier.toLowerCase(Locale.ROOT);
-            if (visibleRelationCount != 1 || !(tableAliases.containsKey(qualifier)
-                    || derivedAliases.containsKey(qualifier))) {
-                return null;
-            }
-        }
-        return scoped.name.toLowerCase(Locale.ROOT);
+        // An existing table alias keeps referring to its original input after SET.
+        return scoped.qualifier == null ? scoped.name.toLowerCase(Locale.ROOT) : null;
     }
 
     @Override

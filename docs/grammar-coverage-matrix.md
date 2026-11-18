@@ -127,7 +127,7 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P2 |
 | Spark extensions | PARTIAL | PARTIAL | PARTIAL | PARTIAL | P1 |
 
-Spark pipe `SET` preserves the preceding stage when resolving replacement expressions, later filters, and projected columns. Spark inline `VALUES` maps explicit INSERT targets by position. The parser records `QUALIFY` window dependencies through direct expressions and projection aliases.
+Spark pipe `SET` resolves replacement expressions in order and preserves original values when a column is qualified by its existing table alias. Spark inline `VALUES` maps explicit INSERT targets by position. The parser records `QUALIFY` window dependencies through direct expressions and projection aliases.
 
 Spark analyzes recursive UNION ALL outputs by position and resolves correlated scalar projections. Literal SQL stored in a STRING session variable can be expanded by EXECUTE IMMEDIATE.
 

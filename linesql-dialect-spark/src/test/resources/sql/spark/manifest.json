@@ -3003,8 +3003,8 @@
       "description": "Pipe SET updates later predicate and projection dependencies"
     },
     {
-      "id": "pipe_set_simultaneous_assignments",
-      "file": "cases/pipe_set_simultaneous_assignments.sql",
+      "id": "pipe_set_sequential_assignments",
+      "file": "cases/pipe_set_sequential_assignments.sql",
       "statementType": "SELECT",
       "inputTables": [
         "ods.orders"
@@ -3012,19 +3012,31 @@
       "outputTables": [],
       "columnLineage": [
         {
-          "target": "units",
+          "target": "updated_price",
           "sources": [
             "ods.orders.qty"
           ]
         },
         {
-          "target": "unit_price",
+          "target": "updated_qty",
+          "sources": [
+            "ods.orders.qty"
+          ]
+        },
+        {
+          "target": "original_price",
           "sources": [
             "ods.orders.price"
           ]
+        },
+        {
+          "target": "original_qty",
+          "sources": [
+            "ods.orders.qty"
+          ]
         }
       ],
-      "description": "Pipe SET reads all assignment values from the same input stage"
+      "description": "Spark pipe SET assignments read earlier replacements in order while the original input alias preserves its original columns"
     },
     {
       "id": "pipe_set_cte_chained_assignments",
