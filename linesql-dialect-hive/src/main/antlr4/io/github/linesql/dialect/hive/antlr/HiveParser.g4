@@ -626,12 +626,12 @@ truncateTableStatement
 
 alterTableStatement
     : ALTER TABLE multipartIdentifier RENAME (TO)? multipartIdentifier   #alterTableRename
-    | ALTER TABLE multipartIdentifier ADD
-      (COLUMNS LPAREN columns=tableElementList RPAREN
-      | COLUMN? column=identifier dataType)                              #alterTableAddColumn
+    | ALTER TABLE multipartIdentifier
+      ((PARTITION partitionSpec)? ADD COLUMNS LPAREN columns=tableElementList RPAREN (CASCADE | RESTRICT)?
+      | ADD COLUMN? column=identifier dataType)                              #alterTableAddColumn
     | ALTER TABLE multipartIdentifier (PARTITION partitionSpec)? CHANGE COLUMN?
       oldColumn=identifier newColumn=identifier dataType commentClause?
-      (FIRST | AFTER afterColumn=identifier)?                            #alterTableChangeColumn
+      (FIRST | AFTER afterColumn=identifier)? (CASCADE | RESTRICT)?       #alterTableChangeColumn
     | ALTER TABLE multipartIdentifier (PARTITION partitionSpec)? REPLACE COLUMNS
       LPAREN columns=tableElementList RPAREN (CASCADE | RESTRICT)?       #alterTableReplaceColumns
     | ALTER TABLE target=multipartIdentifier EXCHANGE PARTITION partitionSpec WITH TABLE source=multipartIdentifier #alterTableExchangePartition

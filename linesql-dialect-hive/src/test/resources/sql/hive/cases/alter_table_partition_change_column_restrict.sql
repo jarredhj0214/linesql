@@ -1,0 +1,2 @@
+ALTER TABLE mart.users PARTITION (dt='2026-11-18')
+CHANGE COLUMN old_score score DECIMAL(12, 2) AFTER user_id RESTRICT;

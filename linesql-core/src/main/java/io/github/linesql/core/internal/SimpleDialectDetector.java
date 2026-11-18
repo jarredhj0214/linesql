@@ -501,6 +501,11 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern HIVE_COMPACTION_REQUEST = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:" + HIVE_PARTITION_SPEC + ")?"
                     + "\\s+compact\\s+" + HIVE_PROPERTY_LITERAL);
+    private static final Pattern HIVE_COLUMN_CHANGE_SCOPE = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + HIVE_PARTITION_SPEC
+                    + "\\s+(?:(?:add|replace)\\s+columns\\s*\\([^;]+\\)|change\\s+(?:column\\s+)?"
+                    + HIVE_TABLE_IDENTIFIER + "\\s+" + HIVE_TABLE_IDENTIFIER + "\\s+[^;]+)"
+                    + "\\s+(?:cascade|restrict)(?=\\s*(?:;|$))");
     private static final Pattern HIVE_SCHEMA_MAINTENANCE = Pattern.compile(
             "^\\s*(?:create\\s+(?:database|schema)\\s+(?:if\\s+not\\s+exists\\s+)?" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s+(?:comment|location)\\s+" + HIVE_PROPERTY_LITERAL + ")*+\\s+managedlocation\\s+"
@@ -907,6 +912,9 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         if (HIVE_TABLE_MIGRATION.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table import or replication export syntax"));
+        }
+        if (HIVE_COLUMN_CHANGE_SCOPE.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive column maintenance scope"));
         }
         if (HIVE_SCHEMA_MAINTENANCE.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive managed schema location or metadata cache syntax"));

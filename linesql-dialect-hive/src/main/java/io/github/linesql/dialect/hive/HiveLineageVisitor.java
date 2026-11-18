@@ -579,6 +579,9 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
             }
         }
         addTableModelColumns(target, columns);
+        if (ctx.partitionSpec() != null) {
+            addPartitionModelUsages(ctx.partitionSpec(), target);
+        }
         return null;
     }
 

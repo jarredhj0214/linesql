@@ -1456,6 +1456,60 @@
       "description": "Hive ALTER TABLE CHANGE COLUMN retains old, new, and positional model columns"
     },
     {
+      "id": "alter_table_partition_add_columns_cascade",
+      "file": "cases/alter_table_partition_add_columns_cascade.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.users.score"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.users.labels"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.users.dt"
+        }
+      ],
+      "description": "Hive partition column additions retain changed columns and partition keys"
+    },
+    {
+      "id": "alter_table_partition_change_column_restrict",
+      "file": "cases/alter_table_partition_change_column_restrict.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.users"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.users.old_score"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.users.score"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.users.user_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.users.dt"
+        }
+      ],
+      "description": "Hive partition column change retains renamed, position, and partition columns"
+    },
+    {
       "id": "alter_table_replace_columns",
       "file": "cases/alter_table_replace_columns.sql",
       "statementType": "ALTER_TABLE",

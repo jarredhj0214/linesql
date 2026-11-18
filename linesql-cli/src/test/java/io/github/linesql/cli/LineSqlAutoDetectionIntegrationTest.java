@@ -1363,6 +1363,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsHiveColumnChangeScopeAndKeepsPartitionReferences() {
+        LineageResult changed = LineSql.parse("ALTER TABLE `mart`.`users` PARTITION (dt='2026-11-18') "
+                + "ADD COLUMNS (score DECIMAL(12,2) COMMENT 'may be zero; value is optional') CASCADE");
+        assertEquals(SqlDialect.HIVE, changed.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, changed.getStatementType());
+        assertEquals("users", changed.getOutputTables().get(0).getName());
+        assertEquals("score", changed.getColumnUsages().get(0).getColumn().getName());
+        assertEquals("dt", changed.getColumnUsages().get(1).getColumn().getName());
+        assertTrue(changed.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.users PARTITION (dt='2026-11-18') REPLACE COLUMNS (id BIGINT) RESTRICT");
+        assertDialect(SqlDialect.SPARK, "ALTER TABLE mart.users ADD COLUMNS (id BIGINT COMMENT 'CASCADE')");
+    }
+
+    @Test
     public void detectsHiveTableAndPartitionMaintenance() {
         LineageResult archive = LineSql.parse("ALTER TABLE mart.orders ARCHIVE PARTITION (dt = '2026-09-10')");
         assertEquals(SqlDialect.HIVE, archive.getDialect());
