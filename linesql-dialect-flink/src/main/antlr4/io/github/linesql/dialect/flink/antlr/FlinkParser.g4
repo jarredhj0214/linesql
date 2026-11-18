@@ -671,7 +671,7 @@ alterTableStatement
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier PARTITION partitionSpec RENAME TO PARTITION partitionSpec #alterTableRenamePartition
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier PARTITION partitionSpec SET LOCATION string #alterTablePartitionSetLocation
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier PARTITION partitionSpec SET FILEFORMAT hiveFileFormat #alterTablePartitionSetFileFormat
-    | ALTER TABLE (IF existsKeyword)? multipartIdentifier ADD (distributionClause | alterDistributionClause) #alterTableAddDistribution
+    | ALTER TABLE (IF existsKeyword)? multipartIdentifier (ADD | MODIFY) (distributionClause | alterDistributionClause) #alterTableDistribution
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier DROP DISTRIBUTION                       #alterTableDropDistribution
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier DROP PRIMARY KEY                        #alterTableDropPrimaryKey
     | ALTER TABLE (IF existsKeyword)? multipartIdentifier DROP CONSTRAINT identifier              #alterTableDropConstraint

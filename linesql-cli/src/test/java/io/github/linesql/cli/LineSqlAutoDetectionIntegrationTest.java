@@ -1408,6 +1408,16 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("orders", distribution.getOutputTables().get(0).getName());
         assertEquals("order_id", distribution.getColumnUsages().get(0).getColumn().getName());
         assertTrue(distribution.getDiagnostics().isEmpty());
+        LineageResult modified = LineSql.parse("ALTER TABLE IF EXISTS `lake`.`ods`.`orders` "
+                + "MODIFY DISTRIBUTION BY HASH(order_id, tenant_id)");
+        assertEquals(SqlDialect.FLINK, modified.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, modified.getStatementType());
+        assertEquals("orders", modified.getOutputTables().get(0).getName());
+        assertEquals(2, modified.getColumnUsages().size());
+        assertEquals("tenant_id", modified.getColumnUsages().get(1).getColumn().getName());
+        assertTrue(modified.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "ALTER TABLE ods.orders MODIFY DISTRIBUTION INTO 8 BUCKETS");
+        assertDialect(SqlDialect.FLINK, "ALTER TABLE ods.orders DROP DISTRIBUTION");
         assertDialect(SqlDialect.FLINK, "ALTER TABLE ods.orders DROP WATERMARK");
         assertDialect(SqlDialect.FLINK, "SHOW CURRENT CATALOG");
         assertDialect(SqlDialect.SPARK, "SHOW CURRENT DATABASE");

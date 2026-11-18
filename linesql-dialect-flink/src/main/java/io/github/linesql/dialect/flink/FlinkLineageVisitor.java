@@ -668,7 +668,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitAlterTableAddDistribution(FlinkParser.AlterTableAddDistributionContext ctx) {
+    public Void visitAlterTableDistribution(FlinkParser.AlterTableDistributionContext ctx) {
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
         if (ctx.distributionClause() != null) {

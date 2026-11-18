@@ -129,9 +129,6 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern HIVE_LOCK_OR_COMPACTION = Pattern.compile(
             "^\\s*(?:lock\\s+table\\b[^;]+\\b(?:shared|exclusive)\\s*(?:;|$)"
                     + "|unlock\\s+table\\b|show\\s+(?:locks|compactions)\\b|reload\\s+function\\b)");
-    private static final Pattern FLINK_DISTRIBUTION_OR_WATERMARK = Pattern.compile(
-            "^\\s*alter\\s+table\\b[^;]+\\b(?:drop\\s+watermark\\s*(?:;|$)"
-                    + "|(?:add|modify)\\s+distribution\\b[^;]*\\binto\\s+[0-9]+\\s+buckets\\b)");
     private static final Pattern FLINK_SHOW_CURRENT_CATALOG = Pattern.compile("^\\s*show\\s+current\\s+catalog\\b");
     private static final Pattern FLINK_DROP_TEMPORARY_VIEW = Pattern.compile("^\\s*drop\\s+temporary\\s+view\\b");
     private static final Pattern FLINK_PARTITION_OPTIONS = Pattern.compile(
@@ -549,6 +546,12 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|recover\\s+partition\\s+" + SQL_IDENTIFIER + ")");
     private static final String STARROCKS_TABLE_PROPERTY =
             "(?:dynamic_partition\\.[a-z_][\\w]*|bloom_filter_columns|colocate_with|replication_num|storage_medium)";
+    private static final Pattern FLINK_DISTRIBUTION_OR_WATERMARK = Pattern.compile(
+            "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + SQL_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
+                    + "(?:drop\\s+(?:watermark|distribution)\\s*(?:;|$)"
+                    + "|(?:add|modify)\\s+distribution\\s+(?:by\\s+(?:(?:hash|range)\\s*)?\\("
+                    + "|into\\s+\\d+\\s+buckets\\b))");
     private static final String STARROCKS_QUALIFIED_NAME =
             SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*";
     private static final String STARROCKS_QUALIFIED_COLUMN =
@@ -933,7 +936,7 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
         } else if (FLINK_CHANGELOG_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink changelog table function syntax"));
-        } else if (FLINK_DISTRIBUTION_OR_WATERMARK.matcher(unquotedSyntax).find()
+        } else if (FLINK_DISTRIBUTION_OR_WATERMARK.matcher(relationSyntax).find()
                 || FLINK_SHOW_CURRENT_CATALOG.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink distribution, watermark, or current catalog syntax"));
         } else if (FLINK_PARTITION_OPTIONS.matcher(unquotedSyntax).find()
