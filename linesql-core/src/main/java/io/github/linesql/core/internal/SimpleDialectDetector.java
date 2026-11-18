@@ -514,8 +514,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern HIVE_TABLE_MIGRATION = Pattern.compile(
             "^\\s*(?:import\\s+(?:(?:external\\s+)?table\\s+" + HIVE_QUALIFIED_NAME
                     + "(?:" + HIVE_PARTITION_SPEC + ")?\\s+)?from\\s+" + HIVE_PROPERTY_LITERAL
-                    + "|export\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:" + HIVE_PARTITION_SPEC + ")?"
-                    + "\\s+to\\s+" + HIVE_PROPERTY_LITERAL + "\\s+for\\s+replication\\s*\\()");
+                    + "|export\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:(?:" + HIVE_PARTITION_SPEC + ")?"
+                    + "\\s+to\\s+" + HIVE_PROPERTY_LITERAL + "\\s+for\\s+replication\\s*\\("
+                    + "|(?=\\s+partition\\s*\\(\\s*" + HIVE_TABLE_IDENTIFIER + "\\s*=)"
+                    + HIVE_PARTITION_SPEC + "\\s+to\\s+" + HIVE_PROPERTY_LITERAL + "(?=\\s*(?:;|$))))");
     private static final Pattern HIVE_COMPACTION_REQUEST = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:" + HIVE_PARTITION_SPEC + ")?"
                     + "\\s+compact\\s+" + HIVE_PROPERTY_LITERAL);
@@ -941,7 +943,7 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive data connector or remote database syntax"));
         }
         if (HIVE_TABLE_MIGRATION.matcher(normalized).find()) {
-            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table import or replication export syntax"));
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table import or partition export syntax"));
         }
         if (HIVE_COLUMN_CHANGE_SCOPE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive column maintenance scope"));

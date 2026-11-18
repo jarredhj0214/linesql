@@ -1369,6 +1369,14 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals("orders", exported.getInputTables().get(0).getName());
         assertEquals("dt", exported.getColumnUsages().get(0).getColumn().getName());
         assertTrue(exported.getDiagnostics().isEmpty());
+        LineageResult partition = LineSql.parse(
+                "EXPORT TABLE dwd.orders PARTITION (dt='2026-11-18') TO '/archive/orders'");
+        assertEquals(SqlDialect.HIVE, partition.getDialect());
+        assertEquals("orders", partition.getInputTables().get(0).getName());
+        assertEquals("dt", partition.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(partition.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "EXPORT TABLE dwd.orders PARTITION (p20261118) "
+                + "TO 's3://bucket/orders' WITH BROKER");
         assertDialect(SqlDialect.STARROCKS, "EXPORT TABLE dwd.orders TO 's3://bucket/orders' WITH BROKER");
         assertDialect(SqlDialect.SPARK, "SELECT 'IMPORT FROM ''/archive/orders''' AS note");
     }
