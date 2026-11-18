@@ -559,6 +559,13 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "\\s+from\\s+" + STARROCKS_QUALIFIED_NAME + "(?:\\s+(?:as\\s+)?" + SQL_IDENTIFIER + ")?"
                     + "\\s+where\\s+" + STARROCKS_QUALIFIED_COLUMN + "\\s*<=>\\s*"
                     + STARROCKS_QUALIFIED_COLUMN + "\\s*(?:;\\s*)?$");
+    private static final Pattern STARROCKS_FUNCTION_DEFINITION = Pattern.compile(
+            "^\\s*(?:create\\s+(?:or\\s+replace\\s+)?global\\s+(?:(?:aggregate|table)\\s+)?function\\b"
+                    + "|drop\\s+global\\s+function\\b"
+                    + "|create\\s+(?:or\\s+replace\\s+)?(?:(?:aggregate|table)\\s+)?function\\s+"
+                    + STARROCKS_QUALIFIED_NAME + "\\s*\\([^;'\"]*?\\)\\s+returns\\s+"
+                    + "[a-z_][a-z_0-9]*(?:\\s*\\(\\s*\\d+(?:\\s*,\\s*\\d+)?\\s*\\))?"
+                    + "\\s+(?:properties\\s*\\(|type\\s*=\\s*(?:'python'|\"python\")))");
     private static final String STARROCKS_VIEW_COMMENT = "(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
     private static final String STARROCKS_VIEW_COLUMN =
             SQL_IDENTIFIER + "(?:\\s+comment\\s+" + STARROCKS_VIEW_COMMENT + ")?";
@@ -1006,6 +1013,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary lookup syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
+        } else if (STARROCKS_FUNCTION_DEFINITION.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks UDF properties or global function syntax"));
         } else if (STARROCKS_VIEW_DEFINITION.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks view dialect, column comments, or security syntax"));
         } else if (STARROCKS_MATERIALIZED_VIEW_OPTIONS.matcher(relationSyntax).find()

@@ -1083,6 +1083,24 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsNativeStarRocksUdfDeclarations() {
+        LineageResult javaUdf = LineSql.parse("CREATE FUNCTION analytics.mask_name(VARCHAR) RETURNS VARCHAR(64) "
+                + "PROPERTIES (\"type\" = \"StarrocksJar\", \"symbol\" = \"com.example.MaskName\")");
+        assertEquals(SqlDialect.STARROCKS, javaUdf.getDialect());
+        assertTrue(javaUdf.getDiagnostics().isEmpty());
+        assertTrue(javaUdf.getInputTables().isEmpty());
+        LineageResult pythonUdf = LineSql.parse("CREATE FUNCTION python_echo(INT) RETURNS INT "
+                + "TYPE = 'Python' SYMBOL = 'echo' AS $$\ndef echo(x):\n    return x\n$$");
+        assertEquals(SqlDialect.STARROCKS, pythonUdf.getDialect());
+        assertTrue(pythonUdf.getDiagnostics().isEmpty());
+        assertTrue(pythonUdf.getInputTables().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "DROP GLOBAL FUNCTION IF EXISTS analytics.mask_name(VARCHAR)");
+        assertDialect(SqlDialect.POSTGRESQL, "CREATE FUNCTION increment(x INT) RETURNS INT LANGUAGE plpgsql "
+                + "AS $$ BEGIN RETURN x + 1; END; $$");
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE GLOBAL FUNCTION f()' AS example");
+    }
+
+    @Test
     public void detectsStarRocksDictionaryLookupsOutsideQuotedText() {
         LineageResult result = LineSql.parse("SELECT dictionary_get('product_dict', product_id).ProductName "
                 + "AS product_name FROM dwd.orders");
