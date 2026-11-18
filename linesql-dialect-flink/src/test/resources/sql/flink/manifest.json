@@ -7360,6 +7360,47 @@
       "description": "Flink Hive-compatible ALTER TABLE CHANGE COLUMN"
     },
     {
+      "id": "script_hive_session_mode_after_use",
+      "file": "cases/script_hive_session_mode_after_use.sql",
+      "statementType": "MULTI",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "mart.orders"
+          ],
+          "columnLineage": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "mart.orders"
+          ],
+          "columnLineage": []
+        }
+      ],
+      "description": "Non-leading Flink dialect setting preserves Flink script context for supported Hive-compatible DDL"
+    },
+    {
       "id": "hive_alter_table_add_columns",
       "file": "cases/hive_alter_table_add_columns.sql",
       "statementType": "ALTER_TABLE",

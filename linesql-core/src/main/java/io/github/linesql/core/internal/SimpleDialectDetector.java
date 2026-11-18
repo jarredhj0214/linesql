@@ -146,7 +146,7 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|lateral)\\s+table\\s*\\(\\s*values\\s*\\(");
     private static final String FLINK_SESSION_KEY =
             "(?:execution\\.runtime-mode|pipeline\\.(?:name|max-parallelism)"
-                    + "|sql-client\\.execution\\.result-mode|table\\.local-time-zone|table\\.exec\\.[a-z0-9.-]+)";
+                    + "|sql-client\\.execution\\.result-mode|table\\.(?:local-time-zone|sql-dialect)|table\\.exec\\.[a-z0-9.-]+)";
     private static final String FLINK_SESSION_KEY_TOKEN =
             "(?:'" + FLINK_SESSION_KEY + "'|\"" + FLINK_SESSION_KEY + "\"|" + FLINK_SESSION_KEY + ")";
     private static final Pattern FLINK_SESSION_OPTION = Pattern.compile(
