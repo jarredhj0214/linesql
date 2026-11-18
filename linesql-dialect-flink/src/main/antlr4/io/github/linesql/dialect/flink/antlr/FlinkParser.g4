@@ -730,7 +730,9 @@ materializedTableAction
     | ADD (distributionClause | alterDistributionClause)
     | MODIFY COLUMN? tableElement columnPosition?
     | MODIFY LPAREN alterTableElementList RPAREN
-    | DROP COLUMN? identifier
+    | MODIFY (distributionClause | alterDistributionClause)
+    | DROP COLUMN? columnName=identifier
+    | DROP CONSTRAINT constraintName=identifier
     | DROP LPAREN identifierList RPAREN
     | DROP PRIMARY KEY
     | DROP WATERMARK
@@ -985,6 +987,7 @@ distributionClause
 
 alterDistributionClause
     : DISTRIBUTION BY ((HASH | RANGE) LPAREN identifierList RPAREN | LPAREN identifierList RPAREN) (INTO number BUCKETS?)?
+    | DISTRIBUTION INTO number BUCKETS?
     ;
 
 partitionSpec

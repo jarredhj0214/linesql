@@ -127,7 +127,7 @@ LineSQL keeps one public dialect when syntax differences are mostly connector op
 | DDL affected table | PARTIAL | COVERED | N/A | N/A | P2 |
 | Spark extensions | PARTIAL | PARTIAL | PARTIAL | PARTIAL | P1 |
 
-Spark inline `VALUES` maps explicit INSERT targets by position. The parser records `QUALIFY` window dependencies through direct expressions and projection aliases.
+Spark pipe `SET` preserves the preceding stage when resolving replacement expressions, later filters, and projected columns. Spark inline `VALUES` maps explicit INSERT targets by position. The parser records `QUALIFY` window dependencies through direct expressions and projection aliases.
 
 Spark analyzes recursive UNION ALL outputs by position and resolves correlated scalar projections. Literal SQL stored in a STRING session variable can be expanded by EXECUTE IMMEDIATE.
 
@@ -256,6 +256,8 @@ Flink window table functions trace generated time fields to descriptors and part
 Flink parses additional materialized-table operations and traces merged JOIN USING keys through writes. Connector, statement-set, and native session-option syntax can identify Flink for shared `ON CONFLICT DO NOTHING`. Catalog and database switches qualify following physical relations and scope temporary views.
 
 Script-declared Flink schemas retain column order through supported `ALTER TABLE` operations. CTAS column lists reorder query outputs by name. `TABLE` shorthand, known wildcard writes, named windows used by `QUALIFY`, and positional set ordering have executable cases.
+
+Flink materialized table distribution changes retain key references, and dropping named constraints preserves the prior column layout.
 
 ### Oracle
 

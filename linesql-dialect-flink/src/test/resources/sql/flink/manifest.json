@@ -8100,6 +8100,150 @@
       "description": "Drops the primary key from the named materialized table"
     },
     {
+      "id": "alter_materialized_table_modify_distribution",
+      "file": "cases/alter_materialized_table_modify_distribution.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.signals"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.signals.id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.signals.category"
+        }
+      ],
+      "description": "Updating materialized table distribution records both keys"
+    },
+    {
+      "id": "alter_materialized_table_add_distribution_buckets_only",
+      "file": "cases/alter_materialized_table_add_distribution_buckets_only.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.signals"
+      ],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "A bucket count by itself changes distribution without inventing key column references"
+    },
+    {
+      "id": "script_materialized_table_drop_constraint_preserves_layout",
+      "file": "cases/script_materialized_table_drop_constraint_preserves_layout.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "ods.events",
+        "mart.live_events"
+      ],
+      "outputTables": [
+        "ods.events",
+        "mart.live_events"
+      ],
+      "description": "Dropping a named materialized-table constraint preserves the positional table layout and does not drop a same-named column",
+      "columnLineage": [
+        {
+          "target": "mart.live_events.event_id",
+          "sources": [
+            "ods.events.event_id"
+          ]
+        },
+        {
+          "target": "mart.live_events.event_time",
+          "sources": [
+            "ods.events.event_time"
+          ]
+        },
+        {
+          "target": "event_id",
+          "sources": [
+            "mart.live_events.event_id"
+          ]
+        },
+        {
+          "target": "event_time",
+          "sources": [
+            "mart.live_events.event_time"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "CREATE_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "ods.events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "CREATE_TABLE_AS_SELECT",
+          "inputTables": [
+            "ods.events"
+          ],
+          "outputTables": [
+            "mart.live_events"
+          ],
+          "columnLineage": [
+            {
+              "target": "mart.live_events.event_id",
+              "sources": [
+                "ods.events.event_id"
+              ]
+            },
+            {
+              "target": "mart.live_events.event_time",
+              "sources": [
+                "ods.events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "ALTER_TABLE",
+          "inputTables": [],
+          "outputTables": [
+            "mart.live_events"
+          ],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "mart.live_events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "mart.live_events.event_id"
+              ]
+            },
+            {
+              "target": "event_time",
+              "sources": [
+                "mart.live_events.event_time"
+              ]
+            }
+          ],
+          "columnUsages": [
+            {
+              "type": "ORDER_BY",
+              "column": "mart.live_events.event_time"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "alter_materialized_table_drop_distribution",
       "file": "cases/alter_materialized_table_drop_distribution.sql",
       "statementType": "ALTER_TABLE",

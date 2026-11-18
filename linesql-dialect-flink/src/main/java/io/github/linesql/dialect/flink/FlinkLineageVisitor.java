@@ -819,8 +819,8 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             moveSchemaColumn(target, action.tableElement(), action.columnPosition());
         } else if (action.MODIFY() != null && action.alterTableElementList() != null) {
             moveSchemaColumns(target, action.alterTableElementList());
-        } else if (action.DROP() != null && action.identifier() != null) {
-            dropSchemaColumns(target, Collections.singletonList(cleanIdentifier(action.identifier())));
+        } else if (action.columnName != null) {
+            dropSchemaColumns(target, Collections.singletonList(cleanIdentifier(action.columnName)));
         } else if (action.DROP() != null && action.identifierList() != null) {
             dropSchemaColumns(target, identifierNames(action.identifierList()));
         }
