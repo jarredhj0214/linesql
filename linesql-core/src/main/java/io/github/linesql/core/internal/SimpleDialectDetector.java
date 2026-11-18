@@ -459,6 +459,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern SHARED_DROP_CATALOG = Pattern.compile(
             "^\\s*drop\\s+catalog\\s+(?:if\\s+exists\\s+)?" + SQL_IDENTIFIER + "\\s*;?\\s*$",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHARED_SHOW_CREATE_VIEW = Pattern.compile(
+            "^\\s*show\\s+create\\s+view\\s+" + SQL_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")?\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final String ORACLE_RELATION_IDENTIFIER = "(?:" + ORACLE_NAME + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
     private static final Pattern ORACLE_RELATION_OPTION_OR_QUOTE = Pattern.compile(
             "(\\b(?:from|join)\\s+" + ORACLE_RELATION_IDENTIFIER
@@ -1496,6 +1499,10 @@ public class SimpleDialectDetector implements DialectDetector {
 
     static boolean isSharedDropCatalog(String statement) {
         return SHARED_DROP_CATALOG.matcher(stripComments(statement)).matches();
+    }
+
+    static boolean isSharedShowCreateView(String statement) {
+        return SHARED_SHOW_CREATE_VIEW.matcher(stripComments(statement)).matches();
     }
 
     private static String stripComments(String sql) {

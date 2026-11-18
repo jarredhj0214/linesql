@@ -1493,6 +1493,16 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedShowCreateViewWithItsViewReference() {
+        LineageResult view = LineSql.parse("SHOW CREATE VIEW `mart`.`daily_orders`");
+        assertEquals(SqlDialect.UNKNOWN, view.getDialect());
+        assertEquals(StatementType.READ_METADATA, view.getStatementType());
+        assertEquals("mart", view.getInputTables().get(0).getSchema());
+        assertEquals("daily_orders", view.getInputTables().get(0).getName());
+        assertTrue(view.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedCatalogDropWithUnknownDialect() {
         LineageResult drop = LineSql.parse("DROP CATALOG /* if present */ IF EXISTS `lake`");
         assertEquals(SqlDialect.UNKNOWN, drop.getDialect());

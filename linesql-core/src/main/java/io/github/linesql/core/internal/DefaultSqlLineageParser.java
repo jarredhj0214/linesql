@@ -67,15 +67,12 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 }
             }
             // The generic splitter can split stored routine bodies that belong to one statement.
-            if (statements.size() == 1 && canRecoverSpark(options, candidate, result)
-                    && SimpleDialectDetector.isSharedDropCatalog(statement)
-                    && parsesCatalogDrop(statement, SqlDialect.FLINK, options, context)
-                    && parsesCatalogDrop(statement, SqlDialect.STARROCKS, options, context)) {
-                LineageResult shared = new LineageResult();
-                shared.setStatementType(StatementType.CONTROL);
-                shared.setDialectDetectionReason("Flink and StarRocks both support this DROP CATALOG syntax");
-                results.add(shared);
-                continue;
+            if (statements.size() == 1 && canRecoverSpark(options, candidate, result)) {
+                LineageResult shared = recoverSharedStatement(statement, options, context);
+                if (shared != null) {
+                    results.add(shared);
+                    continue;
+                }
             }
 
             DialectCandidate recovered = statements.size() == 1
@@ -148,18 +145,49 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                     || (result.getStatementType() == StatementType.UNKNOWN && result.getDiagnostics().isEmpty()));
     }
 
-    private boolean parsesCatalogDrop(String statement, SqlDialect dialect, ParseOptions options, ParseContext context) {
+    private LineageResult recoverSharedStatement(String statement, ParseOptions options, ParseContext context) {
+        StatementType expected;
+        int inputTableCount;
+        String command;
+        if (SimpleDialectDetector.isSharedDropCatalog(statement)) {
+            expected = StatementType.CONTROL;
+            inputTableCount = 0;
+            command = "DROP CATALOG";
+        } else if (SimpleDialectDetector.isSharedShowCreateView(statement)) {
+            expected = StatementType.READ_METADATA;
+            inputTableCount = 1;
+            command = "SHOW CREATE VIEW";
+        } else {
+            return null;
+        }
+        LineageResult flink = parseSharedStatement(statement, SqlDialect.FLINK, options, context, expected, inputTableCount);
+        LineageResult starRocks = parseSharedStatement(statement, SqlDialect.STARROCKS, options, context, expected, inputTableCount);
+        if (flink == null || starRocks == null || !flink.getInputTables().equals(starRocks.getInputTables())) {
+            return null;
+        }
+        LineageResult shared = new LineageResult();
+        shared.setStatementType(expected);
+        shared.setInputTables(new ArrayList<>(flink.getInputTables()));
+        shared.setDialectDetectionReason("Flink and StarRocks both support this " + command + " syntax");
+        return shared;
+    }
+
+    private LineageResult parseSharedStatement(String statement, SqlDialect dialect, ParseOptions options,
+                                               ParseContext context, StatementType expected, int inputTableCount) {
         if (!parsers.containsKey(dialect)) {
-            return false;
+            return null;
         }
         try {
             LineageResult trial = parseStatement(statement, dialect, options, trialContext(context));
-            return trial.getStatementType() == StatementType.CONTROL && trial.getDiagnostics().isEmpty()
-                    && trial.getInputTables().isEmpty() && trial.getOutputTables().isEmpty()
-                    && trial.getColumnLineage().isEmpty() && trial.getColumnUsages().isEmpty();
+            if (trial.getStatementType() == expected && trial.getDiagnostics().isEmpty()
+                    && trial.getInputTables().size() == inputTableCount && trial.getOutputTables().isEmpty()
+                    && trial.getColumnLineage().isEmpty() && trial.getColumnUsages().isEmpty()) {
+                return trial;
+            }
         } catch (RuntimeException | StackOverflowError failure) {
-            return false;
+            return null;
         }
+        return null;
     }
 
     private static ParseContext trialContext(ParseContext context) {
