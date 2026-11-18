@@ -165,6 +165,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern FLINK_MODEL_INFERENCE = Pattern.compile(
             "(?:\\b(?:from|join)\\s+|,\\s*)(?:lateral\\s+)?(?:table\\s*\\(\\s*)?"
                     + "ml_predict\\s*\\(\\s*table\\s+[^,;()]+,\\s*model\\b");
+    private static final Pattern FLINK_PATTERN_TIME = Pattern.compile(
+            "\\bmatch_recognize\\s*\\([^;]*?(?:\\bwithin\\s+interval\\b"
+                    + "|\\bmatch_(?:rowtime|proctime)\\s*\\()");
     private static final Pattern FLINK_CHANGELOG_FUNCTION = Pattern.compile(
             "(?:\\b(?:from|join)\\s+|,\\s*)(?:lateral\\s+)?(?:table\\s*\\(\\s*)?"
                     + "(?:from|to)_changelog\\s*\\(\\s*(?:input\\s*=>\\s*)?table\\b");
@@ -984,6 +987,8 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (FLINK_MODEL_DDL.matcher(unquotedSyntax).find()
                 || FLINK_MODEL_INFERENCE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
+        } else if (FLINK_PATTERN_TIME.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink pattern time constraint or time attribute"));
         } else if (FLINK_CHANGELOG_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink changelog table function syntax"));
         } else if (FLINK_DISTRIBUTION_OR_WATERMARK.matcher(relationSyntax).find()

@@ -1257,7 +1257,7 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
             }
         }
         for (FlinkParser.MatchMeasureContext measure : clause.matchMeasure()) {
-            List<ColumnRef> refs = patternMeasureRefs(measure.expression(), table);
+            List<ColumnRef> refs = patternMeasureRefs(measure.expression(), table, clause.sortItem());
             columns.put(cleanIdentifier(measure.identifier()), refs);
         }
         String normalizedAlias = alias.toLowerCase(Locale.ROOT);
@@ -3407,12 +3407,34 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
         return refs;
     }
 
-    private List<ColumnRef> patternMeasureRefs(FlinkParser.ExpressionContext expression, TableRef table) {
+    private List<ColumnRef> patternMeasureRefs(FlinkParser.ExpressionContext expression, TableRef table,
+                                               List<FlinkParser.SortItemContext> orderBy) {
         List<ColumnRef> refs = new ArrayList<>();
         for (SourceColumn sourceColumn : sourceColumns(expression)) {
             refs.add(new ColumnRef(table, sourceColumn.name));
         }
+        // Flink requires the first ORDER BY field to be a time attribute.
+        if (!orderBy.isEmpty() && containsImplicitMatchRowtime(expression)) {
+            List<ColumnRef> rowtimeRefs = new ArrayList<>();
+            for (SourceColumn sourceColumn : sourceColumns(orderBy.get(0).expression())) {
+                rowtimeRefs.add(new ColumnRef(table, sourceColumn.name));
+            }
+            refs = LineageModelUtils.mergeColumnRefs(refs, rowtimeRefs);
+        }
         return refs;
+    }
+
+    private static boolean containsImplicitMatchRowtime(ParseTree tree) {
+        if (tree instanceof FlinkParser.FunctionCallEmptyContext) {
+            FlinkParser.FunctionCallEmptyContext call = (FlinkParser.FunctionCallEmptyContext) tree;
+            return "MATCH_ROWTIME".equalsIgnoreCase(call.functionName().getText());
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            if (containsImplicitMatchRowtime(tree.getChild(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void collectSubqueryInputs(ParseTree tree) {
