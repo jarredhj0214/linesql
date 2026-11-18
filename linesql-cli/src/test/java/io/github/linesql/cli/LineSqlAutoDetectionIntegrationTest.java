@@ -712,6 +712,31 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksPipeAndStorageVolumeStatements() {
+        LineageResult pipe = LineSql.parse("CREATE OR REPLACE PIPE ods.user_pipe AS "
+                + "INSERT INTO ods.users (id) SELECT id FROM FILES (\"path\" = \"s3://bucket/users/\", "
+                + "\"format\" = \"parquet\")");
+        assertEquals(SqlDialect.STARROCKS, pipe.getDialect());
+        assertEquals(StatementType.LOAD_DATA, pipe.getStatementType());
+        assertTrue(pipe.getDiagnostics().isEmpty());
+        assertEquals("users", pipe.getOutputTables().get(0).getName());
+        assertEquals("id", pipe.getColumnLineage().get(0).getTarget().getName());
+        assertEquals("$pipe1.id", pipe.getColumnLineage().get(0).getSources().get(0).getName());
+
+        LineageResult metadata = LineSql.parse("SHOW PIPES FROM ods WHERE name = 'user_pipe' ORDER BY name");
+        assertEquals(SqlDialect.STARROCKS, metadata.getDialect());
+        assertEquals(StatementType.READ_METADATA, metadata.getStatementType());
+        assertEquals("name", metadata.getColumnUsages().get(0).getColumn().getName());
+
+        assertDialect(SqlDialect.STARROCKS, "ALTER PIPE ods.user_pipe SUSPEND");
+        assertDialect(SqlDialect.STARROCKS, "DROP PIPE IF EXISTS ods.user_pipe");
+        assertDialect(SqlDialect.STARROCKS, "SHOW STORAGE VOLUMES");
+        assertDialect(SqlDialect.STARROCKS, "ALTER STORAGE VOLUME s3_volume ENABLE");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW STORAGE VOLUMES' AS note");
+        assertDialect(SqlDialect.SPARK, "CREATE TABLE pipe_events (id BIGINT)");
+    }
+
+    @Test
     public void detectsStarRocksTemporaryPartitionStatements() {
         LineageResult read = LineSql.parse("SELECT id FROM mart.events TEMPORARY PARTITION(tp1)");
         assertEquals(SqlDialect.STARROCKS, read.getDialect());
@@ -736,6 +761,34 @@ public class LineSqlAutoDetectionIntegrationTest {
                 .anyMatch(usage -> "region".equals(usage.getColumn().getName())));
         assertDialect(SqlDialect.SPARK,
                 "SELECT sum(amount) OVER (PARTITION BY (region)) AS total FROM facts.sales");
+    }
+
+    @Test
+    public void detectsHiveTableLocksCompactionsAndFunctionReload() {
+        LineageResult locks = LineSql.parse("SHOW LOCKS mart.orders EXTENDED");
+        assertEquals(SqlDialect.HIVE, locks.getDialect());
+        assertEquals(StatementType.READ_METADATA, locks.getStatementType());
+        assertEquals("orders", locks.getInputTables().get(0).getName());
+        assertTrue(locks.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.HIVE, "LOCK TABLE mart.orders SHARED");
+        assertDialect(SqlDialect.HIVE, "UNLOCK TABLE mart.orders");
+        assertDialect(SqlDialect.HIVE, "SHOW COMPACTIONS");
+        assertDialect(SqlDialect.HIVE, "RELOAD FUNCTION");
+        assertDialect(SqlDialect.MYSQL, "LOCK TABLES mart.orders READ");
+        assertDialect(SqlDialect.SPARK, "SELECT 'LOCK TABLE mart.orders SHARED' AS note");
+    }
+
+    @Test
+    public void detectsFlinkFunctionArtifactsWithoutClaimingSparkJarFunctions() {
+        LineageResult function = LineSql.parse("CREATE TEMPORARY FUNCTION udf.parse_json "
+                + "AS 'com.example.udf.ParseJson' LANGUAGE JAVA "
+                + "USING ARTIFACT 'file:///opt/flink/artifacts/json-udf.jar'");
+        assertEquals(SqlDialect.FLINK, function.getDialect());
+        assertEquals(StatementType.CREATE_ROUTINE, function.getStatementType());
+        assertTrue(function.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.SPARK,
+                "CREATE TEMPORARY FUNCTION f AS 'com.example.F' USING JAR 'file:///opt/spark/f.jar'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE FUNCTION f USING ARTIFACT' AS note");
     }
 
     @Test

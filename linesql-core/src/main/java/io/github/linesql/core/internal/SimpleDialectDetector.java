@@ -38,6 +38,11 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
                     + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
 
+    private static final Pattern STARROCKS_PIPE_OR_STORAGE_VOLUME = Pattern.compile(
+            "^\\s*(?:(?:create(?:\\s+or\\s+replace)?|alter|drop)\\s+pipe"
+                    + "|show\\s+pipes|(?:create|alter|drop|desc(?:ribe)?)\\s+storage\\s+volume"
+                    + "|show\\s+storage\\s+volumes|set\\s+default\\s+storage\\s+volume)\\b");
+
     private static final Pattern STARROCKS_JOIN = Pattern.compile(
             "\\basof\\s+(?:inner|left(?:\\s+outer)?)\\s+join\\b"
                     + "|\\bright\\s+(?:semi|anti)\\s+join\\b|\\bnull\\s+aware\\s+left\\s+anti\\s+join\\b");
@@ -62,6 +67,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s*\\.\\s*[a-z_][\\w$]*)*\\s+temporary\\s+partition\\s*\\("
                     + "|^\\s*show\\s+temporary\\s+partitions\\s+from\\b"
                     + "|^\\s*alter\\s+table\\b[^;]*\\b(?:add|drop|modify|with)\\s+temporary\\s+partitions?\\b");
+    private static final Pattern HIVE_LOCK_OR_COMPACTION = Pattern.compile(
+            "^\\s*(?:lock\\s+table\\b[^;]+\\b(?:shared|exclusive)\\s*(?:;|$)"
+                    + "|unlock\\s+table\\b|show\\s+(?:locks|compactions)\\b|reload\\s+function\\b)");
+    private static final Pattern FLINK_FUNCTION_ARTIFACT = Pattern.compile(
+            "^\\s*create\\s+(?:temporary\\s+(?:system\\s+)?)?function\\b[^;]*\\busing\\s+artifact\\b");
     private static final Pattern HIVE_TABLE_VALUES = Pattern.compile(
             "\\b(?:from|lateral)\\s+table\\s*\\(\\s*values\\s*\\(");
     private static final String FLINK_SESSION_KEY =
@@ -583,6 +593,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
         }
+        if (HIVE_LOCK_OR_COMPACTION.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table lock, compaction, or function reload syntax"));
+        }
         if (HIVE_TABLE_VALUES.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive TABLE VALUES relation"));
         }
@@ -620,6 +633,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
         } else if (FLINK_CHANGELOG_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink changelog table function syntax"));
+        } else if (FLINK_FUNCTION_ARTIFACT.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink function artifact syntax"));
         } else if (FLINK_EXPLAIN_OR_JAR.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink explain details or JAR management"));
         } else if (FLINK_MODULE_OR_SYSTEM_FUNCTION.matcher(unquotedSyntax).find()) {
@@ -666,6 +681,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 && STARROCKS_TEMPORARY_PARTITION.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks temporary partition syntax"));
+        } else if (STARROCKS_PIPE_OR_STORAGE_VOLUME.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks pipe or storage volume syntax"));
         } else if (STARROCKS_JOIN.matcher(unquotedSyntax).find()
                 || (!unquotedSyntax.contains("match_condition") && STARROCKS_ASOF_ON.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.98, "StarRocks ASOF or directional semi/anti join"));
