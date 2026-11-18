@@ -461,6 +461,14 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern STARROCKS_BRACKET_JOIN_HINT = Pattern.compile(
             "\\bjoin\\s+\\[\\s*(?:broadcast|shuffle|bucket|colocate)\\s*\\]\\s+"
                     + SQL_IDENTIFIER + "\\s*\\.\\s*" + SQL_IDENTIFIER);
+    private static final Pattern STARROCKS_PARTITION_MAINTENANCE = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
+                    + "(?:drop\\s+partitions\\s+(?:if\\s+exists\\s+)?(?:where\\b|start\\s*\\(|\\()"
+                    + "|drop\\s+partition\\s+(?:if\\s+exists\\s+)?" + SQL_IDENTIFIER + "\\s+force\\b"
+                    + "|add\\s+partition\\s+" + SQL_IDENTIFIER + "\\s+values\\s+(?:in\\s*\\(|\\[)"
+                    + "|modify\\s+partition\\s+(?:" + SQL_IDENTIFIER + "|\\([^;)]*\\))\\s+set\\s*\\("
+                    + "|partitions\\s+" + SQL_IDENTIFIER + "\\s+distributed\\s+by\\s+(?:hash|random)\\b"
+                    + "|recover\\s+partition\\s+" + SQL_IDENTIFIER + ")");
     private static final Pattern STARROCKS_TABLE_MAINTENANCE = Pattern.compile(
             "^\\s*alter\\s+(?:table|materialized\\s+view)\\s+" + SQL_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
@@ -834,6 +842,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary lookup syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
+        } else if (STARROCKS_PARTITION_MAINTENANCE.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks partition maintenance syntax"));
         } else if (STARROCKS_TABLE_MAINTENANCE.matcher(relationSyntax).find()
                 || (containsStatementSeparator
                         && (unquotedSyntax.contains("rollup") || unquotedSyntax.contains("swap")

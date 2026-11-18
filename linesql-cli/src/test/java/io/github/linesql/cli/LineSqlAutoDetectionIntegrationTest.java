@@ -804,6 +804,21 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksNamedAndBatchPartitionMaintenance() {
+        LineageResult drop = LineSql.parse("ALTER TABLE mart.site_access DROP PARTITIONS "
+                + "WHERE dt < current_date() - INTERVAL 3 MONTH");
+        assertEquals(SqlDialect.STARROCKS, drop.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, drop.getStatementType());
+        assertEquals("site_access", drop.getOutputTables().get(0).getName());
+        assertTrue(drop.getColumnUsages().stream().anyMatch(usage -> "dt".equals(usage.getColumn().getName())));
+        assertTrue(drop.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.site_access DROP PARTITION p1 FORCE");
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.site_access MODIFY PARTITION (*) SET ('replication_num' = '3')");
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.site_access ADD PARTITION p1 VALUES IN (1, 2)");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER TABLE mart.site_access DROP PARTITIONS WHERE dt = 1' AS note");
+    }
+
+    @Test
     public void detectsStarRocksTableMaintenanceAndInheritsScriptNamespace() {
         LineageResult rollup = LineSql.parse("ALTER TABLE mart.orders ADD ROLLUP r_id (id)");
         assertEquals(SqlDialect.STARROCKS, rollup.getDialect());
