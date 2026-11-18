@@ -1501,6 +1501,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedInheritedWindowsWithoutUnusedReferences() {
+        LineageResult result = LineSql.parse("SELECT SUM(e.amount) OVER w2 AS total FROM ods.events e "
+                + "WINDOW w1 AS (PARTITION BY e.user_id), w2 AS (w1 ORDER BY e.event_time), "
+                + "unused AS (PARTITION BY e.tenant_id)");
+        assertEquals(SqlDialect.UNKNOWN, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals(3, result.getColumnLineage().get(0).getSources().size());
+        assertEquals(2, result.getColumnUsages().size());
+        assertEquals("event_time", result.getColumnUsages().get(1).getColumn().getName());
+        assertTrue(result.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedPaginationWithProjectionAndOrdering() {
         LineageResult result = LineSql.parse("SELECT id, amount FROM dwd.orders ORDER BY order_time FETCH NEXT ROW ONLY");
         assertEquals(SqlDialect.UNKNOWN, result.getDialect());

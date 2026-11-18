@@ -186,6 +186,11 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             inputTableCount = 0;
             firstDialect = SqlDialect.HIVE;
             command = "SHOW ROLES";
+        } else if (SimpleDialectDetector.isSharedInheritedWindow(statement)) {
+            expected = StatementType.SELECT;
+            inputTableCount = -1;
+            secondDialect = SqlDialect.HIVE;
+            command = "inherited WINDOW";
         } else if (SimpleDialectDetector.isSharedQueryPagination(statement)) {
             expected = StatementType.SELECT;
             inputTableCount = -1;

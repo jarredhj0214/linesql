@@ -1662,6 +1662,45 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitWindowClause(FlinkParser.WindowClauseContext ctx) {
+        Set<String> referenced = new LinkedHashSet<>();
+        collectWindowReferences(ctx.getParent(), referenced);
+        Set<String> active = new LinkedHashSet<>();
+        for (String name : referenced) {
+            while (name != null && active.add(name)) {
+                FlinkParser.WindowSpecContext spec = namedWindows.get(name);
+                name = spec == null || spec.base == null ? null
+                        : cleanIdentifier(spec.base).toLowerCase(Locale.ROOT);
+            }
+        }
+        for (Map.Entry<String, FlinkParser.WindowSpecContext> entry : namedWindows.entrySet()) {
+            if (active.contains(entry.getKey())) {
+                visit(entry.getValue());
+            }
+        }
+        return null;
+    }
+
+    private void collectWindowReferences(ParseTree tree, Set<String> referenced) {
+        if (tree instanceof FlinkParser.WindowClauseContext || tree instanceof FlinkParser.QueryContext) {
+            return;
+        }
+        if (tree instanceof FlinkParser.OverClauseContext) {
+            FlinkParser.OverClauseContext over = (FlinkParser.OverClauseContext) tree;
+            FlinkParser.IdentifierContext name = over.identifier();
+            if (name == null && over.windowSpec() != null) {
+                name = over.windowSpec().base;
+            }
+            if (name != null) {
+                referenced.add(cleanIdentifier(name).toLowerCase(Locale.ROOT));
+            }
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            collectWindowReferences(tree.getChild(i), referenced);
+        }
+    }
+
+    @Override
     public Void visitWindowSpec(FlinkParser.WindowSpecContext ctx) {
         if (ctx.expressionList() != null) {
             for (FlinkParser.ExpressionContext expression : ctx.expressionList().expression()) {
