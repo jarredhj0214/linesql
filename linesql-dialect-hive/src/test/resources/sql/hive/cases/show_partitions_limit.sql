@@ -1,0 +1,1 @@
+SHOW PARTITIONS mart.orders LIMIT 10

@@ -1637,6 +1637,51 @@
       "description": "Hive SHOW PARTITIONS metadata read table lineage"
     },
     {
+      "id": "show_partitions_where_order_limit",
+      "file": "cases/show_partitions_where_order_limit.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "mart.orders.ds"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.orders.hr"
+        },
+        {
+          "type": "WHERE",
+          "column": "mart.orders.region"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.orders.hr"
+        },
+        {
+          "type": "ORDER_BY",
+          "column": "mart.orders.ds"
+        }
+      ],
+      "description": "Hive 4 partition metadata retains static keys, predicate columns, and sort keys"
+    },
+    {
+      "id": "show_partitions_limit",
+      "file": "cases/show_partitions_limit.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive 4 partition metadata with only a limit retains the input table"
+    },
+    {
       "id": "show_partitions_filter",
       "file": "cases/show_partitions_filter.sql",
       "statementType": "READ_METADATA",

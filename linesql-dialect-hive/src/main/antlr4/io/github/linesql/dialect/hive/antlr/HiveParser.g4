@@ -648,7 +648,8 @@ showStatement
     : SHOW CREATE TABLE multipartIdentifier                          #showTableMetadata
     | SHOW CREATE VIEW multipartIdentifier                           #showTableMetadata
     | SHOW TBLPROPERTIES multipartIdentifier (LPAREN string RPAREN)? #showTableMetadata
-    | SHOW PARTITIONS multipartIdentifier (PARTITION partitionSpec)? #showTableMetadata
+    | SHOW PARTITIONS multipartIdentifier (PARTITION partitionSpec)? whereClause?
+      (ORDER BY sortItem (COMMA sortItem)*)? (LIMIT number)?            #showPartitionMetadata
     | SHOW COLUMNS (FROM | IN) multipartIdentifier                   #showTableMetadata
     | SHOW FORMATTED? (INDEX | INDEXES) ON multipartIdentifier       #showTableMetadata
     | SHOW TABLE EXTENDED ((FROM | IN) identifier)? LIKE string (PARTITION partitionSpec)? #showGenericMetadata
