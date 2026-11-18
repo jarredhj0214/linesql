@@ -20,6 +20,17 @@ import static org.junit.Assert.assertTrue;
 
 public class LineSqlAutoDetectionIntegrationTest {
     @Test
+    public void prefersSparkPipesOverSharedIlikePredicates() {
+        LineageResult pipe = LineSql.parse("FROM ods.users |> WHERE name ILIKE 'a%' |> SELECT id");
+        assertEquals(SqlDialect.SPARK, pipe.getDialect());
+        assertEquals(StatementType.SELECT, pipe.getStatementType());
+        assertEquals("id", pipe.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("name", pipe.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(pipe.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.POSTGRESQL, "SELECT '|> WHERE' FROM ods.users WHERE name ILIKE 'a%'");
+    }
+
+    @Test
     public void autoDetectsRegisteredDialectAnchorsThroughPublicApi() {
         assertDialect(SqlDialect.MYSQL,
                 "update mart.t join app.s on t.id = s.id set t.c = s.c");

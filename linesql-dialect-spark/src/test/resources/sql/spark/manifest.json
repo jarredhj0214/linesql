@@ -2956,6 +2956,30 @@
       "description": "Pipe SELECT source and direct column lineage"
     },
     {
+      "id": "pipe_where_ilike",
+      "file": "cases/pipe_where_ilike.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.users.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.users.name"
+        }
+      ],
+      "description": "Spark pipe syntax identifies the dialect even when its predicate uses ILIKE"
+    },
+    {
       "id": "pipe_where_select_lineage",
       "file": "cases/pipe_where_select_lineage.sql",
       "statementType": "SELECT",

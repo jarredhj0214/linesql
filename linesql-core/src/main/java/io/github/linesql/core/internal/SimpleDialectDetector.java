@@ -274,6 +274,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern POSTGRES_RECURSIVE_CTE_OPTIONS = Pattern.compile(
             "\\bwith\\s+recursive\\b[^;]*?\\)\\s*(?:search\\s+(?:breadth|depth)\\s+first\\s+by\\b"
                     + "|cycle\\s+[a-z_][\\w$]*(?:\\s*,\\s*[a-z_][\\w$]*)*\\s+set\\b)");
+    private static final Pattern SPARK_QUERY_PIPE = Pattern.compile(
+            "^\\s*(?:select|from|with|insert)\\b[^;]*?\\|>\\s*"
+                    + "(?:select|where|join|union|intersect|except|order\\s+by|limit)\\b");
     private static final Pattern SPARK_RECURSION_LEVEL = Pattern.compile(
             "(?s)\\bwith\\s+recursive\\b[^;]*?\\bmax\\s+recursion\\s+level\\s+[0-9]+\\s+as\\b");
     private static final Pattern SQL_SERVER_AI_MODEL = Pattern.compile(
@@ -967,6 +970,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bserdeproperties\\b.*")
                 || unquotedSyntax.matches("(?s).*\\bclustered\\s+by\\b.*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.90, "Hive storage or table layout syntax"));
+        }
+        if (SPARK_QUERY_PIPE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark SQL query pipe"));
         }
         if (SPARK_RECURSION_LEVEL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark recursive CTE level limit"));
