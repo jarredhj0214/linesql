@@ -98,6 +98,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s*\\.\\s*[a-z_][\\w$]*)*\\s+temporary\\s+partition\\s*\\("
                     + "|^\\s*show\\s+temporary\\s+partitions\\s+from\\b"
                     + "|^\\s*alter\\s+table\\b[^;]*\\b(?:add|drop|modify|with)\\s+temporary\\s+partitions?\\b");
+    private static final Pattern HIVE_PARTITION_OR_VIEW_DDL = Pattern.compile(
+            "^\\s*(?:alter\\s+table\\b[^;]*\\bexchange\\s+partition\\s*\\([^;)]*="
+                    + "|alter\\s+materialized\\s+view\\b[^;]*\\b(?:enable|disable)\\s+rewrite\\b)");
+    private static final Pattern HIVE_ROLE_METADATA = Pattern.compile(
+            "^\\s*show\\s+(?:current\\s+roles|principals|role\\s+grant\\s+(?:user|role))\\b");
     private static final Pattern HIVE_EXPLAIN_OR_TRANSACTIONS = Pattern.compile(
             "^\\s*(?:explain\\s+(?:(?:formatted|extended)\\s+)?(?:authorization|dependency)"
                     + "|show\\s+transactions)\\b");
@@ -659,6 +664,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
                 || unquotedSyntax.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
+        }
+        if (HIVE_PARTITION_OR_VIEW_DDL.matcher(unquotedSyntax).find()
+                || HIVE_ROLE_METADATA.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive partition exchange, view rewrite, or role metadata syntax"));
         }
         if (HIVE_EXPLAIN_OR_TRANSACTIONS.matcher(unquotedSyntax).find()
                 || normalized.matches("(?s)^\\s*show\\s+conf\\s+'hive\\..*")) {

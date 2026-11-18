@@ -908,6 +908,21 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsHivePartitionExchangeViewRewriteAndRoleMetadata() {
+        LineageResult exchange = LineSql.parse("ALTER TABLE mart.orders EXCHANGE PARTITION "
+                + "(dt = '2026-11-18') WITH TABLE staging.orders_tmp");
+        assertEquals(SqlDialect.HIVE, exchange.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, exchange.getStatementType());
+        assertEquals("orders_tmp", exchange.getInputTables().get(0).getName());
+        assertTrue(exchange.getColumnUsages().stream().anyMatch(usage -> "dt".equals(usage.getColumn().getName())));
+        assertTrue(exchange.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.HIVE, "ALTER MATERIALIZED VIEW mart.user_totals DISABLE REWRITE");
+        assertDialect(SqlDialect.HIVE, "SHOW CURRENT ROLES");
+        assertDialect(SqlDialect.HIVE, "SHOW ROLE GRANT USER etl_user");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW CURRENT ROLES' AS note");
+    }
+
+    @Test
     public void detectsHiveExplainDetailsAndSessionMetadata() {
         LineageResult dependency = LineSql.parse("EXPLAIN DEPENDENCY SELECT event_id FROM dwd.events");
         assertEquals(SqlDialect.HIVE, dependency.getDialect());
