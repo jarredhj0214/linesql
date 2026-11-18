@@ -459,6 +459,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern SHARED_DROP_CATALOG = Pattern.compile(
             "^\\s*drop\\s+catalog\\s+(?:if\\s+exists\\s+)?" + SQL_IDENTIFIER + "\\s*;?\\s*$",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHARED_DROP_MATERIALIZED_VIEW = Pattern.compile(
+            "^\\s*drop\\s+materialized\\s+view\\s+(?:if\\s+exists\\s+)?" + SQL_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")?\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARED_SHOW_CREATE_VIEW = Pattern.compile(
             "^\\s*show\\s+create\\s+view\\s+" + SQL_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")?\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
@@ -1499,6 +1502,10 @@ public class SimpleDialectDetector implements DialectDetector {
 
     static boolean isSharedDropCatalog(String statement) {
         return SHARED_DROP_CATALOG.matcher(stripComments(statement)).matches();
+    }
+
+    static boolean isSharedDropMaterializedView(String statement) {
+        return SHARED_DROP_MATERIALIZED_VIEW.matcher(stripComments(statement)).matches();
     }
 
     static boolean isSharedShowCreateView(String statement) {

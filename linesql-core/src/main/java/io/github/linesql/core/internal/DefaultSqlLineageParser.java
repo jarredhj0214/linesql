@@ -148,6 +148,8 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     private LineageResult recoverSharedStatement(String statement, ParseOptions options, ParseContext context) {
         StatementType expected;
         int inputTableCount;
+        int outputTableCount = 0;
+        SqlDialect firstDialect = SqlDialect.FLINK;
         String command;
         if (SimpleDialectDetector.isSharedDropCatalog(statement)) {
             expected = StatementType.CONTROL;
@@ -157,30 +159,43 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             expected = StatementType.READ_METADATA;
             inputTableCount = 1;
             command = "SHOW CREATE VIEW";
+        } else if (SimpleDialectDetector.isSharedDropMaterializedView(statement)) {
+            expected = StatementType.DROP_VIEW;
+            inputTableCount = 0;
+            outputTableCount = 1;
+            firstDialect = SqlDialect.HIVE;
+            command = "DROP MATERIALIZED VIEW";
         } else {
             return null;
         }
-        LineageResult flink = parseSharedStatement(statement, SqlDialect.FLINK, options, context, expected, inputTableCount);
-        LineageResult starRocks = parseSharedStatement(statement, SqlDialect.STARROCKS, options, context, expected, inputTableCount);
-        if (flink == null || starRocks == null || !flink.getInputTables().equals(starRocks.getInputTables())) {
+        LineageResult first = parseSharedStatement(statement, firstDialect, options, context,
+                expected, inputTableCount, outputTableCount);
+        LineageResult starRocks = parseSharedStatement(statement, SqlDialect.STARROCKS, options, context,
+                expected, inputTableCount, outputTableCount);
+        if (first == null || starRocks == null || !first.getInputTables().equals(starRocks.getInputTables())
+                || !first.getOutputTables().equals(starRocks.getOutputTables())) {
             return null;
         }
         LineageResult shared = new LineageResult();
         shared.setStatementType(expected);
-        shared.setInputTables(new ArrayList<>(flink.getInputTables()));
-        shared.setDialectDetectionReason("Flink and StarRocks both support this " + command + " syntax");
+        shared.setInputTables(new ArrayList<>(first.getInputTables()));
+        shared.setOutputTables(new ArrayList<>(first.getOutputTables()));
+        String firstName = firstDialect == SqlDialect.HIVE ? "Hive" : "Flink";
+        shared.setDialectDetectionReason(firstName + " and StarRocks both support this " + command + " syntax");
         return shared;
     }
 
     private LineageResult parseSharedStatement(String statement, SqlDialect dialect, ParseOptions options,
-                                               ParseContext context, StatementType expected, int inputTableCount) {
+                                               ParseContext context, StatementType expected, int inputTableCount,
+                                               int outputTableCount) {
         if (!parsers.containsKey(dialect)) {
             return null;
         }
         try {
             LineageResult trial = parseStatement(statement, dialect, options, trialContext(context));
             if (trial.getStatementType() == expected && trial.getDiagnostics().isEmpty()
-                    && trial.getInputTables().size() == inputTableCount && trial.getOutputTables().isEmpty()
+                    && trial.getInputTables().size() == inputTableCount
+                    && trial.getOutputTables().size() == outputTableCount
                     && trial.getColumnLineage().isEmpty() && trial.getColumnUsages().isEmpty()) {
                 return trial;
             }
