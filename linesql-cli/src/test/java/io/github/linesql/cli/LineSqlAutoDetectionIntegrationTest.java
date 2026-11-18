@@ -909,6 +909,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksNativeTableOrderingRollupAndProperties() {
+        LineageResult order = LineSql.parse("ALTER TABLE mart.orders ORDER BY (dt, `user_id`)");
+        assertEquals(SqlDialect.STARROCKS, order.getDialect());
+        assertEquals(2, order.getColumnUsages().size());
+        assertTrue(order.getDiagnostics().isEmpty());
+        LineageResult properties = LineSql.parse("ALTER TABLE mart.orders "
+                + "SET ('dynamic_partition.enable' = 'true', 'bloom_filter_columns' = 'order_id,user_id')");
+        assertEquals(SqlDialect.STARROCKS, properties.getDialect());
+        assertEquals(2, properties.getColumnUsages().size());
+        assertTrue(properties.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.orders ADD COLUMN net DECIMAL(18,2) SUM "
+                + "DEFAULT '0' AFTER amount TO rollup_orders PROPERTIES ('timeout' = '3600')");
+        assertDialect(SqlDialect.FLINK, "ALTER TABLE mart.orders SET ('sink.parallelism' = '4')");
+        assertTrue(LineSql.parse("ALTER TABLE mart.orders ORDER BY id DESC").getDialect() != SqlDialect.STARROCKS);
+    }
+
+    @Test
     public void detectsStarRocksSchemaAndStorageMaintenance() {
         LineageResult distribution = LineSql.parse("ALTER TABLE `mart`.`orders` "
                 + "DISTRIBUTED BY HASH(account_id) DEFAULT BUCKETS 10");
