@@ -2024,6 +2024,64 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitBinByClause(SqlBaseParser.BinByClauseContext ctx) {
+        boolean pipe = ctx.getParent() instanceof SqlBaseParser.OperatorPipeRightSideContext;
+        List<ColumnRef> start = binInputColumnRefs(ctx.rangeStart, pipe);
+        List<ColumnRef> end = binInputColumnRefs(ctx.rangeEnd, pipe);
+        List<ColumnRef> bounds = start == null || end == null
+                ? null : LineageModelUtils.mergeColumnRefs(start, end);
+        Map<String, List<ColumnRef>> outputs = new LinkedHashMap<>();
+        outputs.put(binOutputName(ctx.binStartAlias, "bin_start"), bounds);
+        outputs.put(binOutputName(ctx.binEndAlias, "bin_end"), bounds);
+        outputs.put(binOutputName(ctx.binRatioAlias, "bin_distribute_ratio"), bounds);
+        for (SqlBaseParser.MultipartIdentifierContext distributed : ctx.distributeCol) {
+            List<SqlBaseParser.ErrorCapturingIdentifierContext> parts = distributed.parts;
+            String name = cleanIdentifier(parts.get(parts.size() - 1).getText()).toLowerCase(Locale.ROOT);
+            List<ColumnRef> value = binInputColumnRefs(distributed, pipe);
+            outputs.put(name, value == null || bounds == null
+                    ? null : LineageModelUtils.mergeColumnRefs(value, bounds));
+        }
+        pipeAssignedColumns.putAll(outputs);
+        if (ctx.tblAlias != null && visibleRelations.size() == 1 && !outputs.containsValue(null)) {
+            Map<String, List<ColumnRef>> aliases = new LinkedHashMap<>();
+            if (pipe && !projections.isEmpty() && !pipeRetainsInputColumns) {
+                for (Projection projection : projections) {
+                    if (!projection.star) {
+                        List<ColumnRef> refs = columnRefs(projection);
+                        if (refs != null) {
+                            aliases.put(projection.targetColumn.toLowerCase(Locale.ROOT), refs);
+                        }
+                    }
+                }
+            } else {
+                for (ColumnLineage column : starColumnLineage(null, Projection.star(null, "*"))) {
+                    aliases.put(column.getTarget().getName().toLowerCase(Locale.ROOT), column.getSources());
+                }
+            }
+            aliases.putAll(outputs);
+            String relation = "\0spark-bin-alias-" + pipeAliasSequence++;
+            derivedColumnLineage.put(relation, aliases);
+            derivedAliases.put(cleanIdentifier(ctx.tblAlias.getText()).toLowerCase(Locale.ROOT), relation);
+        }
+        return null;
+    }
+
+    private List<ColumnRef> binInputColumnRefs(SqlBaseParser.MultipartIdentifierContext identifier, boolean pipe) {
+        SourceColumn column = new SourceColumn(null, cleanMultipartIdentifier(identifier));
+        if (pipe) {
+            List<ColumnRef> refs = columnRefsFromProjection(column);
+            if (refs != null) {
+                return refs;
+            }
+        }
+        return columnRefs(Collections.singletonList(column), new LinkedHashSet<String>());
+    }
+
+    private static String binOutputName(SqlBaseParser.ErrorCapturingIdentifierContext alias, String defaultName) {
+        return alias == null ? defaultName : cleanIdentifier(alias.getText()).toLowerCase(Locale.ROOT);
+    }
+
+    @Override
     public Void visitOperatorPipeRightSide(SqlBaseParser.OperatorPipeRightSideContext ctx) {
         if (ctx.AS() != null && ctx.errorCapturingIdentifier() != null) {
             applyPipeAlias(cleanIdentifier(ctx.errorCapturingIdentifier().getText()));

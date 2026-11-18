@@ -90,6 +90,8 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern STARROCKS_JOIN = Pattern.compile(
             "\\basof\\s+(?:inner|left(?:\\s+outer)?)\\s+join\\b"
                     + "|\\bright\\s+(?:semi|anti)\\s+join\\b|\\bnull\\s+aware\\s+left\\s+anti\\s+join\\b");
+    private static final Pattern SPARK_BIN_BY =
+            Pattern.compile("\\bbin\\s+by\\s*\\(\\s*range\\b");
     private static final Pattern SPARK_ASOF_TOKEN = Pattern.compile(
             "\\basof\\s+join\\b|\\bmatch_condition(?=\\s*\\()|\\b(?:on|using|where|join)\\b|[();]");
     private static final Pattern STARROCKS_ASOF_ON = Pattern.compile(
@@ -1170,6 +1172,8 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         if (normalized.matches("(?s)^\\s*execute\\s+immediate\\s+r?['\"].*")) {
             candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark EXECUTE IMMEDIATE with a SQL literal"));
+        } else if (unquotedSyntax.contains("bin") && SPARK_BIN_BY.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark BIN BY range syntax"));
         } else if (sparkAsofJoin) {
             candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark ASOF JOIN MATCH_CONDITION syntax"));
         } else if (sparkSignal) {

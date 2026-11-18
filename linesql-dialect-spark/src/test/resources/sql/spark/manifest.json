@@ -3121,6 +3121,91 @@
       "description": "A constant Pipe SET assignment does not invent a physical reference; a later SELECT after a wildcard keeps the replacement"
     },
     {
+      "id": "bin_by_range_dependencies",
+      "file": "cases/bin_by_range_dependencies.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.readings"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "bin_start",
+          "sources": [
+            "ods.readings.reading_start",
+            "ods.readings.reading_end"
+          ]
+        },
+        {
+          "target": "bin_end",
+          "sources": [
+            "ods.readings.reading_start",
+            "ods.readings.reading_end"
+          ]
+        },
+        {
+          "target": "bin_distribute_ratio",
+          "sources": [
+            "ods.readings.reading_start",
+            "ods.readings.reading_end"
+          ]
+        },
+        {
+          "target": "energy",
+          "sources": [
+            "ods.readings.energy",
+            "ods.readings.reading_start",
+            "ods.readings.reading_end"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Spark BIN BY produced boundaries and ratio trace to the range, while the uniform measure retains its source"
+    },
+    {
+      "id": "bin_by_qualified_output_aliases",
+      "file": "cases/bin_by_qualified_output_aliases.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.readings"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "sensor_id",
+          "sources": [
+            "ods.readings.sensor_id"
+          ]
+        },
+        {
+          "target": "bucket_start",
+          "sources": [
+            "ods.readings.reading_start",
+            "ods.readings.reading_end"
+          ]
+        },
+        {
+          "target": "energy",
+          "sources": [
+            "ods.readings.energy",
+            "ods.readings.reading_start",
+            "ods.readings.reading_end"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.readings.reading_start"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.readings.reading_end"
+        }
+      ],
+      "description": "Spark BIN BY alias preserves original fields alongside generated fields and scaled measures"
+    },
+    {
       "id": "asof_join_match_condition_on",
       "file": "cases/asof_join_match_condition_on.sql",
       "statementType": "SELECT",
