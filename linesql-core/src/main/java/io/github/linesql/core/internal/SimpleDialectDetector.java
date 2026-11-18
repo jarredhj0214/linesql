@@ -97,8 +97,6 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\bon\\s+duplicate\\s+key\\s+update\\b");
 
     private static final Pattern ORACLE_START_WITH = Pattern.compile("\\bstart\\s+with\\b");
-    private static final Pattern ORACLE_SAMPLE = Pattern.compile("\\bsample\\s+(?:block\\s+)?\\(");
-    private static final Pattern ORACLE_PARTITION = Pattern.compile("\\b(?:sub)?partition\\s*\\(");
 
     private static final Pattern ORACLE_RETURNING_TARGET = Pattern.compile(
             "\\breturn(?:ing)?\\b[^;]*\\b(?:bulk\\s+collect\\s+into\\b|into\\s*:[\\p{L}_][\\p{L}\\p{N}_$#]*)");
@@ -440,6 +438,12 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
     private static final String SQL_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final String ORACLE_RELATION_IDENTIFIER = "(?:" + ORACLE_NAME + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern ORACLE_RELATION_OPTION_OR_QUOTE = Pattern.compile(
+            "(\\b(?:from|join)\\s+" + ORACLE_RELATION_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + ORACLE_RELATION_IDENTIFIER + ")*"
+                    + "\\s+(?:(?:sub)?partition|sample(?:\\s+block)?)\\s*\\()"
+                    + "|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
     private static final Pattern STARROCKS_FILTERED_MATERIALIZED_VIEWS = Pattern.compile(
             "^\\s*show\\s+materialized\\s+views?"
                     + "(?:\\s+(?:from|in)\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*)?"
@@ -951,10 +955,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (ORACLE_START_WITH.matcher(unquotedSyntax).find()
                     && unquotedSyntax.matches("(?s).*\\bselect\\b[^;]*\\bstart\\s+with\\b.*"))
                 || unquotedSyntax.matches("(?s).*\\bas\\s+of\\s+(timestamp|scn)\\b.*")
-                || (ORACLE_SAMPLE.matcher(unquotedSyntax).find()
-                    && unquotedSyntax.matches("(?s).*\\bfrom\\b.+\\bsample\\s+(block\\s+)?\\(.*"))
-                || (ORACLE_PARTITION.matcher(unquotedSyntax).find()
-                    && unquotedSyntax.matches("(?s)^(?!\\s*(explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b).*\\bfrom\\b.+\\b(sub)?partition\\s*\\(.*"))
+                || ((unquotedSyntax.contains("partition") || unquotedSyntax.contains("sample"))
+                    && !unquotedSyntax.matches("(?s)^\\s*(?:explain\\s+partitions|show\\s+tablet|admin\\s+show)\\b.*")
+                    && containsSignatureOutsideQuotes(ORACLE_RELATION_OPTION_OR_QUOTE, normalized))
                 || unquotedSyntax.matches("(?s)^\\s*create\\s+(global|private)\\s+temporary\\s+table\\b.*")
                 || unquotedSyntax.matches("(?s)^\\s*create\\s+table\\b.*\\b(nologging|logging|parallel|noparallel|compress|nocompress)\\b.*\\bas\\s+select\\b.*")
                 || unquotedSyntax.matches("(?s)^\\s*drop\\s+table\\b.*\\bcascade\\s+constraints\\b.*")

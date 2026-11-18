@@ -1047,6 +1047,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsOraclePartitionAndSampleOnlyOnInputRelations() {
+        assertDialect(SqlDialect.ORACLE, "SELECT order_id FROM \"sales\".\"orders\" SUBPARTITION (orders_2026)");
+        assertDialect(SqlDialect.ORACLE, "SELECT order_id FROM sales.orders SAMPLE BLOCK (5) SEED (42)");
+        assertDialect(SqlDialect.SPARK, "SELECT order_id FROM sales.orders WHERE sample(order_id) > 0");
+        LineageResult metadata = LineSql.parse(
+                "SHOW TABLE EXTENDED FROM mart LIKE 'orders' PARTITION (dt = '2026-09-14')");
+        assertEquals(SqlDialect.SPARK, metadata.getDialect());
+        assertEquals(StatementType.READ_METADATA, metadata.getStatementType());
+        assertTrue(metadata.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void detectsOraclePartitionedJoinOutsideWindowExpressions() {
         LineageResult partitioned = LineSql.parse("SELECT c.day_id, s.amount FROM dims.calendar c "
                 + "LEFT JOIN facts.sales s PARTITION BY (s.region) ON s.day_id = c.day_id");
