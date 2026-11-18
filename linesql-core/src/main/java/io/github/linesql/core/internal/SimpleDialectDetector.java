@@ -559,6 +559,22 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "\\s+from\\s+" + STARROCKS_QUALIFIED_NAME + "(?:\\s+(?:as\\s+)?" + SQL_IDENTIFIER + ")?"
                     + "\\s+where\\s+" + STARROCKS_QUALIFIED_COLUMN + "\\s*<=>\\s*"
                     + STARROCKS_QUALIFIED_COLUMN + "\\s*(?:;\\s*)?$");
+    private static final String STARROCKS_VIEW_COMMENT = "(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final String STARROCKS_VIEW_COLUMN =
+            SQL_IDENTIFIER + "(?:\\s+comment\\s+" + STARROCKS_VIEW_COMMENT + ")?";
+    private static final String STARROCKS_VIEW_COLUMNS = "\\s*\\(\\s*" + STARROCKS_VIEW_COLUMN
+            + "(?:\\s*,\\s*" + STARROCKS_VIEW_COLUMN + ")*+\\s*\\)";
+    private static final Pattern STARROCKS_VIEW_DEFINITION = Pattern.compile(
+            "^\\s*(?:alter\\s+view\\s+" + STARROCKS_QUALIFIED_NAME
+                    + "(?:" + STARROCKS_VIEW_COLUMNS + ")?\\s+(?:add|modify)\\s+dialect\\b"
+                    + "|alter\\s+view\\s+" + STARROCKS_QUALIFIED_NAME
+                    + "\\s*\\(\\s*(?:" + STARROCKS_VIEW_COLUMN + "\\s*,\\s*)*?"
+                    + SQL_IDENTIFIER + "\\s+comment\\s+" + STARROCKS_VIEW_COMMENT
+                    + "(?:\\s*,\\s*" + STARROCKS_VIEW_COLUMN + ")*+\\s*\\)\\s+as\\b"
+                    + "|create\\s+(?:or\\s+replace\\s+)?view\\s+(?:if\\s+not\\s+exists\\s+)?"
+                    + STARROCKS_QUALIFIED_NAME + "(?:" + STARROCKS_VIEW_COLUMNS + ")?"
+                    + "(?:\\s+comment\\s+" + STARROCKS_VIEW_COMMENT + ")?"
+                    + "\\s+security\\s+(?:invoker|none)\\s+as\\b)");
     private static final Pattern STARROCKS_TABLE_PROPERTIES = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*"
                     + "\\s+set\\s*\\(\\s*(?:'" + STARROCKS_TABLE_PROPERTY + "'|\"" + STARROCKS_TABLE_PROPERTY
@@ -990,6 +1006,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary lookup syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
+        } else if (STARROCKS_VIEW_DEFINITION.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks view dialect, column comments, or security syntax"));
         } else if (STARROCKS_MATERIALIZED_VIEW_OPTIONS.matcher(relationSyntax).find()
                 || (containsStatementSeparator && unquotedSyntax.contains("materialized")
                         && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_MATERIALIZED_VIEW_OPTIONS))) {

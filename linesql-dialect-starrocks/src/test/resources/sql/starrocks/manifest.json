@@ -1920,6 +1920,92 @@
       "description": "StarRocks secure CREATE VIEW with column comments keeps view column lineage"
     },
     {
+      "id": "alter_iceberg_view_add_dialect",
+      "file": "cases/alter_iceberg_view_add_dialect.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": [
+        "iceberg.ods.orders"
+      ],
+      "outputTables": [
+        "iceberg.mart.revenue_v"
+      ],
+      "columnLineage": [
+        {
+          "target": "iceberg.mart.revenue_v.account_id",
+          "sources": [
+            "iceberg.ods.orders.account_id"
+          ]
+        },
+        {
+          "target": "iceberg.mart.revenue_v.gross",
+          "sources": [
+            "iceberg.ods.orders.amount"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "iceberg.ods.orders.status"
+        }
+      ],
+      "description": "StarRocks adds its Iceberg view definition with column and predicate lineage"
+    },
+    {
+      "id": "alter_iceberg_view_modify_dialect_declared_columns",
+      "file": "cases/alter_iceberg_view_modify_dialect_declared_columns.sql",
+      "statementType": "ALTER_VIEW",
+      "inputTables": [
+        "iceberg.ods.orders"
+      ],
+      "outputTables": [
+        "iceberg.mart.revenue_v"
+      ],
+      "columnLineage": [
+        {
+          "target": "iceberg.mart.revenue_v.account_id",
+          "sources": [
+            "iceberg.ods.orders.account_id"
+          ]
+        },
+        {
+          "target": "iceberg.mart.revenue_v.net",
+          "sources": [
+            "iceberg.ods.orders.amount",
+            "iceberg.ods.orders.discount"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "StarRocks Iceberg view dialect modification maps declared output columns positionally"
+    },
+    {
+      "id": "create_view_security_invoker",
+      "file": "cases/create_view_security_invoker.sql",
+      "statementType": "CREATE_VIEW",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [
+        "mart.secure_orders"
+      ],
+      "columnLineage": [
+        {
+          "target": "mart.secure_orders.order_key",
+          "sources": [
+            "ods.orders.order_id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.active"
+        }
+      ],
+      "description": "Native StarRocks security options retain declarative view columns and query dependencies"
+    },
+    {
       "id": "alter_view_declared_columns",
       "file": "cases/alter_view_declared_columns.sql",
       "statementType": "ALTER_VIEW",
