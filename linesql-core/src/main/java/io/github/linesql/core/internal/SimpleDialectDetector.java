@@ -447,6 +447,10 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|(?:partition\\s*\\([^;)]*\\)\\s+)?"
                     + "(?:(?:touch|concatenate)|compact\\s+and\\s+wait)\\s*(?:;|$))");
 
+    private static final Pattern STARROCKS_USE_CATALOG_LITERAL = Pattern.compile(
+            "^\\s*use\\s+(?:'catalog\\s+[^'\\s]+\\s*'|\"catalog\\s+[^\"\\s]+\\s*\")\\s*;?\\s*$");
+    private static final Pattern STARROCKS_SHARED_CATALOG_SWITCH = Pattern.compile(
+            "^\\s*(use|set)\\s+catalog\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$");
     private static final Pattern STARROCKS_DOUBLE_QUOTED_CATALOG_OPTIONS = Pattern.compile(
             "^\\s*alter\\s+catalog\\s+" + SQL_IDENTIFIER
                     + "\\s+(?:comment\\s+|(?:set|reset)\\s*\\(\\s*)" + DOUBLE_QUOTED_IDENTIFIER);
@@ -811,6 +815,11 @@ public class SimpleDialectDetector implements DialectDetector {
                 && STARROCKS_TEMPORARY_PARTITION.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks temporary partition syntax"));
+        } else if (STARROCKS_USE_CATALOG_LITERAL.matcher(normalized).find()
+                || (containsStatementSeparator && normalized.contains("catalog")
+                        && (hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_USE_CATALOG_LITERAL)
+                                || combinesStarRocksCatalogSwitches(unwrapped)))) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks catalog session syntax"));
         } else if (STARROCKS_EXTERNAL_CATALOG.matcher(unquotedSyntax).find()
                 || STARROCKS_DOUBLE_QUOTED_CATALOG_OPTIONS.matcher(relationSyntax).find()
                 || (containsStatementSeparator && unquotedSyntax.contains("external")
@@ -1003,6 +1012,23 @@ public class SimpleDialectDetector implements DialectDetector {
 
     static boolean hasSharedCatalogUse(String sql) {
         return stripComments(sql).matches("(?is)^\\s*use\\s+catalog\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$");
+    }
+
+    private static boolean combinesStarRocksCatalogSwitches(String sql) {
+        boolean hasUse = false;
+        boolean hasSet = false;
+        for (String statement : new SimpleStatementSplitter().split(sql, SqlDialect.STARROCKS)) {
+            Matcher switchCatalog = STARROCKS_SHARED_CATALOG_SWITCH.matcher(
+                    stripComments(statement).toLowerCase(Locale.ROOT));
+            if (switchCatalog.matches()) {
+                hasUse |= "use".equals(switchCatalog.group(1));
+                hasSet |= "set".equals(switchCatalog.group(1));
+                if (hasUse && hasSet) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     static boolean hasSharedHiveSetFileFormat(String sql) {

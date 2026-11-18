@@ -12185,6 +12185,93 @@
       "description": "A configured default catalog does not make a MERGE CTE source into a physical table"
     },
     {
+      "id": "script_native_catalog_literal",
+      "file": "cases/script_native_catalog_literal.sql",
+      "statementType": "MULTI",
+      "inputTables": [
+        "lake.ops.events",
+        "warehouse.stage.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "lake.ops.events.id"
+          ]
+        },
+        {
+          "target": "order_id",
+          "sources": [
+            "warehouse.stage.orders.id"
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "lake.ops.events"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "event_id",
+              "sources": [
+                "lake.ops.events.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "USE_SCHEMA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": [],
+          "columnUsages": []
+        },
+        {
+          "statementType": "SELECT",
+          "inputTables": [
+            "warehouse.stage.orders"
+          ],
+          "outputTables": [],
+          "columnLineage": [
+            {
+              "target": "order_id",
+              "sources": [
+                "warehouse.stage.orders.id"
+              ]
+            }
+          ],
+          "columnUsages": []
+        }
+      ],
+      "description": "StarRocks native catalog literals and SET CATALOG accept static strings and preserve the catalog of subsequent reads"
+    },
+    {
       "id": "script_catalog_namespace_switches",
       "file": "cases/script_catalog_namespace_switches.sql",
       "statementType": "MULTI",

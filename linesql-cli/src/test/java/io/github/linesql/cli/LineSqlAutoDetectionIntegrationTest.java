@@ -3,6 +3,7 @@ package io.github.linesql.cli;
 import io.github.linesql.core.LineSql;
 import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.LineageResult;
+import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
 import io.github.linesql.core.model.StatementType;
@@ -748,6 +749,33 @@ public class LineSqlAutoDetectionIntegrationTest {
                 != SqlDialect.STARROCKS);
         assertDialect(SqlDialect.SPARK, "CREATE TABLE raw.t (id BIGINT) USING gin");
         assertDialect(SqlDialect.SPARK, "SELECT 'JOIN [broadcast] mart.orders' AS note");
+    }
+
+    @Test
+    public void detectsStarRocksLiteralCatalogAndCompatibleSessionSwitches() {
+        List<LineageResult> literal = LineSql.parseScript("USE 'CATALOG lake'; USE ops; SELECT id FROM events; "
+                + "SET CATALOG 'warehouse'; USE stage; SELECT id FROM orders;");
+        assertEquals(6, literal.size());
+        assertTrue(literal.stream().allMatch(result -> result.getDialect() == SqlDialect.STARROCKS
+                && result.getDiagnostics().isEmpty()));
+        assertEquals("lake", literal.get(2).getInputTables().get(0).getCatalog());
+        assertEquals("warehouse", literal.get(5).getInputTables().get(0).getCatalog());
+
+        List<LineageResult> compatible = LineSql.parseScript("USE CATALOG lake; SET CATALOG warehouse; USE stage; "
+                + "SELECT id FROM orders;");
+        assertEquals(4, compatible.size());
+        assertTrue(compatible.stream().allMatch(result -> result.getDialect() == SqlDialect.STARROCKS
+                && result.getDiagnostics().isEmpty()));
+        assertEquals("warehouse", compatible.get(3).getInputTables().get(0).getCatalog());
+
+        assertDialect(SqlDialect.FLINK, "USE CATALOG lake; SELECT id FROM orders");
+        assertDialect(SqlDialect.SPARK, "SET CATALOG 'warehouse'");
+        ParseContext context = new ParseContext();
+        context.setDefaultCatalog("unchanged");
+        LineageResult invalid = LineSql.parse("USE 'warehouse'", SqlDialect.STARROCKS, context);
+        assertEquals("STARROCKS_INVALID_CATALOG_USE", invalid.getDiagnostics().get(0).getCode());
+        assertEquals("unchanged", context.getDefaultCatalog());
+        assertDialect(SqlDialect.SPARK, "SELECT 'USE CATALOG lake; SET CATALOG warehouse' AS note");
     }
 
     @Test

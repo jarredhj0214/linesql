@@ -1163,11 +1163,12 @@ accountControlStatement
 
 useStatement
     : USE CATALOG catalog=identifier
+    | USE catalogCommand=string
     | USE first=identifier (DOT second=identifier)?
     ;
 
 setCatalogStatement
-    : SET CATALOG identifier
+    : SET CATALOG (identifier | string)
     ;
 
 setStatement

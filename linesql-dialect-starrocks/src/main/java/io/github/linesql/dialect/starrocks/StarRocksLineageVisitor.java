@@ -3,6 +3,7 @@ package io.github.linesql.dialect.starrocks;
 import io.github.linesql.core.model.ColumnLineage;
 import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsageType;
+import io.github.linesql.core.model.Diagnostic;
 import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.StatementType;
@@ -1455,7 +1456,16 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     public Void visitUseStmt(StarRocksParser.UseStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
         StarRocksParser.UseStatementContext use = ctx.useStatement();
-        if (use.catalog != null) {
+        if (use.catalogCommand != null) {
+            String[] command = stringLiteralValue(use.catalogCommand.getText()).split("\\s+");
+            if (command.length != 2 || !"catalog".equalsIgnoreCase(command[0])) {
+                result.setStatementType(StatementType.UNKNOWN);
+                result.getDiagnostics().add(Diagnostic.error(
+                        "STARROCKS_INVALID_CATALOG_USE", "Expected USE 'CATALOG catalog_name'."));
+                return null;
+            }
+            switchCatalog(command[1]);
+        } else if (use.catalog != null) {
             switchCatalog(cleanIdentifier(use.catalog));
         } else if (context != null) {
             if (use.second == null) {
@@ -1471,7 +1481,8 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
     @Override
     public Void visitSetCatalogStmt(StarRocksParser.SetCatalogStmtContext ctx) {
         result.setStatementType(StatementType.USE_SCHEMA);
-        switchCatalog(cleanIdentifier(ctx.setCatalogStatement().identifier()));
+        StarRocksParser.SetCatalogStatementContext set = ctx.setCatalogStatement();
+        switchCatalog(set.string() == null ? cleanIdentifier(set.identifier()) : stringLiteralValue(set.string().getText()));
         return null;
     }
 
