@@ -46,6 +46,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|admin\\s+(?:check\\s+tablet|set\\s+(?:frontend\\s+config|replica\\s+status|partition\\s+version)"
                     + "|skip\\s+committed\\s+transaction)|show\\s+usage\\s+resource\\s+groups)\\b");
 
+    private static final Pattern STARROCKS_EXTERNAL_CATALOG =
+            Pattern.compile("^\\s*create\\s+external\\s+catalog\\b");
+
     private static final Pattern STARROCKS_DICTIONARY_DDL = Pattern.compile(
             "^\\s*(?:create|show|drop|(?:cancel\\s+)?refresh)\\s+dictionary\\b");
 
@@ -391,6 +394,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|(?:partition\\s*\\([^;)]*\\)\\s+)?"
                     + "(?:(?:touch|concatenate)|compact\\s+and\\s+wait)\\s*(?:;|$))");
 
+    private static final Pattern STARROCKS_DOUBLE_QUOTED_CATALOG_OPTIONS = Pattern.compile(
+            "^\\s*alter\\s+catalog\\s+" + FLINK_IDENTIFIER
+                    + "\\s+(?:comment\\s+|(?:set|reset)\\s*\\(\\s*)" + DOUBLE_QUOTED_IDENTIFIER);
     private static final String FLINK_QUALIFIED_IDENTIFIER =
             FLINK_IDENTIFIER + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*";
     private static final String FLINK_STRING_OPTION_START = "\\s*\\(\\s*" + SINGLE_QUOTED_STRING;
@@ -714,6 +720,11 @@ public class SimpleDialectDetector implements DialectDetector {
                 && STARROCKS_TEMPORARY_PARTITION.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks temporary partition syntax"));
+        } else if (STARROCKS_EXTERNAL_CATALOG.matcher(unquotedSyntax).find()
+                || STARROCKS_DOUBLE_QUOTED_CATALOG_OPTIONS.matcher(relationSyntax).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("external")
+                        && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_EXTERNAL_CATALOG))) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks external catalog or catalog properties syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
         } else if (STARROCKS_CLUSTER_ADMIN.matcher(unquotedSyntax).find()) {

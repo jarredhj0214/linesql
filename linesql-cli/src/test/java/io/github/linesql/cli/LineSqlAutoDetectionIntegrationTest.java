@@ -712,6 +712,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void distinguishesStarRocksExternalCatalogsAndFlinkCatalogProperties() {
+        LineageResult external = LineSql.parse("CREATE EXTERNAL CATALOG iceberg_catalog "
+                + "PROPERTIES (\"type\" = \"iceberg\", \"iceberg.catalog.type\" = \"hive\")");
+        assertEquals(SqlDialect.STARROCKS, external.getDialect());
+        assertEquals(StatementType.CONTROL, external.getStatementType());
+        assertTrue(external.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS,
+                "ALTER CATALOG `lake_catalog` RESET (\"hive.metastore.uris\")");
+        assertDialect(SqlDialect.FLINK, "ALTER CATALOG `lake_catalog` RESET ('default-database')");
+        assertDialect(SqlDialect.FLINK, "CREATE CATALOG mem WITH ('type' = 'generic_in_memory')");
+        assertDialect(SqlDialect.SPARK, "SELECT 'CREATE EXTERNAL CATALOG iceberg_catalog' AS message");
+    }
+
+    @Test
     public void detectsStarRocksDictionaryLifecycleAndColumnLineage() {
         LineageResult dictionary = LineSql.parse("CREATE DICTIONARY user_dictionary USING dim.v_users "
                 + "(user_id KEY, user_name VALUE)");
