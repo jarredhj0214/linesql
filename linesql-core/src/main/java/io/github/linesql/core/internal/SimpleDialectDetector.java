@@ -458,6 +458,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s+(?:from|in)\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*)?"
                     + "(?:\\s+like\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "))?\\s+where\\b");
     private static final String HIVE_TABLE_IDENTIFIER = "(?:[\\p{L}_][\\p{L}\\p{N}_$]*|" + BACKTICK_IDENTIFIER + ")";
+    private static final Pattern HIVE_DATA_CONNECTOR = Pattern.compile(
+            "^\\s*(?:(?:create|alter|drop)\\s+connector|desc(?:ribe)?\\s+connector"
+                    + "|show\\s+connectors|create\\s+remote\\s+(?:database|schema))\\b");
     private static final Pattern HIVE_BARE_COLUMN_FILTER = Pattern.compile(
             "^\\s*show\\s+columns\\s+(?:from|in)\\s+" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*"
@@ -772,6 +775,11 @@ public class SimpleDialectDetector implements DialectDetector {
         if (HIVE_EXPLAIN_OR_TRANSACTIONS.matcher(unquotedSyntax).find()
                 || normalized.matches("(?s)^\\s*show\\s+conf\\s+'hive\\..*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive explain details or session metadata syntax"));
+        }
+        if (HIVE_DATA_CONNECTOR.matcher(unquotedSyntax).find()
+                || (containsStatementSeparator && (unquotedSyntax.contains("connector") || unquotedSyntax.contains("remote"))
+                        && hasStatementInScript(unwrapped, SqlDialect.HIVE, HIVE_DATA_CONNECTOR))) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive data connector or remote database syntax"));
         }
         if (HIVE_BARE_COLUMN_FILTER.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive SHOW COLUMNS with bare pattern syntax"));

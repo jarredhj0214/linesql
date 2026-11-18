@@ -2717,6 +2717,68 @@
       "description": "Hive LOAD DATA LOCAL INPATH OVERWRITE into table lineage"
     },
     {
+      "id": "script_hive_data_connector_lifecycle",
+      "file": "cases/script_hive_data_connector_lifecycle.sql",
+      "statementType": "MULTI",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "statements": [
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "READ_METADATA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "READ_METADATA",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        },
+        {
+          "statementType": "CONTROL",
+          "inputTables": [],
+          "outputTables": [],
+          "columnLineage": []
+        }
+      ],
+      "description": "Hive 4 data connector lifecycle and metadata do not fabricate table lineage"
+    },
+    {
+      "id": "create_remote_database_using_connector",
+      "file": "cases/create_remote_database_using_connector.sql",
+      "statementType": "CREATE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive remote database binds a connector without inventing a source table"
+    },
+    {
       "id": "create_database_location",
       "file": "cases/create_database_location.sql",
       "statementType": "CREATE_SCHEMA",
