@@ -906,6 +906,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksViewAndDatabaseWidePrivileges() {
+        LineageResult grant = LineSql.parse("GRANT SELECT, REFRESH ON MATERIALIZED VIEW `mart`.`mv_orders`, "
+                + "mart.mv_customers TO ROLE analyst");
+        assertEquals(SqlDialect.STARROCKS, grant.getDialect());
+        assertEquals(StatementType.CONTROL, grant.getStatementType());
+        assertEquals(2, grant.getOutputTables().size());
+        assertEquals("mv_orders", grant.getOutputTables().get(0).getName());
+        assertEquals("mv_customers", grant.getOutputTables().get(1).getName());
+        assertTrue(grant.getDiagnostics().isEmpty());
+        LineageResult revoke = LineSql.parse("REVOKE SELECT ON ALL VIEWS IN ALL DATABASES FROM ROLE analyst");
+        assertEquals(SqlDialect.STARROCKS, revoke.getDialect());
+        assertTrue(revoke.getOutputTables().isEmpty());
+        assertTrue(revoke.getDiagnostics().isEmpty());
+        assertTrue(LineSql.parse("GRANT SELECT ON ALL TABLES IN SCHEMA mart TO analyst")
+                .getDialect() != SqlDialect.STARROCKS);
+        assertDialect(SqlDialect.SPARK, "SELECT 'GRANT SELECT ON VIEW mart.v TO ROLE analyst' AS note");
+    }
+
+    @Test
     public void detectsStarRocksAccountPropertiesAndHostQualifiedImpersonation() {
         LineageResult properties = LineSql.parse("ALTER USER reporter SET PROPERTIES ('session.query_timeout' = '60')");
         assertEquals(SqlDialect.STARROCKS, properties.getDialect());

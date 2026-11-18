@@ -460,7 +460,12 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
 
     @Override
     public Void visitAccountControlStatement(StarRocksParser.AccountControlStatementContext ctx) {
-        if (ctx.multipartIdentifier() != null && (ctx.GRANT() != null || ctx.REVOKE() != null)) {
+        if (ctx.privilegeRelations() != null) {
+            for (StarRocksParser.MultipartIdentifierContext relation : ctx.privilegeRelations().multipartIdentifier()) {
+                outputTables.add(tableRef(relation));
+            }
+            result.setOutputTables(new ArrayList<>(outputTables));
+        } else if (ctx.multipartIdentifier() != null && (ctx.GRANT() != null || ctx.REVOKE() != null)) {
             outputTables.add(tableRef(ctx.multipartIdentifier()));
             result.setOutputTables(new ArrayList<>(outputTables));
         }

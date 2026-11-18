@@ -1150,16 +1150,20 @@ accountControlStatement
     | SET DEFAULT ROLE .+? TO .+?
     | SET PASSWORD .+?
     | EXECUTE AS .+? WITH NO REVERT
-    | GRANT .+? ON TABLE multipartIdentifier .+?
-    | REVOKE .+? ON TABLE multipartIdentifier .+?
-    | GRANT .+? ON VIEW multipartIdentifier .+?
-    | REVOKE .+? ON VIEW multipartIdentifier .+?
-    | GRANT .+? ON MATERIALIZED VIEW multipartIdentifier .+?
-    | REVOKE .+? ON MATERIALIZED VIEW multipartIdentifier .+?
+    | GRANT .+? ON (privilegeRelations | wildcardPrivilegeRelations) TO .+?
+    | REVOKE .+? ON (privilegeRelations | wildcardPrivilegeRelations) FROM .+?
     | GRANT .+? ON multipartIdentifier .+?
     | REVOKE .+? ON multipartIdentifier .+?
     | GRANT .+?
     | REVOKE .+?
+    ;
+
+privilegeRelations
+    : (TABLE | VIEW | MATERIALIZED VIEW) multipartIdentifier (COMMA multipartIdentifier)*
+    ;
+
+wildcardPrivilegeRelations
+    : ALL (TABLES | VIEWS | MATERIALIZED VIEWS) IN (DATABASE identifier | ALL DATABASES)
     ;
 
 useStatement

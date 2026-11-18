@@ -562,6 +562,16 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|into\\s+\\d+\\s+buckets\\b))");
     private static final String STARROCKS_QUALIFIED_NAME =
             SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*";
+    private static final String STARROCKS_RELATION_PRIVILEGE =
+            "(?:all(?:\\s+privileges)?|select|alter|drop|insert|export|update|delete|refresh)";
+    private static final Pattern STARROCKS_RELATION_GRANT = Pattern.compile(
+            "^\\s*(?:grant|revoke)\\s+" + STARROCKS_RELATION_PRIVILEGE
+                    + "(?:\\s*,\\s*" + STARROCKS_RELATION_PRIVILEGE + ")*\\s+on\\s+"
+                    + "(?:(?:materialized\\s+)?view\\s+" + STARROCKS_QUALIFIED_NAME
+                    + "(?:\\s*,\\s*" + STARROCKS_QUALIFIED_NAME + ")*"
+                    + "|all\\s+(?:tables|views|materialized\\s+views)\\s+in\\s+"
+                    + "(?:database\\s+" + SQL_IDENTIFIER + "|all\\s+databases))"
+                    + "\\s+(?:to|from)\\s+(?:role|user)\\s+");
     private static final String STARROCKS_QUALIFIED_COLUMN =
             SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")+";
     private static final Pattern STARROCKS_NULL_SAFE_UPDATE_FROM = Pattern.compile(
@@ -1042,6 +1052,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
         } else if (STARROCKS_FUNCTION_DEFINITION.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks UDF properties or global function syntax"));
+        } else if (STARROCKS_RELATION_GRANT.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks view or database-wide privileges syntax"));
         } else if (STARROCKS_VIEW_DEFINITION.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks view dialect, column comments, or security syntax"));
         } else if (STARROCKS_MATERIALIZED_VIEW_OPTIONS.matcher(relationSyntax).find()

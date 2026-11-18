@@ -5957,6 +5957,27 @@
       "description": "StarRocks REVOKE view privilege from role control statement"
     },
     {
+      "id": "grant_multiple_materialized_views",
+      "file": "cases/grant_multiple_materialized_views.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [
+        "mart.mv_orders",
+        "mart.mv_customers"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks grants on multiple materialized views retain all named objects"
+    },
+    {
+      "id": "revoke_all_views_in_all_databases",
+      "file": "cases/revoke_all_views_in_all_databases.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks database-wide revoke does not synthesize relation names"
+    },
+    {
       "id": "grant_select_on_materialized_view_to_user",
       "file": "cases/grant_select_on_materialized_view_to_user.sql",
       "statementType": "CONTROL",
