@@ -1174,6 +1174,38 @@
       "description": "SHOW COLUMNS metadata read table lineage"
     },
     {
+      "id": "show_columns_from_explicit_namespace",
+      "file": "cases/show_columns_from_explicit_namespace.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "lake.mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Spark SHOW COLUMNS uses the optional namespace to resolve an unqualified table"
+    },
+    {
+      "id": "show_table_extended_named_partition",
+      "file": "cases/show_table_extended_named_partition.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "mart.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "mart.orders.dt"
+        },
+        {
+          "type": "READ_METADATA",
+          "column": "mart.orders.region"
+        }
+      ],
+      "description": "Spark SHOW TABLE EXTENDED with an exact partitioned table retains table and partition keys"
+    },
+    {
       "id": "show_table_extended_like",
       "file": "cases/show_table_extended_like.sql",
       "statementType": "READ_METADATA",

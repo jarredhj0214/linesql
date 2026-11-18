@@ -820,7 +820,13 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitShowColumns(SqlBaseParser.ShowColumnsContext ctx) {
-        markReadMetadata(ctx.table);
+        if (ctx.ns != null && ctx.table.multipartIdentifier() != null
+                && ctx.table.multipartIdentifier().parts.size() == 1) {
+            markReadMetadataWithoutTable();
+            addInputTable(tableRef(ctx.ns.getText() + "." + ctx.table.getText()), false);
+        } else {
+            markReadMetadata(ctx.table);
+        }
         return null;
     }
 
@@ -857,6 +863,24 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     @Override
     public Void visitShowTableExtended(SqlBaseParser.ShowTableExtendedContext ctx) {
         markReadMetadataWithoutTable();
+        if (ctx.partitionSpec() == null || ctx.pattern.singleStringLit().size() != 1
+                || (ctx.ns != null && ctx.ns.multipartIdentifier() == null)) {
+            return null;
+        }
+        String literal = ctx.pattern.getText();
+        char quote = literal.charAt(0);
+        if ((quote != '\'' && quote != '"') || literal.length() < 3 || literal.charAt(literal.length() - 1) != quote) {
+            return null;
+        }
+        String name = literal.substring(1, literal.length() - 1);
+        if (!name.matches("[\\p{L}_][\\p{L}\\p{N}_]*")) {
+            return null;
+        }
+        TableRef table = tableRef(ctx.ns == null ? name : ctx.ns.getText() + "." + name);
+        addInputTable(table, false);
+        Set<String> columns = new LinkedHashSet<>();
+        collectPartitionColumns(ctx.partitionSpec(), columns);
+        addMetadataColumns(table, columns);
         return null;
     }
 
