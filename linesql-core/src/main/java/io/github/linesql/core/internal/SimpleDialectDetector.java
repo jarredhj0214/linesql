@@ -63,7 +63,7 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern STARROCKS_ADMIN_METADATA = Pattern.compile(
             "^\\s*show\\s+(?:(?:all\\s+)?authentication|(?:multiple\\s+columns\\s+)?stats\\s+meta"
                     + "|histogram\\s+meta|dynamic\\s+partition\\s+tables|running\\s+queries|sqlblacklist"
-                    + "|transaction|property|data|delete|file)\\b");
+                    + "|transaction|property|data|delete|file|users)\\b");
 
     private static final Pattern STARROCKS_CLUSTER_ADMIN = Pattern.compile(
             "^\\s*(?:alter\\s+system\\s+(?:(?:add|drop)\\s+(?:backend|compute\\s+node|follower|observer|broker)"
@@ -453,6 +453,12 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|show\\s+(?:(?:temporary\\s+)?partitions\\s+from\\b|full\\s+builtin\\s+functions\\b"
                     + "|catalogs(?:\\s+like\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "))?"
                     + "\\s*(?:\\\\g(?=\\s*(?:;|$))|\\b(?:order\\s+by|where|limit)\\b)))");
+    private static final Pattern STARROCKS_USER_PROPERTIES = Pattern.compile(
+            "^\\s*(?:create|alter)\\s+user\\b[^;]*\\bproperties\\s*\\(");
+    private static final String STARROCKS_ACCOUNT_PART = "(?:" + SQL_IDENTIFIER + "|" + SINGLE_QUOTED_STRING + ")";
+    private static final Pattern STARROCKS_HOST_QUALIFIED_EXECUTE_AS = Pattern.compile(
+            "^\\s*execute\\s+as\\s+" + STARROCKS_ACCOUNT_PART + "\\s*@\\s*" + STARROCKS_ACCOUNT_PART
+                    + "\\s+with\\s+no\\s+revert\\s*(?:;|$)");
     private static final Pattern STARROCKS_FILTERED_MATERIALIZED_VIEWS = Pattern.compile(
             "^\\s*show\\s+materialized\\s+views?"
                     + "(?:\\s+(?:from|in)\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*)?"
@@ -988,6 +994,9 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (STARROCKS_DATABASE_OPTIONS.matcher(relationSyntax).find()
                 || STARROCKS_NATIVE_METADATA.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks database options or metadata syntax"));
+        } else if (STARROCKS_USER_PROPERTIES.matcher(unquotedSyntax).find()
+                || STARROCKS_HOST_QUALIFIED_EXECUTE_AS.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks account properties or host-qualified impersonation"));
         } else if (STARROCKS_ADMIN_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks administrative metadata syntax"));
         } else if (STARROCKS_CLUSTER_METADATA.matcher(unquotedSyntax).find()) {

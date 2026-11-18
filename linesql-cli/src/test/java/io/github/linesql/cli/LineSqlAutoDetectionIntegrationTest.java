@@ -892,6 +892,21 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksAccountPropertiesAndHostQualifiedImpersonation() {
+        LineageResult properties = LineSql.parse("ALTER USER reporter SET PROPERTIES ('session.query_timeout' = '60')");
+        assertEquals(SqlDialect.STARROCKS, properties.getDialect());
+        assertEquals(StatementType.CONTROL, properties.getStatementType());
+        assertTrue(properties.getInputTables().isEmpty());
+        assertTrue(properties.getOutputTables().isEmpty());
+        assertTrue(properties.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "EXECUTE AS 'reporter'@'example.invalid' WITH NO REVERT");
+        assertDialect(SqlDialect.STARROCKS, "SHOW USERS");
+        assertTrue(LineSql.parse("EXECUTE AS USER = 'reporter@example.invalid' WITH NO REVERT")
+                .getDialect() != SqlDialect.STARROCKS);
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER USER reporter SET PROPERTIES (a=1)' AS note");
+    }
+
+    @Test
     public void detectsStarRocksAdministrativeMetadataAndItsReferences() {
         LineageResult data = LineSql.parse("SHOW DATA FROM sr_hub.sr_member");
         assertEquals(SqlDialect.STARROCKS, data.getDialect());
