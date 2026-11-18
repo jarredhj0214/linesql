@@ -2444,7 +2444,7 @@ Implemented Spark table-level lineage scenarios:
 | Spark ASOF JOIN | Spark 4.3 `MATCH_CONDITION` identifies Spark and carries both match and `ON` predicate references. `USING` records both join inputs and resolves the merged output key to the left input. | `asof_join_match_condition_on`, `left_asof_join_match_condition_using` |
 | Pipe AS relation aliases | A pipe alias preserves physical, projected, CTE, and replacement-column dependencies in subsequent qualified projections and filters. | `pipe_as_physical_relation`, `pipe_as_projected_relation`, `pipe_as_cte_relation`, `pipe_as_after_set` |
 | Pipe DROP and SELECT source lineage | `from ods.users |> drop name |> select id` | `pipe_drop_column_projection` |
-| Pipe EXTEND source lineage | `from ods.users |> extend upper(name) as name_upper` | `pipe_extend_table_lineage` |
+| Pipe EXTEND output lineage | A terminal `EXTEND` keeps its input columns and reports lineage for added expressions, including names from a preceding projection. | `pipe_extend_table_lineage`, `pipe_extend_projected_output` |
 | Pipe EXTEND generated column lineage | `from ods.users |> extend upper(name) as name_upper |> select name_upper` | `pipe_extend_column_lineage` |
 | Standalone Pipe AGGREGATE column lineage | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id` | `pipe_aggregate_table_lineage` |
 | Pipe AGGREGATE generated column lineage | `from ods.orders |> aggregate count(order_id) as order_cnt group by user_id |> select order_cnt` | `pipe_aggregate_column_lineage` |

@@ -3424,10 +3424,45 @@
         "ods.users"
       ],
       "outputTables": [],
-      "expectedDiagnostics": [
-        "COLUMN_LINEAGE_NOT_IMPLEMENTED"
+      "columnLineage": [
+        {
+          "target": "*",
+          "sources": [
+            "ods.users.*"
+          ]
+        },
+        {
+          "target": "name_upper",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
       ],
-      "description": "Pipe EXTEND source table lineage with generated column lineage degradation"
+      "description": "Pipe EXTEND retains the input wildcard and appends the new column"
+    },
+    {
+      "id": "pipe_extend_projected_output",
+      "file": "cases/pipe_extend_projected_output.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "display_name",
+          "sources": [
+            "ods.users.name"
+          ]
+        },
+        {
+          "target": "name_upper",
+          "sources": [
+            "ods.users.name"
+          ]
+        }
+      ],
+      "description": "Pipe EXTEND resolves aliases from the preceding projection"
     },
     {
       "id": "pipe_extend_column_lineage",

@@ -2092,12 +2092,33 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             return null;
         }
         if (ctx.extendList != null) {
+            List<Projection> extended = new ArrayList<>();
             for (SqlBaseParser.NamedExpressionContext namedExpression : ctx.extendList.namedExpression()) {
                 Projection projection = projection(namedExpression);
                 if (projection != null) {
-                    addGeneratedColumn(null, projection.targetColumn, projection.sourceColumns);
+                    List<SourceColumn> sources = new ArrayList<>();
+                    for (SourceColumn source : projection.sourceColumns) {
+                        List<ColumnRef> refs = columnRefsFromProjection(source);
+                        if (refs == null) {
+                            refs = columnRefs(Collections.singletonList(source), new LinkedHashSet<String>());
+                        }
+                        if (refs == null) {
+                            sources.add(source);
+                        } else {
+                            sources.addAll(resolvedSources(refs));
+                        }
+                    }
+                    extended.add(new Projection(sources, projection.targetColumn, projection.expression));
                 }
             }
+            if (projections.isEmpty()) {
+                projections.add(Projection.star(null, "*"));
+            }
+            for (Projection projection : extended) {
+                addGeneratedColumn(null, projection.targetColumn, projection.sourceColumns);
+                projections.add(projection);
+            }
+            pipeOutputProjectionStart = 0;
             refreshColumnLineage();
             return null;
         }
