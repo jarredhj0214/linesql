@@ -924,6 +924,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void distinguishesSparkAsofMatchConditionFromStarRocksOnFunctions() {
+        LineageResult spark = LineSql.parse("SELECT q.bid_price FROM ods.trades t LEFT ASOF JOIN "
+                + "(SELECT bid_price, quote_time FROM ods.quotes WHERE bid_price > 0) q "
+                + "MATCH_CONDITION (t.trade_time >= q.quote_time)");
+        assertEquals(SqlDialect.SPARK, spark.getDialect());
+        assertEquals("Spark ASOF JOIN MATCH_CONDITION syntax", spark.getDialectDetectionReason());
+        assertTrue(spark.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "SELECT t.trade_time FROM ods.trades t ASOF JOIN ods.quotes q "
+                + "ON t.trade_time >= q.quote_time AND match_condition(t.symbol, q.symbol)");
+    }
+
+    @Test
     public void detectsNullableStarRocksUpdateFromEquality() {
         LineageResult result = LineSql.parse("UPDATE dwd.orders AS o SET status = s.status "
                 + "FROM staging.order_status AS s WHERE o.external_id <=> s.external_id");

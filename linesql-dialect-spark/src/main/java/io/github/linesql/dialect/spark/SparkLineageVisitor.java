@@ -1753,8 +1753,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
             Map<String, List<ColumnRef>> rightKeys = nestedJoinKeys(join.right);
             SqlBaseParser.JoinCriteriaContext criteria =
                     join.joinPostfix() == null ? null : join.joinPostfix().joinCriteria();
-            if (criteria != null && criteria.identifierList() != null) {
-                Map<String, List<ColumnRef>> merged = mergedUsingKeys(join, criteria, keys, rightKeys,
+            SqlBaseParser.AsofJoinCriteriaContext asof = join.asofJoinCriteria();
+            SqlBaseParser.IdentifierListContext using = criteria != null ? criteria.identifierList()
+                    : asof != null ? asof.identifierList() : null;
+            if (using != null) {
+                if (asof != null) {
+                    collectAsofMatchColumnUsages(asof, keys);
+                }
+                Map<String, List<ColumnRef>> merged = mergedUsingKeys(join.joinType(), using, keys, rightKeys,
                         relationStart, rightStart);
                 keys.putAll(rightKeys);
                 keys.putAll(merged);
@@ -1765,8 +1771,11 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
                 try {
                     if (criteria != null) {
                         collectJoinColumnUsages(criteria, relationStart);
-                    } else if (join.asofJoinCriteria() != null) {
-                        collectAsofJoinColumnUsages(join.asofJoinCriteria(), relationStart);
+                    } else if (asof != null) {
+                        addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(asof.matchExpr));
+                        if (asof.onExpr != null) {
+                            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(asof.onExpr));
+                        }
                     }
                 } finally {
                     usingJoinKeys = enclosingKeys;
@@ -1787,14 +1796,13 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return Collections.emptyMap();
     }
 
-    private Map<String, List<ColumnRef>> mergedUsingKeys(SqlBaseParser.JoinRelationContext join,
-                                                         SqlBaseParser.JoinCriteriaContext criteria,
+    private Map<String, List<ColumnRef>> mergedUsingKeys(SqlBaseParser.JoinTypeContext type,
+                                                         SqlBaseParser.IdentifierListContext using,
                                                          Map<String, List<ColumnRef>> leftKeys,
                                                          Map<String, List<ColumnRef>> rightKeys,
                                                          int leftStart, int rightStart) {
         Map<String, List<ColumnRef>> keys = new LinkedHashMap<>();
-        SqlBaseParser.JoinTypeContext type = join.joinType();
-        for (String name : identifierNames(criteria.identifierList())) {
+        for (String name : identifierNames(using)) {
             String key = name.toLowerCase(Locale.ROOT);
             List<ColumnRef> left = usingKeySources(leftKeys, leftStart, rightStart, name, key);
             List<ColumnRef> right = usingKeySources(rightKeys, rightStart, visibleRelations.size(), name, key);
@@ -3203,12 +3211,14 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
     }
 
-    private void collectAsofJoinColumnUsages(SqlBaseParser.AsofJoinCriteriaContext ctx, int relationStart) {
-        addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.matchExpr));
-        if (ctx.onExpr != null) {
-            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.onExpr));
-        } else {
-            addUsingColumnUsages(ctx.identifierList(), relationStart);
+    private void collectAsofMatchColumnUsages(SqlBaseParser.AsofJoinCriteriaContext ctx,
+                                              Map<String, List<ColumnRef>> availableKeys) {
+        Map<String, List<ColumnRef>> enclosingKeys = usingJoinKeys;
+        usingJoinKeys = availableKeys;
+        try {
+            addColumnUsages(ColumnUsageType.JOIN_ON, sourceColumns(ctx.matchExpr));
+        } finally {
+            usingJoinKeys = enclosingKeys;
         }
     }
 

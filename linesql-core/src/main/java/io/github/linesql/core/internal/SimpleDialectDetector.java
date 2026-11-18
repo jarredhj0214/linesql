@@ -90,6 +90,8 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern STARROCKS_JOIN = Pattern.compile(
             "\\basof\\s+(?:inner|left(?:\\s+outer)?)\\s+join\\b"
                     + "|\\bright\\s+(?:semi|anti)\\s+join\\b|\\bnull\\s+aware\\s+left\\s+anti\\s+join\\b");
+    private static final Pattern SPARK_ASOF_TOKEN = Pattern.compile(
+            "\\basof\\s+join\\b|\\bmatch_condition(?=\\s*\\()|\\b(?:on|using|where|join)\\b|[();]");
     private static final Pattern STARROCKS_ASOF_ON = Pattern.compile(
             "\\basof\\s+join\\b[^;]*\\bon\\b");
 
@@ -618,6 +620,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*");
 
         String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
+        boolean sparkAsofJoin = hasSparkAsofJoin(unquotedSyntax);
         boolean oracleJsonTableType = unquotedSyntax.contains("json_table") && hasOracleJsonType(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier"),
                 JSON_TABLE_CALL, JSON_TABLE_STRUCTURE, ORACLE_JSON_TABLE_COLUMN_TYPE);
@@ -1010,7 +1013,7 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (relationSyntax.indexOf('[') >= 0 && STARROCKS_BRACKET_JOIN_HINT.matcher(relationSyntax).find())) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks index or bracketed join hint syntax"));
         } else if (STARROCKS_JOIN.matcher(unquotedSyntax).find()
-                || (!unquotedSyntax.contains("match_condition") && STARROCKS_ASOF_ON.matcher(unquotedSyntax).find())) {
+                || (!sparkAsofJoin && STARROCKS_ASOF_ON.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.98, "StarRocks ASOF or directional semi/anti join"));
         } else if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\baggregate\\s+key\\b.*")
@@ -1141,6 +1144,8 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         if (normalized.matches("(?s)^\\s*execute\\s+immediate\\s+r?['\"].*")) {
             candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark EXECUTE IMMEDIATE with a SQL literal"));
+        } else if (sparkAsofJoin) {
+            candidates.add(candidate(SqlDialect.SPARK, 0.99, "Spark ASOF JOIN MATCH_CONDITION syntax"));
         } else if (sparkSignal) {
             candidates.add(candidate(
                     SqlDialect.SPARK,
@@ -1195,6 +1200,37 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         String normalized = stripComments(sql).toLowerCase(Locale.ROOT);
         return normalized.matches("(?s)^\\s*(?:with|insert)\\b.*\\bon\\s+conflict\\s+do\\s+nothing\\s*;?\\s*$");
+    }
+
+    private static boolean hasSparkAsofJoin(String sql) {
+        if (!sql.contains("match_condition")) {
+            return false;
+        }
+        Matcher tokens = SPARK_ASOF_TOKEN.matcher(sql);
+        int depth = 0;
+        int asofDepth = -1;
+        while (tokens.find()) {
+            String token = tokens.group();
+            if (token.startsWith("asof")) {
+                asofDepth = depth;
+            } else if ("(".equals(token)) {
+                depth++;
+            } else if (")".equals(token)) {
+                depth = Math.max(0, depth - 1);
+                if (asofDepth > depth) {
+                    asofDepth = -1;
+                }
+            } else if (";".equals(token)) {
+                depth = 0;
+                asofDepth = -1;
+            } else if (depth == asofDepth) {
+                if ("match_condition".equals(token)) {
+                    return true;
+                }
+                asofDepth = -1;
+            }
+        }
+        return false;
     }
 
     private static boolean hasStrongSparkSignal(String sql) {

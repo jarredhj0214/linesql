@@ -3109,6 +3109,102 @@
       "description": "A constant Pipe SET assignment does not invent a physical reference; a later SELECT after a wildcard keeps the replacement"
     },
     {
+      "id": "asof_join_match_condition_on",
+      "file": "cases/asof_join_match_condition_on.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.trades",
+        "ods.quotes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "trade_time",
+          "sources": [
+            "ods.trades.trade_time"
+          ]
+        },
+        {
+          "target": "attached_bid",
+          "sources": [
+            "ods.quotes.bid_price"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.trades.trade_time"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.quotes.quote_time"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.trades.symbol"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.quotes.symbol"
+        }
+      ],
+      "description": "Spark ASOF match and equijoin predicates retain dependencies from both inputs"
+    },
+    {
+      "id": "left_asof_join_match_condition_using",
+      "file": "cases/left_asof_join_match_condition_using.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.trades",
+        "ods.quotes"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "symbol",
+          "sources": [
+            "ods.trades.symbol"
+          ]
+        },
+        {
+          "target": "trade_time",
+          "sources": [
+            "ods.trades.trade_time"
+          ]
+        },
+        {
+          "target": "attached_bid",
+          "sources": [
+            "ods.quotes.bid_price"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "JOIN_ON",
+          "column": "ods.trades.trade_time"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.quotes.quote_time"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.trades.symbol"
+        },
+        {
+          "type": "JOIN_ON",
+          "column": "ods.quotes.symbol"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.trades.symbol"
+        }
+      ],
+      "description": "Spark LEFT ASOF USING binds the merged symbol output to the left relation and retains both join keys"
+    },
+    {
       "id": "pipe_as_physical_relation",
       "file": "cases/pipe_as_physical_relation.sql",
       "statementType": "SELECT",
