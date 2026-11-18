@@ -444,14 +444,14 @@ public class SimpleDialectDetector implements DialectDetector {
         String rawNormalized = unwrapped.toLowerCase(Locale.ROOT);
         String normalized = stripComments(unwrapped).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
-        boolean sparkJsonTableSignal = hasSparkJsonTableSignal(normalized);
-        boolean strongSparkSignal = hasStrongSparkSignal(normalized);
-        boolean sparkSignal = strongSparkSignal || hasGeneralSparkSignal(normalized);
+        String relationSyntax = normalized.replaceAll(SINGLE_QUOTED_STRING, " ");
+        boolean sparkJsonTableSignal = hasSparkJsonTableSignal(relationSyntax);
+        boolean strongSparkSignal = normalized.contains("${") || normalized.contains("#day#")
+                || hasStrongSparkSignal(relationSyntax);
+        boolean sparkSignal = strongSparkSignal || hasGeneralSparkSignal(relationSyntax);
         boolean weakMySqlExpressionSignal = normalized.matches("(?s).*\\bdiv\\b.*")
                 || normalized.matches("(?s).*\\bmod\\b.*")
                 || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*");
-
-        String relationSyntax = normalized.replaceAll(SINGLE_QUOTED_STRING, " ");
 
         String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
         boolean oracleJsonTableType = unquotedSyntax.contains("json_table") && hasOracleJsonType(
@@ -924,9 +924,7 @@ public class SimpleDialectDetector implements DialectDetector {
     }
 
     private static boolean hasStrongSparkSignal(String sql) {
-        return sql.contains("${")
-                || sql.contains("#day#")
-                || sql.contains("`")
+        return sql.contains("`")
                 || sql.matches("(?s)^\\s*set\\s+spark\\.sql\\..*")
                 || sql.matches("(?s).*\\bcast\\s*\\([^)]*\\bas\\s+string\\s*\\).*")
                 || sql.matches("(?s).*\\b(get_json_object|regexp_replace|regexp_extract|date_format|date_sub|from_unixtime|unix_timestamp|collect_list|collect_set|named_struct|posexplode|explode|if|ifnull|nvl)\\s*\\(.*")

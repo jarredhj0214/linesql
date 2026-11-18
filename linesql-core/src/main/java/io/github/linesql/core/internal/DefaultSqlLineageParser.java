@@ -102,7 +102,6 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     private DialectCandidate uniqueSparkAlternative(String statement, ParseOptions options, ParseContext context,
                                                      DialectCandidate primary, LineageResult result) {
         if (primary.getDialect() != SqlDialect.SPARK
-                || primary.getConfidence() != SimpleDialectDetector.GENERIC_SPARK_CONFIDENCE
                 || !options.getDialectHints().isEmpty() || !options.isDialectDetectionEnabled()
                 || !(result.getDiagnostics().stream().anyMatch(d -> "SPARK_PARSE_ERROR".equals(d.getCode()))
                     || (result.getStatementType() == StatementType.UNKNOWN && result.getDiagnostics().isEmpty()))) {
@@ -128,8 +127,10 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 accepted = dialect;
             }
         }
+        String failedParser = primary.getConfidence() == SimpleDialectDetector.GENERIC_SPARK_CONFIDENCE
+                ? "generic Spark" : "Spark";
         return accepted == null ? null : new DialectCandidate(accepted, 0.75,
-                "Only this registered dialect parsed the statement after generic Spark failed");
+                "Only this registered dialect parsed the statement after " + failedParser + " failed");
     }
 
     private static ParseContext trialContext(ParseContext context) {

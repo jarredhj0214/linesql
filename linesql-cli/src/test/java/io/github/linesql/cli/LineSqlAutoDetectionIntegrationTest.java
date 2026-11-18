@@ -712,6 +712,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void ignoresSparkSignaturesInsidePlainStringLiterals() {
+        LineageResult literal = LineSql.parse("SELECT 'using and explode(x)' AS note");
+        assertEquals(SqlDialect.SPARK, literal.getDialect());
+        assertEquals(0.50, literal.getDialectConfidence(), 0.001);
+        assertTrue(literal.getDiagnostics().isEmpty());
+
+        LineageResult expression = LineSql.parse("SELECT explode(items) FROM ods.orders");
+        assertEquals(SqlDialect.SPARK, expression.getDialect());
+        assertTrue(expression.getDialectConfidence() > 0.50);
+
+        LineageResult substitution = LineSql.parse("SELECT '${bizdate}' AS ds");
+        assertEquals(SqlDialect.SPARK, substitution.getDialect());
+        assertTrue(substitution.getDialectConfidence() > 0.50);
+    }
+
+    @Test
     public void detectsStarRocksNativeIndexesAndBracketedJoinHints() {
         LineageResult join = LineSql.parse(
                 "SELECT o.amount FROM ods.users u JOIN [broadcast] dwd.orders o ON u.id = o.user_id");
@@ -873,6 +889,22 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertDialect(SqlDialect.HIVE, "RELOAD FUNCTION");
         assertDialect(SqlDialect.MYSQL, "LOCK TABLES mart.orders READ");
         assertDialect(SqlDialect.SPARK, "SELECT 'LOCK TABLE mart.orders SHARED' AS note");
+    }
+
+    @Test
+    public void recoversFlinkExplainAfterStrongSparkDetectionFails() {
+        String sql = "EXPLAIN PLAN FOR SELECT `count`, COUNT(word) AS word_count "
+                + "FROM (SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
+                + "UNION ALL SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`";
+        LineageResult hinted = LineSql.parse(sql, SqlDialect.SPARK);
+        assertEquals("SPARK_PARSE_ERROR", hinted.getDiagnostics().get(0).getCode());
+
+        LineageResult actual = LineSql.parse(sql);
+        assertEquals(SqlDialect.FLINK, actual.getDialect());
+        assertEquals(StatementType.READ_METADATA, actual.getStatementType());
+        assertEquals("MyTable1", actual.getInputTables().get(0).getName());
+        assertEquals("MyTable2", actual.getInputTables().get(1).getName());
+        assertTrue(actual.getDiagnostics().isEmpty());
     }
 
     @Test
