@@ -1493,6 +1493,17 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedCatalogDropWithUnknownDialect() {
+        LineageResult drop = LineSql.parse("DROP CATALOG /* if present */ IF EXISTS `lake`");
+        assertEquals(SqlDialect.UNKNOWN, drop.getDialect());
+        assertEquals(StatementType.CONTROL, drop.getStatementType());
+        assertTrue(drop.getDiagnostics().isEmpty());
+        assertTrue(drop.getInputTables().isEmpty());
+        assertTrue(drop.getOutputTables().isEmpty());
+        assertDialect(SqlDialect.SPARK, "SELECT 'DROP CATALOG IF EXISTS lake'");
+    }
+
+    @Test
     public void detectsFlinkTemporaryViewIfAbsentAndKeepsViewLineage() {
         LineageResult view = LineSql.parse("CREATE TEMPORARY VIEW IF NOT EXISTS tmp.v_orders "
                 + "COMMENT 'recent orders' AS SELECT order_id FROM ods.orders");

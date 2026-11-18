@@ -67,6 +67,17 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 }
             }
             // The generic splitter can split stored routine bodies that belong to one statement.
+            if (statements.size() == 1 && canRecoverSpark(options, candidate, result)
+                    && SimpleDialectDetector.isSharedDropCatalog(statement)
+                    && parsesCatalogDrop(statement, SqlDialect.FLINK, options, context)
+                    && parsesCatalogDrop(statement, SqlDialect.STARROCKS, options, context)) {
+                LineageResult shared = new LineageResult();
+                shared.setStatementType(StatementType.CONTROL);
+                shared.setDialectDetectionReason("Flink and StarRocks both support this DROP CATALOG syntax");
+                results.add(shared);
+                continue;
+            }
+
             DialectCandidate recovered = statements.size() == 1
                     ? uniqueSparkAlternative(statement, options, context, candidate, result) : null;
             if (recovered != null) {
@@ -101,10 +112,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
 
     private DialectCandidate uniqueSparkAlternative(String statement, ParseOptions options, ParseContext context,
                                                      DialectCandidate primary, LineageResult result) {
-        if (primary.getDialect() != SqlDialect.SPARK
-                || !options.getDialectHints().isEmpty() || !options.isDialectDetectionEnabled()
-                || !(result.getDiagnostics().stream().anyMatch(d -> "SPARK_PARSE_ERROR".equals(d.getCode()))
-                    || (result.getStatementType() == StatementType.UNKNOWN && result.getDiagnostics().isEmpty()))) {
+        if (!canRecoverSpark(options, primary, result)) {
             return null;
         }
 
@@ -131,6 +139,27 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 ? "generic Spark" : "Spark";
         return accepted == null ? null : new DialectCandidate(accepted, 0.75,
                 "Only this registered dialect parsed the statement after " + failedParser + " failed");
+    }
+
+    private static boolean canRecoverSpark(ParseOptions options, DialectCandidate primary, LineageResult result) {
+        return primary.getDialect() == SqlDialect.SPARK
+                && options.getDialectHints().isEmpty() && options.isDialectDetectionEnabled()
+                && (result.getDiagnostics().stream().anyMatch(d -> "SPARK_PARSE_ERROR".equals(d.getCode()))
+                    || (result.getStatementType() == StatementType.UNKNOWN && result.getDiagnostics().isEmpty()));
+    }
+
+    private boolean parsesCatalogDrop(String statement, SqlDialect dialect, ParseOptions options, ParseContext context) {
+        if (!parsers.containsKey(dialect)) {
+            return false;
+        }
+        try {
+            LineageResult trial = parseStatement(statement, dialect, options, trialContext(context));
+            return trial.getStatementType() == StatementType.CONTROL && trial.getDiagnostics().isEmpty()
+                    && trial.getInputTables().isEmpty() && trial.getOutputTables().isEmpty()
+                    && trial.getColumnLineage().isEmpty() && trial.getColumnUsages().isEmpty();
+        } catch (RuntimeException | StackOverflowError failure) {
+            return false;
+        }
     }
 
     private static ParseContext trialContext(ParseContext context) {
