@@ -1,6 +1,7 @@
 package io.github.linesql.core.internal;
 
 import io.github.linesql.core.facade.SqlLineageParser;
+import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.DialectCandidate;
 import io.github.linesql.core.model.LineageResult;
@@ -17,6 +18,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 
 public class DefaultSqlLineageParser implements SqlLineageParser {
@@ -172,6 +174,12 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             outputTableCount = 1;
             secondDialect = SqlDialect.ORACLE;
             command = "ALTER TABLE DROP (columns)";
+        } else if (SimpleDialectDetector.isSharedColumnChangeScope(statement)) {
+            expected = StatementType.ALTER_TABLE;
+            inputTableCount = 0;
+            outputTableCount = 1;
+            secondDialect = SqlDialect.HIVE;
+            command = "ALTER TABLE column maintenance scope";
         } else {
             return null;
         }
@@ -180,15 +188,18 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         LineageResult second = parseSharedStatement(statement, secondDialect, options, context,
                 expected, inputTableCount, outputTableCount);
         if (first == null || second == null || !first.getInputTables().equals(second.getInputTables())
-                || !first.getOutputTables().equals(second.getOutputTables())) {
+                || !first.getOutputTables().equals(second.getOutputTables())
+                || !sameColumnUsages(first.getColumnUsages(), second.getColumnUsages())) {
             return null;
         }
         LineageResult shared = new LineageResult();
         shared.setStatementType(expected);
         shared.setInputTables(new ArrayList<>(first.getInputTables()));
         shared.setOutputTables(new ArrayList<>(first.getOutputTables()));
+        shared.setColumnUsages(new ArrayList<>(first.getColumnUsages()));
         String firstName = firstDialect == SqlDialect.HIVE ? "Hive" : "Flink";
-        String secondName = secondDialect == SqlDialect.ORACLE ? "Oracle" : "StarRocks";
+        String secondName = secondDialect == SqlDialect.HIVE ? "Hive"
+                : secondDialect == SqlDialect.ORACLE ? "Oracle" : "StarRocks";
         shared.setDialectDetectionReason(firstName + " and " + secondName + " both support this " + command + " syntax");
         return shared;
     }
@@ -204,13 +215,29 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             if (trial.getStatementType() == expected && trial.getDiagnostics().isEmpty()
                     && trial.getInputTables().size() == inputTableCount
                     && trial.getOutputTables().size() == outputTableCount
-                    && trial.getColumnLineage().isEmpty() && trial.getColumnUsages().isEmpty()) {
+                    && trial.getColumnLineage().isEmpty()) {
                 return trial;
             }
         } catch (RuntimeException | StackOverflowError failure) {
             return null;
         }
         return null;
+    }
+
+    private static boolean sameColumnUsages(List<ColumnUsage> first, List<ColumnUsage> second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+        for (int i = 0; i < first.size(); i++) {
+            ColumnUsage left = first.get(i);
+            ColumnUsage right = second.get(i);
+            if (left.getType() != right.getType()
+                    || !Objects.equals(left.getColumn().getName(), right.getColumn().getName())
+                    || !Objects.equals(left.getColumn().getTable(), right.getColumn().getTable())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static ParseContext trialContext(ParseContext context) {

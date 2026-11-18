@@ -1501,6 +1501,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedColumnMaintenanceWithModelReferences() {
+        LineageResult result = LineSql.parse("ALTER TABLE ods.orders CHANGE COLUMN old_price price "
+                + "DECIMAL(12, 2) AFTER order_id CASCADE");
+        assertEquals(SqlDialect.UNKNOWN, result.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, result.getStatementType());
+        assertEquals("orders", result.getOutputTables().get(0).getName());
+        assertEquals(3, result.getColumnUsages().size());
+        assertEquals("old_price", result.getColumnUsages().get(0).getColumn().getName());
+        assertEquals("price", result.getColumnUsages().get(1).getColumn().getName());
+        assertEquals("order_id", result.getColumnUsages().get(2).getColumn().getName());
+        assertTrue(result.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedParenthesizedColumnDrop() {
         LineageResult drop = LineSql.parse("ALTER TABLE ods.orders DROP (old_price, old_status)");
         assertEquals(SqlDialect.UNKNOWN, drop.getDialect());

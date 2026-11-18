@@ -561,7 +561,22 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableChangeColumn(FlinkParser.AlterTableChangeColumnContext ctx) {
-        return addAlteredTable(ctx.multipartIdentifier());
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        List<ColumnRef> refs = new ArrayList<>();
+        refs.add(new ColumnRef(target, cleanIdentifier(ctx.identifier())));
+        addColumnDefinitionRef(target, ctx.tableElement(), refs);
+        if (ctx.columnPosition() != null && ctx.columnPosition().identifier() != null) {
+            refs.add(new ColumnRef(target, cleanIdentifier(ctx.columnPosition().identifier())));
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, distinctColumnRefs(refs));
+        return addAlteredTable(target);
+    }
+
+    private void addColumnDefinitionRef(TableRef target, FlinkParser.TableElementContext element, List<ColumnRef> refs) {
+        if (element instanceof FlinkParser.ColumnDefinitionContext) {
+            FlinkParser.ColumnDefinitionContext column = (FlinkParser.ColumnDefinitionContext) element;
+            refs.add(new ColumnRef(target, cleanIdentifier(column.identifier())));
+        }
     }
 
     @Override
@@ -590,7 +605,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableAddHiveColumns(FlinkParser.AlterTableAddHiveColumnsContext ctx) {
-        return addAlteredTable(ctx.multipartIdentifier());
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        List<ColumnRef> refs = new ArrayList<>();
+        for (FlinkParser.TableElementContext element : ctx.tableElementList().tableElement()) {
+            addColumnDefinitionRef(target, element, refs);
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+        return addAlteredTable(target);
     }
 
     @Override
@@ -605,7 +626,13 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
 
     @Override
     public Void visitAlterTableReplaceColumns(FlinkParser.AlterTableReplaceColumnsContext ctx) {
-        return addAlteredTable(ctx.multipartIdentifier());
+        TableRef target = tableRef(ctx.multipartIdentifier());
+        List<ColumnRef> refs = new ArrayList<>();
+        for (FlinkParser.TableElementContext element : ctx.tableElementList().tableElement()) {
+            addColumnDefinitionRef(target, element, refs);
+        }
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
+        return addAlteredTable(target);
     }
 
     @Override

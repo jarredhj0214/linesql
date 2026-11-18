@@ -7442,6 +7442,20 @@
         "ods.raw_orders"
       ],
       "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.amount"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.pay_amount"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.order_id"
+        }
+      ],
       "description": "Flink Hive-compatible ALTER TABLE CHANGE COLUMN"
     },
     {
@@ -7494,6 +7508,16 @@
         "ods.raw_orders"
       ],
       "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.buyer_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.channel"
+        }
+      ],
       "description": "Flink Hive-compatible ALTER TABLE ADD COLUMNS"
     },
     {
@@ -7505,6 +7529,20 @@
         "ods.raw_orders"
       ],
       "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.order_id"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.amount"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.raw_orders.dt"
+        }
+      ],
       "description": "Flink Hive-compatible ALTER TABLE REPLACE COLUMNS"
     },
     {

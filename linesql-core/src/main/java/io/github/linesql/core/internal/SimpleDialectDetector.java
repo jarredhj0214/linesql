@@ -525,11 +525,15 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern HIVE_COMPACTION_REQUEST = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:" + HIVE_PARTITION_SPEC + ")?"
                     + "\\s+compact\\s+" + HIVE_PROPERTY_LITERAL);
-    private static final Pattern HIVE_COLUMN_CHANGE_SCOPE = Pattern.compile(
-            "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + HIVE_PARTITION_SPEC
-                    + "\\s+(?:(?:add|replace)\\s+columns\\s*\\([^;]+\\)|change\\s+(?:column\\s+)?"
+    private static final String HIVE_COLUMN_SCOPE_ACTION =
+            "\\s+(?:(?:add|replace)\\s+columns\\s*\\([^;]+\\)|change\\s+(?:column\\s+)?"
                     + HIVE_TABLE_IDENTIFIER + "\\s+" + HIVE_TABLE_IDENTIFIER + "\\s+[^;]+)"
-                    + "\\s+(?:cascade|restrict)(?=\\s*(?:;|$))");
+                    + "\\s+(?:cascade|restrict)(?=\\s*(?:;|$))";
+    private static final Pattern HIVE_COLUMN_CHANGE_SCOPE = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + HIVE_PARTITION_SPEC + HIVE_COLUMN_SCOPE_ACTION);
+    private static final Pattern SHARED_COLUMN_CHANGE_SCOPE = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + HIVE_COLUMN_SCOPE_ACTION + "\\s*;?\\s*$",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern HIVE_SCHEMA_MAINTENANCE = Pattern.compile(
             "^\\s*(?:create\\s+(?:database|schema)\\s+(?:if\\s+not\\s+exists\\s+)?" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s+(?:comment|location)\\s+" + HIVE_PROPERTY_LITERAL + ")*+\\s+managedlocation\\s+"
@@ -1504,6 +1508,11 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static boolean isIdentifierStart(char value) {
         return Character.isLetter(value) || value == '_' || value == '@' || value == '#';
+    }
+
+    static boolean isSharedColumnChangeScope(String statement) {
+        return SHARED_COLUMN_CHANGE_SCOPE.matcher(stripComments(statement)
+                .replaceAll(SINGLE_QUOTED_STRING, " ")).matches();
     }
 
     static boolean isSharedDropColumnList(String statement) {
