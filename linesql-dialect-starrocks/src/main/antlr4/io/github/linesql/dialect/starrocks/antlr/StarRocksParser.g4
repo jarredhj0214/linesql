@@ -993,6 +993,7 @@ alterTableAction
     | RENAME COLUMN identifier TO identifier
     | RENAME ROLLUP identifier identifier
     | RENAME PARTITION identifier identifier
+    | (ENABLE | DISABLE) DICTIONARY LPAREN dictionaryColumns=identifierList RPAREN
     | ORDER BY (LPAREN identifierList RPAREN | identifierList) rollupSource? propertiesClause?
     | DISTRIBUTED BY HASH LPAREN identifierList RPAREN (DEFAULT? BUCKETS number)?
     | DISTRIBUTED BY RANDOM (BUCKETS number)?

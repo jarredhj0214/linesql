@@ -8002,6 +8002,44 @@
       "description": "StarRocks ALTER TABLE RENAME ROLLUP syntax"
     },
     {
+      "id": "alter_table_enable_dictionary_columns",
+      "file": "cases/alter_table_enable_dictionary_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.ship_mode"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.status"
+        }
+      ],
+      "description": "Enable StarRocks table dictionaries for the named columns"
+    },
+    {
+      "id": "alter_table_disable_dictionary_columns",
+      "file": "cases/alter_table_disable_dictionary_columns.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.ship_mode"
+        }
+      ],
+      "description": "Disable StarRocks table dictionaries for the named columns"
+    },
+    {
       "id": "alter_table_rename_partition",
       "file": "cases/alter_table_rename_partition.sql",
       "statementType": "ALTER_TABLE",

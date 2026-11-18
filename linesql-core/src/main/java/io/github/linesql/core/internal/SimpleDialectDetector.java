@@ -513,6 +513,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:(?:base|cumulative)\\s+compact\\b|drop\\s+persistent\\s+index\\s+on\\s+tablets\\b"
                     + "|distributed\\s+by\\s+hash\\s*\\([^;)]*\\)\\s+default\\s+buckets\\b"
                     + "|modify\\s+column\\s+" + SQL_IDENTIFIER + "\\s+(?:add|drop)\\s+field\\b"
+                    + "|(?:enable|disable)\\s+dictionary\\s*\\("
+                    + "|rename\\s+partition\\s+" + SQL_IDENTIFIER + "\\s+(?!to\\b)" + SQL_IDENTIFIER
+                    + "(?=\\s*(?:;|$))"
                     + "|drop\\s+column\\s+" + SQL_IDENTIFIER + "\\s+from\\s+" + SQL_IDENTIFIER
                     + "|order\\s+by\\s*\\([^;)]*\\)\\s+from\\s+" + SQL_IDENTIFIER + ")");
     private static final Pattern STARROCKS_TABLE_MAINTENANCE = Pattern.compile(

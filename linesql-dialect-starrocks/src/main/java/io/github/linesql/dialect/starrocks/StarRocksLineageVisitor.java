@@ -1353,6 +1353,9 @@ class StarRocksLineageVisitor extends StarRocksParserBaseVisitor<Void> {
                     action.identifier().get(0),
                     action.generatedColumn()));
         }
+        if (action.dictionaryColumns != null) {
+            addColumnUsages(table, action.dictionaryColumns, ColumnUsageType.TABLE_MODEL);
+        }
         if (action.ORDER() != null
                 && !action.identifierList().isEmpty()) {
             addColumnUsages(table, action.identifierList().get(0), ColumnUsageType.TABLE_MODEL);
