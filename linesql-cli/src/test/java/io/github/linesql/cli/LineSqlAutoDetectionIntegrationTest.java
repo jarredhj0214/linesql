@@ -1501,6 +1501,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedColumnReplacementWithHiveStructFields() {
+        LineageResult result = LineSql.parse("ALTER TABLE mart.users REPLACE COLUMNS "
+                + "(user_id BIGINT, profile STRUCT<email:STRING,tags:ARRAY<STRING>>) CASCADE");
+        assertEquals(SqlDialect.UNKNOWN, result.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, result.getStatementType());
+        assertEquals("users", result.getOutputTables().get(0).getName());
+        assertEquals(2, result.getColumnUsages().size());
+        assertEquals("profile", result.getColumnUsages().get(1).getColumn().getName());
+        assertTrue(result.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedColumnMaintenanceWithModelReferences() {
         LineageResult result = LineSql.parse("ALTER TABLE ods.orders CHANGE COLUMN old_price price "
                 + "DECIMAL(12, 2) AFTER order_id CASCADE");

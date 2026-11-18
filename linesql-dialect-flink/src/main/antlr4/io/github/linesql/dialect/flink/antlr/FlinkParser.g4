@@ -1023,7 +1023,12 @@ functionUsingItem
 
 dataType
     : identifier (LPAREN NUMBER_LITERAL (COMMA NUMBER_LITERAL)* RPAREN)?
-    | identifier LT dataType (COMMA dataType)* GT
+    | identifier LT dataTypeParameter (COMMA dataTypeParameter)* GT
+    ;
+
+dataTypeParameter
+    : identifier COLON dataType
+    | dataType
     ;
 
 // ============ Common ============
