@@ -843,6 +843,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksClusterResourceAndBackupMetadata() {
+        LineageResult snapshot = LineSql.parse("SHOW SNAPSHOT ON repo_s3 WHERE snapshot = 'sr_core_backup'");
+        assertEquals(SqlDialect.STARROCKS, snapshot.getDialect());
+        assertEquals(StatementType.READ_METADATA, snapshot.getStatementType());
+        assertTrue(snapshot.getDiagnostics().isEmpty());
+        assertTrue(snapshot.getColumnUsages().stream()
+                .anyMatch(usage -> "snapshot".equalsIgnoreCase(usage.getColumn().getName())));
+        assertDialect(SqlDialect.STARROCKS, "SHOW BACKUP FROM sr_hub");
+        assertDialect(SqlDialect.STARROCKS, "SHOW FRONTENDS");
+        assertDialect(SqlDialect.STARROCKS, "SHOW COMPUTE NODES");
+        assertDialect(SqlDialect.STARROCKS, "SHOW RESOURCE GROUPS ALL");
+        assertDialect(SqlDialect.OCEANBASE, "SHOW RESTORE PREVIEW");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW FRONTENDS' AS note");
+    }
+
+    @Test
     public void detectsStarRocksClusterAdministration() {
         LineageResult scale = LineSql.parse("ALTER SYSTEM ADD COMPUTE NODE 'cn.example.com:9050'");
         assertEquals(SqlDialect.STARROCKS, scale.getDialect());

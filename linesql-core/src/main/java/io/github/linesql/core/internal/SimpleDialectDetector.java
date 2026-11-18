@@ -52,6 +52,11 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*show\\s+(?:alter\\s+table\\s+(?:column|optimize|rollup)|export"
                     + "|analyze\\s+(?:job|status)|all\\s+routine\\s+load)\\b");
 
+    private static final Pattern STARROCKS_CLUSTER_METADATA = Pattern.compile(
+            "^\\s*show\\s+(?:(?:backend|compute\\s+node)\\s+blacklist"
+                    + "|backends|frontends|compute\\s+nodes|broker|resource\\s+groups?|resources"
+                    + "|backup|repositories|snapshot\\s+on|restore(?=\\s+(?:from|in)\\b|\\s*(?:;|$)))\\b");
+
     private static final Pattern STARROCKS_CLUSTER_ADMIN = Pattern.compile(
             "^\\s*(?:alter\\s+system\\s+(?:(?:add|drop)\\s+(?:backend|compute\\s+node|follower|observer|broker)"
                     + "|drop\\s+all\\s+broker|decommission\\s+backend|create\\s+image)"
@@ -796,6 +801,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks warehouse, primary key table, or formatted outfile syntax"));
         } else if (STARROCKS_JOB_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks job metadata syntax"));
+        } else if (STARROCKS_CLUSTER_METADATA.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks cluster, resource, or backup metadata syntax"));
         } else if (STARROCKS_CLUSTER_ADMIN.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks cluster administration syntax"));
         } else if (STARROCKS_PIPE_OR_STORAGE_VOLUME.matcher(unquotedSyntax).find()) {
