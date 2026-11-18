@@ -48,6 +48,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern STARROCKS_FORMATTED_OUTFILE = Pattern.compile(
             "^\\s*(?:select|with)\\b[^;]*\\binto\\s+outfile\\s+format\\s+as\\b");
 
+    private static final Pattern STARROCKS_LOAD_COMMAND = Pattern.compile(
+            "^\\s*(?:load\\s+label|(?:create|alter|pause|resume|stop)\\s+routine\\s+load)\\b");
+
     private static final Pattern STARROCKS_JOB_METADATA = Pattern.compile(
             "^\\s*show\\s+(?:alter\\s+table\\s+(?:column|optimize|rollup)|export"
                     + "|analyze\\s+(?:job|status)|all\\s+routine\\s+load)\\b");
@@ -810,6 +813,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || STARROCKS_PRIMARY_KEY_TABLE.matcher(unquotedSyntax).find()
                 || STARROCKS_FORMATTED_OUTFILE.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks warehouse, primary key table, or formatted outfile syntax"));
+        } else if (STARROCKS_LOAD_COMMAND.matcher(unquotedSyntax).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("load")
+                        && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_LOAD_COMMAND))) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks labeled or routine load syntax"));
         } else if (STARROCKS_JOB_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks job metadata syntax"));
         } else if (STARROCKS_CLUSTER_METADATA.matcher(unquotedSyntax).find()) {
@@ -828,8 +835,6 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bduplicate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\baggregate\\s+key\\b.*")
                 || normalized.matches("(?s).*\\bcreate\\s+table\\b.+\\bdistributed\\s+by\\s+hash\\b.*")
-                || normalized.matches("(?s).*\\bcreate\\s+routine\\s+load\\b.*")
-                || normalized.matches("(?s).*\\bload\\s+label\\b.*")
                 || normalized.matches("(?s)^\\s*show\\s+proc\\b.*")
                 || normalized.matches("(?s)^\\s*show\\s+tablet\\b.*")
                 || normalized.matches("(?s)^\\s*show\\s+(routine\\s+load|load)\\b.*")

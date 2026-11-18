@@ -843,6 +843,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksLabeledAndRoutineLoads() {
+        LineageResult load = LineSql.parse("LOAD LABEL mart.load_job (DATA FROM TABLE hive_ext.user_profile "
+                + "INTO TABLE ods.user_profile PARTITION (p202608) SET (user_id = user_id) WHERE dt = '2026-08-24') "
+                + "WITH RESOURCE spark_resource PROPERTIES ('timeout' = '7200')");
+        assertEquals(SqlDialect.STARROCKS, load.getDialect());
+        assertEquals(StatementType.LOAD_DATA, load.getStatementType());
+        assertEquals("hive_ext", load.getInputTables().get(0).getSchema());
+        assertEquals("ods", load.getOutputTables().get(0).getSchema());
+        assertEquals("user_id", load.getColumnLineage().get(0).getSources().get(0).getName());
+        assertTrue(load.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "PAUSE ROUTINE LOAD FOR mart.job1");
+        assertDialect(SqlDialect.STARROCKS, "RESUME ROUTINE LOAD FOR mart.job1");
+        assertDialect(SqlDialect.ORACLE, "SELECT id FROM mart.user_profile PARTITION (p202608)");
+        assertDialect(SqlDialect.SPARK, "SELECT 'LOAD LABEL mart.load_job' AS note");
+    }
+
+    @Test
     public void detectsStarRocksClusterResourceAndBackupMetadata() {
         LineageResult snapshot = LineSql.parse("SHOW SNAPSHOT ON repo_s3 WHERE snapshot = 'sr_core_backup'");
         assertEquals(SqlDialect.STARROCKS, snapshot.getDialect());
