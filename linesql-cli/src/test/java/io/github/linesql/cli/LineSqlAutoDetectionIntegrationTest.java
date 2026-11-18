@@ -712,6 +712,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksClusterAdministration() {
+        LineageResult scale = LineSql.parse("ALTER SYSTEM ADD COMPUTE NODE 'cn.example.com:9050'");
+        assertEquals(SqlDialect.STARROCKS, scale.getDialect());
+        assertEquals(StatementType.CONTROL, scale.getStatementType());
+        assertTrue(scale.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "ALTER SYSTEM DROP ALL BROKER hdfs_broker");
+        assertDialect(SqlDialect.STARROCKS, "ADMIN CHECK TABLET (10000)");
+        assertDialect(SqlDialect.STARROCKS, "SHOW USAGE RESOURCE GROUPS");
+        assertDialect(SqlDialect.OCEANBASE, "ALTER SYSTEM ADD SERVER '127.0.0.1:2882' ZONE 'zone1'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER SYSTEM ADD COMPUTE NODE' AS note");
+    }
+
+    @Test
     public void detectsStarRocksPipeAndStorageVolumeStatements() {
         LineageResult pipe = LineSql.parse("CREATE OR REPLACE PIPE ods.user_pipe AS "
                 + "INSERT INTO ods.users (id) SELECT id FROM FILES (\"path\" = \"s3://bucket/users/\", "
