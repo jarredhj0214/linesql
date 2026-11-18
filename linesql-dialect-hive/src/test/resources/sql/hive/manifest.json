@@ -1535,6 +1535,37 @@
       "description": "Hive ALTER TABLE UNSET TBLPROPERTIES records the affected table"
     },
     {
+      "id": "describe_formatted_partition_column",
+      "file": "cases/describe_formatted_partition_column.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.customers"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "sales.customers.ds"
+        },
+        {
+          "type": "READ_METADATA",
+          "column": "sales.customers.profile.email"
+        }
+      ],
+      "description": "Hive formatted partition describe records partition key and nested column path"
+    },
+    {
+      "id": "describe_database_extended",
+      "file": "cases/describe_database_extended.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive database description is metadata with no table reference"
+    },
+    {
       "id": "describe_table",
       "file": "cases/describe_table.sql",
       "statementType": "READ_METADATA",

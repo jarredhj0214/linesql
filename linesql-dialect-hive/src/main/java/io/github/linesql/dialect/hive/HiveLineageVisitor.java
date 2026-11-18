@@ -863,14 +863,20 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
 
     @Override
     public Void visitDescribeStatement(HiveParser.DescribeStatementContext ctx) {
-        for (int i = 0; i < ctx.getChildCount(); i++) {
-            ParseTree child = ctx.getChild(i);
-            if (child instanceof HiveParser.MultipartIdentifierContext) {
-                inputTables.add(tableRef((HiveParser.MultipartIdentifierContext) child));
-                break;
+        if (ctx.table != null) {
+            TableRef table = tableRef(ctx.table);
+            addInputTable(table, false);
+            Set<String> columns = new LinkedHashSet<>();
+            collectPartitionColumns(ctx, columns);
+            if (ctx.describedColumn != null) {
+                List<String> path = new ArrayList<>();
+                for (HiveParser.IdentifierContext part : ctx.describedColumn.identifier()) {
+                    path.add(cleanIdentifier(part));
+                }
+                columns.add(String.join(".", path));
             }
+            addMetadataColumns(table, columns);
         }
-        result.setInputTables(new ArrayList<>(inputTables));
         return null;
     }
 

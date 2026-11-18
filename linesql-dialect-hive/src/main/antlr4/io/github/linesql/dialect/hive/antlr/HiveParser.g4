@@ -681,8 +681,9 @@ showStatement
     ;
 
 describeStatement
-    : (DESCRIBE | DESC) TABLE multipartIdentifier
-    | (DESCRIBE | DESC) CONNECTOR EXTENDED? identifier
+    : (DESCRIBE | DESC) (DATABASE | SCHEMA | CONNECTOR | FUNCTION) EXTENDED? identifier
+    | (DESCRIBE | DESC) TABLE? (EXTENDED | FORMATTED)? table=multipartIdentifier
+      (PARTITION partitionSpec)? describedColumn=multipartIdentifier?
     | (DESCRIBE | DESC) .+?
     ;
 
