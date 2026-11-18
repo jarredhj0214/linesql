@@ -225,6 +225,9 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 || (scriptCandidate.getDialect() == SqlDialect.FLINK
                     && statementCandidate.getDialect() == SqlDialect.POSTGRESQL
                     && SimpleDialectDetector.hasSharedConflictDoNothing(statement))
+                || (scriptCandidate.getDialect() == SqlDialect.FLINK
+                    && statementCandidate.getDialect() == SqlDialect.HIVE
+                    && SimpleDialectDetector.hasSharedHiveSetFileFormat(statement))
                 || (scriptCandidate.getDialect() == SqlDialect.STARROCKS
                     && statementCandidate.getDialect() == SqlDialect.FLINK
                     && SimpleDialectDetector.hasSharedCatalogUse(statement));

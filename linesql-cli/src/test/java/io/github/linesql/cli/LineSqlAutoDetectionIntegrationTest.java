@@ -924,6 +924,29 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void distinguishesHiveFileFormatFromFlinkScriptContext() {
+        String sql = "ALTER TABLE mart.orders PARTITION (dt = '2026-11-18') SET FILEFORMAT parquet";
+        LineageResult hive = LineSql.parse(sql);
+        assertEquals(SqlDialect.HIVE, hive.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, hive.getStatementType());
+        assertEquals("dt", hive.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(hive.getDiagnostics().isEmpty());
+
+        List<LineageResult> flink = LineSql.parseScript("USE CATALOG lake; " + sql);
+        assertEquals(2, flink.size());
+        assertEquals(SqlDialect.FLINK, flink.get(1).getDialect());
+        assertEquals(StatementType.ALTER_TABLE, flink.get(1).getStatementType());
+        assertEquals("lake", flink.get(1).getOutputTables().get(0).getCatalog());
+        assertTrue(flink.get(1).getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.HIVE, "ALTER DATABASE mart SET OWNER USER etl_user");
+        LineageResult grant = LineSql.parse("SHOW GRANT USER analyst ON TABLE mart.orders");
+        assertEquals(SqlDialect.HIVE, grant.getDialect());
+        assertEquals("orders", grant.getInputTables().get(0).getName());
+        assertTrue(grant.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.SPARK, "SELECT 'SET FILEFORMAT parquet' AS note");
+    }
+
+    @Test
     public void detectsHivePartitionExchangeViewRewriteAndRoleMetadata() {
         LineageResult exchange = LineSql.parse("ALTER TABLE mart.orders EXCHANGE PARTITION "
                 + "(dt = '2026-11-18') WITH TABLE staging.orders_tmp");

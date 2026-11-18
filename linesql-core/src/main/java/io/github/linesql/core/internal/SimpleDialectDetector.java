@@ -106,6 +106,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern HIVE_PARTITION_OR_VIEW_DDL = Pattern.compile(
             "^\\s*(?:alter\\s+table\\b[^;]*\\bexchange\\s+partition\\s*\\([^;)]*="
                     + "|alter\\s+materialized\\s+view\\b[^;]*\\b(?:enable|disable)\\s+rewrite\\b)");
+    private static final Pattern HIVE_OWNER_OR_PRIVILEGE_METADATA = Pattern.compile(
+            "^\\s*(?:alter\\s+(?:database|schema)\\b[^;]*\\bset\\s+owner\\s+(?:user|role)"
+                    + "|show\\s+grant\\s+(?:user|role)\\b[^;]*\\bon\\s+(?:table|database|schema))\\b");
     private static final Pattern HIVE_ROLE_METADATA = Pattern.compile(
             "^\\s*show\\s+(?:current\\s+roles|principals|role\\s+grant\\s+(?:user|role))\\b");
     private static final Pattern HIVE_EXPLAIN_OR_TRANSACTIONS = Pattern.compile(
@@ -422,6 +425,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final String SQL_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
     private static final String HIVE_TABLE_IDENTIFIER = "(?:[\\p{L}_][\\p{L}\\p{N}_$]*|" + BACKTICK_IDENTIFIER + ")";
+    private static final Pattern HIVE_SET_FILEFORMAT = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + HIVE_TABLE_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*\\s+"
+                    + "(?:partition\\s*\\([^;)]*\\)\\s+)?set\\s+fileformat\\b");
     private static final Pattern HIVE_PARTITION_MAINTENANCE = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*\\s+"
@@ -670,7 +677,11 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
         }
+        if (HIVE_SET_FILEFORMAT.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.91, "Hive-compatible ALTER TABLE SET FILEFORMAT syntax"));
+        }
         if (HIVE_PARTITION_OR_VIEW_DDL.matcher(unquotedSyntax).find()
+                || HIVE_OWNER_OR_PRIVILEGE_METADATA.matcher(unquotedSyntax).find()
                 || HIVE_ROLE_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive partition exchange, view rewrite, or role metadata syntax"));
         }
@@ -969,6 +980,11 @@ public class SimpleDialectDetector implements DialectDetector {
 
     static boolean hasSharedCatalogUse(String sql) {
         return stripComments(sql).matches("(?is)^\\s*use\\s+catalog\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$");
+    }
+
+    static boolean hasSharedHiveSetFileFormat(String sql) {
+        String syntax = stripComments(maskQuotedLiterals(sql).text).toLowerCase(Locale.ROOT);
+        return HIVE_SET_FILEFORMAT.matcher(syntax.replaceAll(SINGLE_QUOTED_STRING, " ")).find();
     }
 
     static boolean hasSharedConflictDoNothing(String sql) {
