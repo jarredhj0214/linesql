@@ -1,0 +1,1 @@
+SHOW TABLE EXTENDED FROM sales LIKE 'orders' PARTITION (ds = '2026-09-10')

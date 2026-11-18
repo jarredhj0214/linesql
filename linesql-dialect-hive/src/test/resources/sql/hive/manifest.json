@@ -1695,6 +1695,47 @@
       "description": "Hive SHOW PARTITIONS filter retains explicit metadata partition columns"
     },
     {
+      "id": "show_columns_with_database_and_pattern",
+      "file": "cases/show_columns_with_database_and_pattern.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.customers"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive SHOW COLUMNS retains an explicit database but does not invent column references from its pattern"
+    },
+    {
+      "id": "show_columns_bare_pattern",
+      "file": "cases/show_columns_bare_pattern.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.customers"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "A bare string pattern in SHOW COLUMNS identifies Hive and keeps the table namespace"
+    },
+    {
+      "id": "show_table_extended_named_partition",
+      "file": "cases/show_table_extended_named_partition.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "sales.orders.ds"
+        }
+      ],
+      "description": "Hive exact named table in partition metadata retains the table and the partition key"
+    },
+    {
       "id": "show_columns_from_table",
       "file": "cases/show_columns_from_table.sql",
       "statementType": "READ_METADATA",

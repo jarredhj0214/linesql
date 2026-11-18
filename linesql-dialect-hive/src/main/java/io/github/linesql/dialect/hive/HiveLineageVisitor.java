@@ -787,6 +787,35 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitShowColumnsMetadata(HiveParser.ShowColumnsMetadataContext ctx) {
+        TableRef table = rawTableRef(ctx.multipartIdentifier());
+        if (ctx.namespace != null && table.getSchema() == null) {
+            table = new TableRef(null, cleanIdentifier(ctx.namespace), table.getName());
+        }
+        addInputTable(qualifyTable(table), false);
+        return null;
+    }
+
+    @Override
+    public Void visitShowNamedPartitionMetadata(HiveParser.ShowNamedPartitionMetadataContext ctx) {
+        if (ctx.partitionSpec() == null) {
+            return null;
+        }
+        String literal = ctx.string().getText();
+        String name = literal.substring(1, literal.length() - 1);
+        if (!name.matches("[\\p{L}_][\\p{L}\\p{N}_]*")) {
+            return null;
+        }
+        String schema = ctx.namespace == null ? null : cleanIdentifier(ctx.namespace);
+        TableRef table = qualifyTable(new TableRef(null, schema, name));
+        addInputTable(table, false);
+        Set<String> columns = new LinkedHashSet<>();
+        collectPartitionColumns(ctx.partitionSpec(), columns);
+        addMetadataColumns(table, columns);
+        return null;
+    }
+
+    @Override
     public Void visitShowPartitionMetadata(HiveParser.ShowPartitionMetadataContext ctx) {
         TableRef table = tableRef(ctx.multipartIdentifier());
         addInputTable(table, false);

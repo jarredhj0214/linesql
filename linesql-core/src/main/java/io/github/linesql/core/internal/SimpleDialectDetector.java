@@ -458,6 +458,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s+(?:from|in)\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*)?"
                     + "(?:\\s+like\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "))?\\s+where\\b");
     private static final String HIVE_TABLE_IDENTIFIER = "(?:[\\p{L}_][\\p{L}\\p{N}_$]*|" + BACKTICK_IDENTIFIER + ")";
+    private static final Pattern HIVE_BARE_COLUMN_FILTER = Pattern.compile(
+            "^\\s*show\\s+columns\\s+(?:from|in)\\s+" + HIVE_TABLE_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*"
+                    + "(?:\\s+(?:from|in)\\s+" + HIVE_TABLE_IDENTIFIER + ")?"
+                    + "\\s+(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + ")(?=\\s*(?:;|$))");
     private static final Pattern HIVE_FILTERED_PARTITIONS = Pattern.compile(
             "^\\s*show\\s+partitions\\s+(?!from\\b)" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*"
@@ -760,6 +765,9 @@ public class SimpleDialectDetector implements DialectDetector {
         if (HIVE_EXPLAIN_OR_TRANSACTIONS.matcher(unquotedSyntax).find()
                 || normalized.matches("(?s)^\\s*show\\s+conf\\s+'hive\\..*")) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive explain details or session metadata syntax"));
+        }
+        if (HIVE_BARE_COLUMN_FILTER.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive SHOW COLUMNS with bare pattern syntax"));
         }
         if (HIVE_FILTERED_PARTITIONS.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive filtered partition metadata syntax"));

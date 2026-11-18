@@ -650,9 +650,10 @@ showStatement
     | SHOW TBLPROPERTIES multipartIdentifier (LPAREN string RPAREN)? #showTableMetadata
     | SHOW PARTITIONS multipartIdentifier (PARTITION partitionSpec)? whereClause?
       (ORDER BY sortItem (COMMA sortItem)*)? (LIMIT number)?            #showPartitionMetadata
-    | SHOW COLUMNS (FROM | IN) multipartIdentifier                   #showTableMetadata
+    | SHOW COLUMNS (FROM | IN) multipartIdentifier
+      ((FROM | IN) namespace=identifier)? (LIKE? string)?              #showColumnsMetadata
     | SHOW FORMATTED? (INDEX | INDEXES) ON multipartIdentifier       #showTableMetadata
-    | SHOW TABLE EXTENDED ((FROM | IN) identifier)? LIKE string (PARTITION partitionSpec)? #showGenericMetadata
+    | SHOW TABLE EXTENDED ((FROM | IN) namespace=identifier)? LIKE string (PARTITION partitionSpec)? #showNamedPartitionMetadata
     | SHOW TABLES ((FROM | IN) identifier)? (LIKE string)?           #showGenericMetadata
     | SHOW VIEWS ((FROM | IN) identifier)? (LIKE string)?            #showGenericMetadata
     | SHOW LOCKS target=multipartIdentifier? EXTENDED?               #showLockMetadata
