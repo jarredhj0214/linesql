@@ -456,6 +456,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
     private static final String SQL_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern SHARED_DROP_COLUMN_LIST = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")?"
+                    + "\\s+drop\\s*\\(\\s*" + SQL_IDENTIFIER + "(?:\\s*,\\s*" + SQL_IDENTIFIER + ")*"
+                    + "\\s*\\)\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARED_DROP_CATALOG = Pattern.compile(
             "^\\s*drop\\s+catalog\\s+(?:if\\s+exists\\s+)?" + SQL_IDENTIFIER + "\\s*;?\\s*$",
             Pattern.CASE_INSENSITIVE);
@@ -1500,6 +1504,10 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static boolean isIdentifierStart(char value) {
         return Character.isLetter(value) || value == '_' || value == '@' || value == '#';
+    }
+
+    static boolean isSharedDropColumnList(String statement) {
+        return SHARED_DROP_COLUMN_LIST.matcher(stripComments(statement)).matches();
     }
 
     static boolean isSharedDropCatalog(String statement) {

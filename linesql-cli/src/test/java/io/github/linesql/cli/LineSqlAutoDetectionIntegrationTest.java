@@ -1501,6 +1501,16 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedParenthesizedColumnDrop() {
+        LineageResult drop = LineSql.parse("ALTER TABLE ods.orders DROP (old_price, old_status)");
+        assertEquals(SqlDialect.UNKNOWN, drop.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, drop.getStatementType());
+        assertEquals("ods", drop.getOutputTables().get(0).getSchema());
+        assertEquals("orders", drop.getOutputTables().get(0).getName());
+        assertTrue(drop.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedMaterializedViewDropWithItsTarget() {
         LineageResult drop = LineSql.parse("DROP MATERIALIZED VIEW IF EXISTS `mart`.`user_totals`");
         assertEquals(SqlDialect.UNKNOWN, drop.getDialect());

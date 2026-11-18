@@ -150,6 +150,7 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         int inputTableCount;
         int outputTableCount = 0;
         SqlDialect firstDialect = SqlDialect.FLINK;
+        SqlDialect secondDialect = SqlDialect.STARROCKS;
         String command;
         if (SimpleDialectDetector.isSharedDropCatalog(statement)) {
             expected = StatementType.CONTROL;
@@ -165,15 +166,21 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             outputTableCount = 1;
             firstDialect = SqlDialect.HIVE;
             command = "DROP MATERIALIZED VIEW";
+        } else if (SimpleDialectDetector.isSharedDropColumnList(statement)) {
+            expected = StatementType.ALTER_TABLE;
+            inputTableCount = 0;
+            outputTableCount = 1;
+            secondDialect = SqlDialect.ORACLE;
+            command = "ALTER TABLE DROP (columns)";
         } else {
             return null;
         }
         LineageResult first = parseSharedStatement(statement, firstDialect, options, context,
                 expected, inputTableCount, outputTableCount);
-        LineageResult starRocks = parseSharedStatement(statement, SqlDialect.STARROCKS, options, context,
+        LineageResult second = parseSharedStatement(statement, secondDialect, options, context,
                 expected, inputTableCount, outputTableCount);
-        if (first == null || starRocks == null || !first.getInputTables().equals(starRocks.getInputTables())
-                || !first.getOutputTables().equals(starRocks.getOutputTables())) {
+        if (first == null || second == null || !first.getInputTables().equals(second.getInputTables())
+                || !first.getOutputTables().equals(second.getOutputTables())) {
             return null;
         }
         LineageResult shared = new LineageResult();
@@ -181,7 +188,8 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         shared.setInputTables(new ArrayList<>(first.getInputTables()));
         shared.setOutputTables(new ArrayList<>(first.getOutputTables()));
         String firstName = firstDialect == SqlDialect.HIVE ? "Hive" : "Flink";
-        shared.setDialectDetectionReason(firstName + " and StarRocks both support this " + command + " syntax");
+        String secondName = secondDialect == SqlDialect.ORACLE ? "Oracle" : "StarRocks";
+        shared.setDialectDetectionReason(firstName + " and " + secondName + " both support this " + command + " syntax");
         return shared;
     }
 
