@@ -836,6 +836,18 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFilteredHivePartitionsWithLongGeneratedWhitespace() {
+        String padding = String.join("", java.util.Collections.nCopies(6500, " "));
+        LineageResult result = LineSql.parse("SHOW PARTITIONS mart.orders PARTITION ("
+                + padding + "ds = '2026-09-10') WHERE hr >= 10");
+        assertEquals(SqlDialect.HIVE, result.getDialect());
+        assertEquals(StatementType.READ_METADATA, result.getStatementType());
+        assertEquals("orders", result.getInputTables().get(0).getName());
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertEquals(2, result.getColumnUsages().size());
+    }
+
+    @Test
     public void detectsStarRocksNativeOptionsInRealVariableHints() {
         LineageResult insert = LineSql.parse("INSERT /*+ SET_VAR(dynamic_overwrite = true) */ "
                 + "OVERWRITE mart.summary SELECT user_id, COUNT(order_id) AS totals "

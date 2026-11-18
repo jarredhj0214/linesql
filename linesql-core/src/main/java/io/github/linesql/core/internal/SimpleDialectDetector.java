@@ -470,7 +470,7 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*show\\s+partitions\\s+(?!from\\b)" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*"
                     + "(?:\\s+partition\\s*\\((?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "|" + BACKTICK_IDENTIFIER
-                    + "|[^()'\\\"`;])*\\))?\\s+(?:where\\b|order\\s+by\\b|limit\\s+\\d+\\b)");
+                    + "|[^()'\\\"`;]++)*+\\))?\\s+(?:where\\b|order\\s+by\\b|limit\\s+\\d+\\b)");
     private static final Pattern HIVE_SET_FILEFORMAT = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*\\s+"
