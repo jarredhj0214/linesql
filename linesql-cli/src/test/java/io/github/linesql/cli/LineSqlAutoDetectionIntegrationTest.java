@@ -863,6 +863,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsHiveExplainDetailsAndSessionMetadata() {
+        LineageResult dependency = LineSql.parse("EXPLAIN DEPENDENCY SELECT event_id FROM dwd.events");
+        assertEquals(SqlDialect.HIVE, dependency.getDialect());
+        assertEquals(StatementType.SELECT, dependency.getStatementType());
+        assertEquals("events", dependency.getInputTables().get(0).getName());
+        assertTrue(dependency.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.HIVE, "EXPLAIN AUTHORIZATION INSERT INTO TABLE mart.t SELECT id FROM ods.t");
+        assertDialect(SqlDialect.HIVE, "SHOW CONF 'hive.exec.dynamic.partition'");
+        assertDialect(SqlDialect.HIVE, "SHOW TRANSACTIONS");
+        assertDialect(SqlDialect.SPARK, "SELECT 'EXPLAIN DEPENDENCY SELECT id' AS note");
+    }
+
+    @Test
     public void detectsHiveTableAndPartitionMaintenance() {
         LineageResult archive = LineSql.parse("ALTER TABLE mart.orders ARCHIVE PARTITION (dt = '2026-09-10')");
         assertEquals(SqlDialect.HIVE, archive.getDialect());
@@ -922,7 +935,8 @@ public class LineSqlAutoDetectionIntegrationTest {
         assertEquals(SqlDialect.SPARK, hinted.getDialect());
         assertEquals("SPARK_PARSE_ERROR", hinted.getDiagnostics().get(0).getCode());
 
-        LineageResult ambiguous = LineSql.parse("EXPLAIN DEPENDENCY SELECT id FROM ods.orders");
+        LineageResult ambiguous = LineSql.parse("CREATE DATABASE IF NOT EXISTS mart COMMENT 'mart layer' "
+                + "LOCATION '/warehouse/mart.db' TBLPROPERTIES ('owner' = 'data')");
         assertEquals(SqlDialect.SPARK, ambiguous.getDialect());
         assertEquals("SPARK_PARSE_ERROR", ambiguous.getDiagnostics().get(0).getCode());
 

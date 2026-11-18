@@ -90,6 +90,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s*\\.\\s*[a-z_][\\w$]*)*\\s+temporary\\s+partition\\s*\\("
                     + "|^\\s*show\\s+temporary\\s+partitions\\s+from\\b"
                     + "|^\\s*alter\\s+table\\b[^;]*\\b(?:add|drop|modify|with)\\s+temporary\\s+partitions?\\b");
+    private static final Pattern HIVE_EXPLAIN_OR_TRANSACTIONS = Pattern.compile(
+            "^\\s*(?:explain\\s+(?:(?:formatted|extended)\\s+)?(?:authorization|dependency)"
+                    + "|show\\s+transactions)\\b");
     private static final Pattern HIVE_SHOW_INDEX_ON =
             Pattern.compile("^\\s*show\\s+(?:formatted\\s+)?index(?:es)?\\s+on\\b");
     private static final Pattern HIVE_LOCK_OR_COMPACTION = Pattern.compile(
@@ -636,6 +639,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*::\\s*[a-zA-Z_][a-zA-Z0-9_]*.*")
                 || unquotedSyntax.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
+        }
+        if (HIVE_EXPLAIN_OR_TRANSACTIONS.matcher(unquotedSyntax).find()
+                || normalized.matches("(?s)^\\s*show\\s+conf\\s+'hive\\..*")) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive explain details or session metadata syntax"));
         }
         if (HIVE_SHOW_INDEX_ON.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive SHOW INDEX ON syntax"));
