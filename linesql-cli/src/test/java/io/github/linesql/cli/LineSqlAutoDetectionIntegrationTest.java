@@ -765,6 +765,31 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksWarehouseKeyTableAndFormattedOutfile() {
+        LineageResult unload = LineSql.parse("SELECT id FROM mart.orders WHERE active = 1 "
+                + "INTO OUTFILE 's3://bucket/data' FORMAT AS parquet");
+        assertEquals(SqlDialect.STARROCKS, unload.getDialect());
+        assertEquals(StatementType.SELECT, unload.getStatementType());
+        assertEquals("orders", unload.getInputTables().get(0).getName());
+        assertTrue(unload.getColumnUsages().stream().anyMatch(usage -> "active".equals(usage.getColumn().getName())));
+        assertTrue(unload.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.MYSQL, "SELECT id INTO OUTFILE '/tmp/data.csv' FROM mart.orders");
+
+        LineageResult table = LineSql.parse("CREATE TABLE mart.generated_users (id INT, "
+                + "data_json JSON, city STRING AS json_query(data_json, '$.city')) "
+                + "PRIMARY KEY(id) DISTRIBUTED BY HASH(id)");
+        assertEquals(SqlDialect.STARROCKS, table.getDialect());
+        assertEquals(StatementType.CREATE_TABLE, table.getStatementType());
+        assertEquals("data_json", table.getColumnLineage().get(0).getSources().get(0).getName());
+        assertTrue(table.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "CREATE TABLE t (id INT, PRIMARY KEY (id) NOT ENFORCED) "
+                + "DISTRIBUTED BY HASH(id) INTO 4 BUCKETS WITH ('connector' = 'blackhole')");
+        assertDialect(SqlDialect.STARROCKS, "SUSPEND WAREHOUSE wh_etl");
+        assertDialect(SqlDialect.STARROCKS, "SHOW WAREHOUSES");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW WAREHOUSES' AS message");
+    }
+
+    @Test
     public void detectsNativeStarRocksJobAndHiveIndexMetadata() {
         LineageResult export = LineSql.parse("SHOW EXPORT FROM mart WHERE state = 'exporting' ORDER BY StartTime");
         assertEquals(SqlDialect.STARROCKS, export.getDialect());

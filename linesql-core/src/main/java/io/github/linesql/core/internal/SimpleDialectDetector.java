@@ -40,6 +40,14 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
                     + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
 
+    private static final Pattern STARROCKS_WAREHOUSE = Pattern.compile(
+            "^\\s*(?:(?:create|alter|drop|suspend|resume)\\s+warehouse|show\\s+warehouses)\\b");
+    private static final Pattern STARROCKS_PRIMARY_KEY_TABLE = Pattern.compile(
+            "^\\s*create\\s+(?:temporary\\s+)?table\\b[^;]*\\)\\s*primary\\s+key\\s*\\([^;)]*\\)"
+                    + "[^;]*\\bdistributed\\s+by\\s+hash\\s*\\(");
+    private static final Pattern STARROCKS_FORMATTED_OUTFILE = Pattern.compile(
+            "^\\s*(?:select|with)\\b[^;]*\\binto\\s+outfile\\s+format\\s+as\\b");
+
     private static final Pattern STARROCKS_JOB_METADATA = Pattern.compile(
             "^\\s*show\\s+(?:alter\\s+table\\s+(?:column|optimize|rollup)|export"
                     + "|analyze\\s+(?:job|status)|all\\s+routine\\s+load)\\b");
@@ -751,6 +759,10 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks external catalog or catalog properties syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
+        } else if (STARROCKS_WAREHOUSE.matcher(unquotedSyntax).find()
+                || STARROCKS_PRIMARY_KEY_TABLE.matcher(unquotedSyntax).find()
+                || STARROCKS_FORMATTED_OUTFILE.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks warehouse, primary key table, or formatted outfile syntax"));
         } else if (STARROCKS_JOB_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks job metadata syntax"));
         } else if (STARROCKS_CLUSTER_ADMIN.matcher(unquotedSyntax).find()) {
