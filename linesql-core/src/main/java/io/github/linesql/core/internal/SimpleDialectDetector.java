@@ -556,7 +556,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
                     + "(?:drop\\s+partitions\\s+(?:if\\s+exists\\s+)?(?:where\\b|start\\s*\\(|\\()"
                     + "|drop\\s+partition\\s+(?:if\\s+exists\\s+)?" + SQL_IDENTIFIER + "\\s+force\\b"
-                    + "|add\\s+partition\\s+" + SQL_IDENTIFIER + "\\s+values\\s+(?:in\\s*\\(|\\[)"
+                    + "|add\\s+partition\\s+(?:if\\s+not\\s+exists\\s+)?" + SQL_IDENTIFIER
+                    + "\\s+values\\s+(?:in\\s*\\(|\\[|less\\s+than\\s*\\(\\s*"
+                    + DOUBLE_QUOTED_IDENTIFIER + "\\s*(?=[,)])" + ")"
+                    + "|add\\s+partitions\\s+start\\s*\\("
                     + "|modify\\s+partition\\s+(?:" + SQL_IDENTIFIER + "|\\([^;)]*\\))\\s+set\\s*\\("
                     + "|partitions\\s+" + SQL_IDENTIFIER + "\\s+distributed\\s+by\\s+(?:hash|random)\\b"
                     + "|recover\\s+partition\\s+" + SQL_IDENTIFIER + ")");

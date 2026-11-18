@@ -9264,6 +9264,17 @@
       "description": "StarRocks ALTER TABLE ADD TEMPORARY PARTITION affected table lineage"
     },
     {
+      "id": "alter_table_add_partitions_every",
+      "file": "cases/alter_table_add_partitions_every.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks adds a batch of ordinary range partitions"
+    },
+    {
       "id": "alter_table_add_temporary_partitions_every",
       "file": "cases/alter_table_add_temporary_partitions_every.sql",
       "statementType": "ALTER_TABLE",
