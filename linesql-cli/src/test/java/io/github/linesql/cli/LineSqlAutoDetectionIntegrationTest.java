@@ -765,6 +765,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksTableMaintenanceAndInheritsScriptNamespace() {
+        LineageResult rollup = LineSql.parse("ALTER TABLE mart.orders ADD ROLLUP r_id (id)");
+        assertEquals(SqlDialect.STARROCKS, rollup.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, rollup.getStatementType());
+        assertEquals("id", rollup.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(rollup.getDiagnostics().isEmpty());
+
+        List<LineageResult> results = LineSql.parseScript("USE unrelated; "
+                + "ALTER TABLE ods.orders SWAP WITH orders_shadow; SELECT id FROM events;");
+        assertEquals(3, results.size());
+        assertTrue(results.stream().allMatch(result -> result.getDialect() == SqlDialect.STARROCKS));
+        assertEquals("ods", results.get(1).getOutputTables().get(1).getSchema());
+        assertEquals("orders_shadow", results.get(1).getOutputTables().get(1).getName());
+        assertEquals("unrelated", results.get(2).getInputTables().get(0).getSchema());
+
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.orders MERGE TABLETS (10001, 10002)");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER TABLE mart.orders SWAP WITH orders_shadow' AS note");
+    }
+
+    @Test
     public void detectsStarRocksWarehouseKeyTableAndFormattedOutfile() {
         LineageResult unload = LineSql.parse("SELECT id FROM mart.orders WHERE active = 1 "
                 + "INTO OUTFILE 's3://bucket/data' FORMAT AS parquet");

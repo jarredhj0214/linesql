@@ -409,7 +409,7 @@ public class SimpleDialectDetector implements DialectDetector {
             "(\\bwith\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
     private static final Pattern FLINK_OPTION_PAIR = Pattern.compile(
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
-    private static final String FLINK_IDENTIFIER =
+    private static final String SQL_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
     private static final String HIVE_TABLE_IDENTIFIER = "(?:[\\p{L}_][\\p{L}\\p{N}_$]*|" + BACKTICK_IDENTIFIER + ")";
     private static final Pattern HIVE_PARTITION_MAINTENANCE = Pattern.compile(
@@ -420,13 +420,17 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:(?:touch|concatenate)|compact\\s+and\\s+wait)\\s*(?:;|$))");
 
     private static final Pattern STARROCKS_DOUBLE_QUOTED_CATALOG_OPTIONS = Pattern.compile(
-            "^\\s*alter\\s+catalog\\s+" + FLINK_IDENTIFIER
+            "^\\s*alter\\s+catalog\\s+" + SQL_IDENTIFIER
                     + "\\s+(?:comment\\s+|(?:set|reset)\\s*\\(\\s*)" + DOUBLE_QUOTED_IDENTIFIER);
     private static final Pattern STARROCKS_BRACKET_JOIN_HINT = Pattern.compile(
             "\\bjoin\\s+\\[\\s*(?:broadcast|shuffle|bucket|colocate)\\s*\\]\\s+"
-                    + FLINK_IDENTIFIER + "\\s*\\.\\s*" + FLINK_IDENTIFIER);
+                    + SQL_IDENTIFIER + "\\s*\\.\\s*" + SQL_IDENTIFIER);
+    private static final Pattern STARROCKS_TABLE_MAINTENANCE = Pattern.compile(
+            "^\\s*alter\\s+(?:table|materialized\\s+view)\\s+" + SQL_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
+                    + "(?:(?:add|drop|rename)\\s+rollup|swap\\s+with|(?:split|merge)\\s+tablets?)\\b");
     private static final String FLINK_QUALIFIED_IDENTIFIER =
-            FLINK_IDENTIFIER + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*";
+            SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*";
     private static final Pattern FLINK_JVM_FUNCTION = Pattern.compile(
             "^\\s*(?:create|alter)\\s+(?:temporary\\s+(?:system\\s+)?)?function\\s+"
                     + "(?:if\\s+(?:not\\s+)?exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
@@ -438,7 +442,7 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "\\s+(?:set|reset)" + FLINK_STRING_OPTION_START
                     + "|^\\s*alter\\s+database\\s+" + FLINK_QUALIFIED_IDENTIFIER + "\\s+set"
                     + FLINK_STRING_OPTION_START
-                    + "|^\\s*alter\\s+catalog\\s+" + FLINK_IDENTIFIER
+                    + "|^\\s*alter\\s+catalog\\s+" + SQL_IDENTIFIER
                     + "\\s+(?:(?:set|reset)" + FLINK_STRING_OPTION_START
                     + "|comment\\s+" + SINGLE_QUOTED_STRING + ")");
     private static final Pattern FLINK_HINT_OR_IGNORED_TOKEN = Pattern.compile(
@@ -771,6 +775,12 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks external catalog or catalog properties syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
+        } else if (STARROCKS_TABLE_MAINTENANCE.matcher(relationSyntax).find()
+                || (containsStatementSeparator
+                        && (unquotedSyntax.contains("rollup") || unquotedSyntax.contains("swap")
+                                || unquotedSyntax.contains("tablet"))
+                        && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_TABLE_MAINTENANCE))) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks rollup, swap, or tablet maintenance syntax"));
         } else if (STARROCKS_WAREHOUSE.matcher(unquotedSyntax).find()
                 || STARROCKS_PRIMARY_KEY_TABLE.matcher(unquotedSyntax).find()
                 || STARROCKS_FORMATTED_OUTFILE.matcher(unquotedSyntax).find()) {
@@ -942,7 +952,7 @@ public class SimpleDialectDetector implements DialectDetector {
     }
 
     static boolean hasSharedCatalogUse(String sql) {
-        return stripComments(sql).matches("(?is)^\\s*use\\s+catalog\\s+" + FLINK_IDENTIFIER + "\\s*;?\\s*$");
+        return stripComments(sql).matches("(?is)^\\s*use\\s+catalog\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$");
     }
 
     static boolean hasSharedConflictDoNothing(String sql) {
