@@ -836,6 +836,24 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksNativeOptionsInRealVariableHints() {
+        LineageResult insert = LineSql.parse("INSERT /*+ SET_VAR(dynamic_overwrite = true) */ "
+                + "OVERWRITE mart.summary SELECT user_id, COUNT(order_id) AS totals "
+                + "FROM ods.orders WHERE amount > 0 GROUP BY user_id");
+        assertEquals(SqlDialect.STARROCKS, insert.getDialect());
+        assertEquals(StatementType.INSERT, insert.getStatementType());
+        assertEquals("orders", insert.getInputTables().get(0).getName());
+        assertEquals("summary", insert.getOutputTables().get(0).getName());
+        assertTrue(insert.getColumnUsages().stream().anyMatch(usage -> "amount".equals(usage.getColumn().getName())));
+        assertTrue(insert.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "SELECT /*+ SET_VAR(batch_size = 4096, query_timeout = 60) */ id FROM ods.events");
+        assertDialect(SqlDialect.SPARK, "SELECT '/*+ SET_VAR(query_timeout = 60) */' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT /* SET_VAR(query_timeout = 60) */ id FROM ods.events");
+        assertTrue(LineSql.parse("SELECT /*+ SET_VAR(max_execution_time = 1000) */ id FROM ods.events")
+                .getDialect() != SqlDialect.STARROCKS);
+    }
+
+    @Test
     public void detectsStarRocksDatabaseOptionsAndNativeMetadata() {
         LineageResult partitions = LineSql.parse("SHOW PARTITIONS FROM `analytics`.`orders`");
         assertEquals(SqlDialect.STARROCKS, partitions.getDialect());

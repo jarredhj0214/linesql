@@ -539,6 +539,13 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|^\\s*alter\\s+catalog\\s+" + SQL_IDENTIFIER
                     + "\\s+(?:(?:set|reset)" + FLINK_STRING_OPTION_START
                     + "|comment\\s+" + SINGLE_QUOTED_STRING + ")");
+    private static final Pattern STARROCKS_VARIABLE_HINT_OR_IGNORED_TOKEN = Pattern.compile(
+            "(/\\*\\+\\s*set_var\\s*\\("
+                    + "(?:\\s*[a-z_][\\w$]*\\s*=\\s*(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER
+                    + "|[^'\\\",();]+)\\s*,)*"
+                    + "\\s*(?:query_timeout|insert_timeout|query_mem_limit|dynamic_overwrite)\\s*=)"
+                    + "|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern()
+                    + "|--[^\\r\\n]*|(?s:/\\*.*?(?:\\*/|$))");
     private static final Pattern FLINK_HINT_OR_IGNORED_TOKEN = Pattern.compile(
             "(/\\*\\+\\s*options\\s*\\()|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern()
                     + "|--[^\\r\\n]*|(?s:/\\*.*?(?:\\*/|$))");
@@ -878,6 +885,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("prepare")
                         && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_PREPARED_QUERY))) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks direct PREPARE query"));
+        } else if (rawNormalized.contains("/*+")
+                && containsSignatureOutsideQuotes(STARROCKS_VARIABLE_HINT_OR_IGNORED_TOKEN, rawNormalized)) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks statement variable hint"));
         } else if (STARROCKS_RECURSION_SETTINGS.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks recursive CTE settings"));
         } else if (unquotedSyntax.contains("temporary") && unquotedSyntax.contains("partition")
