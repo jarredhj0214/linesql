@@ -456,6 +456,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
     private static final String SQL_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern SHARED_ROLE_CONTROL = Pattern.compile(
+            "^\\s*(?:create|drop)\\s+role\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHARED_SHOW_ROLES = Pattern.compile(
+            "^\\s*show\\s+roles\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARED_DROP_COLUMN_LIST = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")?"
                     + "\\s+drop\\s*\\(\\s*" + SQL_IDENTIFIER + "(?:\\s*,\\s*" + SQL_IDENTIFIER + ")*"
@@ -1508,6 +1512,14 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static boolean isIdentifierStart(char value) {
         return Character.isLetter(value) || value == '_' || value == '@' || value == '#';
+    }
+
+    static boolean isSharedRoleControl(String statement) {
+        return SHARED_ROLE_CONTROL.matcher(stripComments(statement)).matches();
+    }
+
+    static boolean isSharedShowRoles(String statement) {
+        return SHARED_SHOW_ROLES.matcher(stripComments(statement)).matches();
     }
 
     static boolean isSharedColumnChangeScope(String statement) {

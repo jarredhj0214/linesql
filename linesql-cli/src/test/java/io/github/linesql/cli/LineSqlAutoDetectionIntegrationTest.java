@@ -1501,6 +1501,19 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedSimpleRoleCommands() {
+        for (String sql : new String[] {"CREATE ROLE analyst", "DROP ROLE analyst", "SHOW ROLES"}) {
+            LineageResult result = LineSql.parse(sql);
+            assertEquals(SqlDialect.UNKNOWN, result.getDialect());
+            assertEquals(sql.startsWith("SHOW") ? StatementType.READ_METADATA : StatementType.CONTROL,
+                    result.getStatementType());
+            assertTrue(result.getDiagnostics().isEmpty());
+            assertTrue(result.getInputTables().isEmpty());
+            assertTrue(result.getOutputTables().isEmpty());
+        }
+    }
+
+    @Test
     public void parsesSharedColumnReplacementWithHiveStructFields() {
         LineageResult result = LineSql.parse("ALTER TABLE mart.users REPLACE COLUMNS "
                 + "(user_id BIGINT, profile STRUCT<email:STRING,tags:ARRAY<STRING>>) CASCADE");

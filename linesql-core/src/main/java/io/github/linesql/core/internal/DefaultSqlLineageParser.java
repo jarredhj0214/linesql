@@ -174,6 +174,16 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             outputTableCount = 1;
             secondDialect = SqlDialect.ORACLE;
             command = "ALTER TABLE DROP (columns)";
+        } else if (SimpleDialectDetector.isSharedRoleControl(statement)) {
+            expected = StatementType.CONTROL;
+            inputTableCount = 0;
+            firstDialect = SqlDialect.HIVE;
+            command = "CREATE or DROP ROLE";
+        } else if (SimpleDialectDetector.isSharedShowRoles(statement)) {
+            expected = StatementType.READ_METADATA;
+            inputTableCount = 0;
+            firstDialect = SqlDialect.HIVE;
+            command = "SHOW ROLES";
         } else if (SimpleDialectDetector.isSharedColumnChangeScope(statement)) {
             expected = StatementType.ALTER_TABLE;
             inputTableCount = 0;
