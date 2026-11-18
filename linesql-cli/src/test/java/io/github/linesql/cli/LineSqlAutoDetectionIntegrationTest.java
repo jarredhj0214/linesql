@@ -777,6 +777,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsHiveTableAndPartitionMaintenance() {
+        LineageResult archive = LineSql.parse("ALTER TABLE mart.orders ARCHIVE PARTITION (dt = '2026-09-10')");
+        assertEquals(SqlDialect.HIVE, archive.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, archive.getStatementType());
+        assertEquals("orders", archive.getOutputTables().get(0).getName());
+        assertTrue(archive.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.orders PARTITION (dt = '2026-09-10') TOUCH");
+        assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.orders CONCATENATE");
+        assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.orders PARTITION (dt = '2026-09-10') COMPACT 'major' AND WAIT");
+        assertDialect(SqlDialect.SPARK, "ALTER TABLE mart.orders RENAME TO touch");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER TABLE mart.orders CONCATENATE' AS note");
+    }
+
+    @Test
     public void detectsHiveTableLocksCompactionsAndFunctionReload() {
         LineageResult locks = LineSql.parse("SHOW LOCKS mart.orders EXTENDED");
         assertEquals(SqlDialect.HIVE, locks.getDialect());

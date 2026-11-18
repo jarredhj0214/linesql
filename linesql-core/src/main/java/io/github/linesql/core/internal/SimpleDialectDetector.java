@@ -377,6 +377,14 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
     private static final String FLINK_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final String HIVE_TABLE_IDENTIFIER = "(?:[\\p{L}_][\\p{L}\\p{N}_$]*|" + BACKTICK_IDENTIFIER + ")";
+    private static final Pattern HIVE_PARTITION_MAINTENANCE = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + HIVE_TABLE_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*\\s+"
+                    + "(?:(?:un)?archive\\s+partition\\s*\\("
+                    + "|(?:partition\\s*\\([^;)]*\\)\\s+)?"
+                    + "(?:(?:touch|concatenate)|compact\\s+and\\s+wait)\\s*(?:;|$))");
+
     private static final String FLINK_QUALIFIED_IDENTIFIER =
             FLINK_IDENTIFIER + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*";
     private static final String FLINK_STRING_OPTION_START = "\\s*\\(\\s*" + SINGLE_QUOTED_STRING;
@@ -603,7 +611,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
         }
-        if (HIVE_LOCK_OR_COMPACTION.matcher(unquotedSyntax).find()) {
+        if (HIVE_PARTITION_MAINTENANCE.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table or partition maintenance syntax"));
+        } else if (HIVE_LOCK_OR_COMPACTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table lock, compaction, or function reload syntax"));
         }
         if (HIVE_TABLE_VALUES.matcher(unquotedSyntax).find()) {
