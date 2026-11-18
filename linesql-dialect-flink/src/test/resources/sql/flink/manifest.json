@@ -1393,6 +1393,12 @@
         "mart_users"
       ],
       "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart_users.age"
+        }
+      ],
       "description": "Flink ALTER TABLE ADD column affected table lineage"
     },
     {
@@ -9773,7 +9779,12 @@
             "ods.events"
           ],
           "columnLineage": [],
-          "columnUsages": []
+          "columnUsages": [
+            {
+              "type": "TABLE_MODEL",
+              "column": "ods.events.sequence_no"
+            }
+          ]
         },
         {
           "statementType": "ALTER_TABLE",

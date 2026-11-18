@@ -466,6 +466,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*(?:create|drop)\\s+role\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARED_SHOW_ROLES = Pattern.compile(
             "^\\s*show\\s+roles\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHARED_ADD_COLUMN = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")?"
+                    + "\\s+add\\s+(?:column\\s+)?" + SQL_IDENTIFIER + "\\s+[a-z_][\\w$]*"
+                    + "(?:\\s*\\(\\s*\\d+(?:\\s*,\\s*\\d+)*\\s*\\))?\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARED_DROP_COLUMN_LIST = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")?"
                     + "\\s+drop\\s*\\(\\s*" + SQL_IDENTIFIER + "(?:\\s*,\\s*" + SQL_IDENTIFIER + ")*"
@@ -1543,6 +1547,10 @@ public class SimpleDialectDetector implements DialectDetector {
     static boolean isSharedColumnChangeScope(String statement) {
         return SHARED_COLUMN_CHANGE_SCOPE.matcher(stripComments(statement)
                 .replaceAll(SINGLE_QUOTED_STRING, " ")).matches();
+    }
+
+    static boolean isSharedAddColumn(String statement) {
+        return SHARED_ADD_COLUMN.matcher(stripComments(statement)).matches();
     }
 
     static boolean isSharedDropColumnList(String statement) {

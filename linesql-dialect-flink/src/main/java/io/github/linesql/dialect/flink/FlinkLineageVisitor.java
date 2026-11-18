@@ -553,6 +553,9 @@ class FlinkLineageVisitor extends FlinkParserBaseVisitor<Void> {
     public Void visitAlterTableAddColumn(FlinkParser.AlterTableAddColumnContext ctx) {
         TableRef target = tableRef(ctx.multipartIdentifier());
         outputTables.add(target);
+        List<ColumnRef> refs = new ArrayList<>();
+        addColumnDefinitionRef(target, ctx.tableElement(), refs);
+        LineageModelUtils.addColumnUsages(result, ColumnUsageType.TABLE_MODEL, refs);
         addTableElementSemantics(target, ctx.tableElement());
         addSchemaColumn(target, ctx.tableElement(), ctx.columnPosition());
         result.setOutputTables(new ArrayList<>(outputTables));

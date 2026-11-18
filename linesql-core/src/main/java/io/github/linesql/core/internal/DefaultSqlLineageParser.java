@@ -201,6 +201,12 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             inputTableCount = -1;
             secondDialect = SqlDialect.POSTGRESQL;
             command = "SELECT pagination";
+        } else if (SimpleDialectDetector.isSharedAddColumn(statement)) {
+            expected = StatementType.ALTER_TABLE;
+            inputTableCount = 0;
+            outputTableCount = 1;
+            secondDialect = SqlDialect.HIVE;
+            command = "ALTER TABLE ADD column";
         } else if (SimpleDialectDetector.isSharedColumnChangeScope(statement)) {
             expected = StatementType.ALTER_TABLE;
             inputTableCount = 0;

@@ -1538,6 +1538,16 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedSingleColumnAddition() {
+        LineageResult result = LineSql.parse("ALTER TABLE mart_users ADD age INT");
+        assertEquals(SqlDialect.UNKNOWN, result.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, result.getStatementType());
+        assertEquals("mart_users", result.getOutputTables().get(0).getName());
+        assertEquals("age", result.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(result.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedColumnReplacementWithHiveStructFields() {
         LineageResult result = LineSql.parse("ALTER TABLE mart.users REPLACE COLUMNS "
                 + "(user_id BIGINT, profile STRUCT<email:STRING,tags:ARRAY<STRING>>) CASCADE");
