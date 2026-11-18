@@ -471,6 +471,8 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern HIVE_DATA_CONNECTOR = Pattern.compile(
             "^\\s*(?:(?:create|alter|drop)\\s+connector|desc(?:ribe)?\\s+connector"
                     + "|show\\s+connectors|create\\s+remote\\s+(?:database|schema))\\b");
+    private static final Pattern HIVE_SORTED_COLUMNS =
+            Pattern.compile("^\\s*show\\s+sorted\\s+columns\\s+(?:from|in)\\b");
     private static final Pattern HIVE_BARE_COLUMN_FILTER = Pattern.compile(
             "^\\s*show\\s+columns\\s+(?:from|in)\\s+" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s*\\.\\s*" + HIVE_TABLE_IDENTIFIER + ")*"
@@ -481,6 +483,16 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final String HIVE_PARTITION_SPEC =
             "\\s+partition\\s*\\((?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + "|" + BACKTICK_IDENTIFIER
                     + "|[^()'\\\"`;]++)*+\\)";
+    private static final String HIVE_PROPERTY_LITERAL =
+            "(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern HIVE_SCHEMA_MAINTENANCE = Pattern.compile(
+            "^\\s*(?:create\\s+(?:database|schema)\\s+(?:if\\s+not\\s+exists\\s+)?" + HIVE_TABLE_IDENTIFIER
+                    + "(?:\\s+(?:comment|location)\\s+" + HIVE_PROPERTY_LITERAL + ")*+\\s+managedlocation\\s+"
+                    + HIVE_PROPERTY_LITERAL
+                    + "|alter\\s+(?:database|schema)\\s+" + HIVE_TABLE_IDENTIFIER
+                    + "\\s+set\\s+managedlocation\\s+" + HIVE_PROPERTY_LITERAL
+                    + "|analyze\\s+table\\s+" + HIVE_QUALIFIED_NAME
+                    + "(?:" + HIVE_PARTITION_SPEC + ")?\\s+cache\\s+metadata\\b)");
     private static final Pattern HIVE_FILTERED_PARTITIONS = Pattern.compile(
             "^\\s*show\\s+partitions\\s+(?!from\\b)" + HIVE_QUALIFIED_NAME
                     + "(?:" + HIVE_PARTITION_SPEC + ")?\\s+(?:where\\b|order\\s+by\\b|limit\\s+\\d+\\b)");
@@ -826,8 +838,12 @@ public class SimpleDialectDetector implements DialectDetector {
                         && hasStatementInScript(unwrapped, SqlDialect.HIVE, HIVE_DATA_CONNECTOR))) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive data connector or remote database syntax"));
         }
-        if (HIVE_BARE_COLUMN_FILTER.matcher(normalized).find()) {
-            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive SHOW COLUMNS with bare pattern syntax"));
+        if (HIVE_SCHEMA_MAINTENANCE.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive managed schema location or metadata cache syntax"));
+        }
+        if (HIVE_SORTED_COLUMNS.matcher(unquotedSyntax).find()
+                || HIVE_BARE_COLUMN_FILTER.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive sorted columns or bare column pattern syntax"));
         }
         if (HIVE_FILTERED_PARTITIONS.matcher(normalized).find()
                 || HIVE_DESCRIBE_PARTITION_COLUMN.matcher(normalized).find()) {

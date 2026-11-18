@@ -533,8 +533,9 @@ createDatabaseStatement
 databaseProperty
     : COMMENT string
     | LOCATION string
+    | MANAGEDLOCATION string
     | TBLPROPERTIES LPAREN propertyList RPAREN
-    | DBPROPERTIES LPAREN propertyList RPAREN
+    | WITH? DBPROPERTIES LPAREN propertyList RPAREN
     ;
 
 alterDatabaseStatement
@@ -542,7 +543,7 @@ alterDatabaseStatement
     ;
 
 alterDatabaseAction
-    : LOCATION string
+    : (LOCATION | MANAGEDLOCATION) string
     | DBPROPERTIES LPAREN propertyList RPAREN
     | OWNER (USER | ROLE)? identifier
     ;
@@ -685,7 +686,7 @@ showStatement
     | SHOW TBLPROPERTIES multipartIdentifier (LPAREN string RPAREN)? #showTableMetadata
     | SHOW PARTITIONS multipartIdentifier (PARTITION partitionSpec)? whereClause?
       (ORDER BY sortItem (COMMA sortItem)*)? (LIMIT number)?            #showPartitionMetadata
-    | SHOW COLUMNS (FROM | IN) multipartIdentifier
+    | SHOW SORTED? COLUMNS (FROM | IN) multipartIdentifier
       ((FROM | IN) namespace=identifier)? (LIKE? string)?              #showColumnsMetadata
     | SHOW FORMATTED? (INDEX | INDEXES) ON multipartIdentifier       #showTableMetadata
     | SHOW TABLE EXTENDED ((FROM | IN) namespace=identifier)? LIKE string (PARTITION partitionSpec)? #showNamedPartitionMetadata
@@ -739,7 +740,8 @@ repairTableStatement
     ;
 
 analyzeTableStatement
-    : ANALYZE TABLE multipartIdentifier (PARTITION partitionSpec)? COMPUTE STATISTICS (NOSCAN | FOR ALL COLUMNS | FOR COLUMNS identifierList)?
+    : ANALYZE TABLE multipartIdentifier (PARTITION partitionSpec)?
+      (COMPUTE STATISTICS (NOSCAN | FOR ALL COLUMNS | FOR COLUMNS identifierList?)? | CACHE METADATA)
     ;
 
 lockTableStatement
@@ -887,7 +889,7 @@ nonReservedKeyword
     | DATE | DBPROPERTIES | DFS | DIV | FIRST | LAST | NULLS | FUNCTION | FUNCTIONS | GRANT | IF | INPUTFORMAT | INTERVAL | ITEMS | JAR | KEYS | LATERAL | LIKE | LIMIT | LINES | LOAD | LOCAL | LOCATION | LOCK | LOCKS | MAP | NULL | OF | OPTION | OWNER | OUT
     | EXPORT | FOLLOWING | IMPORT | INDEX | INDEXES | MATERIALIZED | MATCHED | MERGE | MSCK | NOSCAN | OFFSET | OVER | OVERWRITE | PARTITION | PARTITIONED | PARTITIONS | PRECEDING | PURGE | RANGE | REDUCE | RENAME | REWRITE
     | COMPACT | COMPACTIONS | CONCATENATE | CONF | CURRENT | EXCHANGE | OUTPUTFORMAT | PRINCIPALS | PRIVILEGES | REGEXP | RELOAD | REPAIR | REPLACE | RESET | RESTRICT | REVOKE | RLIKE | ROLE | ROLES | ROW | SCHEMA | SCHEMAS | SEMI_KW | SERDE | SERDEPROPERTIES | SET | SHARED | SHOW | SORT | STATISTICS | STORED | SYNC | TABLE | TABLES | TBLPROPERTIES | TRANSACTIONS
-    | CONNECTOR | CONNECTORS | DCPROPERTIES | TYPE | URL | REMOTE | COMPACTIONID | POOL | STATUS
+    | CONNECTOR | CONNECTORS | DCPROPERTIES | TYPE | URL | REMOTE | COMPACTIONID | POOL | STATUS | MANAGEDLOCATION | CACHE | METADATA
     | SCHEDULED | QUERY | CRON | EVERY | EXECUTED | DEFINED | AT | SECOND | MINUTE | HOURS | DAYS | ENABLED | DISABLED
     | SYSTEM_TIME | SYSTEM_VERSION | EXECUTE | ROLLBACK | EXPIRE_SNAPSHOTS | SET_CURRENT_SNAPSHOT
     | FAST_FORWARD | CHERRY_PICK | ORPHAN_FILES | RETAIN | OLDER | THAN

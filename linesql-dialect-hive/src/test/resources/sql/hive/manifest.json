@@ -1726,6 +1726,17 @@
       "description": "Hive SHOW PARTITIONS filter retains explicit metadata partition columns"
     },
     {
+      "id": "show_sorted_columns_with_database",
+      "file": "cases/show_sorted_columns_with_database.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive SHOW SORTED COLUMNS identifies a table and does not infer matching column names"
+    },
+    {
       "id": "show_columns_with_database_and_pattern",
       "file": "cases/show_columns_with_database_and_pattern.sql",
       "statementType": "READ_METADATA",
@@ -2903,6 +2914,60 @@
       "outputTables": [],
       "columnLineage": [],
       "description": "Hive remote database binds a connector without inventing a source table"
+    },
+    {
+      "id": "create_database_managed_location",
+      "file": "cases/create_database_managed_location.sql",
+      "statementType": "CREATE_SCHEMA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive 4 native managed and external database locations coexist with WITH DBPROPERTIES"
+    },
+    {
+      "id": "alter_database_managed_location",
+      "file": "cases/alter_database_managed_location.sql",
+      "statementType": "CONTROL",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [],
+      "description": "Hive managed warehouse path change is a control statement"
+    },
+    {
+      "id": "analyze_table_cache_metadata_partition",
+      "file": "cases/analyze_table_cache_metadata_partition.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "sales.orders.ds"
+        }
+      ],
+      "description": "Hive partition cache retains the table and partition key"
+    },
+    {
+      "id": "analyze_table_for_columns_without_list",
+      "file": "cases/analyze_table_for_columns_without_list.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "sales.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "sales.orders.ds"
+        }
+      ],
+      "description": "Hive analyze for columns without a list does not invent unknown column names"
     },
     {
       "id": "create_database_location",
