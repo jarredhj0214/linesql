@@ -819,6 +819,35 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void recoversGenericSparkFailureOnlyWithAnUnambiguousParser() {
+        String sql = "SELECT user_id, ARRAY_AGG(amount IGNORE NULLS) AS amounts "
+                + "FROM dwd.orders GROUP BY user_id";
+        LineageResult recovered = LineSql.parse(sql);
+        assertEquals(SqlDialect.FLINK, recovered.getDialect());
+        assertEquals(StatementType.SELECT, recovered.getStatementType());
+        assertTrue(recovered.getDiagnostics().isEmpty());
+        assertEquals("amount", recovered.getColumnLineage().get(1).getSources().get(0).getName());
+        assertTrue(recovered.getDialectDetectionReason().contains("generic Spark failed"));
+
+        LineageResult hinted = LineSql.parse(sql, SqlDialect.SPARK);
+        assertEquals(SqlDialect.SPARK, hinted.getDialect());
+        assertEquals("SPARK_PARSE_ERROR", hinted.getDiagnostics().get(0).getCode());
+
+        LineageResult ambiguous = LineSql.parse("EXPLAIN DEPENDENCY SELECT id FROM ods.orders");
+        assertEquals(SqlDialect.SPARK, ambiguous.getDialect());
+        assertEquals("SPARK_PARSE_ERROR", ambiguous.getDiagnostics().get(0).getCode());
+
+        List<LineageResult> routineFragments =
+                LineSql.parseScript("ALTER PROC dbo.refresh_orders AS BEGIN SELECT id FROM dbo.orders; END;");
+        assertTrue(routineFragments.size() > 1);
+        assertTrue(routineFragments.stream().allMatch(result -> result.getDialect() == SqlDialect.SPARK));
+
+        LineageResult dynamic = LineSql.parse("EXECUTE IMMEDIATE sql_text");
+        assertEquals(SqlDialect.SPARK, dynamic.getDialect());
+        assertEquals("DYNAMIC_SQL_NOT_EXPANDED", dynamic.getDiagnostics().get(0).getCode());
+    }
+
+    @Test
     public void detectsFlinkTemporaryViewLifecycleWithLaterDropEvidence() {
         List<LineageResult> results = LineSql.parseScript(
                 "CREATE TEMPORARY VIEW lake.ops.Rates AS SELECT amount FROM ods.LiveRates; "

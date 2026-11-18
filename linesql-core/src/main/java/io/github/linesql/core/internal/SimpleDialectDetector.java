@@ -14,6 +14,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SimpleDialectDetector implements DialectDetector {
+    static final double GENERIC_SPARK_CONFIDENCE = 0.50;
+
     private static final String TOP_COUNT = "\\(\\s*(?:[0-9]+(?:\\.[0-9]+)?|@[\\p{L}_$][\\p{L}\\p{N}_$]*)\\s*\\)";
     private static final Pattern TSQL_TOP_SELECT = Pattern.compile(
             "\\bselect\\s+(?:(?:all|distinct)\\s+)?top(?:\\s+\\d+\\b|\\s*" + TOP_COUNT
@@ -860,7 +862,7 @@ public class SimpleDialectDetector implements DialectDetector {
                     "Spark production SQL, function, variable, temporary view, QUALIFY, or USING syntax"));
         }
         if (!contains(candidates, SqlDialect.SPARK)) {
-            candidates.add(candidate(SqlDialect.SPARK, 0.50, "Dialect-neutral SQL; Spark is the current generic fallback"));
+            candidates.add(candidate(SqlDialect.SPARK, GENERIC_SPARK_CONFIDENCE, "Dialect-neutral SQL; Spark is the current generic fallback"));
         }
         candidates.sort(Comparator.comparingDouble(DialectCandidate::getConfidence).reversed());
         return candidates;

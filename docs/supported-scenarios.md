@@ -4,6 +4,9 @@ This document records implemented behavior as LineSQL evolves. Every new parser 
 
 ## Dialect Detection
 
+When the generic Spark parser cannot recognize a standalone statement, automatic parsing can recover with the only registered alternative that recognizes the statement without an error. Explicit dialect choices and diagnostic results for unresolved dynamic SQL retain their existing behavior.
+
+
 Dialect detection is intentionally conservative: LineSQL uses clear syntax anchors to rank dialect candidates, records confidence and reason metadata, and keeps Spark as the current generic fallback for dialect-neutral SQL.
 
 Current detector case assets:

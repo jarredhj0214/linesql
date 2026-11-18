@@ -72,6 +72,33 @@ public class DefaultSqlLineageParserTest {
         assertTrue(results.get(1).getDialectDetectionReason().contains("script context"));
     }
 
+    @Test
+    public void leavesCallerStateIntactWhenMultipleSpeculativeParsersAccept() {
+        FakeParser failedSpark = new FakeParser(SqlDialect.SPARK) {
+            @Override
+            public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
+                return LineageResult.error(SqlDialect.SPARK, "SPARK_PARSE_ERROR", "Unsupported by Spark");
+            }
+        };
+        FakeParser speculativeFlink = new FakeParser(SqlDialect.FLINK) {
+            @Override
+            public LineageResult parse(String sql, ParseOptions options, ParseContext context) {
+                context.setDefaultSchema("discarded");
+                context.getSessionStringVariables(SqlDialect.FLINK).put("probe", "discarded");
+                return super.parse(sql, options, context);
+            }
+        };
+        DefaultSqlLineageParser parser = new DefaultSqlLineageParser(
+                Arrays.asList(failedSpark, speculativeFlink, new FakeParser(SqlDialect.HIVE)),
+                new SimpleDialectDetector(), Collections::singletonList);
+        ParseContext context = new ParseContext();
+        context.setDefaultSchema("original");
+        LineageResult result = parser.parseScript("select id from src", ParseOptions.defaults(), context).get(0);
+        assertEquals(SqlDialect.SPARK, result.getDialect());
+        assertEquals("original", context.getDefaultSchema());
+        assertTrue(context.getSessionStringVariables(SqlDialect.FLINK).isEmpty());
+    }
+
     private static class FakeParser implements DialectParser {
         private final SqlDialect dialect;
 

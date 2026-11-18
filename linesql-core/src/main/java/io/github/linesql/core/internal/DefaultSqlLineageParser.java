@@ -7,12 +7,14 @@ import io.github.linesql.core.model.LineageResult;
 import io.github.linesql.core.model.ParseContext;
 import io.github.linesql.core.model.ParseOptions;
 import io.github.linesql.core.model.SqlDialect;
+import io.github.linesql.core.model.StatementType;
 import io.github.linesql.core.spi.DialectDetector;
 import io.github.linesql.core.spi.DialectParser;
 import io.github.linesql.core.spi.StatementSplitter;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -45,7 +47,8 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
     public List<LineageResult> parseScript(String script, ParseOptions options, ParseContext context) {
         List<LineageResult> results = new ArrayList<>();
         DialectCandidate scriptCandidate = selectScriptDialect(script, options);
-        for (String statement : splitScript(script, options, scriptCandidate)) {
+        List<String> statements = splitScript(script, options, scriptCandidate);
+        for (String statement : statements) {
             DialectCandidate statementCandidate = selectStatementDialect(statement, options);
             DialectCandidate candidate = statementCandidate;
             if (shouldUseScriptDialect(scriptCandidate, statementCandidate, statement)) {
@@ -62,6 +65,13 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                     result = fallback;
                     candidate = fallbackCandidate;
                 }
+            }
+            // The generic splitter can split stored routine bodies that belong to one statement.
+            DialectCandidate recovered = statements.size() == 1
+                    ? uniqueSparkAlternative(statement, options, context, candidate, result) : null;
+            if (recovered != null) {
+                result = parseStatement(statement, recovered.getDialect(), options, context);
+                candidate = recovered;
             }
             applyDetection(result, candidate);
             results.add(result);
@@ -87,6 +97,57 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                     .orElse(null);
         }
         return null;
+    }
+
+    private DialectCandidate uniqueSparkAlternative(String statement, ParseOptions options, ParseContext context,
+                                                     DialectCandidate primary, LineageResult result) {
+        if (primary.getDialect() != SqlDialect.SPARK
+                || primary.getConfidence() != SimpleDialectDetector.GENERIC_SPARK_CONFIDENCE
+                || !options.getDialectHints().isEmpty() || !options.isDialectDetectionEnabled()
+                || !(result.getDiagnostics().stream().anyMatch(d -> "SPARK_PARSE_ERROR".equals(d.getCode()))
+                    || (result.getStatementType() == StatementType.UNKNOWN && result.getDiagnostics().isEmpty()))) {
+            return null;
+        }
+
+        SqlDialect accepted = null;
+        for (SqlDialect dialect : parsers.keySet()) {
+            if (dialect == SqlDialect.SPARK || dialect == SqlDialect.UNKNOWN) {
+                continue;
+            }
+            LineageResult trial;
+            try {
+                trial = parseStatement(statement, dialect, options, trialContext(context));
+            } catch (RuntimeException | StackOverflowError failure) {
+                return null;
+            }
+            if (trial.getStatementType() != StatementType.UNKNOWN
+                    && trial.getDiagnostics().stream().noneMatch(d -> d.getSeverity() == DiagnosticSeverity.ERROR)) {
+                if (accepted != null) {
+                    return null;
+                }
+                accepted = dialect;
+            }
+        }
+        return accepted == null ? null : new DialectCandidate(accepted, 0.75,
+                "Only this registered dialect parsed the statement after generic Spark failed");
+    }
+
+    private static ParseContext trialContext(ParseContext context) {
+        if (context == null) {
+            return null;
+        }
+        ParseContext trial = new ParseContext();
+        trial.setDefaultCatalog(context.getDefaultCatalog());
+        trial.setDefaultSchema(context.getDefaultSchema());
+        Map<String, LineageResult> temporaryRelations = context.getTemporaryRelations();
+        trial.setTemporaryRelations(temporaryRelations == null ? null : new LinkedHashMap<>(temporaryRelations));
+        for (SqlDialect dialect : SqlDialect.values()) {
+            trial.getSessionTemporaryRelations(dialect).putAll(context.getSessionTemporaryRelations(dialect));
+            trial.getPreparedStatements(dialect).putAll(context.getPreparedStatements(dialect));
+            trial.getSessionStringVariables(dialect).putAll(context.getSessionStringVariables(dialect));
+            trial.getCatalogDefaultSchemas(dialect).putAll(context.getCatalogDefaultSchemas(dialect));
+        }
+        return trial;
     }
 
     @Override
