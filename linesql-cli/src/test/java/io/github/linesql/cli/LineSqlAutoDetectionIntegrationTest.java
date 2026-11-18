@@ -726,6 +726,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsNativeStarRocksJobAndHiveIndexMetadata() {
+        LineageResult export = LineSql.parse("SHOW EXPORT FROM mart WHERE state = 'exporting' ORDER BY StartTime");
+        assertEquals(SqlDialect.STARROCKS, export.getDialect());
+        assertEquals(StatementType.READ_METADATA, export.getStatementType());
+        assertTrue(export.getDiagnostics().isEmpty());
+        assertTrue(export.getColumnUsages().stream()
+                .anyMatch(usage -> "state".equalsIgnoreCase(usage.getColumn().getName())));
+        assertDialect(SqlDialect.STARROCKS, "SHOW ALTER TABLE COLUMN FROM mart");
+        assertDialect(SqlDialect.STARROCKS, "SHOW ANALYZE JOB");
+        assertDialect(SqlDialect.STARROCKS, "SHOW ALL ROUTINE LOAD");
+
+        LineageResult index = LineSql.parse("SHOW FORMATTED INDEXES ON mart.orders");
+        assertEquals(SqlDialect.HIVE, index.getDialect());
+        assertEquals(StatementType.READ_METADATA, index.getStatementType());
+        assertEquals("orders", index.getInputTables().get(0).getName());
+        assertTrue(index.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW INDEX ON mart.orders' AS note");
+    }
+
+    @Test
     public void detectsStarRocksDictionaryLifecycleAndColumnLineage() {
         LineageResult dictionary = LineSql.parse("CREATE DICTIONARY user_dictionary USING dim.v_users "
                 + "(user_id KEY, user_name VALUE)");

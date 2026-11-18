@@ -40,6 +40,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\b(?:from|join|update|insert\\s+into|merge\\s+into)\\s+"
                     + ORACLE_NAME + "(?:\\s*\\.\\s*" + ORACLE_NAME + ")*\\s*@\\s*" + ORACLE_NAME);
 
+    private static final Pattern STARROCKS_JOB_METADATA = Pattern.compile(
+            "^\\s*show\\s+(?:alter\\s+table\\s+(?:column|optimize|rollup)|export"
+                    + "|analyze\\s+(?:job|status)|all\\s+routine\\s+load)\\b");
+
     private static final Pattern STARROCKS_CLUSTER_ADMIN = Pattern.compile(
             "^\\s*(?:alter\\s+system\\s+(?:(?:add|drop)\\s+(?:backend|compute\\s+node|follower|observer|broker)"
                     + "|drop\\s+all\\s+broker|decommission\\s+backend|create\\s+image)"
@@ -81,6 +85,8 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:\\s*\\.\\s*[a-z_][\\w$]*)*\\s+temporary\\s+partition\\s*\\("
                     + "|^\\s*show\\s+temporary\\s+partitions\\s+from\\b"
                     + "|^\\s*alter\\s+table\\b[^;]*\\b(?:add|drop|modify|with)\\s+temporary\\s+partitions?\\b");
+    private static final Pattern HIVE_SHOW_INDEX_ON =
+            Pattern.compile("^\\s*show\\s+(?:formatted\\s+)?index(?:es)?\\s+on\\b");
     private static final Pattern HIVE_LOCK_OR_COMPACTION = Pattern.compile(
             "^\\s*(?:lock\\s+table\\b[^;]+\\b(?:shared|exclusive)\\s*(?:;|$)"
                     + "|unlock\\s+table\\b|show\\s+(?:locks|compactions)\\b|reload\\s+function\\b)");
@@ -623,6 +629,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || unquotedSyntax.matches("(?s).*\\bilike\\b.*")) {
             candidates.add(candidate(SqlDialect.POSTGRESQL, 0.92, "PostgreSQL ON CONFLICT, RETURNING, cast, or ILIKE syntax"));
         }
+        if (HIVE_SHOW_INDEX_ON.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive SHOW INDEX ON syntax"));
+        }
         if (HIVE_PARTITION_MAINTENANCE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table or partition maintenance syntax"));
         } else if (HIVE_LOCK_OR_COMPACTION.matcher(unquotedSyntax).find()) {
@@ -727,6 +736,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks external catalog or catalog properties syntax"));
         } else if (STARROCKS_DICTIONARY_DDL.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
+        } else if (STARROCKS_JOB_METADATA.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks job metadata syntax"));
         } else if (STARROCKS_CLUSTER_ADMIN.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks cluster administration syntax"));
         } else if (STARROCKS_PIPE_OR_STORAGE_VOLUME.matcher(unquotedSyntax).find()) {
