@@ -1308,6 +1308,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsHiveTableMigrationWithoutChangingStarRocksExport() {
+        LineageResult imported = LineSql.parse("IMPORT EXTERNAL TABLE `ods`.`restored_orders` "
+                + "PARTITION (dt = '2026-11-18') FROM '/archive/orders' LOCATION '/warehouse/orders'");
+        assertEquals(SqlDialect.HIVE, imported.getDialect());
+        assertEquals(StatementType.LOAD_DATA, imported.getStatementType());
+        assertEquals("restored_orders", imported.getOutputTables().get(0).getName());
+        assertEquals("dt", imported.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(imported.getDiagnostics().isEmpty());
+        LineageResult exported = LineSql.parse("EXPORT TABLE dwd.orders PARTITION (dt = '2026-11-18') "
+                + "TO '/archive/orders' FOR REPLICATION('42')");
+        assertEquals(SqlDialect.HIVE, exported.getDialect());
+        assertEquals("orders", exported.getInputTables().get(0).getName());
+        assertEquals("dt", exported.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(exported.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "EXPORT TABLE dwd.orders TO 's3://bucket/orders' WITH BROKER");
+        assertDialect(SqlDialect.SPARK, "SELECT 'IMPORT FROM ''/archive/orders''' AS note");
+    }
+
+    @Test
     public void detectsHiveTableAndPartitionMaintenance() {
         LineageResult archive = LineSql.parse("ALTER TABLE mart.orders ARCHIVE PARTITION (dt = '2026-09-10')");
         assertEquals(SqlDialect.HIVE, archive.getDialect());

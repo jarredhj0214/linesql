@@ -3329,6 +3329,53 @@
       "description": "Hive IMPORT EXTERNAL TABLE with LOCATION records the external table target"
     },
     {
+      "id": "import_external_table_partition",
+      "file": "cases/import_external_table_partition.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [
+        "ods.orders_restore"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.orders_restore.dt"
+        },
+        {
+          "type": "TABLE_MODEL",
+          "column": "ods.orders_restore.region"
+        }
+      ],
+      "description": "Hive import reports explicit target partition keys"
+    },
+    {
+      "id": "import_anonymous_location",
+      "file": "cases/import_anonymous_location.sql",
+      "statementType": "LOAD_DATA",
+      "inputTables": [],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "Hive import infers the table from archival metadata"
+    },
+    {
+      "id": "export_table_replication",
+      "file": "cases/export_table_replication.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "dwd.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "dwd.orders.dt"
+        }
+      ],
+      "description": "Hive replication export retains source partition references"
+    },
+    {
       "id": "alter_table_add_partitions_location",
       "file": "cases/alter_table_add_partitions_location.sql",
       "statementType": "ALTER_TABLE",

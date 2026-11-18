@@ -953,7 +953,11 @@ class HiveLineageVisitor extends HiveParserBaseVisitor<Void> {
     @Override
     public Void visitImportTableStatement(HiveParser.ImportTableStatementContext ctx) {
         if (ctx.multipartIdentifier() != null) {
-            outputTables.add(tableRef(ctx.multipartIdentifier()));
+            TableRef target = tableRef(ctx.multipartIdentifier());
+            outputTables.add(target);
+            if (ctx.partitionSpec() != null) {
+                addPartitionModelUsages(ctx.partitionSpec(), target);
+            }
             result.setOutputTables(new ArrayList<>(outputTables));
         }
         return null;

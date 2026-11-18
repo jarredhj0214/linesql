@@ -1758,7 +1758,7 @@ Implemented Hive table-level lineage scenarios:
 | DELETE with subquery sources | `delete from ads.t where id in (select ... from ods.s)` | `delete_with_subquery` |
 | MERGE target/source lineage | `merge into mart.t using staging.s on ... when matched then update set ... when not matched then insert ... values ...`, including `USING (select ...)` | `merge_into_update_insert`, `merge_using_subquery` |
 | LOAD DATA target table lineage | Partitioned loads emit target partition keys as `TABLE_MODEL` usages | `load_data`, `load_data_local_overwrite`, `load_data_partition` |
-| EXPORT/IMPORT table migration | Partitioned exports emit source partition keys as `READ_METADATA` usages | `export_table_partition`, `import_table_from_path`, `import_external_table_location` |
+| EXPORT/IMPORT table migration | Partitioned exports emit source partition keys as `READ_METADATA` usages. Imports preserve known targets and report their partition keys as `TABLE_MODEL`; an import without a named table leaves the target unresolved. `IMPORT … FROM` and `EXPORT … FOR REPLICATION` select Hive automatically. | `export_table_partition`, `export_table_replication`, `import_table_from_path`, `import_external_table_location`, `import_external_table_partition`, `import_anonymous_location` |
 | DROP TABLE affected table | `drop table if exists mart.t`, `drop table if exists mart.t cascade/restrict` | `drop_table`, `drop_table_cascade`, `drop_table_restrict` |
 | DROP TABLE PURGE affected table | `drop table if exists mart.t purge` | `drop_table_purge` |
 | TRUNCATE TABLE affected table | `truncate table ads.t partition (...)`; partition keys are emitted as `TABLE_MODEL` usages | `truncate_table` |

@@ -493,6 +493,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|[^()'\\\"`;]++)*+\\)";
     private static final String HIVE_PROPERTY_LITERAL =
             "(?:" + SINGLE_QUOTED_STRING + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern HIVE_TABLE_MIGRATION = Pattern.compile(
+            "^\\s*(?:import\\s+(?:(?:external\\s+)?table\\s+" + HIVE_QUALIFIED_NAME
+                    + "(?:" + HIVE_PARTITION_SPEC + ")?\\s+)?from\\s+" + HIVE_PROPERTY_LITERAL
+                    + "|export\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:" + HIVE_PARTITION_SPEC + ")?"
+                    + "\\s+to\\s+" + HIVE_PROPERTY_LITERAL + "\\s+for\\s+replication\\s*\\()");
     private static final Pattern HIVE_SCHEMA_MAINTENANCE = Pattern.compile(
             "^\\s*(?:create\\s+(?:database|schema)\\s+(?:if\\s+not\\s+exists\\s+)?" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s+(?:comment|location)\\s+" + HIVE_PROPERTY_LITERAL + ")*+\\s+managedlocation\\s+"
@@ -875,6 +880,9 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && (unquotedSyntax.contains("connector") || unquotedSyntax.contains("remote"))
                         && hasStatementInScript(unwrapped, SqlDialect.HIVE, HIVE_DATA_CONNECTOR))) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive data connector or remote database syntax"));
+        }
+        if (HIVE_TABLE_MIGRATION.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table import or replication export syntax"));
         }
         if (HIVE_SCHEMA_MAINTENANCE.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive managed schema location or metadata cache syntax"));
