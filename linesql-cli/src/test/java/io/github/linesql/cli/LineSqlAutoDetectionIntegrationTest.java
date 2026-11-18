@@ -779,6 +779,22 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkDistributionWatermarkAndCurrentCatalog() {
+        LineageResult distribution = LineSql.parse(
+                "ALTER TABLE ods.orders ADD DISTRIBUTION BY HASH(order_id) INTO 4 BUCKETS");
+        assertEquals(SqlDialect.FLINK, distribution.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, distribution.getStatementType());
+        assertEquals("orders", distribution.getOutputTables().get(0).getName());
+        assertEquals("order_id", distribution.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(distribution.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "ALTER TABLE ods.orders DROP WATERMARK");
+        assertDialect(SqlDialect.FLINK, "SHOW CURRENT CATALOG");
+        assertDialect(SqlDialect.SPARK, "SHOW CURRENT DATABASE");
+        assertDialect(SqlDialect.SPARK, "SELECT current_catalog()");
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER TABLE ods.orders DROP WATERMARK' AS note");
+    }
+
+    @Test
     public void detectsFlinkFunctionArtifactsWithoutClaimingSparkJarFunctions() {
         LineageResult function = LineSql.parse("CREATE TEMPORARY FUNCTION udf.parse_json "
                 + "AS 'com.example.udf.ParseJson' LANGUAGE JAVA "

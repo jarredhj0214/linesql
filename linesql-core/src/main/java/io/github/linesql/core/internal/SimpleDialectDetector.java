@@ -70,6 +70,10 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern HIVE_LOCK_OR_COMPACTION = Pattern.compile(
             "^\\s*(?:lock\\s+table\\b[^;]+\\b(?:shared|exclusive)\\s*(?:;|$)"
                     + "|unlock\\s+table\\b|show\\s+(?:locks|compactions)\\b|reload\\s+function\\b)");
+    private static final Pattern FLINK_DISTRIBUTION_OR_WATERMARK = Pattern.compile(
+            "^\\s*alter\\s+table\\b[^;]+\\b(?:drop\\s+watermark\\s*(?:;|$)"
+                    + "|(?:add|modify)\\s+distribution\\b[^;]*\\binto\\s+[0-9]+\\s+buckets\\b)");
+    private static final Pattern FLINK_SHOW_CURRENT_CATALOG = Pattern.compile("^\\s*show\\s+current\\s+catalog\\b");
     private static final Pattern FLINK_FUNCTION_ARTIFACT = Pattern.compile(
             "^\\s*create\\s+(?:temporary\\s+(?:system\\s+)?)?function\\b[^;]*\\busing\\s+artifact\\b");
     private static final Pattern HIVE_TABLE_VALUES = Pattern.compile(
@@ -633,6 +637,9 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink model lifecycle or ML_PREDICT syntax"));
         } else if (FLINK_CHANGELOG_FUNCTION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink changelog table function syntax"));
+        } else if (FLINK_DISTRIBUTION_OR_WATERMARK.matcher(unquotedSyntax).find()
+                || FLINK_SHOW_CURRENT_CATALOG.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink distribution, watermark, or current catalog syntax"));
         } else if (FLINK_FUNCTION_ARTIFACT.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink function artifact syntax"));
         } else if (FLINK_EXPLAIN_OR_JAR.matcher(unquotedSyntax).find()) {
