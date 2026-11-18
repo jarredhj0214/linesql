@@ -901,6 +901,26 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksSnapshotBackupAndRestoreObjects() {
+        LineageResult backup = LineSql.parse("BACKUP DATABASE mart SNAPSHOT sales_snapshot TO backup_repo "
+                + "ON (TABLE sales, VIEW sales_view)");
+        assertEquals(SqlDialect.STARROCKS, backup.getDialect());
+        assertEquals("sales", backup.getInputTables().get(0).getName());
+        assertEquals("sales_view", backup.getInputTables().get(1).getName());
+        assertTrue(backup.getDiagnostics().isEmpty());
+
+        LineageResult restore = LineSql.parse("RESTORE DATABASE mart SNAPSHOT sales_snapshot FROM backup_repo "
+                + "ON (TABLE sales) PROPERTIES ('backup_timestamp' = '2026-08-28-12-00-00')");
+        assertEquals(SqlDialect.STARROCKS, restore.getDialect());
+        assertEquals("sales", restore.getOutputTables().get(0).getName());
+        assertTrue(restore.getDiagnostics().isEmpty());
+
+        assertDialect(SqlDialect.STARROCKS, "BACKUP ALL EXTERNAL CATALOGS SNAPSHOT catalog_backup TO backup_repo");
+        assertDialect(SqlDialect.SQLSERVER, "BACKUP DATABASE app TO DISK = 'app.bak'");
+        assertDialect(SqlDialect.SPARK, "SELECT 'BACKUP DATABASE mart SNAPSHOT sales_snapshot' AS note");
+    }
+
+    @Test
     public void detectsStarRocksClusterResourceAndBackupMetadata() {
         LineageResult snapshot = LineSql.parse("SHOW SNAPSHOT ON repo_s3 WHERE snapshot = 'sr_core_backup'");
         assertEquals(SqlDialect.STARROCKS, snapshot.getDialect());

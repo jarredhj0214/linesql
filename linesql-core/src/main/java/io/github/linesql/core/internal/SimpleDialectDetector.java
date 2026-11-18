@@ -451,6 +451,10 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*use\\s+(?:'catalog\\s+[^'\\s]+\\s*'|\"catalog\\s+[^\"\\s]+\\s*\")\\s*;?\\s*$");
     private static final Pattern STARROCKS_SHARED_CATALOG_SWITCH = Pattern.compile(
             "^\\s*(use|set)\\s+catalog\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$");
+    private static final Pattern STARROCKS_BACKUP_RESTORE = Pattern.compile(
+            "^\\s*(?:(?:backup|restore)\\s+(?:database\\s+" + SQL_IDENTIFIER + "\\s+)?snapshot"
+                    + "|backup\\s+(?:all\\s+)?external\\s+catalogs?"
+                    + "|create\\s+(?:read\\s+only\\s+)?repository|drop\\s+(?:repository|snapshot))\\b");
     private static final Pattern STARROCKS_DOUBLE_QUOTED_CATALOG_OPTIONS = Pattern.compile(
             "^\\s*alter\\s+catalog\\s+" + SQL_IDENTIFIER
                     + "\\s+(?:comment\\s+|(?:set|reset)\\s*\\(\\s*)" + DOUBLE_QUOTED_IDENTIFIER);
@@ -846,6 +850,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks labeled or routine load syntax"));
         } else if (STARROCKS_JOB_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks job metadata syntax"));
+        } else if (STARROCKS_BACKUP_RESTORE.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks snapshot or repository syntax"));
         } else if (STARROCKS_CLUSTER_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks cluster, resource, or backup metadata syntax"));
         } else if (STARROCKS_CLUSTER_ADMIN.matcher(unquotedSyntax).find()) {
