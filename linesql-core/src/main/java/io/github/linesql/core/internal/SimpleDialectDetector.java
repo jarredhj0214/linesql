@@ -127,6 +127,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|(?:add|modify)\\s+distribution\\b[^;]*\\binto\\s+[0-9]+\\s+buckets\\b)");
     private static final Pattern FLINK_SHOW_CURRENT_CATALOG = Pattern.compile("^\\s*show\\s+current\\s+catalog\\b");
     private static final Pattern FLINK_DROP_TEMPORARY_VIEW = Pattern.compile("^\\s*drop\\s+temporary\\s+view\\b");
+    private static final Pattern FLINK_PARTITION_OPTIONS = Pattern.compile(
+            "^\\s*alter\\s+table\\b[^;]*\\badd\\s+(?:if\\s+not\\s+exists\\s+)?"
+                    + "partition\\s*\\([^;)]*\\)\\s+with\\s*\\(\\s*=");
+    private static final Pattern FLINK_DESCRIBE_CATALOG =
+            Pattern.compile("^\\s*desc(?:ribe)?\\s+catalog\\s+extended\\b");
     private static final Pattern FLINK_FILTERED_METADATA = Pattern.compile(
             "^\\s*show\\s+(?:(?:columns|views)\\b[^;]*\\bnot\\s+like"
                     + "|procedures\\s+(?:from|in)\\b[^;]*\\b(?:i?like))\\b");
@@ -451,6 +456,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:(?:add|drop|rename)\\s+rollup|swap\\s+with|(?:split|merge)\\s+tablets?)\\b");
     private static final String FLINK_QUALIFIED_IDENTIFIER =
             SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*";
+    private static final Pattern FLINK_BARE_COLUMN_RENAME = Pattern.compile(
+            "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
+                    + "\\s+rename\\s+" + SQL_IDENTIFIER + "\\s+to\\s+" + SQL_IDENTIFIER);
     private static final Pattern FLINK_JVM_FUNCTION = Pattern.compile(
             "^\\s*(?:create|alter)\\s+(?:temporary\\s+(?:system\\s+)?)?function\\s+"
                     + "(?:if\\s+(?:not\\s+)?exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
@@ -744,6 +752,10 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (FLINK_DISTRIBUTION_OR_WATERMARK.matcher(unquotedSyntax).find()
                 || FLINK_SHOW_CURRENT_CATALOG.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink distribution, watermark, or current catalog syntax"));
+        } else if (FLINK_PARTITION_OPTIONS.matcher(unquotedSyntax).find()
+                || FLINK_DESCRIBE_CATALOG.matcher(unquotedSyntax).find()
+                || FLINK_BARE_COLUMN_RENAME.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink partition properties, catalog description, or column rename syntax"));
         } else if (FLINK_FILTERED_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink filtered metadata syntax"));
         } else if (FLINK_JVM_FUNCTION.matcher(normalized).find()) {

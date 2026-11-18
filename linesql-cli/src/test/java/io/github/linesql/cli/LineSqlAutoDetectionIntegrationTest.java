@@ -1100,6 +1100,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkRenameWithBareColumnAndPartitionOptions() {
+        LineageResult rename = LineSql.parse("ALTER TABLE ods.orders RENAME request_body TO payload");
+        assertEquals(SqlDialect.FLINK, rename.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, rename.getStatementType());
+        assertEquals("orders", rename.getOutputTables().get(0).getName());
+        assertTrue(rename.getDiagnostics().isEmpty());
+
+        LineageResult partition = LineSql.parse("ALTER TABLE ods.orders ADD PARTITION (dt = '2026-08-31') "
+                + "WITH ('path' = '/dt=2026-08-31') PARTITION (dt = '2026-09-01') WITH ('path' = '/dt=2026-09-01')");
+        assertEquals(SqlDialect.FLINK, partition.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, partition.getStatementType());
+        assertTrue(partition.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "DESC CATALOG EXTENDED prod_catalog");
+        assertDialect(SqlDialect.SPARK, "SELECT 'DESC CATALOG EXTENDED prod_catalog' AS note");
+    }
+
+    @Test
     public void detectsFlinkFunctionClassesAndFilteredMetadata() {
         LineageResult function = LineSql.parse("CREATE FUNCTION udf.normalize_phone "
                 + "AS com.example.udf.NormalizePhone LANGUAGE JAVA USING JAR 'file:///opt/flink/udf.jar'");
