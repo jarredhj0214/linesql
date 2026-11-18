@@ -1,0 +1,1 @@
+ALTER TABLE `mart`.`orders` COMPACT `p20261118`;

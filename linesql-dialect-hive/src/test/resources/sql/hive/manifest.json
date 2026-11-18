@@ -3477,6 +3477,23 @@
       "description": "Hive ALTER TABLE CONCATENATE records the affected table"
     },
     {
+      "id": "alter_table_compact_overwrite_properties",
+      "file": "cases/alter_table_compact_overwrite_properties.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "columnUsages": [
+        {
+          "type": "TABLE_MODEL",
+          "column": "mart.orders.dt"
+        }
+      ],
+      "description": "Hive compaction request properties and partition references"
+    },
+    {
       "id": "alter_table_compact_wait",
       "file": "cases/alter_table_compact_wait.sql",
       "statementType": "ALTER_TABLE",

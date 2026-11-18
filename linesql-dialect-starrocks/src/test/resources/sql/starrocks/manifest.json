@@ -9282,6 +9282,17 @@
       "description": "StarRocks ALTER TABLE COMPACT affected table lineage"
     },
     {
+      "id": "alter_table_compact_single_partition",
+      "file": "cases/alter_table_compact_single_partition.sql",
+      "statementType": "ALTER_TABLE",
+      "inputTables": [],
+      "outputTables": [
+        "mart.orders"
+      ],
+      "columnLineage": [],
+      "description": "StarRocks compact for a named partition"
+    },
+    {
       "id": "alter_table_cumulative_compact_partitions",
       "file": "cases/alter_table_cumulative_compact_partitions.sql",
       "statementType": "ALTER_TABLE",

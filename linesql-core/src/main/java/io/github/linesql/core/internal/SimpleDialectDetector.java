@@ -498,6 +498,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "(?:" + HIVE_PARTITION_SPEC + ")?\\s+)?from\\s+" + HIVE_PROPERTY_LITERAL
                     + "|export\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:" + HIVE_PARTITION_SPEC + ")?"
                     + "\\s+to\\s+" + HIVE_PROPERTY_LITERAL + "\\s+for\\s+replication\\s*\\()");
+    private static final Pattern HIVE_COMPACTION_REQUEST = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + HIVE_QUALIFIED_NAME + "(?:" + HIVE_PARTITION_SPEC + ")?"
+                    + "\\s+compact\\s+" + HIVE_PROPERTY_LITERAL);
     private static final Pattern HIVE_SCHEMA_MAINTENANCE = Pattern.compile(
             "^\\s*(?:create\\s+(?:database|schema)\\s+(?:if\\s+not\\s+exists\\s+)?" + HIVE_TABLE_IDENTIFIER
                     + "(?:\\s+(?:comment|location)\\s+" + HIVE_PROPERTY_LITERAL + ")*+\\s+managedlocation\\s+"
@@ -598,6 +601,12 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*"
                     + "\\s+(?:add\\s+column\\b[^;]+?\\s+to|modify\\s+column\\b[^;]+?\\s+from)"
                     + "\\s+" + SQL_IDENTIFIER + "\\s+properties\\s*\\(");
+    private static final String STARROCKS_COMPACTION_PARTITION = "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + ")";
+    private static final Pattern STARROCKS_UNTYPED_COMPACTION = Pattern.compile(
+            "^\\s*alter\\s+table\\s+" + STARROCKS_QUALIFIED_NAME + "\\s+compact"
+                    + "(?:(?:\\s+" + STARROCKS_COMPACTION_PARTITION + ")|(?:\\s*\\(\\s*"
+                    + STARROCKS_COMPACTION_PARTITION + "(?:\\s*,\\s*" + STARROCKS_COMPACTION_PARTITION
+                    + ")*\\s*\\)))?(?=\\s*(?:;|$))");
     private static final Pattern STARROCKS_SCHEMA_MAINTENANCE = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*\\s+"
                     + "(?:(?:base|cumulative)\\s+compact\\b|drop\\s+persistent\\s+index\\s+on\\s+tablets\\b"
@@ -900,7 +909,8 @@ public class SimpleDialectDetector implements DialectDetector {
         }
         if (HIVE_PARTITION_MAINTENANCE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table or partition maintenance syntax"));
-        } else if (HIVE_LOCK_OR_COMPACTION.matcher(unquotedSyntax).find()) {
+        } else if (HIVE_LOCK_OR_COMPACTION.matcher(unquotedSyntax).find()
+                || HIVE_COMPACTION_REQUEST.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.HIVE, 0.98, "Hive table lock, compaction, or function reload syntax"));
         }
         if (HIVE_TABLE_VALUES.matcher(unquotedSyntax).find()) {
@@ -1037,6 +1047,7 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (STARROCKS_PARTITION_MAINTENANCE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks partition maintenance syntax"));
         } else if (STARROCKS_SCHEMA_MAINTENANCE.matcher(relationSyntax).find()
+                || STARROCKS_UNTYPED_COMPACTION.matcher(normalized).find()
                 || STARROCKS_TABLE_PROPERTIES.matcher(normalized).find()
                 || (unquotedSyntax.contains("properties") && STARROCKS_ROLLUP_COLUMN_CHANGE.matcher(
                         QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find())) {

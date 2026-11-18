@@ -647,8 +647,8 @@ alterTableAction
     | PARTITION partitionSpec TOUCH
     | CONCATENATE
     | PARTITION partitionSpec CONCATENATE
-    | COMPACT string (AND WAIT)?
-    | PARTITION partitionSpec COMPACT string (AND WAIT)?
+    | (PARTITION partitionSpec)? COMPACT string (AND WAIT)?
+      (WITH OVERWRITE TBLPROPERTIES LPAREN propertyList RPAREN)?
     | (ARCHIVE | UNARCHIVE) PARTITION partitionSpec
     | clusteringClause
     | DROP COLUMN identifier

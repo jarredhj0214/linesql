@@ -1003,6 +1003,23 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void distinguishesStarRocksAndHiveCompactionRequests() {
+        LineageResult compact = LineSql.parse("ALTER TABLE mart.orders COMPACT");
+        assertEquals(SqlDialect.STARROCKS, compact.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, compact.getStatementType());
+        assertEquals("orders", compact.getOutputTables().get(0).getName());
+        assertTrue(compact.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.STARROCKS, "ALTER TABLE mart.orders COMPACT (p1, p2)");
+        assertDialect(SqlDialect.HIVE, "ALTER TABLE mart.orders COMPACT 'major'");
+        LineageResult hive = LineSql.parse("ALTER TABLE mart.orders PARTITION (dt = '2026-11-18') "
+                + "COMPACT 'major' WITH OVERWRITE TBLPROPERTIES ('tblprops.orc.compress.size'='8192')");
+        assertEquals(SqlDialect.HIVE, hive.getDialect());
+        assertEquals("dt", hive.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(hive.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.SPARK, "SELECT 'ALTER TABLE mart.orders COMPACT' AS note");
+    }
+
+    @Test
     public void detectsStarRocksNamedAndBatchPartitionMaintenance() {
         LineageResult drop = LineSql.parse("ALTER TABLE mart.site_access DROP PARTITIONS "
                 + "WHERE dt < current_date() - INTERVAL 3 MONTH");
