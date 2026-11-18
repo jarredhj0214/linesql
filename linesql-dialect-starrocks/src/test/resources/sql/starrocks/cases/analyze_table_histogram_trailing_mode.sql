@@ -1,0 +1,2 @@
+ANALYZE TABLE ads.users UPDATE HISTOGRAM ON region WITH 32 BUCKETS
+PROPERTIES ('histogram_sample_ratio' = '0.5') WITH ASYNC MODE;

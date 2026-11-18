@@ -5130,6 +5130,55 @@
       "description": "StarRocks ANALYZE SAMPLE TABLE with column list and properties"
     },
     {
+      "id": "analyze_table_multiple_columns",
+      "file": "cases/analyze_table_multiple_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks composite statistics retain named columns",
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "ads.users.region"
+        },
+        {
+          "type": "READ_METADATA",
+          "column": "ads.users.channel"
+        }
+      ]
+    },
+    {
+      "id": "analyze_table_predicate_columns",
+      "file": "cases/analyze_table_predicate_columns.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks predicate-statistics collection leaves column selection to the engine"
+    },
+    {
+      "id": "analyze_table_histogram_trailing_mode",
+      "file": "cases/analyze_table_histogram_trailing_mode.sql",
+      "statementType": "READ_METADATA",
+      "inputTables": [
+        "ads.users"
+      ],
+      "outputTables": [],
+      "columnLineage": [],
+      "description": "StarRocks histogram collection permits mode after bucket and properties options",
+      "columnUsages": [
+        {
+          "type": "READ_METADATA",
+          "column": "ads.users.region"
+        }
+      ]
+    },
+    {
       "id": "analyze_table_update_histogram",
       "file": "cases/analyze_table_update_histogram.sql",
       "statementType": "READ_METADATA",

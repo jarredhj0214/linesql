@@ -567,6 +567,15 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|into\\s+\\d+\\s+buckets\\b))");
     private static final String STARROCKS_QUALIFIED_NAME =
             SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*";
+    private static final Pattern STARROCKS_ANALYZE_OPTIONS = Pattern.compile(
+            "^\\s*analyze\\s+(?:(?:full|sample)\\s+table\\s+" + STARROCKS_QUALIFIED_NAME + "(?=\\s|\\(|;|$)"
+                    + "|table\\s+" + STARROCKS_QUALIFIED_NAME + "\\s+(?:"
+                    + "(?:all|predicate|multiple)\\s+columns\\b"
+                    + "|(?:\\([^;]*?\\)\\s*)?(?:with\\s+(?:sync|async)\\s+mode\\b|properties\\s*\\()"
+                    + "|update\\s+histogram\\s+on\\s+" + SQL_IDENTIFIER
+                    + "(?:\\s*,\\s*" + SQL_IDENTIFIER + ")*"
+                    + "(?:\\s+with\\s+\\d+\\s+buckets)?"
+                    + "\\s+(?:with\\s+(?:sync|async)\\s+mode\\b|properties\\s*\\()))");
     private static final String STARROCKS_RELATION_PRIVILEGE =
             "(?:all(?:\\s+privileges)?|select|alter|drop|insert|export|update|delete|refresh)";
     private static final Pattern STARROCKS_RELATION_GRANT = Pattern.compile(
@@ -1060,6 +1069,8 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks dictionary object syntax"));
         } else if (STARROCKS_FUNCTION_DEFINITION.matcher(normalized).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks UDF properties or global function syntax"));
+        } else if (STARROCKS_ANALYZE_OPTIONS.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks statistics collection options"));
         } else if (STARROCKS_RELATION_GRANT.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks view or database-wide privileges syntax"));
         } else if (STARROCKS_VIEW_DEFINITION.matcher(normalized).find()) {
