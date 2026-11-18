@@ -1,6 +1,8 @@
 package io.github.linesql.core.internal;
 
 import io.github.linesql.core.facade.SqlLineageParser;
+import io.github.linesql.core.model.ColumnLineage;
+import io.github.linesql.core.model.ColumnRef;
 import io.github.linesql.core.model.ColumnUsage;
 import io.github.linesql.core.model.DiagnosticSeverity;
 import io.github.linesql.core.model.DialectCandidate;
@@ -184,6 +186,11 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             inputTableCount = 0;
             firstDialect = SqlDialect.HIVE;
             command = "SHOW ROLES";
+        } else if (SimpleDialectDetector.isSharedQueryPagination(statement)) {
+            expected = StatementType.SELECT;
+            inputTableCount = -1;
+            secondDialect = SqlDialect.POSTGRESQL;
+            command = "SELECT pagination";
         } else if (SimpleDialectDetector.isSharedColumnChangeScope(statement)) {
             expected = StatementType.ALTER_TABLE;
             inputTableCount = 0;
@@ -199,7 +206,8 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
                 expected, inputTableCount, outputTableCount);
         if (first == null || second == null || !first.getInputTables().equals(second.getInputTables())
                 || !first.getOutputTables().equals(second.getOutputTables())
-                || !sameColumnUsages(first.getColumnUsages(), second.getColumnUsages())) {
+                || !sameColumnUsages(first.getColumnUsages(), second.getColumnUsages())
+                || !sameColumnLineage(first.getColumnLineage(), second.getColumnLineage())) {
             return null;
         }
         LineageResult shared = new LineageResult();
@@ -207,9 +215,11 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         shared.setInputTables(new ArrayList<>(first.getInputTables()));
         shared.setOutputTables(new ArrayList<>(first.getOutputTables()));
         shared.setColumnUsages(new ArrayList<>(first.getColumnUsages()));
+        shared.setColumnLineage(new ArrayList<>(first.getColumnLineage()));
         String firstName = firstDialect == SqlDialect.HIVE ? "Hive" : "Flink";
         String secondName = secondDialect == SqlDialect.HIVE ? "Hive"
-                : secondDialect == SqlDialect.ORACLE ? "Oracle" : "StarRocks";
+                : secondDialect == SqlDialect.ORACLE ? "Oracle"
+                : secondDialect == SqlDialect.POSTGRESQL ? "PostgreSQL" : "StarRocks";
         shared.setDialectDetectionReason(firstName + " and " + secondName + " both support this " + command + " syntax");
         return shared;
     }
@@ -223,9 +233,9 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         try {
             LineageResult trial = parseStatement(statement, dialect, options, trialContext(context));
             if (trial.getStatementType() == expected && trial.getDiagnostics().isEmpty()
-                    && trial.getInputTables().size() == inputTableCount
+                    && (inputTableCount < 0 || trial.getInputTables().size() == inputTableCount)
                     && trial.getOutputTables().size() == outputTableCount
-                    && trial.getColumnLineage().isEmpty()) {
+                    && (expected == StatementType.SELECT || trial.getColumnLineage().isEmpty())) {
                 return trial;
             }
         } catch (RuntimeException | StackOverflowError failure) {
@@ -242,12 +252,38 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             ColumnUsage left = first.get(i);
             ColumnUsage right = second.get(i);
             if (left.getType() != right.getType()
-                    || !Objects.equals(left.getColumn().getName(), right.getColumn().getName())
-                    || !Objects.equals(left.getColumn().getTable(), right.getColumn().getTable())) {
+                    || !sameColumnRef(left.getColumn(), right.getColumn())) {
                 return false;
             }
         }
         return true;
+    }
+
+    private static boolean sameColumnLineage(List<ColumnLineage> first, List<ColumnLineage> second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+        for (int i = 0; i < first.size(); i++) {
+            ColumnLineage left = first.get(i);
+            ColumnLineage right = second.get(i);
+            if (!sameColumnRef(left.getTarget(), right.getTarget())
+                    || !Objects.equals(left.getExpression(), right.getExpression())
+                    || left.getSources().size() != right.getSources().size()) {
+                return false;
+            }
+            for (int j = 0; j < left.getSources().size(); j++) {
+                if (!sameColumnRef(left.getSources().get(j), right.getSources().get(j))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static boolean sameColumnRef(ColumnRef first, ColumnRef second) {
+        return first == second || (first != null && second != null
+                && Objects.equals(first.getName(), second.getName())
+                && Objects.equals(first.getTable(), second.getTable()));
     }
 
     private static ParseContext trialContext(ParseContext context) {

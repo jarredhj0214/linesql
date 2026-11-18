@@ -1501,6 +1501,17 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedPaginationWithProjectionAndOrdering() {
+        LineageResult result = LineSql.parse("SELECT id, amount FROM dwd.orders ORDER BY order_time FETCH NEXT ROW ONLY");
+        assertEquals(SqlDialect.UNKNOWN, result.getDialect());
+        assertEquals(StatementType.SELECT, result.getStatementType());
+        assertEquals("orders", result.getInputTables().get(0).getName());
+        assertEquals(2, result.getColumnLineage().size());
+        assertEquals("order_time", result.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(result.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedSimpleRoleCommands() {
         for (String sql : new String[] {"CREATE ROLE analyst", "DROP ROLE analyst", "SHOW ROLES"}) {
             LineageResult result = LineSql.parse(sql);

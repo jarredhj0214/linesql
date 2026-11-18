@@ -456,6 +456,9 @@ public class SimpleDialectDetector implements DialectDetector {
             "\\s*(" + FLINK_OPTION_LITERAL + ")\\s*=\\s*" + FLINK_OPTION_LITERAL + "\\s*,?");
     private static final String SQL_IDENTIFIER =
             "(?:[a-z_][\\w$]*|" + BACKTICK_IDENTIFIER + "|" + DOUBLE_QUOTED_IDENTIFIER + ")";
+    private static final Pattern SHARED_QUERY_PAGINATION = Pattern.compile(
+            "^\\s*select\\b[^;]*(?:fetch\\s+(?:first|next)\\s+(?:\\d+\\s+)?rows?\\s+only"
+                    + "|limit\\s+all\\s+offset\\s+\\d+\\s+rows?)\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARED_ROLE_CONTROL = Pattern.compile(
             "^\\s*(?:create|drop)\\s+role\\s+" + SQL_IDENTIFIER + "\\s*;?\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARED_SHOW_ROLES = Pattern.compile(
@@ -1512,6 +1515,11 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static boolean isIdentifierStart(char value) {
         return Character.isLetter(value) || value == '_' || value == '@' || value == '#';
+    }
+
+    static boolean isSharedQueryPagination(String statement) {
+        String syntax = stripComments(maskQuotedLiterals(statement).text).replaceAll(SINGLE_QUOTED_STRING, " ");
+        return SHARED_QUERY_PAGINATION.matcher(QUOTED_IDENTIFIER.matcher(syntax).replaceAll(" ")).matches();
     }
 
     static boolean isSharedRoleControl(String statement) {
