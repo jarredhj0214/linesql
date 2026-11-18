@@ -1341,6 +1341,14 @@ public class LineSqlAutoDetectionIntegrationTest {
                 "ALTER DATABASE production.analytics SET ('location' = 'file:///warehouse/analytics')");
         assertEquals(SqlDialect.FLINK, database.getDialect());
         assertTrue(database.getDiagnostics().isEmpty());
+        LineageResult create = LineSql.parse("CREATE DATABASE IF NOT EXISTS `lake`.`analytics` "
+                + "COMMENT 'team''s events; database' WITH ('owner' = 'data-platform')");
+        assertEquals(SqlDialect.FLINK, create.getDialect());
+        assertEquals(StatementType.CREATE_SCHEMA, create.getStatementType());
+        assertTrue(create.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "SET 'pipeline.name' = 'lineage'; "
+                + "CREATE DATABASE analytics WITH ('owner' = 'data-platform');");
+        assertDialect(SqlDialect.SPARK, "CREATE DATABASE analytics COMMENT 'with (fake options)'");
         assertDialect(SqlDialect.SPARK, "SELECT 'ALTER CATALOG production COMMENT' AS notes");
     }
 

@@ -493,6 +493,10 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "\\s+as\\s+(?:" + SINGLE_QUOTED_STRING + "|" + FLINK_QUALIFIED_IDENTIFIER + ")"
                     + "\\s+language\\s+(?:java|scala|python)\\b");
     private static final String FLINK_STRING_OPTION_START = "\\s*\\(\\s*" + SINGLE_QUOTED_STRING;
+    private static final Pattern FLINK_CREATE_DATABASE_OPTIONS = Pattern.compile(
+            "^\\s*create\\s+database\\s+(?:if\\s+not\\s+exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
+                    + "(?:\\s+comment\\s+" + SINGLE_QUOTED_STRING + ")?"
+                    + "\\s+with" + FLINK_STRING_OPTION_START + "\\s*=\\s*" + SINGLE_QUOTED_STRING);
     private static final Pattern FLINK_ALTER_STRING_OPTIONS = Pattern.compile(
             "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
                     + "\\s+(?:set|reset)" + FLINK_STRING_OPTION_START
@@ -784,6 +788,10 @@ public class SimpleDialectDetector implements DialectDetector {
                 || FLINK_DESCRIBE_CATALOG.matcher(unquotedSyntax).find()
                 || FLINK_BARE_COLUMN_RENAME.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink partition properties, catalog description, or column rename syntax"));
+        } else if (FLINK_CREATE_DATABASE_OPTIONS.matcher(normalized).find()
+                || (containsStatementSeparator && unquotedSyntax.contains("database")
+                        && hasStatementInScript(unwrapped, SqlDialect.FLINK, FLINK_CREATE_DATABASE_OPTIONS))) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink CREATE DATABASE string properties"));
         } else if (FLINK_FILTERED_METADATA.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink filtered metadata syntax"));
         } else if (FLINK_JVM_FUNCTION.matcher(normalized).find()) {
