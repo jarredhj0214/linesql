@@ -111,6 +111,9 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|(?:add|modify)\\s+distribution\\b[^;]*\\binto\\s+[0-9]+\\s+buckets\\b)");
     private static final Pattern FLINK_SHOW_CURRENT_CATALOG = Pattern.compile("^\\s*show\\s+current\\s+catalog\\b");
     private static final Pattern FLINK_DROP_TEMPORARY_VIEW = Pattern.compile("^\\s*drop\\s+temporary\\s+view\\b");
+    private static final Pattern FLINK_FILTERED_METADATA = Pattern.compile(
+            "^\\s*show\\s+(?:(?:columns|views)\\b[^;]*\\bnot\\s+like"
+                    + "|procedures\\s+(?:from|in)\\b[^;]*\\b(?:i?like))\\b");
     private static final Pattern FLINK_FUNCTION_ARTIFACT = Pattern.compile(
             "^\\s*create\\s+(?:temporary\\s+(?:system\\s+)?)?function\\b[^;]*\\busing\\s+artifact\\b");
     private static final Pattern HIVE_TABLE_VALUES = Pattern.compile(
@@ -424,6 +427,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + FLINK_IDENTIFIER + "\\s*\\.\\s*" + FLINK_IDENTIFIER);
     private static final String FLINK_QUALIFIED_IDENTIFIER =
             FLINK_IDENTIFIER + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*";
+    private static final Pattern FLINK_JVM_FUNCTION = Pattern.compile(
+            "^\\s*(?:create|alter)\\s+(?:temporary\\s+(?:system\\s+)?)?function\\s+"
+                    + "(?:if\\s+(?:not\\s+)?exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
+                    + "\\s+as\\s+(?:" + SINGLE_QUOTED_STRING + "|" + FLINK_QUALIFIED_IDENTIFIER + ")"
+                    + "\\s+language\\s+(?:java|scala|python)\\b");
     private static final String FLINK_STRING_OPTION_START = "\\s*\\(\\s*" + SINGLE_QUOTED_STRING;
     private static final Pattern FLINK_ALTER_STRING_OPTIONS = Pattern.compile(
             "^\\s*alter\\s+table\\s+(?:if\\s+exists\\s+)?" + FLINK_QUALIFIED_IDENTIFIER
@@ -704,6 +712,10 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (FLINK_DISTRIBUTION_OR_WATERMARK.matcher(unquotedSyntax).find()
                 || FLINK_SHOW_CURRENT_CATALOG.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink distribution, watermark, or current catalog syntax"));
+        } else if (FLINK_FILTERED_METADATA.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink filtered metadata syntax"));
+        } else if (FLINK_JVM_FUNCTION.matcher(normalized).find()) {
+            candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink function language and class syntax"));
         } else if (FLINK_FUNCTION_ARTIFACT.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.FLINK, 0.98, "Flink function artifact syntax"));
         } else if (FLINK_EXPLAIN_OR_JAR.matcher(unquotedSyntax).find()) {

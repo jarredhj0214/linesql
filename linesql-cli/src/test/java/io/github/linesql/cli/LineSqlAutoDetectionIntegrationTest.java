@@ -1009,6 +1009,28 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsFlinkFunctionClassesAndFilteredMetadata() {
+        LineageResult function = LineSql.parse("CREATE FUNCTION udf.normalize_phone "
+                + "AS com.example.udf.NormalizePhone LANGUAGE JAVA USING JAR 'file:///opt/flink/udf.jar'");
+        assertEquals(SqlDialect.FLINK, function.getDialect());
+        assertEquals(StatementType.CREATE_ROUTINE, function.getStatementType());
+        assertTrue(function.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "ALTER FUNCTION udf.normalize_phone AS 'com.example.Phone' LANGUAGE JAVA");
+        assertDialect(SqlDialect.SPARK,
+                "CREATE TEMPORARY FUNCTION f AS 'com.example.F' USING JAR 'file:///opt/spark/f.jar'");
+
+        LineageResult columns = LineSql.parse("SHOW COLUMNS FROM prod_catalog.dwd.orders NOT LIKE 'debug_%'");
+        assertEquals(SqlDialect.FLINK, columns.getDialect());
+        assertEquals(StatementType.READ_METADATA, columns.getStatementType());
+        assertEquals("orders", columns.getInputTables().get(0).getName());
+        assertTrue(columns.getDiagnostics().isEmpty());
+        assertDialect(SqlDialect.FLINK, "SHOW VIEWS FROM prod_catalog.dwd NOT LIKE 'tmp_%'");
+        assertDialect(SqlDialect.FLINK, "SHOW PROCEDURES FROM prod_catalog.ops_db LIKE 'refresh_%'");
+        assertDialect(SqlDialect.SPARK, "SHOW PROCEDURES IN system");
+        assertDialect(SqlDialect.SPARK, "SELECT 'SHOW VIEWS NOT LIKE tmp' AS message");
+    }
+
+    @Test
     public void detectsFlinkFunctionArtifactsWithoutClaimingSparkJarFunctions() {
         LineageResult function = LineSql.parse("CREATE TEMPORARY FUNCTION udf.parse_json "
                 + "AS 'com.example.udf.ParseJson' LANGUAGE JAVA "
