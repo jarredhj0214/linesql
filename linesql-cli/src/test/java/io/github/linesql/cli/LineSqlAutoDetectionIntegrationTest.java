@@ -1584,6 +1584,16 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void parsesSharedShowCreateDatabaseAsMetadata() {
+        LineageResult database = LineSql.parse("SHOW CREATE DATABASE `mart`");
+        assertEquals(SqlDialect.UNKNOWN, database.getDialect());
+        assertEquals(StatementType.READ_METADATA, database.getStatementType());
+        assertTrue(database.getInputTables().isEmpty());
+        assertTrue(database.getOutputTables().isEmpty());
+        assertTrue(database.getDiagnostics().isEmpty());
+    }
+
+    @Test
     public void parsesSharedShowCreateViewWithItsViewReference() {
         LineageResult view = LineSql.parse("SHOW CREATE VIEW `mart`.`daily_orders`");
         assertEquals(SqlDialect.UNKNOWN, view.getDialect());

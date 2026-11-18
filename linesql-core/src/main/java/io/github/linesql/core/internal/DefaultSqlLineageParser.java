@@ -160,6 +160,11 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
             expected = StatementType.CONTROL;
             inputTableCount = 0;
             command = "DROP CATALOG";
+        } else if (SimpleDialectDetector.isSharedShowCreateDatabase(statement)) {
+            expected = StatementType.READ_METADATA;
+            inputTableCount = 0;
+            firstDialect = SqlDialect.MYSQL;
+            command = "SHOW CREATE DATABASE";
         } else if (SimpleDialectDetector.isSharedShowCreateView(statement)) {
             expected = StatementType.READ_METADATA;
             inputTableCount = 1;
@@ -221,7 +226,8 @@ public class DefaultSqlLineageParser implements SqlLineageParser {
         shared.setOutputTables(new ArrayList<>(first.getOutputTables()));
         shared.setColumnUsages(new ArrayList<>(first.getColumnUsages()));
         shared.setColumnLineage(new ArrayList<>(first.getColumnLineage()));
-        String firstName = firstDialect == SqlDialect.HIVE ? "Hive" : "Flink";
+        String firstName = firstDialect == SqlDialect.HIVE ? "Hive"
+                : firstDialect == SqlDialect.MYSQL ? "MySQL" : "Flink";
         String secondName = secondDialect == SqlDialect.HIVE ? "Hive"
                 : secondDialect == SqlDialect.ORACLE ? "Oracle"
                 : secondDialect == SqlDialect.POSTGRESQL ? "PostgreSQL" : "StarRocks";
