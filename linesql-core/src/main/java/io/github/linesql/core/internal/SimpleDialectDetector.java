@@ -419,6 +419,15 @@ public class SimpleDialectDetector implements DialectDetector {
             "^\\s*explain\\s+(?:\\([^()]*\\)\\s*)?declare\\b");
     private static final Pattern POSTGRES_PREPARED_RESET = Pattern.compile(
             "^\\s*(?:deallocate\\s+(?:prepare\\s+)?all|discard\\s+(?:all|plans))\\b");
+    private static final Pattern MYSQL_JSON_ARROW_OR_QUOTE = Pattern.compile(
+            "(->>?\\s*['\"]\\$\\.)|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
+    private static final Pattern OCEANBASE_SYSTEM_SCHEMA_OR_QUOTE = Pattern.compile(
+            "(\\b(?:from|join|update|into|table)\\s+(?:oceanbase|`oceanbase`|\"oceanbase\")"
+                    + "\\s*\\.\\s*(?=[`\"]?(?:__all_|dba_ob_|gv\\$)[a-z_]))"
+                    + "|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
+    private static final Pattern OCEANBASE_READ_CONSISTENCY = Pattern.compile(
+            "^\\s*set\\s+(?:(?:global|session)\\s+|@@\\s*(?:(?:global|session)\\s*\\.\\s*)?)?"
+                    + "ob_read_consistency\\s*=|@@\\s*(?:(?:global|session)\\s*\\.\\s*)?ob_read_consistency\\b");
     private static final Pattern STARROCKS_DICTIONARY_LOOKUP_OR_QUOTE = Pattern.compile(
             "(\\b(?:dictionary_get|dict_mapping)\\s*\\(\\s*" + SINGLE_QUOTED_STRING + "\\s*,)"
                     + "|" + SINGLE_QUOTED_STRING + "|" + QUOTED_IDENTIFIER.pattern());
@@ -623,15 +632,15 @@ public class SimpleDialectDetector implements DialectDetector {
         String normalized = stripComments(unwrapped).toLowerCase(Locale.ROOT);
         List<DialectCandidate> candidates = new ArrayList<DialectCandidate>();
         String relationSyntax = normalized.replaceAll(SINGLE_QUOTED_STRING, " ");
+        String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
         boolean sparkJsonTableSignal = hasSparkJsonTableSignal(relationSyntax);
         boolean strongSparkSignal = normalized.contains("${") || normalized.contains("#day#")
                 || hasStrongSparkSignal(relationSyntax);
         boolean sparkSignal = strongSparkSignal || hasGeneralSparkSignal(relationSyntax);
-        boolean weakMySqlExpressionSignal = normalized.matches("(?s).*\\bdiv\\b.*")
-                || normalized.matches("(?s).*\\bmod\\b.*")
-                || normalized.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*");
+        boolean weakMySqlExpressionSignal = unquotedSyntax.matches("(?s).*\\bdiv\\b.*")
+                || unquotedSyntax.matches("(?s).*\\bmod\\b.*")
+                || unquotedSyntax.matches("(?s).*\\blimit\\s+\\d+\\s*,\\s*\\d+.*");
 
-        String unquotedSyntax = QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll(" ");
         boolean sparkAsofJoin = hasSparkAsofJoin(unquotedSyntax);
         boolean oracleJsonTableType = unquotedSyntax.contains("json_table") && hasOracleJsonType(
                 QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier"),
@@ -668,13 +677,14 @@ public class SimpleDialectDetector implements DialectDetector {
                 || normalized.matches("(?s).*\\binto\\s+(out|dump)file\\b.*")
                 || (!sparkJsonTableSignal && !oracleJsonTableType && JSON_TABLE_CALL.matcher(unquotedSyntax).find())
                 || MYSQL_DUPLICATE_KEY_UPDATE.matcher(unquotedSyntax).find()
-                || hasMySqlJsonArrowSignal(normalized)
+                || (unquotedSyntax.contains("->") && containsSignatureOutsideQuotes(MYSQL_JSON_ARROW_OR_QUOTE, normalized))
                 || (!sparkSignal && weakMySqlExpressionSignal)) {
             candidates.add(candidate(SqlDialect.MYSQL, 0.97, "MySQL-specific write, DML, LOAD, JSON, or LIMIT syntax"));
         }
-        if (normalized.contains("oceanbase")
-                || normalized.contains("ob_read_consistency")
-                || normalized.matches("(?s)^\\s*alter\\s+proxyconfig\\s+set\\b.*")
+        if ((normalized.contains("oceanbase") && containsSignatureOutsideQuotes(OCEANBASE_SYSTEM_SCHEMA_OR_QUOTE, normalized))
+                || OCEANBASE_READ_CONSISTENCY.matcher(unquotedSyntax).find()) {
+            candidates.add(candidate(SqlDialect.OCEANBASE, 0.99, "OceanBase system relation or consistency setting"));
+        } else if (normalized.matches("(?s)^\\s*alter\\s+proxyconfig\\s+set\\b.*")
                 || normalized.matches("(?s)^\\s*(create|alter|drop)\\s+tenant\\b.*")
                 || normalized.matches("(?s)^\\s*change\\s+tenant\\b.*")
                 || normalized.matches("(?s)^\\s*(create|alter|drop)\\s+resource\\s+(unit|pool)\\b.*")
@@ -1318,10 +1328,6 @@ public class SimpleDialectDetector implements DialectDetector {
 
     private static boolean hasSparkLambdaSignal(String sql) {
         return sql.matches("(?s).*\\b(transform|filter|aggregate|exists|forall|zip_with|map_filter|transform_keys|transform_values|array_sort)\\s*\\([^;]*->.*");
-    }
-
-    private static boolean hasMySqlJsonArrowSignal(String sql) {
-        return sql.matches("(?s).*->>?\\s*['\"]\\$\\..*");
     }
 
     private static boolean hasOracleJsonType(String sql, Pattern call, Pattern tokens, Pattern columnType) {

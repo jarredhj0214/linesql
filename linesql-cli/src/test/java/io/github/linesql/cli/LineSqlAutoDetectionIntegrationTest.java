@@ -724,6 +724,20 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void ignoresMySqlAndOceanBaseMarkersInsideQuotedText() {
+        assertDialect(SqlDialect.SPARK, "SELECT 'OceanBase and ob_read_consistency' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT 'DIV, MOD and LIMIT 1, 2' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT \"payload ->> '$.item'\" AS note");
+        assertDialect(SqlDialect.MYSQL, "SELECT payload->>'$.item' FROM ods.events");
+        assertDialect(SqlDialect.MYSQL, "SELECT total DIV 3 FROM ods.events");
+        assertDialect(SqlDialect.OCEANBASE, "SELECT id FROM oceanbase.__all_table");
+        assertDialect(SqlDialect.OCEANBASE, "SELECT id FROM `oceanbase`.`__all_table`");
+        assertDialect(SqlDialect.SPARK, "SELECT 'oceanbase.__all_table' AS note");
+        assertDialect(SqlDialect.SPARK, "SELECT ob_read_consistency FROM ods.metrics");
+        assertDialect(SqlDialect.OCEANBASE, "SET GLOBAL ob_read_consistency = 'STRONG'");
+    }
+
+    @Test
     public void ignoresSparkSignaturesInsidePlainStringLiterals() {
         LineageResult literal = LineSql.parse("SELECT 'using and explode(x)' AS note");
         assertEquals(SqlDialect.SPARK, literal.getDialect());
