@@ -909,6 +909,25 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsNullableStarRocksUpdateFromEquality() {
+        LineageResult result = LineSql.parse("UPDATE dwd.orders AS o SET status = s.status "
+                + "FROM staging.order_status AS s WHERE o.external_id <=> s.external_id");
+        assertEquals(SqlDialect.STARROCKS, result.getDialect());
+        assertEquals(StatementType.UPDATE, result.getStatementType());
+        assertEquals("orders", result.getOutputTables().get(0).getName());
+        assertTrue(result.getInputTables().stream().anyMatch(table -> "order_status".equals(table.getName())));
+        assertEquals("status", result.getColumnLineage().get(0).getSources().get(0).getName());
+        assertEquals("order_status", result.getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertTrue(result.getColumnUsages().stream().anyMatch(c -> "external_id".equals(c.getColumn().getName())));
+        assertTrue(result.getDiagnostics().isEmpty());
+        assertTrue(LineSql.parse("UPDATE dwd.orders AS o SET status = "
+                + "(SELECT s.status FROM staging.order_status s) WHERE o.id <=> 1").getDialect() != SqlDialect.STARROCKS);
+        assertTrue(LineSql.parse("UPDATE dwd.orders AS o SET status = s.status "
+                + "FROM staging.order_status AS s WHERE o.embedding <=> s.embedding < 0.5")
+                .getDialect() != SqlDialect.STARROCKS);
+    }
+
+    @Test
     public void detectsStarRocksNativeTableOrderingRollupAndProperties() {
         LineageResult order = LineSql.parse("ALTER TABLE mart.orders ORDER BY (dt, `user_id`)");
         assertEquals(SqlDialect.STARROCKS, order.getDialect());

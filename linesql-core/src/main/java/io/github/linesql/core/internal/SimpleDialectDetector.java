@@ -510,6 +510,16 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|recover\\s+partition\\s+" + SQL_IDENTIFIER + ")");
     private static final String STARROCKS_TABLE_PROPERTY =
             "(?:dynamic_partition\\.[a-z_][\\w]*|bloom_filter_columns|colocate_with|replication_num|storage_medium)";
+    private static final String STARROCKS_QUALIFIED_NAME =
+            SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*";
+    private static final String STARROCKS_QUALIFIED_COLUMN =
+            SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")+";
+    private static final Pattern STARROCKS_NULL_SAFE_UPDATE_FROM = Pattern.compile(
+            "^\\s*update\\s+" + STARROCKS_QUALIFIED_NAME + "(?:\\s+(?:as\\s+)?" + SQL_IDENTIFIER + ")?"
+                    + "\\s+set\\s+" + STARROCKS_QUALIFIED_NAME + "\\s*=\\s*" + STARROCKS_QUALIFIED_COLUMN
+                    + "\\s+from\\s+" + STARROCKS_QUALIFIED_NAME + "(?:\\s+(?:as\\s+)?" + SQL_IDENTIFIER + ")?"
+                    + "\\s+where\\s+" + STARROCKS_QUALIFIED_COLUMN + "\\s*<=>\\s*"
+                    + STARROCKS_QUALIFIED_COLUMN + "\\s*(?:;\\s*)?$");
     private static final Pattern STARROCKS_TABLE_PROPERTIES = Pattern.compile(
             "^\\s*alter\\s+table\\s+" + SQL_IDENTIFIER + "(?:\\s*\\.\\s*" + SQL_IDENTIFIER + ")*"
                     + "\\s+set\\s*\\(\\s*(?:'" + STARROCKS_TABLE_PROPERTY + "'|\"" + STARROCKS_TABLE_PROPERTY
@@ -933,6 +943,8 @@ public class SimpleDialectDetector implements DialectDetector {
                 || (containsStatementSeparator && unquotedSyntax.contains("materialized")
                         && hasStatementInScript(unwrapped, SqlDialect.STARROCKS, STARROCKS_MATERIALIZED_VIEW_OPTIONS))) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks materialized view options or refresh syntax"));
+        } else if (unquotedSyntax.contains("<=>") && STARROCKS_NULL_SAFE_UPDATE_FROM.matcher(relationSyntax).find()) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks null-safe UPDATE FROM comparison"));
         } else if (STARROCKS_PARTITION_MAINTENANCE.matcher(relationSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks partition maintenance syntax"));
         } else if (STARROCKS_SCHEMA_MAINTENANCE.matcher(relationSyntax).find()
