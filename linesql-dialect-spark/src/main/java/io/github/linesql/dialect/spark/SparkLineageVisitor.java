@@ -54,6 +54,8 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
     private boolean correlatedScope;
     private SqlBaseParser.SelectClauseContext positionalInsertSelect;
     private int pipeOutputProjectionStart = -1;
+    private int pipeAliasSequence;
+    private boolean pipeRetainsInputColumns;
     private boolean suppressColumnLineage;
     private boolean suppressMissingColumnLineageDiagnostic;
     private boolean suppressStarColumnLineage;
@@ -2015,6 +2017,10 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
 
     @Override
     public Void visitOperatorPipeRightSide(SqlBaseParser.OperatorPipeRightSideContext ctx) {
+        if (ctx.AS() != null && ctx.errorCapturingIdentifier() != null) {
+            applyPipeAlias(cleanIdentifier(ctx.errorCapturingIdentifier().getText()));
+            return null;
+        }
         if (ctx.operatorPipeSetAssignmentSeq() != null) {
             applyPipeAssignments(ctx.operatorPipeSetAssignmentSeq());
             return null;
@@ -2031,6 +2037,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         if (ctx.AGGREGATE() != null && ctx.namedExpressionSeq() != null) {
             clearPipeOutputProjections();
+            pipeRetainsInputColumns = false;
             pipeOutputProjectionStart = projections.size();
             if (ctx.aggregationClause() != null) {
                 for (SqlBaseParser.NamedExpressionContext groupingExpression
@@ -2062,6 +2069,7 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         }
         if (ctx.selectClause() != null) {
             clearPipeOutputProjections();
+            pipeRetainsInputColumns = false;
             if (!pipeAssignedColumns.isEmpty()) {
                 return visitPipeSelectionAfterAssignment(ctx);
             }
@@ -2082,8 +2090,98 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         return visitChildren(ctx);
     }
 
+    private void applyPipeAlias(String alias) {
+        flushPendingColumnUsages();
+        String name = alias.toLowerCase(Locale.ROOT);
+        if (projections.isEmpty() && visibleRelations.size() == 1
+                && generatedColumns.isEmpty() && pipeAssignedColumns.isEmpty()) {
+            VisibleRelation input = visibleRelations.get(0);
+            tableAliases.clear();
+            derivedAliases.clear();
+            qualifiedColumnHints.clear();
+            if (input.table != null) {
+                tableAliases.put(name, input.table);
+            } else {
+                derivedAliases.put(name, input.derivedName);
+            }
+            return;
+        }
+
+        Map<String, List<ColumnRef>> columns = new LinkedHashMap<>();
+        Set<String> ambiguous = new LinkedHashSet<>();
+        if (projections.isEmpty() || pipeRetainsInputColumns) {
+            for (ColumnLineage column : starColumnLineage(null, Projection.star(null, "*"))) {
+                addPipeAliasColumn(columns, ambiguous, column.getTarget().getName(), column.getSources());
+            }
+            for (Map.Entry<String, List<SourceColumn>> column : generatedColumns.entrySet()) {
+                if (!column.getKey().contains(".")) {
+                    List<ColumnRef> refs = columnRefs(column.getValue(), new LinkedHashSet<String>());
+                    if (refs != null) {
+                        columns.put(column.getKey().toLowerCase(Locale.ROOT), refs);
+                    }
+                }
+            }
+            columns.putAll(usingJoinKeys);
+        }
+        if (!projections.isEmpty()) {
+            for (int i = 0; i < projections.size(); i++) {
+                Projection projection = projections.get(i);
+                if (projection.star) {
+                    for (ColumnLineage column : starColumnLineage(null, projection)) {
+                        addPipeAliasColumn(columns, ambiguous, column.getTarget().getName(), column.getSources());
+                    }
+                    continue;
+                }
+                List<ColumnRef> refs = columnRefs(projection);
+                if (refs != null) {
+                    if (pipeRetainsInputColumns) {
+                        columns.remove(projection.targetColumn.toLowerCase(Locale.ROOT));
+                    }
+                    addPipeAliasColumn(columns, ambiguous, projection.targetColumn, refs);
+                    projections.set(i, new Projection(resolvedSources(refs),
+                            projection.targetColumn, projection.expression, projection.ordinal));
+                }
+            }
+        }
+        // An unqualified star across multiple inputs does not establish an owner for an unknown column.
+        if (visibleRelationCount > 1 || ambiguous.contains("*")) {
+            columns.remove("*");
+        }
+        String relation = "\0spark-pipe-alias-" + pipeAliasSequence++;
+        tableAliases.clear();
+        derivedAliases.clear();
+        derivedReferences.clear();
+        qualifiedColumnHints.clear();
+        generatedColumns.clear();
+        pipeAssignedColumns.clear();
+        usingJoinKeys = Collections.emptyMap();
+        visibleRelations.clear();
+        visibleRelations.add(VisibleRelation.derived(relation));
+        visibleRelationCount = 1;
+        firstVisibleInputTable = null;
+        derivedColumnLineage.put(relation, columns);
+        derivedAliases.put(name, relation);
+        derivedReferences.add(relation);
+        pipeOutputProjectionStart = 0;
+    }
+
+    private static void addPipeAliasColumn(Map<String, List<ColumnRef>> columns, Set<String> ambiguous,
+                                           String name, List<ColumnRef> refs) {
+        String key = name.toLowerCase(Locale.ROOT);
+        if (ambiguous.contains(key)) {
+            return;
+        }
+        if (columns.containsKey(key)) {
+            columns.remove(key);
+            ambiguous.add(key);
+        } else {
+            columns.put(key, refs);
+        }
+    }
+
     private void applyPipeAssignments(SqlBaseParser.OperatorPipeSetAssignmentSeqContext ctx) {
         flushPendingColumnUsages();
+        pipeRetainsInputColumns |= projections.isEmpty();
         Map<String, List<ColumnRef>> assignments = new LinkedHashMap<>();
         Map<String, String> expressions = new LinkedHashMap<>();
         for (int i = 0; i < ctx.ident.size(); i++) {

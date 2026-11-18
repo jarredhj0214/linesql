@@ -3109,6 +3109,103 @@
       "description": "A constant Pipe SET assignment does not invent a physical reference; a later SELECT after a wildcard keeps the replacement"
     },
     {
+      "id": "pipe_as_physical_relation",
+      "file": "cases/pipe_as_physical_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.events.event_type"
+        }
+      ],
+      "description": "Spark pipe alias references the physical input columns"
+    },
+    {
+      "id": "pipe_as_projected_relation",
+      "file": "cases/pipe_as_projected_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Spark pipe alias exposes the previous projection, not the physical column names"
+    },
+    {
+      "id": "pipe_as_cte_relation",
+      "file": "cases/pipe_as_cte_relation.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.events"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "event_id",
+          "sources": [
+            "ods.events.id"
+          ]
+        }
+      ],
+      "columnUsages": [],
+      "description": "Spark pipe alias preserves lineage from a named CTE"
+    },
+    {
+      "id": "pipe_as_after_set",
+      "file": "cases/pipe_as_after_set.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "ods.orders"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "ods.orders.id"
+          ]
+        },
+        {
+          "target": "total",
+          "sources": [
+            "ods.orders.price",
+            "ods.orders.quantity"
+          ]
+        }
+      ],
+      "columnUsages": [
+        {
+          "type": "WHERE",
+          "column": "ods.orders.price"
+        },
+        {
+          "type": "WHERE",
+          "column": "ods.orders.quantity"
+        }
+      ],
+      "description": "Spark pipe alias exposes updated columns, including in filters"
+    },
+    {
       "id": "pipe_drop_column_projection",
       "file": "cases/pipe_drop_column_projection.sql",
       "statementType": "SELECT",
