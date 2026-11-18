@@ -712,6 +712,29 @@ public class LineSqlAutoDetectionIntegrationTest {
     }
 
     @Test
+    public void detectsStarRocksNativeIndexesAndBracketedJoinHints() {
+        LineageResult join = LineSql.parse(
+                "SELECT o.amount FROM ods.users u JOIN [broadcast] dwd.orders o ON u.id = o.user_id");
+        assertEquals(SqlDialect.STARROCKS, join.getDialect());
+        assertEquals(StatementType.SELECT, join.getStatementType());
+        assertTrue(join.getDiagnostics().isEmpty());
+        assertEquals("orders", join.getColumnLineage().get(0).getSources().get(0).getTable().getName());
+        assertTrue(join.getColumnUsages().stream()
+                .anyMatch(usage -> "user_id".equals(usage.getColumn().getName())));
+        assertDialect(SqlDialect.SQLSERVER, "SELECT o.amount FROM dbo.users u JOIN [broadcast] o ON u.id = o.user_id");
+
+        LineageResult index = LineSql.parse("ALTER TABLE mart.orders ADD INDEX idx_id (id) USING BITMAP");
+        assertEquals(SqlDialect.STARROCKS, index.getDialect());
+        assertEquals(StatementType.ALTER_TABLE, index.getStatementType());
+        assertEquals("id", index.getColumnUsages().get(0).getColumn().getName());
+        assertTrue(index.getDiagnostics().isEmpty());
+        assertTrue(LineSql.parse("CREATE INDEX idx ON metrics.docs USING gin (body)").getDialect()
+                != SqlDialect.STARROCKS);
+        assertDialect(SqlDialect.SPARK, "CREATE TABLE raw.t (id BIGINT) USING gin");
+        assertDialect(SqlDialect.SPARK, "SELECT 'JOIN [broadcast] mart.orders' AS note");
+    }
+
+    @Test
     public void distinguishesStarRocksExternalCatalogsAndFlinkCatalogProperties() {
         LineageResult external = LineSql.parse("CREATE EXTERNAL CATALOG iceberg_catalog "
                 + "PROPERTIES (\"type\" = \"iceberg\", \"iceberg.catalog.type\" = \"hive\")");

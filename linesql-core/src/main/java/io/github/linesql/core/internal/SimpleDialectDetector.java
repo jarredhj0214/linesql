@@ -61,6 +61,11 @@ public class SimpleDialectDetector implements DialectDetector {
                     + "|show\\s+pipes|(?:create|alter|drop|desc(?:ribe)?)\\s+storage\\s+volume"
                     + "|show\\s+storage\\s+volumes|set\\s+default\\s+storage\\s+volume)\\b");
 
+    private static final Pattern STARROCKS_NATIVE_INDEX = Pattern.compile(
+            "^\\s*(?:create\\s+index\\b|(?:create|alter)\\s+table\\b[^;]*"
+                    + "(?:[,(]\\s*|\\badd\\s+)index\\s+\\w+\\s*\\()[^;]*"
+                    + "\\)\\s+using\\s+(?:bitmap|ngrambf|gin|vector)\\b");
+
     private static final Pattern STARROCKS_JOIN = Pattern.compile(
             "\\basof\\s+(?:inner|left(?:\\s+outer)?)\\s+join\\b"
                     + "|\\bright\\s+(?:semi|anti)\\s+join\\b|\\bnull\\s+aware\\s+left\\s+anti\\s+join\\b");
@@ -403,6 +408,9 @@ public class SimpleDialectDetector implements DialectDetector {
     private static final Pattern STARROCKS_DOUBLE_QUOTED_CATALOG_OPTIONS = Pattern.compile(
             "^\\s*alter\\s+catalog\\s+" + FLINK_IDENTIFIER
                     + "\\s+(?:comment\\s+|(?:set|reset)\\s*\\(\\s*)" + DOUBLE_QUOTED_IDENTIFIER);
+    private static final Pattern STARROCKS_BRACKET_JOIN_HINT = Pattern.compile(
+            "\\bjoin\\s+\\[\\s*(?:broadcast|shuffle|bucket|colocate)\\s*\\]\\s+"
+                    + FLINK_IDENTIFIER + "\\s*\\.\\s*" + FLINK_IDENTIFIER);
     private static final String FLINK_QUALIFIED_IDENTIFIER =
             FLINK_IDENTIFIER + "(?:\\s*\\.\\s*" + FLINK_IDENTIFIER + ")*";
     private static final String FLINK_STRING_OPTION_START = "\\s*\\(\\s*" + SINGLE_QUOTED_STRING;
@@ -742,6 +750,10 @@ public class SimpleDialectDetector implements DialectDetector {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks cluster administration syntax"));
         } else if (STARROCKS_PIPE_OR_STORAGE_VOLUME.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks pipe or storage volume syntax"));
+        } else if ((unquotedSyntax.contains("index") && STARROCKS_NATIVE_INDEX.matcher(
+                QUOTED_IDENTIFIER.matcher(relationSyntax).replaceAll("quoted_identifier")).find())
+                || (relationSyntax.indexOf('[') >= 0 && STARROCKS_BRACKET_JOIN_HINT.matcher(relationSyntax).find())) {
+            candidates.add(candidate(SqlDialect.STARROCKS, 0.99, "StarRocks index or bracketed join hint syntax"));
         } else if (STARROCKS_JOIN.matcher(unquotedSyntax).find()
                 || (!unquotedSyntax.contains("match_condition") && STARROCKS_ASOF_ON.matcher(unquotedSyntax).find())) {
             candidates.add(candidate(SqlDialect.STARROCKS, 0.98, "StarRocks ASOF or directional semi/anti join"));
@@ -867,7 +879,7 @@ public class SimpleDialectDetector implements DialectDetector {
         } else if (TSQL_FOR_SERIALIZATION.matcher(unquotedSyntax).find()) {
             candidates.add(candidate(SqlDialect.SQLSERVER, 0.98, "SQL Server FOR JSON or FOR XML output"));
         } else if (TSQL_TOP_SELECT.matcher(relationSyntax).find()
-                || containsSqlServerBracketIdentifier(normalized)
+                || containsSqlServerBracketIdentifier(relationSyntax)
                 || normalized.matches("(?s).*\\bwith\\s*\\(\\s*nolock\\s*\\).*")
                 || normalized.matches("(?s).*\\b(openjson|openxml|openquery|openrowset)\\s*\\(.*")) {
             candidates.add(sqlServerGo

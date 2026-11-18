@@ -1359,6 +1359,7 @@ Implemented StarRocks clause-level column usage scenarios:
 | JOIN ON over CTE references | `with u as (...), o as (...) select ... from u join o on u.id = o.user_id` | `join_on_derived_scope` |
 | JOIN ON over derived subqueries | `select ... from (select ...) u join (select ...) o on u.id = o.user_id` | `join_on_subquery_scope` |
 | StarRocks join hints | `join [broadcast] t2 on ...`, `join [bucket] t2 on ...` | `join_broadcast_hint_column_usage`, `join_bucket_hint_group_usage` |
+| Automatic StarRocks index and join-hint detection | Native index methods after the index column list and bracketed join hints before qualified relations select StarRocks automatically. Index and join column references are retained. | `alter_table_add_bitmap_index`, `create_index_vector_properties`, `join_broadcast_hint_column_usage`, `join_bucket_hint_group_usage` |
 | UNION branch WHERE source columns | `select id from ods.s1 where ... union all select id from ods.s2 where ...` | `set_operation_clause_column_usage` |
 | DELETE USING WHERE source columns | `delete from ads.t using ods.s s where t.id = s.id` | `delete_using` |
 | DELETE USING derived WHERE columns | `delete from ads.t using (select id from ods.s) q where t.id = q.id` | `delete_using_derived` |
