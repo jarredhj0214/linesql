@@ -2332,6 +2332,8 @@ Known MySQL gaps:
 
 ## Spark
 
+Nested CTEs retain column lineage when multiple derived columns share physical source tables. Source tables are registered once per derived relation to avoid repeated full projection lineage refreshes. Regression case: `select_shared_cte_source_tables`.
+
 Spark is the first implemented dialect. It uses Apache Spark's official ANTLR grammar as the parse baseline, while lineage extraction is implemented by LineSQL.
 
 Current Spark SQL case assets:

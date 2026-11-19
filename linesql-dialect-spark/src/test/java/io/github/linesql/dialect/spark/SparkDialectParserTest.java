@@ -23,6 +23,51 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class SparkDialectParserTest {
+    @Test(timeout = 30000)
+    public void parsesWideNestedCtesWithSharedSourceTables() {
+        int width = 768;
+        int depth = 12;
+        StringBuilder sql = new StringBuilder("WITH stage_0 AS (SELECT ");
+        for (int column = 0; column < width; column++) {
+            if (column > 0) sql.append(", ");
+            sql.append("COALESCE(a.v").append(column).append(", b.v").append(column)
+                    .append(", 0) AS c").append(column);
+        }
+        sql.append(" FROM sample.events a JOIN sample.adjustments b ON a.id = b.id)");
+        for (int stage = 1; stage < depth; stage++) {
+            sql.append(", stage_").append(stage).append(" AS (SELECT ");
+            for (int column = 0; column < width; column++) {
+                if (column > 0) sql.append(", ");
+                sql.append("c").append(column).append(" + c").append((column + 1) % width)
+                        .append(" AS c").append(column);
+            }
+            sql.append(" FROM stage_").append(stage - 1).append(")");
+        }
+        sql.append(" SELECT ");
+        for (int column = 0; column < width; column++) {
+            if (column > 0) sql.append(", ");
+            sql.append("c").append(column);
+        }
+        sql.append(" FROM stage_").append(depth - 1);
+
+        LineageResult result = LineSql.parse(sql.toString());
+        assertEquals(2, result.getInputTables().size());
+        assertEquals(width, result.getColumnLineage().size());
+        assertTrue(result.getDiagnostics().isEmpty());
+        // Each stage adds one adjacent source column, across both physical tables.
+        for (int column = 0; column < width; column++) {
+            Set<String> expected = new LinkedHashSet<>();
+            for (int offset = 0; offset < depth; offset++) {
+                expected.add("events.v" + ((column + offset) % width));
+                expected.add("adjustments.v" + ((column + offset) % width));
+            }
+            Set<String> actual = result.getColumnLineage().get(column).getSources().stream()
+                    .map(ref -> ref.getTable().getName() + "." + ref.getName())
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            assertEquals("c" + column, expected, actual);
+        }
+    }
+
     @Test
     public void expandsKnownLiteralSessionVariablesWithoutSharingDefaultContexts() {
         List<LineageResult> results = LineSql.parseScript(sqlCase("script_execute_immediate_literal_variable"));

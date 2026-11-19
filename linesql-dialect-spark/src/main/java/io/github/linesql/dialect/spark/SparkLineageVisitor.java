@@ -2567,12 +2567,18 @@ class SparkLineageVisitor extends SqlBaseParserBaseVisitor<Void> {
         if (columns == null) {
             return;
         }
+        // Many derived columns share the same physical source table. Register each
+        // source once, rather than rebuilding every projection's lineage per column.
+        Set<TableRef> sourceTables = new LinkedHashSet<>();
         for (List<ColumnRef> refs : columns.values()) {
             for (ColumnRef ref : refs) {
                 if (ref.getTable() != null) {
-                    addInputTable(ref.getTable(), false);
+                    sourceTables.add(ref.getTable());
                 }
             }
+        }
+        for (TableRef table : sourceTables) {
+            addInputTable(table, false);
         }
     }
 
