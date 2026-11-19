@@ -2,6 +2,40 @@
   "dialect": "SPARK",
   "cases": [
     {
+      "id": "select_shared_cte_source_tables",
+      "file": "cases/select_shared_cte_source_tables.sql",
+      "statementType": "SELECT",
+      "inputTables": [
+        "sample.events",
+        "sample.adjustments"
+      ],
+      "outputTables": [],
+      "columnLineage": [
+        {
+          "target": "id",
+          "sources": [
+            "sample.events.id"
+          ]
+        },
+        {
+          "target": "total",
+          "sources": [
+            "sample.events.amount",
+            "sample.adjustments.adjustment",
+            "sample.events.quantity"
+          ]
+        },
+        {
+          "target": "original",
+          "sources": [
+            "sample.events.amount"
+          ]
+        }
+      ],
+      "expectedDiagnostics": [],
+      "description": "Nested CTE projections retain all lineage when several columns share physical source tables"
+    },
+    {
       "id": "select_quoted_dialect_markers",
       "file": "cases/select_quoted_dialect_markers.sql",
       "statementType": "SELECT",
